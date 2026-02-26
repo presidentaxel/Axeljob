@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Lettre de motivation</title>
+  <link rel="stylesheet" href="letter_template.css">
+</head>
+<body>
+  <article class="lettre">
+    <p class="lettre-coords">
+      {{ prenom }} {{ nom }}<br>
+      {{ email }} · {{ telephone }}<br>
+      {{ ville }}
+    </p>
+    <p class="lettre-date">{{ date_envoi }}</p>
+    <p class="lettre-destinataire">
+      {% if entreprise %}{{ entreprise }}<br>{% endif %}
+      {% if poste %}Objet : Candidature – {{ poste }}{% endif %}
+    </p>
+    <p class="lettre-appel">Madame, Monsieur,</p>
+    <div class="lettre-corps">
+      {{ corps_lettre | safe }}
+    </div>
+    <p class="lettre-formule">Je vous prie d'agréer, Madame, Monsieur, l'expression de ma considération distinguée.</p>
+    <p class="lettre-signature">{{ prenom }} {{ nom }}</p>
+  </article>
+</body>
+</html>

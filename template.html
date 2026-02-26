@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CV - {{ prenom }} {{ nom }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="template.css">
+</head>
+<body class="{% if for_preview %}cv-preview{% endif %}">
+  <article class="cv">
+    <header class="cv-header">
+      <div class="header-top-row">
+        <div class="header-photo">
+          {% if photo_url %}
+          <img src="{{ photo_url }}" alt="">
+          {% endif %}
+        </div>
+        <h1 class="header-nom">{{ prenom }} {{ nom }} <span class="header-titre-sep">-</span> <span class="header-titre-inline">{{ titre_professionnel_display|safe }}</span></h1>
+      </div>
+      <p class="resume-text">{{ resume_display|safe }}</p>
+      <p class="header-contact">
+        <span class="contact-icon">✆</span> {{ telephone }}
+        <span class="contact-spacer"> </span><span class="contact-icon">✉</span> {{ email }}
+        {% if linkedin %}
+        <span class="contact-spacer"> </span><span class="contact-icon">◉</span> {{ linkedin }}
+        {% endif %}
+      </p>
+    </header>
+
+    <!-- Corps en flux unique : ordre DOM = ordre de lecture ATS (main puis sidebar) ; le CSS positionne la sidebar à gauche visuellement -->
+    <div class="cv-body">
+    <div class="cv-main">
+      <section class="section-experiences" id="experiences">
+        <h2 class="section-title">EXPÉRIENCE PROFESSIONNELLE</h2>
+        <div class="experiences-list">
+          {% for exp in experiences_for_display %}
+          <div class="experience-item">
+            <div class="exp-header">
+              <span class="exp-entreprise">{{ exp.entreprise }}</span>
+              <span class="exp-dates">{{ exp.date_debut }} - {{ exp.date_fin }}{% if exp.lieu %} · {{ exp.lieu }}{% endif %}</span>
+            </div>
+            <p class="exp-poste">{{ exp.poste }}{% if exp.secteur %} — {{ exp.secteur }}{% endif %}</p>
+            {% for bullet in exp.bullet_points %}
+            <p class="bullet">- {{ bullet.html|safe }}</p>
+            {% endfor %}
+            {% if exp.clients %}
+            <p class="exp-clients">Clients : {{ exp.clients }}</p>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="section-formation" id="formation">
+        <h2 class="section-title">FORMATION</h2>
+        {% for form in (formations or [])[:3] %}
+        <div class="formation-item">
+          <p class="formation-header">
+            <span class="formation-diplome">{{ form.etablissement }} - {{ form.diplome }}</span>
+            <span class="formation-date">{{ form.date }}</span>
+          </p>
+          {% if form.mention %}
+          <p class="formation-mention">{{ form.mention }}</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </section>
+
+      {% if projets %}
+      <section class="section-projets" id="projets">
+        <h2 class="section-title">PROJETS</h2>
+        {% for proj in (projets or [])[:1] %}
+        <div class="projet-item">
+          <p class="projet-nom">{{ proj.nom }}</p>
+          <p class="projet-description">{{ proj.description }}</p>
+        </div>
+        {% endfor %}
+      </section>
+      {% endif %}
+    </div>
+
+    <div class="cv-sidebar">
+      <section class="section-sidebar" id="competences-techniques">
+        <h2 class="section-title">COMPÉTENCES</h2>
+        <h3 class="sidebar-category">Compétences techniques</h3>
+        {% for item in competences.techniques %}
+        <p class="sidebar-item">{{ item }}</p>
+        {% endfor %}
+      </section>
+
+      <section class="section-sidebar" id="competences-informatiques">
+        <h3 class="sidebar-category">Logiciels & outils</h3>
+        {% for item in competences.logiciels or competences.informatiques or [] %}
+        <p class="sidebar-item">{{ item }}</p>
+        {% endfor %}
+      </section>
+
+      <section class="section-sidebar" id="langues">
+        <h2 class="section-title">LANGUES</h2>
+        {% for l in competences.langues %}
+        <p class="sidebar-item">{{ l.langue }} - {{ l.niveau }}</p>
+        {% endfor %}
+      </section>
+
+      {% set autres_items = competences.autres or loisirs or [] %}
+      {% if autres_items %}
+      <section class="section-sidebar" id="autres">
+        <h2 class="section-title">AUTRES</h2>
+        {% for item in autres_items %}
+        <p class="sidebar-item">{{ item }}</p>
+        {% endfor %}
+      </section>
+      {% endif %}
+
+      <!-- Mots-clés ATS : sous AUTRES, titre visible pour vérification ; le texte est invisible (même couleur que le fond) pour les ATS -->
+      {% if mots_cles_cache %}
+      <section class="section-sidebar section-mots-cles-ats" id="mots-cles-ats">
+        <h3 class="sidebar-category mots-cles-ats-titre">Mots-clés ATS</h3>
+        <p class="mots-cles-ats-invisible" aria-hidden="true">{{ mots_cles_cache }}</p>
+      </section>
+      {% endif %}
+    </div>
+    </div>
+  </article>
+</body>
+</html>

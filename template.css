@@ -1,0 +1,430 @@
+  /* ============================================
+   CV Template — ATS-safe, single column, print
+   ============================================ */
+
+  /* Polices identiques en navigateur et en PDF (WeasyPrint charge ce CSS) */
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap');
+
+   @page {
+    size: A4;
+    margin: 0;
+  }
+  
+  * {
+    box-sizing: border-box;
+  }
+  
+  body {
+    font-family: Arial, sans-serif;
+    font-size: 9.5pt;
+    line-height: 1.4;
+    color: #1a1a1a;
+    margin: 0;
+    padding: 0;
+  }
+  
+  .cv {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+      "header"
+      "body";
+    width: 210mm;
+    height: 297mm;
+    max-height: 297mm;
+    margin: 0 auto;
+    overflow: hidden;
+  }
+
+  /* Corps : flux unique pour l'ATS (ordre DOM = main puis sidebar), positionnement visuel inchangé */
+  .cv-body {
+    grid-area: body;
+    position: relative;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* ----- Main : contenu à gauche, block flow normal (pas de flex = ordre DOM garanti dans le PDF) ----- */
+  .cv-main {
+    margin-right: 200px;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    background: white;
+  }
+
+  /* ----- Header : flux vertical unique (copie PDF = Nom → Titre → Résumé → Contact) ----- */
+  .cv-header {
+    grid-area: header;
+    background-color: #1e2a3a;
+    color: white;
+    padding: 12px 16px;
+  }
+
+  .header-top-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .header-photo {
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+  }
+
+  .header-photo img {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: 2px solid white;
+    object-fit: cover;
+    display: block;
+  }
+
+  .header-nom {
+    font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+    font-size: 15pt;
+    font-weight: 700;
+    margin: 0;
+    color: white;
+    line-height: 1.2;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .header-titre-sep {
+    font-weight: 400;
+    opacity: 0.7;
+    margin: 0 4px;
+  }
+
+  .header-titre-inline {
+    font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+    font-size: 10pt;
+    font-weight: 600;
+    opacity: 0.95;
+  }
+
+  .resume-text {
+    font-family: Arial, sans-serif;
+    font-size: 9pt;
+    font-weight: 400;
+    font-style: italic;
+    text-align: justify;
+    margin: 6px 0 0 0;
+    color: white;
+    line-height: 1.35;
+  }
+
+  .header-contact {
+    font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+    font-size: 9pt;
+    font-weight: 400;
+    margin: 6px 0 0 0;
+    color: white;
+    line-height: 1.4;
+    text-align: center;
+  }
+
+  .contact-icon {
+    color: rgba(255, 255, 255, 0.9);
+    margin-right: 2px;
+    vertical-align: middle;
+    display: inline-block;
+  }
+  
+  /* ----- Titres de sections (style référence) ----- */
+  .section-title {
+    font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+    font-size: 9.5pt;
+    font-weight: 700;
+    color: #1e2a3a;
+    border-bottom: 2px solid #1e2a3a;
+    padding-bottom: 1px;
+    margin: 0 0 4px 0;
+    letter-spacing: 0.04em;
+  }
+  
+  /* ----- 2. Expériences (dans .cv-main) ----- */
+  .section-experiences {
+    background: white;
+    padding: 8px 16px;
+  }
+  
+  .experiences-list {
+    padding: 0;
+    margin: 0;
+  }
+  
+  .experience-item {
+    position: relative;
+    margin-bottom: 6px;
+  }
+  
+  .experience-item:last-child {
+    margin-bottom: 0;
+  }
+  
+  .exp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 2px;
+  }
+  
+  .exp-entreprise {
+    font-weight: bold;
+    color: #1a1a1a;
+  }
+  
+  .exp-dates {
+    font-weight: bold;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  
+  .exp-poste {
+    font-style: italic;
+    color: #555;
+    margin: 0 0 4px 0;
+  }
+
+  .exp-contexte {
+    font-size: 8.5pt;
+    font-style: italic;
+    color: #666;
+    margin: 0 0 4px 0;
+    line-height: 1.35;
+  }
+
+  .experience-item .bullet {
+    margin: 0;
+    padding-left: 0;
+    color: #1a1a1a;
+    font-size: 8.5pt;
+    line-height: 1.35;
+  }
+  
+  /* Ligne clients en bas de chaque bloc expérience (comme sur le CV référence) */
+  .exp-clients {
+    font-style: italic;
+    font-size: 8.5pt;
+    color: #555;
+    margin: 6px 0 0 0;
+    padding-top: 4px;
+    border-top: 1px solid #e8e8e8;
+  }
+  
+  /* ----- 3. Formation (dans .cv-main) ----- */
+  .section-formation {
+    background: white;
+    padding: 4px 16px 8px;
+  }
+  
+  .formation-item {
+    margin-bottom: 4px;
+  }
+  
+  .formation-item:last-child {
+    margin-bottom: 0;
+  }
+  
+  .formation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin: 0 0 2px 0;
+  }
+  
+  .formation-diplome {
+    font-weight: bold;
+    color: #1a1a1a;
+  }
+  
+  .formation-date {
+    font-weight: bold;
+    white-space: nowrap;
+  }
+  
+  .formation-mention {
+    font-style: italic;
+    color: #555;
+    margin: 0;
+  }
+  
+/* ----- Sidebar : colonne droite visuelle (ordre de copie = main puis sidebar) ----- */
+  .cv-sidebar {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background-color: #f4f4f2;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .section-sidebar {
+    background-color: transparent;
+    padding: 10px 12px;
+    padding-bottom: 4px;
+  }
+  
+  .section-sidebar + .section-sidebar {
+    margin-top: 0;
+    padding-top: 0;
+  }
+  
+  #competences-techniques {
+    padding-top: 20px;
+  }
+  
+  #competences-informatiques,
+  #langues,
+  #loisirs {
+    padding-top: 4px;
+  }
+  
+  #competences-informatiques .section-title,
+  #langues .section-title,
+  #loisirs .section-title {
+    margin-top: 14px;
+    margin-bottom: 10px;
+  }
+  
+  .sidebar-category {
+    font-weight: bold;
+    font-size: 9.5pt;
+    color: #1e2a3a;
+    margin: 0 0 4px 0;
+  }
+  
+  .sidebar-item {
+    font-size: 8.5pt;
+    color: #333;
+    line-height: 1.4;
+    margin: 0 0 1px 0;
+  }
+  
+  .sidebar-item:last-child {
+    margin-bottom: 0;
+  }
+  
+  /* Masquer le titre "COMPÉTENCES" en doublon (déjà dans #competences-techniques) */
+  #competences-informatiques > .section-title,
+  #competences-techniques > .section-title:first-child {
+    display: block;
+  }
+  
+  #competences-techniques > .section-title {
+    margin-bottom: 10px;
+  }
+  
+  #langues > .section-title,
+  #loisirs > .section-title,
+  #autres > .section-title {
+    margin-top: 14px;
+  }
+  
+  #competences-informatiques,
+  #langues,
+  #loisirs,
+  #autres {
+    padding-top: 4px;
+  }
+  
+  /* ----- Projets (dans .cv-main) ----- */
+  .section-projets {
+    background: white;
+    padding: 8px 16px 12px;
+  }
+  
+  .section-projets .section-title {
+    margin-bottom: 6px;
+  }
+  
+  .projet-item {
+    margin-bottom: 6px;
+  }
+  
+  .projet-item:last-child {
+    margin-bottom: 0;
+  }
+  
+  .projet-nom {
+    font-weight: bold;
+    font-size: 9.5pt;
+    color: #1a1a1a;
+    margin: 0 0 1px 0;
+  }
+  
+  .projet-description {
+    font-size: 8.5pt;
+    color: #555;
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  /* Section Mots-clés ATS : titre et texte en petite taille ; en export le titre est masqué */
+  .section-mots-cles-ats {
+    margin-top: 14px;
+  }
+
+  .section-mots-cles-ats .mots-cles-ats-titre {
+    font-size: 7pt;
+    font-weight: bold;
+  }
+
+  .mots-cles-ats-invisible {
+    font-size: 6.5pt;
+    line-height: 1.3;
+    color: #f4f4f2;
+    background: transparent;
+    margin: 0;
+    padding: 0;
+  }
+
+  body.cv-preview .mots-cles-ats-invisible {
+    color: #1a1a1a;
+  }
+
+  @media print {
+    .mots-cles-ats-titre {
+      display: none;
+    }
+    .mots-cles-ats-invisible {
+      color: #f4f4f2;
+      font-size: 6.5pt;
+      line-height: 1.3;
+    }
+  }
+
+  /* Surlignage des parties modifiées (aperçu uniquement ; pas d’effet à l’impression) */
+  .cv-changed {
+    background-color: #b8d4be;
+    padding: 0 1px;
+    border-radius: 1px;
+  }
+
+  .cv-header .cv-changed {
+    background-color: #3d6b4a;
+    color: #b8e0c0;
+  }
+
+  @media print {
+    .cv-changed {
+      background-color: transparent;
+      padding: 0;
+    }
+    .cv-header .cv-changed {
+      color: inherit;
+      background-color: transparent;
+    }
+  }

@@ -1,0 +1,43 @@
+@page { size: A4; margin: 2.2cm; }
+* { box-sizing: border-box; }
+body {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 11pt;
+  line-height: 1.5;
+  color: #1a1a1a;
+  margin: 0;
+  padding: 0;
+}
+.lettre { max-width: 100%; }
+.lettre-coords {
+  font-size: 10pt;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.4;
+}
+.lettre-date {
+  text-align: right;
+  font-size: 10pt;
+  margin: 0 0 1.5rem 0;
+}
+.lettre-destinataire {
+  margin: 0 0 1.5rem 0;
+  font-size: 10pt;
+  line-height: 1.4;
+}
+.lettre-appel {
+  margin: 0 0 1rem 0;
+  font-weight: bold;
+}
+.lettre-corps {
+  margin: 0 0 1rem 0;
+  text-align: justify;
+}
+.lettre-corps p { margin: 0 0 0.75rem 0; }
+.lettre-formule {
+  margin: 1.5rem 0 0.5rem 0;
+  font-style: italic;
+}
+.lettre-signature {
+  margin: 1.5rem 0 0 0;
+  font-weight: bold;
+}

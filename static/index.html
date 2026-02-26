@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CV Bot — Adapter ton CV à l'annonce</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --border: #2d3a4d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --success: #3fb950;
+      --danger: #f85149;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: 0;
+      min-height: 0;
+    }
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    }
+    .preview-pane {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      min-height: 0;
+    }
+    .preview-pane h2 {
+      margin: 0;
+      padding: 0.75rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .preview-wrap {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      background: #fff;
+    }
+    .preview-wrap iframe {
+      width: 100%;
+      height: 100%;
+      min-height: 600px;
+      border: none;
+      display: block;
+    }
+    .side-pane {
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      overflow: auto;
+    }
+    .side-pane h2 {
+      margin: 0;
+      padding: 1rem 1rem 0;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .side-pane .section {
+      padding: 1rem;
+    }
+    textarea {
+      width: 100%;
+      min-height: 180px;
+      padding: 0.75rem;
+      font-family: inherit;
+      font-size: 0.875rem;
+      line-height: 1.5;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      resize: vertical;
+    }
+    textarea::placeholder {
+      color: var(--muted);
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.6rem 1.2rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+      margin-top: 0.5rem;
+    }
+    .btn-success:hover { filter: brightness(1.1); }
+    .rapport {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.8125rem;
+    }
+    .rapport h3 { margin: 0 0 0.5rem 0; font-size: 0.8125rem; color: var(--muted); }
+    .rapport p { margin: 0.25rem 0; }
+    .rapport .score { color: var(--accent); font-weight: 600; }
+    .error {
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      background: rgba(248, 81, 73, 0.15);
+      border: 1px solid var(--danger);
+      border-radius: 8px;
+      font-size: 0.875rem;
+      color: #f85149;
+    }
+    .loading { opacity: 0.7; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>CV Bot — Colle l’annonce, adapte le CV avec Gemini</h1>
+  </header>
+  <main>
+    <div class="preview-pane">
+      <h2>Aperçu du CV</h2>
+      <div class="preview-wrap">
+        <iframe id="cvPreview" title="Aperçu du CV"></iframe>
+      </div>
+    </div>
+    <div class="side-pane">
+      <h2>Annonce du poste</h2>
+      <div class="section">
+        <textarea
+          id="annonce"
+          placeholder="Colle ici le texte complet de l’annonce (description du poste, missions, compétences requises…). Le CV sera adapté aux mots-clés de l’annonce."
+        ></textarea>
+        <button type="button" class="btn btn-primary" id="btnAdapt" style="margin-top: 0.75rem;">
+          Adapter le CV avec Gemini
+        </button>
+        <div id="rapport" class="rapport" style="display: none;"></div>
+        <div id="error" class="error" style="display: none;"></div>
+        <div id="exportBlock" style="display: none; margin-top: 1rem;">
+          <label for="entrepriseNom" style="display: block; font-size: 0.8125rem; color: var(--muted); margin-bottom: 0.35rem;">Entreprise</label>
+          <input type="text" id="entrepriseNom" placeholder="ex. Edmond de Rothschild" style="width: 100%; padding: 0.5rem 0.75rem; font-size: 0.875rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); margin-bottom: 0.5rem;">
+          <label for="posteNom" style="display: block; font-size: 0.8125rem; color: var(--muted); margin-bottom: 0.35rem;">Intitulé du poste</label>
+          <input type="text" id="posteNom" placeholder="ex. Alternance Risk Manager" style="width: 100%; padding: 0.5rem 0.75rem; font-size: 0.875rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); margin-bottom: 0.5rem;">
+          <label for="exportDossierPath" style="display: block; font-size: 0.8125rem; color: var(--muted); margin-bottom: 0.35rem;">Dossier d’export (le sous-dossier Entreprise - Poste y sera créé)</label>
+          <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center;">
+            <input type="text" id="exportDossierPath" placeholder="ex. D:\ESSEC\03. ALTERNANCE" style="flex: 1; padding: 0.5rem 0.75rem; font-size: 0.875rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text);">
+            <button type="button" class="btn" id="btnBrowseExportDir" style="flex-shrink: 0;">Parcourir…</button>
+          </div>
+          <p id="exportDirChosen" style="display: none; font-size: 0.8125rem; color: var(--muted); margin: -0.25rem 0 0.5rem 0;"></p>
+          <button type="button" class="btn btn-success" id="btnPdf" style="margin-right: 0.5rem;">
+            Exporter le CV en PDF
+          </button>
+          <button type="button" class="btn btn-success" id="btnExportDossier" style="margin-top: 0.35rem;">
+            Exporter le dossier (CV + lettre + fiche de poste)
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script>
+    const iframe = document.getElementById('cvPreview');
+    const annonceEl = document.getElementById('annonce');
+    const btnAdapt = document.getElementById('btnAdapt');
+    const btnPdf = document.getElementById('btnPdf');
+    const btnExportDossier = document.getElementById('btnExportDossier');
+    const rapportEl = document.getElementById('rapport');
+    const errorEl = document.getElementById('error');
+
+    let lastAdaptedCv = null;
+    const STORAGE_EXPORT_DIR = 'cv_bot_last_export_dir';
+
+    function getExportFolderName(entreprise, poste) {
+      const sanitize = (s) => (s || '').replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+      const ent = sanitize(entreprise);
+      const pos = sanitize(poste) || 'Sans intitulé';
+      return ent ? ent + ' - ' + pos : pos;
+    }
+
+    const exportDossierPathInput = document.getElementById('exportDossierPath');
+    const exportDirChosenEl = document.getElementById('exportDirChosen');
+    const btnBrowseExportDir = document.getElementById('btnBrowseExportDir');
+
+    btnBrowseExportDir.addEventListener('click', () => {
+      exportDossierPathInput.value = '';
+      if (lastAdaptedCv && document.getElementById('posteNom').value.trim()) {
+        document.getElementById('btnExportDossier').click();
+      }
+    });
+
+    (async function initExportDir() {
+      const input = document.getElementById('exportDossierPath');
+      const saved = localStorage.getItem(STORAGE_EXPORT_DIR);
+      if (saved) input.value = saved;
+      if (!saved) {
+        try {
+          const r = await fetch('/api/export-default-dir');
+          if (r.ok) {
+            const data = await r.json();
+            if (data.path) input.placeholder = data.path;
+          }
+        } catch (_) {}
+      }
+    })();
+
+    function showError(msg) {
+      errorEl.textContent = msg;
+      errorEl.style.display = 'block';
+      rapportEl.style.display = 'none';
+    }
+    function hideError() {
+      errorEl.style.display = 'none';
+    }
+    function showRapport(rapport) {
+      errorEl.style.display = 'none';
+      rapportEl.style.display = 'block';
+      const score = rapport.score_global != null ? rapport.score_global : '-';
+      const zones = (rapport.zones_a_adapter || []).join(', ') || 'aucune';
+      const mots = (rapport.mots_cles_manquants || []).slice(0, 10).join(', ');
+      rapportEl.innerHTML = `
+        <h3>Rapport d’adaptation</h3>
+        <p class="score">Score de pertinence : ${score}/10</p>
+        <p>Zones modifiées : ${zones}</p>
+        ${mots ? `<p>Mots-clés intégrés : ${mots}${(rapport.mots_cles_manquants || []).length > 10 ? '…' : ''}</p>` : ''}
+      `;
+    }
+
+    function setPreviewHtml(html) {
+      iframe.srcdoc = html;
+    }
+
+    async function loadInitialPreview() {
+      try {
+        const r = await fetch('/api/cv/preview');
+        if (!r.ok) throw new Error(await r.text());
+        const html = await r.text();
+        setPreviewHtml(html);
+      } catch (e) {
+        showError('Impossible de charger le CV. ' + (e.message || e));
+      }
+    }
+
+    btnAdapt.addEventListener('click', async () => {
+      const description = annonceEl.value.trim();
+      if (!description) {
+        showError('Colle d’abord l’annonce dans la zone de texte.');
+        return;
+      }
+      hideError();
+      btnAdapt.disabled = true;
+      btnAdapt.textContent = 'Adaptation en cours…';
+      document.body.classList.add('loading');
+
+      try {
+        const r = await fetch('/api/adapt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ description })
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          throw new Error(data.error || r.statusText || 'Erreur serveur');
+        }
+        lastAdaptedCv = data.cv;
+        showRapport(data.rapport || {});
+        document.getElementById('exportBlock').style.display = 'block';
+
+        const rBase = await fetch('/api/cv');
+        const baseCv = rBase.ok ? await rBase.json() : null;
+        const rHtml = await fetch('/api/render-html', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cv: data.cv,
+            base_cv: baseCv,
+            highlight_changes: true
+          })
+        });
+        if (rHtml.ok) {
+          const html = await rHtml.text();
+          setPreviewHtml(html);
+        }
+      } catch (e) {
+        showError(e.message || 'Erreur lors de l’adaptation.');
+      } finally {
+        btnAdapt.disabled = false;
+        btnAdapt.textContent = 'Adapter le CV avec Gemini';
+        document.body.classList.remove('loading');
+      }
+    });
+
+    btnPdf.addEventListener('click', async () => {
+      if (!lastAdaptedCv) return;
+      const posteNom = document.getElementById('posteNom').value.trim();
+      try {
+        const r = await fetch('/api/pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cv: lastAdaptedCv, titre: posteNom || undefined })
+        });
+        if (!r.ok) {
+          const data = await r.json().catch(() => ({}));
+          throw new Error(data.error || r.statusText);
+        }
+        const blob = await r.blob();
+        const name = r.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/)?.[1] || 'CV.pdf';
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } catch (e) {
+        showError('Téléchargement PDF : ' + (e.message || e));
+      }
+    });
+
+    btnExportDossier.addEventListener('click', async () => {
+      if (!lastAdaptedCv) return;
+      const posteNom = document.getElementById('posteNom').value.trim();
+      const entrepriseNom = document.getElementById('entrepriseNom').value.trim();
+      const dossierPath = document.getElementById('exportDossierPath').value.trim();
+      const description = annonceEl.value.trim();
+      if (!posteNom) {
+        showError('Indiquez l\'intitulé du poste.');
+        return;
+      }
+      hideError();
+      btnExportDossier.disabled = true;
+      btnExportDossier.textContent = 'Création du dossier en cours…';
+      document.body.classList.add('loading');
+
+      const showSuccess = (folder, files) => {
+        rapportEl.style.display = 'block';
+        rapportEl.innerHTML = '<h3>Dossier créé</h3><p class="score">' + folder + '</p><p>Fichiers : ' + (files || []).join(', ') + '</p>';
+      };
+
+      try {
+        const usePicker = !dossierPath && typeof showDirectoryPicker === 'function';
+        if (usePicker) {
+          const rootHandle = await showDirectoryPicker();
+          const folderName = getExportFolderName(entrepriseNom, posteNom);
+          const subDir = await rootHandle.getDirectoryHandle(folderName, { create: true });
+          const r = await fetch('/api/export-dossier-zip', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              cv: lastAdaptedCv,
+              titre: posteNom,
+              entreprise: entrepriseNom,
+              description: description
+            })
+          });
+          if (!r.ok) {
+            const data = await r.json().catch(() => ({}));
+            throw new Error(data.error || r.statusText);
+          }
+          const zipBlob = await r.blob();
+          const zip = await JSZip.loadAsync(zipBlob);
+          const entries = Object.keys(zip.files).filter(n => !zip.files[n].dir);
+          const filesWritten = [];
+          for (const path of entries) {
+            const name = path.includes('/') ? path.slice(path.indexOf('/') + 1) : path;
+            const blob = await zip.files[path].async('blob');
+            const f = await subDir.getFileHandle(name, { create: true });
+            const w = await f.createWritable();
+            await w.write(blob);
+            await w.close();
+            filesWritten.push(name);
+          }
+          showSuccess(rootHandle.name + '/' + folderName, filesWritten);
+        } else {
+          const r = await fetch('/api/export-dossier', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              cv: lastAdaptedCv,
+              titre: posteNom,
+              entreprise: entrepriseNom,
+              description: description,
+              dossier: dossierPath || undefined
+            })
+          });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok) throw new Error(data.error || r.statusText);
+          if (dossierPath) localStorage.setItem(STORAGE_EXPORT_DIR, dossierPath);
+          showSuccess(data.folder, data.files || []);
+        }
+      } catch (e) {
+        showError('Export dossier : ' + (e.message || e));
+      } finally {
+        btnExportDossier.disabled = false;
+        btnExportDossier.textContent = 'Exporter le dossier (CV + lettre + fiche de poste)';
+        document.body.classList.remove('loading');
+      }
+    });
+
+    loadInitialPreview();
+  </script>
+</body>
+</html>

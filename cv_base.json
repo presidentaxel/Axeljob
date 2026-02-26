@@ -1,0 +1,173 @@
+{
+  "prenom": "Louis",
+  "nom": "Vedovato",
+  "email": "louis.vedovato@essec.edu",
+  "telephone": "+33 7 83 61 45 30",
+  "linkedin": "https://www.linkedin.com/in/louis-vedovato/",
+  "ville": "Cergy",
+  "titre_professionnel": "Étudiant ESSEC - Entrepreneuriat, Tech & Conseil",
+  "resume": "Étudiant ESSEC avec une forte appétence pour la résolution de problèmes concrets et la création de valeur. J'ai lancé ma première entreprise à 16 ans et développé, en autodidacte, des compétences en design, développement, automatisation et IA. J'apprends vite, je m'ennuie rarement, et j'ai l'habitude de travailler avec des clients exigeants en autonomie complète.",
+  "photo_url": "",
+  "experiences": [
+    {
+      "id": "exp_louitos",
+      "poste": "Fondateur",
+      "entreprise": "Louitos",
+      "secteur": "Entrepreneuriat / Créatif / Tech",
+      "date_debut": "2020",
+      "date_fin": "Aujourd'hui",
+      "lieu": "Antony",
+      "contexte": "Lancé à 16 ans. Compte pro ouvert à l'étranger, aucune banque française n'acceptant les mineurs. Autofinancé dès le départ.",
+      "bullet_points": [
+        "Création et développement d'une activité de design graphique et de production visuelle, en apprenant en autonomie les outils Adobe (Illustrator, Premiere Pro, After Effects) — premiers clients obtenus via le bouche-à-oreille.",
+        "Extension vers la pose de covering publicitaire sur véhicules : maîtrise des fichiers d'impression (SAI, cut lines) et modélisation 3D sur Blender pour les rendus de prévisualisation avant pose.",
+        "Automatisation progressive des tâches répétitives via des scripts Python, notamment le traitement d'images en batch.",
+        "Développement d'un outil de vérification photographique automatisée par IA (YOLOv9 + OCR) pour valider la conformité des visuels publicitaires sur les véhicules d'une flotte — réduisant le temps de traitement de plusieurs heures à quelques secondes.",
+        "Gestion complète de la relation client, du cadrage des besoins à la livraison, en totale autonomie."
+      ],
+      "mots_cles": ["entrepreneuriat", "autodidacte", "Python", "intelligence artificielle", "YOLOv9", "OCR", "automatisation", "Adobe Illustrator", "Adobe Premiere Pro", "After Effects", "Blender", "relation client", "gestion de projet"],
+      "clients": "Disney+, Bolt, Serenity Advertising, TV5 Monde, Mobilize"
+    },
+    {
+      "id": "exp_axel",
+      "poste": "Co-fondateur",
+      "entreprise": "Axel Project",
+      "secteur": "Conseil informatique / Développement",
+      "date_debut": "2024",
+      "date_fin": "Aujourd'hui",
+      "lieu": "France",
+      "bullet_points": [
+        "Co-création d'une structure de conseil et développement informatique visant à généraliser les solutions d'automatisation développées chez Louitos à d'autres secteurs.",
+        "Conception et développement full-stack d'un CRM destiné aux TPE/PME : gestion des contacts, suivi des campagnes marketing, envoi d'e-mails personnalisés et calendrier interactif (React, Supabase).",
+        "Prospection commerciale, rédaction de propositions et gestion de projet de A à Z en binôme."
+      ],
+      "mots_cles": ["entrepreneuriat", "développement full-stack", "CRM", "React", "Supabase", "Python", "prospection commerciale", "marketing automation"]
+    },
+    {
+      "id": "exp_harris",
+      "poste": "Chargé d'étude junior",
+      "entreprise": "Harris Interactive",
+      "secteur": "Études de marché & Conseil",
+      "date_debut": "Mai 2024",
+      "date_fin": "Août 2024",
+      "lieu": "Paris",
+      "bullet_points": [
+        "Prise en charge du traitement des données d'enquêtes quantitatives ; automatisation des contrôles qualité via des macros VBA, réduisant significativement le temps de traitement.",
+        "Mise en forme des résultats en livrables PowerPoint à destination des clients, puis montée progressive en charge : rédaction de questionnaires, participation aux rendez-vous clients.",
+        "Réalisation en autonomie d'une étude complète de bout en bout pour Herta lors du dernier mois du stage."
+      ],
+      "mots_cles": ["analyse de données", "études quantitatives", "VBA", "Excel", "PowerPoint", "reporting", "relation client", "autonomie"],
+      "clients": "L'Oréal, Charal, Herta, SEB"
+    },
+    {
+      "id": "exp_ejd",
+      "poste": "Consultant Junior",
+      "entreprise": "ESSEC Junior Développement",
+      "secteur": "Conseil en stratégie",
+      "date_debut": "2023",
+      "date_fin": "2024",
+      "lieu": "Cergy",
+      "bullet_points": [
+        "Réalisation d'études de marché, benchmarks et analyses concurrentielles pour des startups et PME, avec restitution de recommandations stratégiques.",
+        "Prospection commerciale et rédaction de propositions, suivi des projets du cadrage à la livraison."
+      ],
+      "mots_cles": ["études de marché", "analyse concurrentielle", "propositions commerciales", "prospection", "gestion de projet"],
+      "clients": "Startups & PME"
+    },
+    {
+      "id": "exp_genius",
+      "poste": "Trésorier",
+      "entreprise": "Genius ESSEC",
+      "secteur": "Associatif - Entrepreneuriat",
+      "date_debut": "2024",
+      "date_fin": "2026",
+      "lieu": "Cergy",
+      "bullet_points": [
+        "Gestion financière de l'association : budget prévisionnel, suivi de trésorerie, dossier de rescrit fiscal auprès de l'administration.",
+        "Pilotage de la structuration administrative : changement de statuts, ouverture de compte bancaire professionnel, rédaction des rapports d'activité et procès-verbaux d'AG."
+      ],
+      "mots_cles": ["gestion financière", "budget", "démarches administratives", "rigueur", "coordination"]
+    },
+    {
+      "id": "exp_gte",
+      "poste": "Membre",
+      "entreprise": "GT-ESSEC",
+      "secteur": "Associatif - Sport automobile",
+      "date_debut": "2024",
+      "date_fin": "2026",
+      "lieu": "Cergy",
+      "bullet_points": [
+        "Participation aux événements organisés par l'association (rallye, karting).",
+        "Déplacement sur le circuit du Nürburgring (Allemagne) avec un membre de l'association."
+      ],
+      "mots_cles": ["sport automobile", "esprit d'équipe", "passion"]
+    }
+  ],
+  "formations": [
+    {
+      "id": "form_1",
+      "diplome": "Grande École - Niveau Master 1 / 240 ECTS",
+      "etablissement": "ESSEC Business School",
+      "date": "2023 - 2027",
+      "mention": "Cursus 4 ans | Management, Finance, Marketing, Droit, Économie"
+    },
+    {
+      "id": "form_2",
+      "diplome": "Baccalauréat général",
+      "etablissement": "Lycée Descartes",
+      "date": "2020 - 2023",
+      "mention": "Mention Bien | Spécialités : Mathématiques, Sciences de l'Ingénieur, NSI"
+    }
+  ],
+  "competences": {
+    "techniques": [
+      "Python (automatisation, scripting, traitement d'images)",
+      "Intelligence artificielle (YOLOv9, OCR)",
+      "Développement web full-stack (React, Supabase)",
+      "VBA / Excel avancé",
+      "Analyse de données & études de marché",
+      "Gestion de projet (cadrage → livraison)",
+      "Modélisation 3D (Blender)",
+      "Design graphique & production visuelle"
+    ],
+    "logiciels": [
+      "Microsoft Excel (+ VBA)",
+      "Microsoft PowerPoint",
+      "Microsoft Word",
+      "React",
+      "Supabase",
+      "Git / GitHub",
+      "VSCode",
+      "Adobe Illustrator",
+      "Adobe Premiere Pro",
+      "Adobe After Effects",
+      "Blender",
+      "SAI"
+    ],
+    "langues": [
+      { "langue": "Français", "niveau": "Natif" },
+      { "langue": "Anglais", "niveau": "Courant (B2/C1)" },
+      { "langue": "Espagnol", "niveau": "Notions (A2)" }
+    ],
+    "autres": [
+      "Permis B",
+      "Piano - 15 ans de pratique",
+      "Handball - Capitaine & gardien (arrêt sur raison médicale)",
+      "Passion automobile & sport auto"
+    ]
+  },
+  "projets": [
+    {
+      "id": "proj_1",
+      "nom": "CRM TPE/PME - Axel Project",
+      "description": "CRM full-stack développé en autonomie avec un associé : gestion des contacts, campagnes marketing automatisées, envoi d'e-mails personnalisés, calendrier interactif. Stack : React, Supabase, Python.",
+      "mots_cles": ["CRM", "Python", "React", "Supabase", "marketing automation", "full-stack"]
+    },
+    {
+      "id": "proj_2",
+      "nom": "Outil de vérification photo par IA - Louitos / Bolt",
+      "description": "Application combinant YOLOv9 et OCR pour automatiser la validation de visuels publicitaires sur véhicules. Traitement passé de plusieurs heures à quelques secondes. Conçu pour gérer des milliers de vérifications.",
+      "mots_cles": ["IA", "YOLOv9", "OCR", "Python", "automatisation", "computer vision"]
+    }
+  ]
+}

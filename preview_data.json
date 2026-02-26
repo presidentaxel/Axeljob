@@ -1,0 +1,90 @@
+{
+  "prenom": "Marie",
+  "nom": "Martin",
+  "email": "marie.martin@exemple.fr",
+  "telephone": "+33 6 12 34 56 78",
+  "linkedin": "https://www.linkedin.com/in/marie-martin-demo/",
+  "ville": "Paris",
+  "titre_professionnel": "Profil type — À remplacer avec vos données",
+  "resume": "Ceci est un aperçu du template CV avec des données de démonstration. Lancez « python main.py --setup » pour remplir votre cv_base.json, ou copiez cv_base_vierge.json vers cv_base.json et complétez-le.",
+  "photo_url": "",
+  "experiences": [
+    {
+      "id": "exp_1",
+      "poste": "Stagiaire Marketing Digital",
+      "entreprise": "Acme Corp",
+      "secteur": "Tech / E-commerce",
+      "date_debut": "Janv. 2024",
+      "date_fin": "Juin 2024",
+      "lieu": "Paris",
+      "contexte": "",
+      "bullet_points": [
+        "Participation à la création de campagnes email et suivi des KPIs (taux d'ouverture, clics).",
+        "Rédaction de contenus pour les réseaux sociaux et mise à jour du site (CMS)."
+      ],
+      "mots_cles": ["marketing digital", "email", "réseaux sociaux", "CMS"],
+      "clients": ""
+    },
+    {
+      "id": "exp_2",
+      "poste": "Assistant Projet",
+      "entreprise": "Startup XYZ",
+      "secteur": "Conseil",
+      "date_debut": "2023",
+      "date_fin": "2024",
+      "lieu": "Lyon",
+      "contexte": "",
+      "bullet_points": [
+        "Support à l'équipe sur la gestion de projet et la relation client.",
+        "Préparation de supports de présentation et suivi des livrables."
+      ],
+      "mots_cles": ["gestion de projet", "relation client", "autonomie"],
+      "clients": ""
+    }
+  ],
+  "formations": [
+    {
+      "id": "form_1",
+      "diplome": "Master 2 Marketing & Stratégie",
+      "etablissement": "Université Démo",
+      "date": "2022 - 2024",
+      "mention": "Mention Bien"
+    },
+    {
+      "id": "form_2",
+      "diplome": "Licence Économie-Gestion",
+      "etablissement": "Université Démo",
+      "date": "2019 - 2022",
+      "mention": ""
+    }
+  ],
+  "competences": {
+    "techniques": [
+      "Marketing digital",
+      "Analyse de données",
+      "Gestion de projet"
+    ],
+    "logiciels": [
+      "Excel",
+      "PowerPoint",
+      "Canva",
+      "Google Analytics"
+    ],
+    "langues": [
+      { "langue": "Français", "niveau": "Natif" },
+      { "langue": "Anglais", "niveau": "Courant (C1)" }
+    ],
+    "autres": [
+      "Permis B",
+      "Voyages, lecture"
+    ]
+  },
+  "projets": [
+    {
+      "id": "proj_1",
+      "nom": "Projet associatif — Organisation d'un événement",
+      "description": "Co-organisation d'une journée portes ouvertes pour une association étudiante : logistique, communication, partenariats.",
+      "mots_cles": ["événementiel", "travail d'équipe", "communication"]
+    }
+  ]
+}

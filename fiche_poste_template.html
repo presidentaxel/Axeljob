@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Fiche de poste</title>
+  <link rel="stylesheet" href="fiche_poste_template.css">
+</head>
+<body>
+  <article class="fiche-poste">
+    <h1 class="fiche-titre">Fiche de poste</h1>
+    {% if entreprise or poste %}
+    <p class="fiche-meta">{% if entreprise %}{{ entreprise }}{% endif %}{% if entreprise and poste %} — {% endif %}{% if poste %}{{ poste }}{% endif %}</p>
+    {% endif %}
+    <div class="fiche-contenu">{{ contenu }}</div>
+  </article>
+</body>
+</html>

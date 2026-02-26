@@ -1,0 +1,8 @@
+flask
+playwright
+google-genai
+python-dotenv
+weasyprint
+jinja2
+requests
+Pillow

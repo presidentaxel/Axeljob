@@ -372,19 +372,19 @@
     line-height: 1.4;
   }
 
-  /* Section Mots-clés ATS : titre et texte en petite taille ; en export le titre est masqué */
+  /* Section Mots-clés ATS : très petite taille pour tenir sur A4 à l'export ; en export le titre est masqué */
   .section-mots-cles-ats {
-    margin-top: 14px;
+    margin-top: 10px;
   }
 
   .section-mots-cles-ats .mots-cles-ats-titre {
-    font-size: 7pt;
+    font-size: 6pt;
     font-weight: bold;
   }
 
   .mots-cles-ats-invisible {
-    font-size: 6.5pt;
-    line-height: 1.3;
+    font-size: 5pt;
+    line-height: 1.15;
     color: #f4f4f2;
     background: transparent;
     margin: 0;
@@ -401,8 +401,8 @@
     }
     .mots-cles-ats-invisible {
       color: #f4f4f2;
-      font-size: 6.5pt;
-      line-height: 1.3;
+      font-size: 5pt;
+      line-height: 1.15;
     }
   }
 

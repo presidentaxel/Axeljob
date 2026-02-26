@@ -13,16 +13,35 @@ MAX_SIZE = 200  # max width/height en px pour le CV (affichage ~80px, 200 suffit
 JPEG_QUALITY = 85
 
 
-def _find_source_photo(assets_dir: Path) -> Path | None:
-    """Retourne le chemin vers la photo source dans assets/ ou None."""
+IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
+PROFIL_PICTURE_TEMPLATE = "ProfilPicture - {{prenom}} {{nom}}"
+
+
+def _find_source_photo(assets_dir: Path, prenom: str | None = None, nom: str | None = None) -> Path | None:
+    """Retourne le chemin vers la photo source dans assets/ ou None.
+    Cherche : photo.jpg/.png/etc., puis 'ProfilPicture - {prenom} {nom}' (avec/sans extension),
+    puis 'ProfilPicture - {{prenom}} {{nom}}' (nom littéral, avec/sans extension), puis toute image.
+    """
     if not assets_dir.is_dir():
         return None
     for name in PHOTO_NAMES:
         p = assets_dir / name
         if p.is_file():
             return p
+    # ProfilPicture - Prenom Nom ou ProfilPicture - {{prenom}} {{nom}} (avec ou sans extension)
+    candidates = []
+    if prenom or nom:
+        candidates.append(f"ProfilPicture - {(prenom or '').strip()} {(nom or '').strip()}")
+    candidates.append(PROFIL_PICTURE_TEMPLATE)
+    for base_name in candidates:
+        if not base_name:
+            continue
+        for ext in ("",) + tuple(IMAGE_EXTENSIONS):
+            p = assets_dir / (base_name + ext) if ext else assets_dir / base_name
+            if p.is_file():
+                return p
     for f in sorted(assets_dir.iterdir()):
-        if f.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
+        if f.suffix.lower() in IMAGE_EXTENSIONS:
             return f
     return None
 
@@ -51,12 +70,31 @@ def _compress_photo(source: Path, dest: Path) -> bool:
     return True
 
 
-def get_photo_url_for_cv(base_dir: Path, existing_photo_url: str | None) -> str | None:
+def ensure_compressed_photo(
+    base_dir: Path,
+    existing_photo_url: str | None = None,
+    prenom: str | None = None,
+    nom: str | None = None,
+) -> str | None:
+    """
+    Crée photo_cv.jpg à partir de la photo source dans assets/ si elle n'existe pas encore
+    (ou si la source est plus récente). À appeler avant export ou preview.
+    Retourne le path relatif (assets/photo_cv.jpg) à utiliser, ou None si pas de source.
+    """
+    return get_photo_url_for_cv(base_dir, existing_photo_url, prenom=prenom, nom=nom)
+
+
+def get_photo_url_for_cv(
+    base_dir: Path,
+    existing_photo_url: str | None,
+    prenom: str | None = None,
+    nom: str | None = None,
+) -> str | None:
     """
     Retourne l'URL/path de la photo à utiliser pour le CV.
     - Si existing_photo_url est une URL externe (http/https), on la retourne telle quelle.
-    - Sinon on cherche dans assets/, on produit une version compressée (photo_cv.jpg)
-      et on retourne le path vers celle-ci.
+    - Sinon on cherche dans assets/ (y compris ProfilPicture - {{prenom}} {{nom}} ou avec prenom/nom),
+      on produit une version compressée (photo_cv.jpg) si besoin et on retourne le path.
     Retourne None si aucune photo à utiliser.
     """
     if existing_photo_url and (
@@ -69,23 +107,20 @@ def get_photo_url_for_cv(base_dir: Path, existing_photo_url: str | None) -> str 
     source: Path | None = None
 
     if existing_photo_url and not existing_photo_url.startswith("http"):
-        # Path local déjà fourni (ex. assets/photo.jpg)
         candidate = base_dir / existing_photo_url
         if candidate.is_file():
             source = candidate
 
     if source is None:
-        source = _find_source_photo(assets_dir)
+        source = _find_source_photo(assets_dir, prenom=prenom, nom=nom)
 
     if source is None:
         return None
 
     dest = assets_dir / PHOTO_CV_NAME
-    # Régénérer si la source est plus récente que la version compressée
     if dest.is_file() and dest.stat().st_mtime >= source.stat().st_mtime:
         return f"{ASSETS_DIR}/{PHOTO_CV_NAME}"
 
     if _compress_photo(source, dest):
         return f"{ASSETS_DIR}/{PHOTO_CV_NAME}"
-    # Fallback : utiliser l'original si pas Pillow ou erreur
     return f"{ASSETS_DIR}/{source.name}"

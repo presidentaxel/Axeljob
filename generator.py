@@ -22,7 +22,7 @@ if os.name == "nt":
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from photo_assets import get_photo_url_for_cv
+from photo_assets import ensure_compressed_photo, get_photo_url_for_cv
 
 
 def _sanitize_filename(s: str, max_len: int = 80) -> str:
@@ -86,7 +86,8 @@ def generer_pdf(cv_adapte: dict, offre: dict, output_dir: str = ".") -> str:
     out.mkdir(parents=True, exist_ok=True)
 
     cv_adapte = dict(cv_adapte)
-    photo_url = get_photo_url_for_cv(base_dir, cv_adapte.get("photo_url"))
+    ensure_compressed_photo(base_dir, cv_adapte.get("photo_url"), cv_adapte.get("prenom"), cv_adapte.get("nom"))
+    photo_url = get_photo_url_for_cv(base_dir, cv_adapte.get("photo_url"), cv_adapte.get("prenom"), cv_adapte.get("nom"))
     if photo_url:
         cv_adapte["photo_url"] = photo_url
 
@@ -135,7 +136,8 @@ def generer_pdf_bytes(cv_adapte: dict, offre: dict) -> tuple[bytes, str]:
 
     base_dir = Path(__file__).resolve().parent
     cv_adapte = dict(cv_adapte)
-    photo_url = get_photo_url_for_cv(base_dir, cv_adapte.get("photo_url"))
+    ensure_compressed_photo(base_dir, cv_adapte.get("photo_url"), cv_adapte.get("prenom"), cv_adapte.get("nom"))
+    photo_url = get_photo_url_for_cv(base_dir, cv_adapte.get("photo_url"), cv_adapte.get("prenom"), cv_adapte.get("nom"))
     if photo_url:
         cv_adapte["photo_url"] = photo_url
 

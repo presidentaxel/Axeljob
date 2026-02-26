@@ -10,7 +10,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from photo_assets import get_photo_url_for_cv
+from photo_assets import ensure_compressed_photo, get_photo_url_for_cv
 
 
 def main() -> None:
@@ -26,7 +26,8 @@ def main() -> None:
     with open(data_path, encoding="utf-8") as f:
         data = json.load(f)
 
-    photo_url = get_photo_url_for_cv(base_dir, data.get("photo_url"))
+    ensure_compressed_photo(base_dir, data.get("photo_url"), data.get("prenom"), data.get("nom"))
+    photo_url = get_photo_url_for_cv(base_dir, data.get("photo_url"), data.get("prenom"), data.get("nom"))
     if photo_url:
         data["photo_url"] = photo_url
 

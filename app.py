@@ -82,9 +82,10 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
     """Rend le template avec les données CV. Si base_cv + highlight_changes, surligne uniquement les différences exactes (diff caractère). for_preview=True affiche les mots-clés ATS en noir dans l'aperçu."""
     import html
     from jinja2 import Environment, FileSystemLoader, select_autoescape
-    from photo_assets import get_photo_url_for_cv
+    from photo_assets import ensure_compressed_photo, get_photo_url_for_cv
 
-    photo_url = get_photo_url_for_cv(BASE_DIR, cv.get("photo_url"))
+    ensure_compressed_photo(BASE_DIR, cv.get("photo_url"), cv.get("prenom"), cv.get("nom"))
+    photo_url = get_photo_url_for_cv(BASE_DIR, cv.get("photo_url"), cv.get("prenom"), cv.get("nom"))
     if photo_url:
         cv = {**cv, "photo_url": photo_url}
 
@@ -165,9 +166,11 @@ def api_cv():
 
 @app.route("/api/cv/preview", methods=["GET"])
 def api_cv_preview():
-    """Retourne le HTML du CV actuel pour affichage dans l'iframe."""
+    """Retourne le HTML du CV actuel pour affichage dans l'iframe. Crée photo_cv.jpg si besoin."""
     try:
         cv = _load_cv_base()
+        from photo_assets import ensure_compressed_photo
+        ensure_compressed_photo(BASE_DIR, cv.get("photo_url"), cv.get("prenom"), cv.get("nom"))
         html = _render_cv_html(cv)
         return html
     except FileNotFoundError as e:

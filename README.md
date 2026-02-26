@@ -1,12 +1,12 @@
-# cv-bot — CV personnalisés par offre d'emploi
+# cv-bot — CV personnalisés par fiche de poste
 
-Outil pour générer des CV adaptés à chaque offre à partir d’un template HTML/CSS unique et d’un CV de base (JSON). L’IA (Google Gemini) adapte le résumé et les bullet points selon l’annonce ; le rendu reste maîtrisé par le template.
+Outil pour générer des CV adaptés à chaque offre à partir d’un template HTML/CSS unique et d’un CV de base (JSON). **Dépôt de la fiche de poste** (texte) → l’IA (Google Gemini) adapte le résumé et les bullet points → génération du **CV**, de la **lettre de motivation** et de la **fiche de poste** en PDF. Pas de scraping : tout se fait à partir du texte que tu déposes.
 
 **Fonctionnalités :**
 - Questionnaire interactif ou fichier JSON pour remplir ton CV une fois
-- Interface web : coller l’annonce, adapter le CV avec Gemini, télécharger le PDF
-- Ligne de commande : scraper une URL d’offre (ou coller la description), générer le PDF
-- Export « dossier candidature » : CV + lettre + fiche de poste dans un sous-dossier
+- Interface web : coller la fiche de poste, adapter le CV avec Gemini, télécharger le PDF (CV, lettre, fiche de poste)
+- Ligne de commande : passer la fiche de poste en texte ou fichier, générer le PDF
+- Export « dossier candidature » : un sous-dossier par candidature avec CV + lettre + fiche de poste
 
 ---
 
@@ -15,13 +15,13 @@ Outil pour générer des CV adaptés à chaque offre à partir d’un template H
 ### 1. Prérequis
 
 - **Python 3.10+**
-- **Playwright** (navigateur pour le scraping d’offres)
 
 ```bash
 cd cv-bot
 pip install -r requirements.txt
-playwright install chromium
 ```
+
+(Aucun navigateur ni Playwright : pas de scraping.)
 
 ### 2. Variables d’environnement (fichier `.env`)
 
@@ -72,7 +72,7 @@ Sur Linux/macOS, pas besoin de `WEASYPRINT_DLL_DIRECTORIES` ; installe les paque
 
 ## Lancer l’application
 
-**Premier lancement (après un clone)** : tu dois d’abord avoir un fichier `cv_base.json`. Soit tu lances `python main.py --setup` pour le remplir via le questionnaire, soit tu copies `cv_base_vierge.json` vers `cv_base.json` et tu le complètes à la main.
+**Premier lancement (après un clone)** : `cv_base.json` et `preview.html` ne sont pas dans le dépôt (ils sont dans le `.gitignore` pour ne pas exposer tes infos). Tu dois créer **`cv_base.json`** : soit `python main.py --setup` (questionnaire), soit copie `cv_base_vierge.json` vers `cv_base.json` puis complète-le à la main.
 
 ### Interface web (recommandé)
 
@@ -82,8 +82,8 @@ python app.py
 
 Puis ouvre [http://localhost:5000](http://localhost:5000). Tu peux :
 - Voir l’aperçu du CV (basé sur `cv_base.json`)
-- Coller l’annonce dans la zone de texte
-- Cliquer sur « Adapter le CV avec Gemini » puis « Télécharger le PDF »
+- **Déposer la fiche de poste** (coller le texte de l’annonce)
+- Cliquer sur « Adapter le CV avec Gemini » puis télécharger le **CV PDF**, et éventuellement exporter le **dossier candidature** (CV + lettre + fiche de poste)
 
 La clé **`GEMINI_API_KEY`** doit être définie dans `.env` pour l’adaptation.
 
@@ -96,11 +96,12 @@ La clé **`GEMINI_API_KEY`** doit être définie dans `.env` pour l’adaptation
   python main.py --setup
   ```
 
-- **Générer un CV adapté à une offre (URL)**  
-  Scraping de l’offre, score de pertinence, adaptation Gemini, génération du PDF :
+- **Adapter à une fiche de poste et générer le PDF**  
+  Texte de la fiche en argument ou dans un fichier :
 
   ```bash
-  python main.py --url "https://..." --output ./cvs
+  python main.py --description "Alternance Risk Management. Missions : ..." --output ./cvs
+  python main.py --description-file fiche.txt --titre "Alternance Risk" --entreprise "Rothschild" -o ./cvs
   ```
 
 - **Générer un PDF sans adaptation** (test du rendu) :
@@ -111,10 +112,11 @@ La clé **`GEMINI_API_KEY`** doit être définie dans `.env` pour l’adaptation
 
 ---
 
-## Données CV : JSON vierge et démo
+## Données CV : JSON vierge, démo et photo
 
-- **`cv_base_vierge.json`** — Template vide avec toutes les balises. Tu peux le copier en `cv_base.json` et le remplir à la main, ou t’en inspirer pour la structure.
+- **`cv_base_vierge.json`** — Template vide avec toutes les balises. Après un clone, copie-le en **`cv_base.json`** et remplis-le (ou lance `python main.py --setup`). **`cv_base.json` est dans le `.gitignore`** : il ne sera pas poussé en ligne.
 - **`preview_data.json`** — Données de démo (nom et expériences fictives) pour prévisualiser le template **avant** d’ajouter tes données.
+- **Photo du CV** — Place **ta photo** dans le dossier **`assets/`** pour qu’elle apparaisse sur le CV et le PDF. Fichiers reconnus : `photo.jpg`, `photo.jpeg`, `photo.png` ou `photo.webp` (un seul fichier utilisé). Voir `assets/README.md` pour les détails. **Les images dans `assets/` sont dans le `.gitignore`** : elles ne sont pas versionnées ni poussées en ligne, tu dois les ajouter localement après un clone.
 
 **Prévisualisation du template (sans l’app, sans PDF) :**
 
@@ -122,7 +124,7 @@ La clé **`GEMINI_API_KEY`** doit être définie dans `.env` pour l’adaptation
 python preview.py
 ```
 
-Puis ouvre `preview.html` dans un navigateur. Le rendu utilise `preview_data.json` (démo). Une fois ton `cv_base.json` rempli, l’interface web et le PDF utiliseront tes vraies données.
+Puis ouvre **`preview.html`** dans un navigateur (ce fichier est généré et ignoré par Git, il ne sera pas poussé en ligne). Le rendu utilise `preview_data.json` (démo). Une fois ton `cv_base.json` rempli, l’interface web et le PDF utiliseront tes vraies données.
 
 ---
 
@@ -130,10 +132,13 @@ Puis ouvre `preview.html` dans un navigateur. Le rendu utilise `preview_data.jso
 
 - **`.env`** — Clés API et chemins personnels
 - **`*.pdf`** — PDF générés
+- **`cv_base.json`** — Tes infos CV (nom, expériences, etc.) ; à créer localement après un clone (copie de `cv_base_vierge.json` ou `python main.py --setup`).
+- **`preview.html`** — Fichier généré par `python preview.py` ; il contient les données utilisées pour l’aperçu (donc tes infos si tu as lancé le preview avec ton CV). Ne pas pousser en ligne.
+- **`assets/*.jpg`, `assets/*.png`, etc.** — Photos du CV (à ajouter localement). Si des photos ont déjà été commitées : `git rm --cached assets/*.jpg assets/*.png` puis commit.
 - **`adaptations/*.json`** — Fichiers d’adaptation par offre (peuvent contenir des extraits de ton CV)
 - Dossiers Python / venv / IDE usuels
 
-Tu peux aussi ajouter `cv_base.json` dans `.gitignore` si tu ne veux pas le pousser sur GitHub.
+Si `cv_base.json` ou `preview.html` ont déjà été commitées, exécute `git rm --cached cv_base.json preview.html` puis commit à nouveau pour les retirer du dépôt.
 
 ---
 
@@ -143,7 +148,8 @@ Tu peux aussi ajouter `cv_base.json` dans `.gitignore` si tu ne veux pas le pous
 |----------|-------------|
 | `python app.py` | Lance l’interface web (port 5000) |
 | `python main.py --setup` | Questionnaire pour remplir `cv_base.json` |
-| `python main.py --url "URL"` | Scraper l’offre, adapter le CV, générer le PDF |
+| `python main.py --description "..."` | Adapter le CV à la fiche de poste et générer le PDF |
+| `python main.py --description-file fiche.txt` | Idem avec la fiche dans un fichier |
 | `python main.py --pdf-only` | Générer un PDF à partir de `cv_base.json` (sans IA) |
 | `python preview.py` | Générer `preview.html` à partir de `preview_data.json` |
 
@@ -151,12 +157,13 @@ Tu peux aussi ajouter `cv_base.json` dans `.gitignore` si tu ne veux pas le pous
 
 ## Gestion des erreurs
 
-- **Scraping impossible** : le script propose de coller la description du poste au clavier.
 - **Limite d’appels Gemini (429)** : attente 15 s puis nouvel essai automatique.
 - **WeasyPrint manquant / erreur PDF** : vérifier l’installation (MSYS2 + `WEASYPRINT_DLL_DIRECTORIES` sur Windows, paquets système sur Linux/macOS).
 
 ---
 
-## Licence / contribution
+## Licence
 
-Projet personnel ; tu peux le forker et l’adapter à tes besoins. Aucun secret (`.env`, PDF, etc.) ne doit être poussé sur GitHub.
+Ce logiciel appartient à **Axel Project** (SAS, société par actions simplifiée — 989 841 911 R.C.S. Nanterre, création 31/07/2025, activité : Conseil en systèmes et logiciels informatiques, code NAF/APE 62.02A).
+
+**Il est open source et le restera.** Il est distribué sous licence MIT : tu peux l’utiliser, le modifier et le redistribuer librement. Voir le fichier [LICENSE](LICENSE) pour le texte complet.

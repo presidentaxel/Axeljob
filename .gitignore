@@ -43,5 +43,13 @@ Thumbs.db
 # Adaptations (tweaks par offre) — peuvent contenir des extraits de ton CV
 adaptations/*.json
 
-# Fichiers de données personnels (optionnel : décommenter si tu ne veux pas pousser ton CV)
-# cv_base.json
+# Photo du CV (à ajouter localement dans assets/, ne pas pousser en ligne)
+assets/*.jpg
+assets/*.jpeg
+assets/*.png
+assets/*.webp
+assets/*.gif
+
+# Données personnelles (ne pas pousser en ligne)
+cv_base.json
+preview.html

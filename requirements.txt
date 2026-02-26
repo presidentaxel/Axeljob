@@ -1,5 +1,4 @@
 flask
-playwright
 google-genai
 python-dotenv
 weasyprint

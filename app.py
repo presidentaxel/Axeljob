@@ -132,22 +132,10 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
     return html
 
 
-def _offre_from_description(description: str) -> dict:
-    """Construit un dict offre à partir du texte collé (sans scraping)."""
-    from scraper import _extraire_mots_cles
-    description = (description or "").strip()
-    mots = _extraire_mots_cles(description, 15)
-    return {
-        "titre": "",
-        "entreprise": "",
-        "secteur": "",
-        "type_contrat": "",
-        "localisation": "",
-        "description_brute": description,
-        "mots_cles_extraits": mots,
-        "competences_requises": mots[:15],
-        "soft_skills": [],
-    }
+def _offre_from_description(description: str, titre: str = "", entreprise: str = "") -> dict:
+    """Construit un dict offre à partir du texte de la fiche de poste (dépôt manuel, pas de scraping)."""
+    from mots_cles import offre_from_description
+    return offre_from_description(description or "", titre=titre, entreprise=entreprise)
 
 
 @app.route("/")

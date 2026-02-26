@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Point d'entrée CLI : --setup pour configurer le CV, --url pour générer un CV adapté à une offre.
+Point d'entrée CLI : --setup pour configurer le CV, --description pour adapter à une fiche de poste et générer le PDF.
+Pas de scraping : dépôt de la fiche de poste (texte) → adaptation CV + export PDF / dossier candidature.
 """
 
 import os
@@ -50,7 +51,7 @@ def cmd_setup() -> None:
 
 
 def cmd_export_pdf(output_dir: str) -> None:
-    """Exporte le CV en PDF sans scraper ni adapter (pour tester le rendu)."""
+    """Exporte le CV en PDF sans adapter (pour tester le rendu)."""
     if not CV_BASE_PATH.exists():
         print("Lance d'abord : python main.py --setup")
         sys.exit(1)
@@ -59,7 +60,6 @@ def cmd_export_pdf(output_dir: str) -> None:
         cv_base = json.load(f)
 
     from generator import generer_pdf
-    # Offre vide → nom de fichier Prenom_Nom_CV.pdf
     offre = {"titre": "", "entreprise": ""}
     try:
         path_pdf = generer_pdf(cv_base, offre, output_dir)
@@ -72,7 +72,8 @@ def cmd_export_pdf(output_dir: str) -> None:
         sys.exit(1)
 
 
-def cmd_url(url: str, output_dir: str) -> None:
+def cmd_adapt(description: str, output_dir: str, titre: str = "", entreprise: str = "") -> None:
+    """Adapte le CV à la fiche de poste (texte) et génère le PDF. Pas de scraping."""
     if not CV_BASE_PATH.exists():
         print("Lance d'abord : python main.py --setup")
         sys.exit(1)
@@ -80,48 +81,15 @@ def cmd_url(url: str, output_dir: str) -> None:
     with open(CV_BASE_PATH, encoding="utf-8") as f:
         cv_base = json.load(f)
 
-    # 1) Scraper l'offre
-    from scraper import scrape_offre
-    try:
-        offre = scrape_offre(url)
-    except Exception as e:
-        print("Impossible de scraper cette URL.")
-        print(f"Erreur : {e}")
-        print("\nTu peux copier-coller la description du poste ici (terminer par une ligne vide) :")
-        lignes = []
-        while True:
-            line = sys.stdin.readline()
-            if not line or line.strip() == "":
-                break
-            lignes.append(line.rstrip())
-        description = "\n".join(lignes)
-        if not description.strip():
-            print("Aucune description fournie. Abandon.")
-            sys.exit(1)
-        offre = {
-            "titre": "Poste",
-            "entreprise": "",
-            "secteur": "",
-            "type_contrat": "",
-            "localisation": "",
-            "description_brute": description,
-            "mots_cles_extraits": [],
-            "competences_requises": [],
-            "soft_skills": [],
-        }
-        # Extraction mots-clés depuis la description
-        from scraper import _extraire_mots_cles
-        offre["mots_cles_extraits"] = _extraire_mots_cles(description, 15)
-        offre["competences_requises"] = offre["mots_cles_extraits"][:15]
+    from mots_cles import offre_from_description
+    offre = offre_from_description(description, titre=titre, entreprise=entreprise)
 
-    # 2) Règles ATS
     from rules import appliquer_regles
     cv_enrichi = appliquer_regles(cv_base, offre)
     rapport = cv_enrichi.get("rapport", {})
 
-    # 3) Afficher le rapport
     print("\n" + "─" * 60)
-    print(f"Offre : {offre.get('titre', '')} – {offre.get('entreprise', '')}".strip(" –"))
+    print(f"Fiche de poste : {offre.get('titre', '') or '(sans intitulé)'} – {offre.get('entreprise', '')}".strip(" –"))
     print(f"Score de pertinence : {rapport.get('score_global', 0)}/10")
     print(f"Zones à adapter : {', '.join(rapport.get('zones_a_adapter', [])) or 'aucune'}")
     m = rapport.get("mots_cles_manquants", [])
@@ -133,7 +101,6 @@ def cmd_url(url: str, output_dir: str) -> None:
         print("Annulé.")
         sys.exit(0)
 
-    # 4) Adapter via Gemini (tweaks uniquement : resume + bullet_points + mots_cles_cache)
     from adapter import adapter_cv, apply_tweaks_to_cv
     try:
         tweaks = adapter_cv(cv_base, offre, rapport=rapport)
@@ -159,7 +126,6 @@ def cmd_url(url: str, output_dir: str) -> None:
 
     cv_adapte = apply_tweaks_to_cv(cv_base, tweaks)
 
-    # 5) Générer le PDF
     from generator import generer_pdf
     try:
         path_pdf = generer_pdf(cv_adapte, offre, output_dir)
@@ -173,9 +139,14 @@ def cmd_url(url: str, output_dir: str) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Génération de CV personnalisés par offre d'emploi")
+    parser = argparse.ArgumentParser(
+        description="CV personnalisés par fiche de poste : dépôt de la fiche → génération CV + lettre + fiche (pas de scraping)."
+    )
     parser.add_argument("--setup", action="store_true", help="Lancer le questionnaire pour remplir cv_base.json")
-    parser.add_argument("--url", type=str, metavar="URL", help="URL de l'offre d'emploi à scraper")
+    parser.add_argument("--description", type=str, metavar="TEXTE", help="Texte de la fiche de poste (annonce)")
+    parser.add_argument("--description-file", type=str, metavar="FICHIER", help="Fichier contenant la fiche de poste")
+    parser.add_argument("--titre", type=str, default="", help="Intitulé du poste (optionnel, pour le nom du PDF)")
+    parser.add_argument("--entreprise", type=str, default="", help="Nom de l'entreprise (optionnel)")
     parser.add_argument("--output", "-o", type=str, default=".", metavar="DIR", help="Dossier de sortie pour le PDF (défaut: .)")
     parser.add_argument("--pdf-only", action="store_true", help="Export PDF uniquement (pas d'adaptation, pour tester)")
     args = parser.parse_args()
@@ -186,10 +157,23 @@ def main() -> None:
     if args.pdf_only:
         cmd_export_pdf(args.output)
         return
-    if args.url:
-        cmd_url(args.url, args.output)
+
+    description = ""
+    if args.description:
+        description = args.description
+    elif args.description_file:
+        path = Path(args.description_file)
+        if not path.exists():
+            print(f"Fichier introuvable : {path}")
+            sys.exit(1)
+        description = path.read_text(encoding="utf-8")
+    if description.strip():
+        cmd_adapt(description.strip(), args.output, titre=args.titre or "", entreprise=args.entreprise or "")
         return
+
     parser.print_help()
+    print("\nPour adapter à une fiche de poste : --description \"...\" ou --description-file chemin.txt")
+    print("Ou lance l'interface web : python app.py")
 
 
 if __name__ == "__main__":

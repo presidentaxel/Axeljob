@@ -30,7 +30,6 @@ if str(BASE_DIR) not in sys.path:
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, FileResponse, Response
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
@@ -594,7 +593,7 @@ def api_adapt(request: Request, body: AdaptBody):
             "full_cv": merged,
             "statut": "candidature_envoyee",
             "archived": False,
-        })
+        }, user_id=user_id)
         ADAPT_COUNT.inc()
         return {
             "cv": merged,
@@ -661,40 +660,44 @@ def api_export_dossier_zip(body: ExportDossierZipBody):
 
 
 @app.get("/api/applications")
-def api_applications_list(archived: str = ""):
+def api_applications_list(request: Request, archived: str = ""):
     include_archived = archived == "1"
-    return list_applications(include_archived=include_archived)
+    user_id = _get_user_id(request)
+    return list_applications(include_archived=include_archived, user_id=user_id or "default")
 
 
 @app.patch("/api/applications/{adaptation_id}")
-def api_application_update(adaptation_id: str, body: ApplicationUpdateBody):
+def api_application_update(request: Request, adaptation_id: str, body: ApplicationUpdateBody):
     if not _safe_adaptation_id(adaptation_id):
         raise HTTPException(status_code=400, detail="Id invalide")
     if body.statut is not None and body.statut not in STATUTS_CANDIDATURE:
         raise HTTPException(status_code=400, detail="Statut invalide")
-    payload = update_adaptation(adaptation_id, body.model_dump(exclude_none=True))
+    user_id = _get_user_id(request)
+    payload = update_adaptation(adaptation_id, body.model_dump(exclude_none=True), user_id=user_id or "default")
     if not payload:
         raise HTTPException(status_code=404, detail="Candidature introuvable")
     return {"id": adaptation_id, "statut": payload.get("statut"), "archived": payload.get("archived")}
 
 
 @app.get("/api/applications/{adaptation_id}")
-def api_application_get(adaptation_id: str):
+def api_application_get(request: Request, adaptation_id: str):
     """Retourne le payload complet d'une candidature (CV, fiche, lettre si générée)."""
     if not _safe_adaptation_id(adaptation_id):
         raise HTTPException(status_code=400, detail="Id invalide")
-    payload = get_adaptation(adaptation_id)
+    user_id = _get_user_id(request)
+    payload = get_adaptation(adaptation_id, user_id=user_id or "default")
     if not payload:
         raise HTTPException(status_code=404, detail="Candidature introuvable")
     return payload
 
 
 @app.post("/api/applications/{adaptation_id}/generate-letter")
-def api_application_generate_letter(adaptation_id: str):
+def api_application_generate_letter(request: Request, adaptation_id: str):
     """Génère la lettre de motivation (Gemini), la sauvegarde dans la candidature, retourne corps + HTML."""
     if not _safe_adaptation_id(adaptation_id):
         raise HTTPException(status_code=400, detail="Id invalide")
-    payload = get_adaptation(adaptation_id)
+    user_id = _get_user_id(request)
+    payload = get_adaptation(adaptation_id, user_id=user_id or "default")
     if not payload:
         raise HTTPException(status_code=404, detail="Candidature introuvable")
     full_cv = payload.get("full_cv")
@@ -711,18 +714,19 @@ def api_application_generate_letter(adaptation_id: str):
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Génération lettre : {e}")
         payload["lettre_corps"] = lettre_corps
-        save_adaptation(adaptation_id, payload)
+        save_adaptation(adaptation_id, payload, user_id=user_id)
     from letter_generator import corps_lettre_to_html
     lettre_html = corps_lettre_to_html(lettre_corps)
     return {"lettre_corps": lettre_corps, "lettre_html": lettre_html}
 
 
 @app.get("/api/applications/{adaptation_id}/download/cv")
-def api_application_download_cv(adaptation_id: str):
+def api_application_download_cv(request: Request, adaptation_id: str):
     """Télécharge le CV adapté en PDF."""
     if not _safe_adaptation_id(adaptation_id):
         raise HTTPException(status_code=400, detail="Id invalide")
-    payload = get_adaptation(adaptation_id)
+    user_id = _get_user_id(request)
+    payload = get_adaptation(adaptation_id, user_id=user_id or "default")
     if not payload:
         raise HTTPException(status_code=404, detail="Candidature introuvable")
     full_cv = payload.get("full_cv")
@@ -740,11 +744,12 @@ def api_application_download_cv(adaptation_id: str):
 
 
 @app.get("/api/applications/{adaptation_id}/download/lettre")
-def api_application_download_lettre(adaptation_id: str):
+def api_application_download_lettre(request: Request, adaptation_id: str):
     """Télécharge la lettre de motivation en PDF (génère la lettre si pas encore stockée)."""
     if not _safe_adaptation_id(adaptation_id):
         raise HTTPException(status_code=400, detail="Id invalide")
-    payload = get_adaptation(adaptation_id)
+    user_id = _get_user_id(request)
+    payload = get_adaptation(adaptation_id, user_id=user_id or "default")
     if not payload:
         raise HTTPException(status_code=404, detail="Candidature introuvable")
     full_cv = payload.get("full_cv")
@@ -761,7 +766,7 @@ def api_application_download_lettre(adaptation_id: str):
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Génération lettre : {e}")
         payload["lettre_corps"] = lettre_corps
-        save_adaptation(adaptation_id, payload)
+        save_adaptation(adaptation_id, payload, user_id=user_id)
     pdf_bytes, filename = generer_lettre_pdf_bytes_from_corps(full_cv, lettre_corps, poste, entreprise, base_dir=BASE_DIR)
     return Response(
         content=pdf_bytes,
@@ -771,11 +776,12 @@ def api_application_download_lettre(adaptation_id: str):
 
 
 @app.get("/api/applications/{adaptation_id}/download/fiche")
-def api_application_download_fiche(adaptation_id: str):
+def api_application_download_fiche(request: Request, adaptation_id: str):
     """Télécharge la fiche de poste en PDF."""
     if not _safe_adaptation_id(adaptation_id):
         raise HTTPException(status_code=400, detail="Id invalide")
-    payload = get_adaptation(adaptation_id)
+    user_id = _get_user_id(request)
+    payload = get_adaptation(adaptation_id, user_id=user_id or "default")
     if not payload:
         raise HTTPException(status_code=404, detail="Candidature introuvable")
     description_full = payload.get("description_full") or ""

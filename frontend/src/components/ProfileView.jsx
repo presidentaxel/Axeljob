@@ -121,6 +121,26 @@ export default function ProfileView({ onSaveSuccess, session }) {
     });
   };
 
+  const addExpBullet = (expIndex) => {
+    setCv((prev) => {
+      const next = [...(prev.experiences || [])];
+      const bullets = [...(next[expIndex].bullet_points || [''])];
+      bullets.push('');
+      next[expIndex] = { ...next[expIndex], bullet_points: bullets };
+      return { ...prev, experiences: next };
+    });
+  };
+
+  const removeExpBullet = (expIndex, bulletIndex) => {
+    setCv((prev) => {
+      const next = [...(prev.experiences || [])];
+      const bullets = (next[expIndex].bullet_points || ['']).filter((_, j) => j !== bulletIndex);
+      if (bullets.length === 0) bullets.push('');
+      next[expIndex] = { ...next[expIndex], bullet_points: bullets };
+      return { ...prev, experiences: next };
+    });
+  };
+
   const addFormation = () => {
     setCv((prev) => ({
       ...prev,
@@ -383,9 +403,15 @@ export default function ProfileView({ onSaveSuccess, session }) {
             </div>
             <label className="profile-full">Contexte <input type="text" value={exp.contexte || ''} onChange={(e) => updateExp(i, 'contexte', e.target.value)} /></label>
             <div className="profile-bullets">
-              <span>Bullet points</span>
+              <div className="profile-bullets-head">
+                <span>Bullet points</span>
+                <button type="button" className="btn btn-add" onClick={() => addExpBullet(i)}>+ Ajouter un point</button>
+              </div>
               {(exp.bullet_points || ['', '']).map((b, j) => (
-                <textarea key={j} value={b} onChange={(e) => updateExpBullet(i, j, e.target.value)} rows={2} placeholder={`Point ${j + 1}`} />
+                <div key={j} className="profile-bullet-row">
+                  <textarea value={b} onChange={(e) => updateExpBullet(i, j, e.target.value)} rows={2} placeholder={`Point ${j + 1}`} />
+                  <button type="button" className="btn btn-remove" onClick={() => removeExpBullet(i, j)} title="Supprimer ce point">×</button>
+                </div>
               ))}
             </div>
           </div>
@@ -407,7 +433,7 @@ export default function ProfileView({ onSaveSuccess, session }) {
               <label>Diplôme <input type="text" value={form.diplome || ''} onChange={(e) => updateFormation(i, 'diplome', e.target.value)} /></label>
               <label>Établissement <input type="text" value={form.etablissement || ''} onChange={(e) => updateFormation(i, 'etablissement', e.target.value)} /></label>
               <label>Date <input type="text" value={form.date || ''} onChange={(e) => updateFormation(i, 'date', e.target.value)} placeholder="ex. 2024, 06/2023" title="Année ou mois (vide = pas affiché sur le CV)" /></label>
-              <label className="profile-full">Mention <textarea className="profile-mention-field" value={form.mention || ''} onChange={(e) => updateFormation(i, 'mention', e.target.value)} rows={4} placeholder="ex. Mention Bien, Félicitations du jury" /></label>
+              <label className="profile-full">Description <textarea className="profile-mention-field" value={form.mention || ''} onChange={(e) => updateFormation(i, 'mention', e.target.value)} rows={4} placeholder="ex. Mention Bien, Félicitations du jury" /></label>
             </div>
           </div>
         ))}

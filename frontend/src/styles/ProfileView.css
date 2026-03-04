@@ -348,10 +348,35 @@ input[type="month"] {
   margin-top: 0.75rem;
 }
 
+.profile-bullets-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.profile-bullets-head span {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
 .profile-bullets span {
   font-size: 0.8125rem;
   font-weight: 500;
   color: var(--text);
+}
+
+.profile-bullet-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.profile-bullet-row textarea {
+  flex: 1;
+  min-width: 0;
 }
 
 .profile-bullets textarea {

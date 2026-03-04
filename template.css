@@ -289,9 +289,15 @@
   }
   
   .exp-poste {
-    font-style: italic;
+    font-size: 9pt;
+    font-style: normal;
     color: #555;
     margin: 0 0 4px 0;
+  }
+
+  .exp-poste .ats-label,
+  .exp-poste span[itemprop="name"] {
+    font-size: 1em;
   }
 
   .exp-contexte {

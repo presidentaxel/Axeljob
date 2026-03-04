@@ -208,21 +208,23 @@ def upload_photo_to_storage(user_safe_id: str, image_bytes: bytes) -> str:
     if not sb:
         raise RuntimeError("Supabase non configuré.")
     path = f"{user_safe_id}/photo.jpg"
-    # upload avec upsert pour écraser l’ancienne photo
+    # Ne pas mettre de booléen dans file_options (ex. upsert) : ils sont parfois envoyés en headers et doivent être str/bytes
     sb.storage.from_(CV_PHOTOS_BUCKET).upload(
         path=path,
         file=image_bytes,
-        file_options={"content-type": "image/jpeg", "upsert": True},
+        file_options={"content-type": "image/jpeg"},
     )
     return sb.storage.from_(CV_PHOTOS_BUCKET).get_public_url(path)
 
 
 # --- Applications (adaptations) ---
 
-def save_adaptation(adaptation_id: str, payload: dict) -> None:
-    """Sauvegarde une adaptation (Supabase table applications ou fichier adaptations/<id>.json)."""
+def save_adaptation(adaptation_id: str, payload: dict, user_id: Optional[str] = None) -> None:
+    """Sauvegarde une adaptation (Supabase table applications ou fichier adaptations/<id>.json). Filtrée par user_id."""
     payload.setdefault("statut", "candidature_envoyee")
     payload.setdefault("archived", False)
+    uid = (user_id or "default").strip() or "default"
+    payload["user_id"] = uid
 
     sb = _get_supabase()
     if sb:
@@ -230,6 +232,7 @@ def save_adaptation(adaptation_id: str, payload: dict) -> None:
             sb.table("applications").upsert(
                 {
                     "id": adaptation_id,
+                    "user_id": uid,
                     "payload": payload,
                     "updated_at": datetime.utcnow().isoformat(),
                 },
@@ -245,12 +248,19 @@ def save_adaptation(adaptation_id: str, payload: dict) -> None:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
 
-def list_applications(include_archived: bool = False) -> list:
-    """Liste les candidatures (Supabase ou fichiers adaptations/*.json)."""
+def list_applications(include_archived: bool = False, user_id: Optional[str] = None) -> list:
+    """Liste les candidatures de l'utilisateur (Supabase ou fichiers). Sans user_id en mode Supabase, retourne []."""
+    uid = (user_id or "default").strip() or "default"
     sb = _get_supabase()
     if sb:
         try:
-            r = sb.table("applications").select("id, payload, updated_at").order("updated_at", desc=True).execute()
+            r = (
+                sb.table("applications")
+                .select("id, payload, updated_at, user_id")
+                .eq("user_id", uid)
+                .order("updated_at", desc=True)
+                .execute()
+            )
             out = []
             for row in r.data or []:
                 p = row.get("payload") or {}
@@ -259,9 +269,9 @@ def list_applications(include_archived: bool = False) -> list:
                 out.append(_application_row(row["id"], p, row.get("updated_at")))
             return out
         except Exception:
-            return _list_applications_files(include_archived)
+            return _list_applications_files(include_archived, uid)
 
-    return _list_applications_files(include_archived)
+    return _list_applications_files(include_archived, uid)
 
 
 def _application_row(aid: str, data: dict, updated_at: Optional[str] = None) -> dict:
@@ -284,7 +294,7 @@ def _application_row(aid: str, data: dict, updated_at: Optional[str] = None) -> 
     }
 
 
-def _list_applications_files(include_archived: bool) -> list:
+def _list_applications_files(include_archived: bool, user_id: str = "default") -> list:
     applications = []
     if not ADAPTATIONS_DIR.is_dir():
         return applications
@@ -294,6 +304,8 @@ def _list_applications_files(include_archived: bool) -> list:
                 data = json.load(f)
         except (json.JSONDecodeError, OSError):
             continue
+        if data.get("user_id", "default") != user_id:
+            continue
         archived = data.get("archived", False)
         if archived and not include_archived:
             continue
@@ -302,26 +314,39 @@ def _list_applications_files(include_archived: bool) -> list:
     return applications
 
 
-def get_adaptation(adaptation_id: str) -> Optional[dict]:
-    """Récupère une adaptation par id (Supabase ou fichier)."""
+def get_adaptation(adaptation_id: str, user_id: Optional[str] = None) -> Optional[dict]:
+    """Récupère une adaptation par id si elle appartient à l'utilisateur (Supabase ou fichier)."""
+    uid = (user_id or "default").strip() or "default"
     sb = _get_supabase()
     if sb:
         try:
-            r = sb.table("applications").select("payload").eq("id", adaptation_id).limit(1).execute()
+            r = (
+                sb.table("applications")
+                .select("payload, user_id")
+                .eq("id", adaptation_id)
+                .limit(1)
+                .execute()
+            )
             if r.data and len(r.data) > 0:
-                return r.data[0].get("payload")
+                row = r.data[0]
+                if row.get("user_id") != uid:
+                    return None
+                return row.get("payload")
         except Exception:
             pass
     path = ADAPTATIONS_DIR / f"{adaptation_id}.json"
     if path.is_file():
         with open(path, encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+        if data.get("user_id", "default") != uid:
+            return None
+        return data
     return None
 
 
-def update_adaptation(adaptation_id: str, updates: dict) -> Optional[dict]:
+def update_adaptation(adaptation_id: str, updates: dict, user_id: Optional[str] = None) -> Optional[dict]:
     """Met à jour statut/archived/poste/entreprise d'une candidature. Retourne le payload mis à jour."""
-    current = get_adaptation(adaptation_id)
+    current = get_adaptation(adaptation_id, user_id)
     if not current:
         return None
     if "statut" in updates:
@@ -332,5 +357,5 @@ def update_adaptation(adaptation_id: str, updates: dict) -> Optional[dict]:
         current["poste"] = (updates["poste"] or "").strip()
     if "entreprise" in updates:
         current["entreprise"] = (updates["entreprise"] or "").strip()
-    save_adaptation(adaptation_id, current)
+    save_adaptation(adaptation_id, current, user_id)
     return current

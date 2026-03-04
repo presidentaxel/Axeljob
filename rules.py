@@ -111,7 +111,7 @@ def appliquer_regles(cv: dict, offre: dict) -> dict:
     cv_enrichi["rapport"] = {
         "score_global": score_global,
         "zones_a_adapter": zones,
-        "mots_cles_manquants": mots_manquants[:20],
+        "mots_cles_manquants": mots_manquants[:35],
     }
 
     return cv_enrichi

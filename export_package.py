@@ -15,7 +15,13 @@ def get_export_base_path() -> Path:
 
 
 def _sanitize_folder_name(s: str, max_len: int = 60) -> str:
-    """Retire les caractères interdits pour un nom de dossier Windows."""
+    """Retire les caractères interdits pour un nom de dossier Windows et normalise les caractères hors latin-1 (évite erreur zip/export)."""
+    if not s:
+        return ""
+    s = str(s)
+    s = s.replace("\u2013", "-").replace("\u2014", "-")  # tirets long/court → tiret ASCII
+    s = s.replace("\u2018", "'").replace("\u2019", "'").replace("\u201c", '"').replace("\u201d", '"')
+    s = "".join(c if ord(c) < 256 else "-" for c in s)  # reste compatible latin-1 (garde é, è, à…)
     s = re.sub(r'[<>:"/\\|?*]', "", s)
     s = re.sub(r"\s+", " ", s).strip()
     return s[:max_len] if s else ""
@@ -30,6 +36,37 @@ def get_export_folder_name(entreprise: str, poste: str) -> str:
     if not ent:
         return pos
     return f"{ent} - {pos}"
+
+
+def generer_fiche_pdf_bytes(
+    description_fiche: str,
+    poste: str = "",
+    entreprise: str = "",
+    base_dir: "str | Path | None" = None,
+) -> tuple[bytes, str]:
+    """Génère le PDF de la fiche de poste en mémoire. base_dir : dossier des templates (défaut = dossier du module)."""
+    from io import BytesIO
+    from jinja2 import Environment, FileSystemLoader, select_autoescape
+    from weasyprint import HTML, CSS
+
+    base_dir = Path(base_dir).resolve() if base_dir else Path(__file__).resolve().parent
+    env = Environment(
+        loader=FileSystemLoader(str(base_dir)),
+        autoescape=select_autoescape(("html", "xml")),
+    )
+    fiche_html = env.get_template("fiche_poste_template.html").render(
+        contenu=description_fiche or "",
+        entreprise=entreprise or "",
+        poste=poste or "",
+    )
+    poste_safe = _sanitize_folder_name(poste or "")
+    nom_fiche = f"Fiche de poste - {poste_safe}.pdf" if poste_safe else "Fiche de poste.pdf"
+    buffer = BytesIO()
+    HTML(string=fiche_html, base_url=str(base_dir)).write_pdf(
+        buffer,
+        stylesheets=[CSS(filename=base_dir / "fiche_poste_template.css")],
+    )
+    return buffer.getvalue(), nom_fiche
 
 
 def export_dossier(

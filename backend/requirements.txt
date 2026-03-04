@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+google-genai
+weasyprint
+jinja2
+requests
+Pillow
+prometheus-client
+supabase
+PyJWT

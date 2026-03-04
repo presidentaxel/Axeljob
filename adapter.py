@@ -36,15 +36,16 @@ Tu ne dois JAMAIS :
 Règles pour les bullet points (CRITIQUE) :
 - Chaque bullet en sortie doit décrire UNIQUEMENT ce que le bullet source dit déjà. Tu peux reformuler, raccourcir, ou réordonner les idées.
 - Tu peux insérer un mot-clé de l'offre SEULEMENT s'il s'applique vraiment au contenu original (ex. l'offre demande "Excel" et le bullet parle déjà de tableaux / reporting → tu peux écrire "Excel"). Si le bullet ne mentionne rien qui touche à ce mot-clé, ne l'ajoute pas.
-- Pour faire le lien avec le poste sans inventer : si l'offre mentionne un domaine (ex. gestion du risque, suivi des risques) que le bullet ne décrit pas directement, ne prétends pas que la personne a fait ce travail. Préfère des tournures du type : « ce qui est idéal pour un poste sur le suivi des risques », « pertinent pour un rôle en gestion du risque », « atout pour… » — tu relies ainsi les compétences réelles du CV au contexte du poste sans inventer d'expérience.
+- Ne jamais terminer un bullet par des formules plaquées du type « pertinent pour… », « atout pour… », « idéal pour un poste en… », « ce qui est utile pour… ». Ces tournures sonnent artificielles et peu humaines. Chaque bullet doit rester une phrase naturelle sur l'action ou le résultat réalisé, sans ajout en fin de phrase pour « faire le lien » avec le poste. Si le contenu du bullet ne correspond pas à un critère du poste, ne rien ajouter : garder une description claire et honnête de l'expérience.
 - Ne pas inventer de pourcentages, de montants, d'outils ou de méthodologies absents du CV source. En cas de doute, garde le bullet tel quel ou reformule très légèrement.
 - Maximum 3 bullet points par expérience (fusionner deux bullets existants uniquement s'ils parlent de la même chose, sans ajouter de contenu).
 
 Tu DOIS :
 - Utiliser les mots-clés de l'offre au mot près quand tu les insères (pas de synonymes pour les compétences techniques)
-- Rédiger le resume en 2-3 phrases max : inclure le titre du poste visé et des mots-clés de l'offre. Pour un domaine du poste que le CV ne décrit pas comme expérience directe, privilégier des tournures type « idéal pour un poste en… », « atout pour… » plutôt que de prétendre que la personne a déjà fait ce travail.
-- Remplir mots_cles_cache avec une chaîne de mots-clés et courtes phrases de l'annonce (séparés par des espaces), pour optimisation ATS ; pas de phrase longue, uniquement des termes pertinents
-- Extraire de l'annonce l'intitulé exact du poste (ex. "Alternance Risk Manager", "Business Analyst") et le mettre dans poste_offre (chaîne, tel qu'écrit dans l'offre). C'est ce poste qui sera affiché comme titre professionnel sur le CV adapté.
+- Rédiger le resume en 2-3 phrases max, ton professionnel mais personnel. Le résumé doit TOUJOURS commencer par « Étudiant ESSEC » (ex. « Étudiant ESSEC, je recherche… », « Étudiant ESSEC, passionné par… »). Enchaîner avec la 1ère personne et le titre du poste visé, des mots-clés de l'offre. Ne jamais écrire « je suis un futur X » ni revendiquer le poste comme si on l'occupait déjà. Éviter « professionnel autonome », « je suis un professionnel… » : garder l'ancrage étudiant ESSEC. Pour un domaine que le CV ne décrit pas en expérience directe : « atout pour… », « idéal pour… ».
+- Remplir mots_cles_cache avec une chaîne d'environ 50 à 60 mots-clés et courtes expressions de l'annonce (séparés par des espaces), pour optimisation ATS (mots-clés techniques, compétences, outils, métiers). Pas de phrases longues, uniquement des termes pertinents.
+- Extraire dans poste_offre UNIQUEMENT l'intitulé du poste (ex. "Alternance Risk Manager", "Gestionnaire Data Center F/H"), sans ajouter de mot parasite : pas de "demande", "offre", "recherche", "poste à pourvoir" — juste le titre du poste tel qu'un recruteur l'écrirait.
+- Ne jamais utiliser de formatage (pas de gras, pas d'astérisques) : tout le texte (resume, bullet_points) doit être en texte brut uniquement, sans ** ni __ ni aucun markdown.
 
 Format de sortie : UNIQUEMENT un objet JSON, sans markdown, sans commentaire, sans texte avant ou après.
 """
@@ -83,10 +84,10 @@ def _build_user_prompt(cv_base: dict, offre: dict, rapport: dict | None) -> str:
 <instructions>
 À partir du CV source ci-dessus et de l'offre :
 
-1. Réécris le résumé (resume) en 2-3 phrases en intégrant le titre du poste visé et des mots-clés exacts de l'offre. Ne invente aucun fait.
-2. Pour chaque expérience, réécris les bullet_points en restant FIDÈLE au contenu original. Pour faire le lien avec le poste sans inventer : si un critère du poste (ex. gestion du risque) n'est pas déjà décrit dans le bullet, ne prétends pas que la personne l'a fait ; utilise plutôt des tournures comme « ce qui est idéal pour un poste sur le suivi des risques », « pertinent pour un rôle en… », « atout pour… ». Insère un mot-clé de l'offre seulement s'il correspond au contenu original, sinon relie les compétences réelles au poste avec ce type de formulation. Maximum 3 bullet points par expérience. Garde les mêmes ids.
-3. Remplis mots_cles_cache avec une seule chaîne de caractères contenant des mots-clés et courtes expressions de l'annonce (séparés par des espaces), pour que les ATS les détectent. Exemple : "gestion de projet Python analyse de données Excel reporting".
-4. Extrais de l'annonce l'intitulé exact du poste (ex. "Alternance Risk Manager", "Business Analyst en Stratégie") et mets-le dans poste_offre (chaîne, telle qu'écrite dans l'offre).
+1. Réécris le résumé (resume) en 2-3 phrases, ton professionnel et personnel. OBLIGATOIRE : la première phrase commence TOUJOURS par « Étudiant ESSEC ». Texte brut uniquement : aucun formatage, pas d'astérisques (**), pas de gras. Ne pas écrire « je suis un futur [poste] » ni « je suis un professionnel… ». Intègre le titre du poste et des mots-clés sans inventer de faits.
+2. Pour chaque expérience, réécris les bullet_points en restant FIDÈLE au contenu original. Texte brut uniquement, pas d'astérisques. Chaque bullet doit rester une phrase naturelle et humaine sur ce qui a été fait (action, résultat). Ne jamais ajouter en fin de phrase des formules comme « pertinent pour… », « atout pour… », « idéal pour un poste en… » — bannir ces tournures. Tu peux intégrer un mot-clé de l'offre dans la phrase seulement s'il décrit vraiment ce qui est déjà dit (ex. remplacer « tableaux » par « Excel » si c'est le cas). Maximum 3 bullet points par expérience. Garde les mêmes ids.
+3. Remplis mots_cles_cache avec une seule chaîne d'environ 50 à 60 mots-clés et courtes expressions de l'annonce (séparés par des espaces), pour que les ATS les détectent (outils, compétences, métier, secteur). Exemple : "gestion de projet Python analyse de données Excel reporting data center opérations bureautique autonomie rigueur".
+4. Dans poste_offre, mets UNIQUEMENT l'intitulé du poste (ex. "Gestionnaire Data Center F/H", "Alternance Risk Manager"), sans mot parasite : pas de "demande", "offre", "recherche" — juste le titre du poste.
 
 Important : l'objectif est de mieux correspondre aux critères en reformulant ce qui est déjà là, pas d'inventer des éléments pour coller à l'offre.
 
@@ -101,6 +102,21 @@ Retourne UNIQUEMENT un JSON avec exactement cette structure (pas d'autre clé) :
   "poste_offre": "intitulé du poste tel qu'écrit dans l'annonce"
 }}
 </instructions>"""
+
+
+def _strip_markdown_bold(text: str) -> str:
+    """Retire le formatage gras markdown (** ou __) pour ne garder que le texte brut."""
+    if not text or not isinstance(text, str):
+        return text
+    return text.replace("**", "").replace("__", "").strip()
+
+
+def _sanitize_tweaks_text(tweaks: dict) -> None:
+    """Modifie tweaks in-place : retire ** et __ du resume et de tous les bullet_points."""
+    if "resume" in tweaks and tweaks["resume"]:
+        tweaks["resume"] = _strip_markdown_bold(tweaks["resume"])
+    for exp in tweaks.get("experiences") or []:
+        exp["bullet_points"] = [_strip_markdown_bold(b) for b in (exp.get("bullet_points") or [])]
 
 
 def _extract_json(text: str) -> dict | None:
@@ -165,6 +181,8 @@ def adapter_cv(cv_base: dict, offre: dict, rapport: dict | None = None, retry_in
     if tweaks is None:
         raise ValueError("Impossible d'extraire un JSON valide de la réponse Gemini.")
 
+    _sanitize_tweaks_text(tweaks)
+
     # Valider et normaliser le format
     if "resume" not in tweaks:
         tweaks["resume"] = cv_base.get("resume", "")
@@ -193,13 +211,22 @@ def adapter_cv(cv_base: dict, offre: dict, rapport: dict | None = None, retry_in
     return tweaks
 
 
+def _nettoyer_poste_offre(poste: str) -> str:
+    """Retire les mots parasites souvent collés par les annonces (demande, offre, etc.)."""
+    s = (poste or "").strip()
+    # Mots à retirer (souvent en début d'annonce : "Offre demande ...", "Recherche ...")
+    for mot in ("demande", "offre", "recherche", "poste à pourvoir"):
+        s = re.sub(rf"\b{re.escape(mot)}\b", "", s, flags=re.IGNORECASE)
+    return re.sub(r"\s+", " ", s).strip()
+
+
 def apply_tweaks_to_cv(cv_base: dict, tweaks: dict) -> dict:
     """Fusionne cv_base avec les tweaks (resume, bullet_points, mots_cles_cache, titre_professionnel). Ne modifie pas cv_base."""
     from copy import deepcopy
     merged = deepcopy(cv_base)
     merged["resume"] = tweaks.get("resume", merged.get("resume", ""))
     merged["mots_cles_cache"] = tweaks.get("mots_cles_cache", "")
-    poste_offre = str(tweaks.get("poste_offre") or "").strip()
+    poste_offre = _nettoyer_poste_offre(str(tweaks.get("poste_offre") or ""))
     if poste_offre:
         merged["titre_professionnel"] = f"Étudiant ESSEC - {poste_offre}"
     by_id = {t["id"]: t for t in tweaks.get("experiences", []) if t.get("id")}

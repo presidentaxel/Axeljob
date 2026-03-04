@@ -24,7 +24,7 @@ Règles strictes :
 - Ton professionnel mais authentique, direct et accessible
 - 3 paragraphes maximum : accroche + adéquation CV/poste + motivation/disponibilité
 - Retourner UNIQUEMENT le corps de la lettre (pas de formule d'appel ni de signature)
-- Format : texte brut, paragraphes séparés par une ligne vide (double saut de ligne)
+- Format : texte brut uniquement, paragraphes séparés par une ligne vide (double saut de ligne). Aucun formatage : pas d'astérisques (**), pas de gras ni markdown.
 
 Ton et formulation — à respecter absolument :
 - Bannir les tournures pompeuses, guindées ou "haute société" : par exemple "suscite mon plus vif intérêt", "je me permets de", "au vu de", "je nourris l'ambition de", "c'est avec un vif enthousiasme que", "je serais ravi de", "je demeure à votre disposition"
@@ -75,7 +75,7 @@ Entreprise : {entreprise}
 {fiche_short}
 </fiche_poste>
 
-Rédige le corps de la lettre de motivation (3 paragraphes max). Retourne uniquement le texte, paragraphes séparés par une ligne vide. Pas de "Madame, Monsieur", pas de signature.
+Rédige le corps de la lettre de motivation (3 paragraphes max). Retourne uniquement le texte brut, paragraphes séparés par une ligne vide. Pas de "Madame, Monsieur", pas de signature. Aucun formatage : pas d'astérisques (**), pas de gras.
 
 Ton : direct et naturel. À proscrire : "suscite mon plus vif intérêt", "je me permets de", formules trop guindées ou pompeuses. Préférer des phrases simples et concrètes."""
 
@@ -86,7 +86,8 @@ Ton : direct et naturel. À proscrire : "suscite mon plus vif intérêt", "je me
     )
     if not r or not getattr(r, "text", None):
         raise ValueError("Réponse Gemini vide pour la lettre.")
-    return r.text.strip()
+    corps = r.text.strip().replace("**", "").replace("__", "")
+    return corps
 
 
 def _texte_to_html_paragraphes(texte: str) -> str:
@@ -95,6 +96,12 @@ def _texte_to_html_paragraphes(texte: str) -> str:
         return "<p></p>"
     paragraphes = [p.strip() for p in re.split(r"\n\s*\n", texte) if p.strip()]
     return "".join(f"<p>{p}</p>" for p in paragraphes)
+
+
+def corps_lettre_to_html(corps_brut: str) -> str:
+    """Convertit le corps de lettre (texte brut) en HTML pour affichage."""
+    texte = (corps_brut or "").strip().replace("**", "").replace("__", "")
+    return _texte_to_html_paragraphes(texte)
 
 
 def generer_lettre_pdf(
@@ -173,7 +180,56 @@ def generer_lettre_pdf_bytes(
 
     prenom = (cv.get("prenom") or "").strip()
     nom = (cv.get("nom") or "").strip()
-    poste_safe = re.sub(r'[<>:"/\\|?*]', "", (poste or "").strip())
+    poste_safe = (poste or "").strip().replace("\u2013", "-").replace("\u2014", "-")
+    poste_safe = "".join(c if ord(c) < 256 else "-" for c in poste_safe)
+    poste_safe = re.sub(r'[<>:"/\\|?*]', "", poste_safe)
+    poste_safe = re.sub(r"\s+", " ", poste_safe).strip()[:60] if poste_safe else ""
+    nom_lettre = f"Motivation {prenom} {nom} - {poste_safe}.pdf" if poste_safe else f"Motivation {prenom} {nom}.pdf"
+    return buffer.getvalue(), nom_lettre
+
+
+def generer_lettre_pdf_bytes_from_corps(
+    cv: dict,
+    corps_brut: str,
+    poste: str,
+    entreprise: str,
+    base_dir: "str | Path | None" = None,
+) -> tuple[bytes, str]:
+    """Génère le PDF de la lettre à partir d'un corps déjà généré. base_dir : dossier des templates (défaut = dossier du module)."""
+    from io import BytesIO
+
+    base_dir = Path(base_dir).resolve() if base_dir else Path(__file__).resolve().parent
+    corps_html = _texte_to_html_paragraphes((corps_brut or "").strip().replace("**", "").replace("__", ""))
+
+    from jinja2 import Environment, FileSystemLoader, select_autoescape
+    from weasyprint import HTML, CSS
+
+    env = Environment(
+        loader=FileSystemLoader(str(base_dir)),
+        autoescape=select_autoescape(("html", "xml")),
+    )
+    template = env.get_template("letter_template.html")
+    html_str = template.render(
+        prenom=cv.get("prenom", ""),
+        nom=cv.get("nom", ""),
+        email=cv.get("email", ""),
+        telephone=cv.get("telephone", ""),
+        ville=cv.get("ville", ""),
+        date_envoi=datetime.now().strftime("%d/%m/%Y"),
+        entreprise=entreprise or "",
+        poste=poste or "",
+        corps_lettre=corps_html,
+    )
+    doc = HTML(string=html_str, base_url=str(base_dir))
+    css = CSS(filename=base_dir / "letter_template.css")
+    buffer = BytesIO()
+    doc.write_pdf(buffer, stylesheets=[css])
+
+    prenom = (cv.get("prenom") or "").strip()
+    nom = (cv.get("nom") or "").strip()
+    poste_safe = (poste or "").strip().replace("\u2013", "-").replace("\u2014", "-")
+    poste_safe = "".join(c if ord(c) < 256 else "-" for c in poste_safe)
+    poste_safe = re.sub(r'[<>:"/\\|?*]', "", poste_safe)
     poste_safe = re.sub(r"\s+", " ", poste_safe).strip()[:60] if poste_safe else ""
     nom_lettre = f"Motivation {prenom} {nom} - {poste_safe}.pdf" if poste_safe else f"Motivation {prenom} {nom}.pdf"
     return buffer.getvalue(), nom_lettre

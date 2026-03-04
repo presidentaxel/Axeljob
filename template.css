@@ -37,6 +37,98 @@
     overflow: hidden;
   }
 
+  /* Export PDF : layout plus compact pour tenir sur une page (body sans .cv-preview) */
+  body:not(.cv-preview) .cv-header {
+    padding: 10px 14px;
+  }
+  body:not(.cv-preview) .resume-text,
+  body:not(.cv-preview) .header-contact {
+    margin-top: 4px;
+  }
+  body:not(.cv-preview) .section-experiences {
+    padding: 6px 14px 4px;
+  }
+  body:not(.cv-preview) .experience-item {
+    margin-bottom: 4px;
+  }
+  body:not(.cv-preview) .experience-item .bullet {
+    font-size: 9pt;
+    line-height: 1.35;
+  }
+  body:not(.cv-preview) .exp-poste {
+    margin: 0 0 2px 0;
+  }
+  body:not(.cv-preview) .exp-clients {
+    font-size: 8.5pt;
+    margin: 4px 0 0 0;
+    padding-top: 2px;
+  }
+  body:not(.cv-preview) .section-formation {
+    padding: 2px 14px 4px;
+  }
+  body:not(.cv-preview) .formation-item {
+    margin-bottom: 2px;
+  }
+  body:not(.cv-preview) .section-projets {
+    padding: 4px 14px 8px;
+  }
+  body:not(.cv-preview) .section-projets .projet-nom {
+    font-size: 10pt;
+  }
+  body:not(.cv-preview) .section-projets .projet-description {
+    font-size: 9pt;
+    line-height: 1.4;
+  }
+  body:not(.cv-preview) .cv-sidebar {
+    width: 190px;
+  }
+  body:not(.cv-preview) .cv-main {
+    margin-right: 190px;
+  }
+  body:not(.cv-preview) .section-sidebar {
+    padding: 6px 10px 2px;
+  }
+  body:not(.cv-preview) #competences-techniques {
+    padding-top: 12px;
+  }
+  body:not(.cv-preview) .sidebar-category {
+    font-size: 9pt;
+    margin: 0 0 2px 0;
+  }
+  body:not(.cv-preview) .sidebar-item {
+    font-size: 8pt;
+    line-height: 1.3;
+    margin: 0 0 0.5px 0;
+  }
+  body:not(.cv-preview) #competences-techniques > .section-title,
+  body:not(.cv-preview) #competences-informatiques .section-title,
+  body:not(.cv-preview) #langues > .section-title,
+  body:not(.cv-preview) #autres > .section-title {
+    margin-top: 8px;
+    margin-bottom: 6px;
+  }
+  body:not(.cv-preview) .section-title {
+    font-size: 9pt;
+    margin: 0 0 3px 0;
+  }
+  body:not(.cv-preview) .header-photo,
+  body:not(.cv-preview) .header-photo img {
+    width: 46px;
+    height: 46px;
+  }
+  body:not(.cv-preview) .header-nom {
+    font-size: 14pt;
+  }
+  body:not(.cv-preview) .header-titre-inline {
+    font-size: 9.5pt;
+  }
+  body:not(.cv-preview) .section-sidebar + .section-sidebar {
+    padding-top: 0;
+  }
+  /* Éviter les coupures au milieu d’un bloc dans le PDF */
+  body:not(.cv-preview) .experience-item,
+  body:not(.cv-preview) .formation-item,
+
   /* Corps : flux unique pour l'ATS (ordre DOM = main puis sidebar), positionnement visuel inchangé */
   .cv-body {
     grid-area: body;
@@ -152,6 +244,10 @@
     background: white;
     padding: 8px 16px;
   }
+
+  .section textarea {
+    min-height: 180px !important;
+  }
   
   .experiences-list {
     padding: 0;
@@ -173,6 +269,12 @@
     align-items: baseline;
     gap: 12px;
     margin-bottom: 2px;
+  }
+  
+  .ats-label {
+    font-weight: 400;
+    font-size: 0.9em;
+    color: #666;
   }
   
   .exp-entreprise {
@@ -389,6 +491,13 @@
     background: transparent;
     margin: 0;
     padding: 0;
+  }
+
+  /* En preview (iframe) : viewport large pour que le CV ne soit pas en colonne étroite */
+  html.cv-preview,
+  body.cv-preview {
+    width: 100%;
+    min-width: 210mm;
   }
 
   body.cv-preview .mots-cles-ats-invisible {

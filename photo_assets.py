@@ -109,7 +109,7 @@ def get_photo_url_for_cv(
     if existing_photo_url and not existing_photo_url.startswith("http"):
         candidate = base_dir / existing_photo_url
         if candidate.is_file():
-            source = candidate
+            return existing_photo_url
 
     if source is None:
         source = _find_source_photo(assets_dir, prenom=prenom, nom=nom)

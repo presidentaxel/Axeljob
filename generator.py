@@ -13,8 +13,9 @@ if os.name == "nt":
     dll_dirs = os.environ.get("WEASYPRINT_DLL_DIRECTORIES", "").strip()
     if dll_dirs:
         for dir_path in dll_dirs.replace(",", ";").split(";"):
-            dir_path = dir_path.strip()
+            dir_path = os.path.abspath(dir_path.strip())
             if dir_path and os.path.isdir(dir_path):
+                os.environ["PATH"] = dir_path + os.pathsep + os.environ.get("PATH", "")
                 try:
                     os.add_dll_directory(dir_path)
                 except OSError:
@@ -26,7 +27,12 @@ from photo_assets import ensure_compressed_photo, get_photo_url_for_cv
 
 
 def _sanitize_filename(s: str, max_len: int = 80) -> str:
-    """Retire les caractères interdits dans un nom de fichier."""
+    """Retire les caractères interdits et normalise l'Unicode (évite latin-1 / zip)."""
+    if not s:
+        return ""
+    s = str(s).replace("\u2013", "-").replace("\u2014", "-")
+    s = s.replace("\u2018", "'").replace("\u2019", "'").replace("\u201c", '"').replace("\u201d", '"')
+    s = "".join(c if ord(c) < 256 else "-" for c in s)
     s = re.sub(r'[<>:"/\\|?*]', "", s)
     s = re.sub(r"\s+", " ", s).strip()
     return s[:max_len] if s else ""
@@ -121,10 +127,10 @@ def generer_pdf(cv_adapte: dict, offre: dict, output_dir: str = ".") -> str:
     return str(path_pdf)
 
 
-def generer_pdf_bytes(cv_adapte: dict, offre: dict) -> tuple[bytes, str]:
+def generer_pdf_bytes(cv_adapte: dict, offre: dict, base_dir: str | Path | None = None) -> tuple[bytes, str]:
     """
     Génère le PDF en mémoire. Retourne (bytes_du_pdf, nom_fichier).
-    Utile pour renvoyer le PDF dans une réponse HTTP sans écrire sur disque.
+    base_dir : dossier des templates/CSS (par défaut = dossier du module). À passer depuis le backend pour garantir le bon chemin.
     """
     try:
         from weasyprint import HTML, CSS
@@ -134,7 +140,7 @@ def generer_pdf_bytes(cv_adapte: dict, offre: dict) -> tuple[bytes, str]:
             "Installation : pip install weasyprint"
         )
 
-    base_dir = Path(__file__).resolve().parent
+    base_dir = Path(base_dir).resolve() if base_dir else Path(__file__).resolve().parent
     cv_adapte = dict(cv_adapte)
     ensure_compressed_photo(base_dir, cv_adapte.get("photo_url"), cv_adapte.get("prenom"), cv_adapte.get("nom"))
     photo_url = get_photo_url_for_cv(base_dir, cv_adapte.get("photo_url"), cv_adapte.get("prenom"), cv_adapte.get("nom"))

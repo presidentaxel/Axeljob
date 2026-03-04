@@ -7,6 +7,7 @@ Les tweaks sont stockés dans adaptations/ ; cv_base.json n'est jamais modifié.
 
 import json
 import hashlib
+import os
 from pathlib import Path
 from datetime import datetime
 
@@ -14,6 +15,15 @@ from flask import Flask, request, jsonify, send_file, send_from_directory
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
+
+# Windows + WeasyPrint : mettre les DLL Pango/GTK dans le PATH avant tout import
+if os.name == "nt":
+    dll_dirs = os.environ.get("WEASYPRINT_DLL_DIRECTORIES", "").strip()
+    if dll_dirs:
+        for dir_path in dll_dirs.replace(",", ";").split(";"):
+            dir_path = os.path.abspath(dir_path.strip())
+            if dir_path and os.path.isdir(dir_path):
+                os.environ["PATH"] = dir_path + os.pathsep + os.environ.get("PATH", "")
 
 BASE_DIR = Path(__file__).resolve().parent
 CV_BASE_PATH = BASE_DIR / "cv_base.json"
@@ -35,10 +45,20 @@ def _apply_tweaks(cv_base: dict, tweaks: dict) -> dict:
     return apply_tweaks_to_cv(cv_base, tweaks)
 
 
+STATUTS_CANDIDATURE = (
+    "candidature_envoyee",
+    "reponse_recue",
+    "interview",
+    "refus",
+)
+
+
 def _save_adaptation(adaptation_id: str, payload: dict) -> Path:
     """Sauvegarde une adaptation dans adaptations/<id>.json. Ne touche jamais cv_base.json."""
     ADAPTATIONS_DIR.mkdir(parents=True, exist_ok=True)
     path = ADAPTATIONS_DIR / f"{adaptation_id}.json"
+    payload.setdefault("statut", "candidature_envoyee")
+    payload.setdefault("archived", False)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
     return path
@@ -227,8 +247,11 @@ def api_adapt():
         "resume": tweaks.get("resume"),
         "experiences": tweaks.get("experiences", []),
         "mots_cles_cache": tweaks.get("mots_cles_cache", ""),
+        "poste_offre": tweaks.get("poste_offre", ""),
         "rapport": rapport,
         "description_preview": description[:200] + "..." if len(description) > 200 else description,
+        "statut": "candidature_envoyee",
+        "archived": False,
     })
 
     return jsonify({
@@ -341,6 +364,82 @@ def api_export_dossier_zip():
         )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+def _safe_adaptation_id(adaptation_id: str) -> bool:
+    """Vérifie que l'id ne contient que des caractères sûrs (pas de path traversal)."""
+    if not adaptation_id or len(adaptation_id) > 80:
+        return False
+    return all(c.isalnum() or c in "_-" for c in adaptation_id)
+
+
+@app.route("/api/applications", methods=["GET"])
+def api_applications_list():
+    """
+    Liste toutes les candidatures (fichiers adaptations/*.json).
+    Query : ?archived=1 pour inclure les archivées (par défaut masquées).
+    """
+    include_archived = request.args.get("archived") == "1"
+    applications = []
+    if not ADAPTATIONS_DIR.is_dir():
+        return jsonify(applications)
+    for path in sorted(ADAPTATIONS_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            continue
+        aid = path.stem
+        archived = data.get("archived", False)
+        if archived and not include_archived:
+            continue
+        applications.append({
+            "id": aid,
+            "poste_offre": data.get("poste_offre", ""),
+            "poste": data.get("poste", ""),
+            "entreprise": data.get("entreprise", ""),
+            "description_preview": data.get("description_preview", ""),
+            "statut": data.get("statut", "candidature_envoyee"),
+            "archived": archived,
+            "date": datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M"),
+        })
+    return jsonify(applications)
+
+
+@app.route("/api/applications/<adaptation_id>", methods=["PATCH"])
+def api_application_update(adaptation_id: str):
+    """
+    Met à jour le statut / archivage / poste / entreprise d'une candidature.
+    Body : { "statut"?, "archived"?, "poste"?, "entreprise"? }
+    """
+    if not _safe_adaptation_id(adaptation_id):
+        return jsonify({"error": "Id invalide"}), 400
+    path = ADAPTATIONS_DIR / f"{adaptation_id}.json"
+    if not path.is_file():
+        return jsonify({"error": "Candidature introuvable"}), 404
+    data = request.get_json() or {}
+    statut = data.get("statut")
+    if statut is not None and statut not in STATUTS_CANDIDATURE:
+        return jsonify({"error": "Statut invalide"}), 400
+    try:
+        with open(path, encoding="utf-8") as f:
+            payload = json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        return jsonify({"error": str(e)}), 500
+    if statut is not None:
+        payload["statut"] = statut
+    if "archived" in data:
+        payload["archived"] = bool(data["archived"])
+    if "poste" in data:
+        payload["poste"] = (data["poste"] or "").strip()
+    if "entreprise" in data:
+        payload["entreprise"] = (data["entreprise"] or "").strip()
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+    except OSError as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"id": adaptation_id, "statut": payload.get("statut"), "archived": payload.get("archived")})
 
 
 if __name__ == "__main__":

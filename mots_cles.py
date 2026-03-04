@@ -29,7 +29,7 @@ def _tokeniser_et_nettoyer(texte: str) -> list[str]:
     return texte.split()
 
 
-def extraire_mots_cles(description: str, top_n: int = 15) -> list[str]:
+def extraire_mots_cles(description: str, top_n: int = 55) -> list[str]:
     """Tokenise la description et matche contre MOTS_CLES_FINANCE_TECH + fréquence des n-grams."""
     if not description:
         return []
@@ -68,7 +68,7 @@ def extraire_mots_cles(description: str, top_n: int = 15) -> list[str]:
 def offre_from_description(description: str, titre: str = "", entreprise: str = "") -> dict:
     """Construit un dict offre à partir du texte de la fiche de poste (sans scraping)."""
     description = (description or "").strip()
-    mots = extraire_mots_cles(description, 15)
+    mots = extraire_mots_cles(description, 55)
     return {
         "titre": (titre or "").strip(),
         "entreprise": (entreprise or "").strip(),
@@ -77,6 +77,6 @@ def offre_from_description(description: str, titre: str = "", entreprise: str = 
         "localisation": "",
         "description_brute": description,
         "mots_cles_extraits": mots,
-        "competences_requises": mots[:15],
+        "competences_requises": mots[:55],
         "soft_skills": [],
     }

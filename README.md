@@ -40,6 +40,7 @@ cp .env.example .env
 | **`GEMINI_API_KEY`** | Clé API Google AI (Gemini). Clé gratuite : [Google AI Studio](https://aistudio.google.com/app/apikey) | Oui pour l’adaptation IA |
 | **`WEASYPRINT_DLL_DIRECTORIES`** | **(Windows uniquement)** Chemin vers les DLL Pango/GTK (ex. `C:\msys64\mingw64\bin`) pour que WeasyPrint génère le PDF. À remplir après avoir installé MSYS2 et `mingw-w64-x86_64-pango`. | Oui sur Windows pour le PDF |
 | **`CV_BOT_EXPORT_BASE`** | Dossier racine où créer les sous-dossiers « Entreprise - Poste » (CV + lettre + fiche de poste). Ex. `D:\Candidatures` ou `/home/user/candidatures`. | Non (optionnel, pour l’export package) |
+| **`SUPABASE_URL`** / **`SUPABASE_SERVICE_KEY`** | (Stack FastAPI) URL du projet Supabase et clé **service_role** pour stocker le CV de base et les candidatures. Si non définis, le backend utilise `cv_base.json` et le dossier `adaptations/`. | Non |
 
 **Exemple `.env` (Windows) :**
 
@@ -74,7 +75,49 @@ Sur Linux/macOS, pas besoin de `WEASYPRINT_DLL_DIRECTORIES` ; installe les paque
 
 **Premier lancement (après un clone)** : `cv_base.json` et `preview.html` ne sont pas dans le dépôt (ils sont dans le `.gitignore` pour ne pas exposer tes infos). Tu dois créer **`cv_base.json`** : soit `python main.py --setup` (questionnaire), soit copie `cv_base_vierge.json` vers `cv_base.json` puis complète-le à la main.
 
-### Interface web (recommandé)
+### Stack React + FastAPI (recommandé)
+
+Backend et frontend sont séparés : **npm** pour le front, **uvicorn** pour le back. Données : **Supabase** (ou fallback `cv_base.json` + dossier `adaptations/`). Métriques **Prometheus** exposées pour **Grafana**.
+
+#### 1. Backend (FastAPI + uvicorn)
+
+Depuis la racine `cv-bot` :
+
+```bash
+pip install -r backend/requirements.txt
+uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+- API : [http://localhost:8000](http://localhost:8000)
+- Métriques Prometheus : [http://localhost:8000/metrics](http://localhost:8000/metrics)
+- Health : [http://localhost:8000/health](http://localhost:8000/health)
+
+Le fichier **`.env`** est lu à la racine de `cv-bot` (même `.env` que pour le reste du projet). Pour utiliser **Supabase**, ajoute `SUPABASE_URL` et `SUPABASE_SERVICE_KEY` dans `.env`, puis exécute le script SQL `backend/supabase_schema.sql` dans le SQL Editor de ton projet Supabase (Dashboard → SQL Editor). Sans Supabase, le backend utilise `cv_base.json` et le dossier `adaptations/` comme avant.
+
+#### 2. Frontend (React + Vite)
+
+Dans un second terminal :
+
+```bash
+cd frontend
+cp .env.example .env
+# Édite .env : VITE_API_URL=http://localhost:8000
+npm install
+npm run dev
+```
+
+Ouvre [http://localhost:5173](http://localhost:5173). Le front appelle le backend via `VITE_API_URL`.
+
+#### 3. Prometheus + Grafana
+
+- **Prometheus** : configure un job qui scrape `http://localhost:8000/metrics` (ou l’URL de ton backend en prod).
+- **Grafana** : ajoute Prometheus comme source de données, puis crée des tableaux de bord avec les métriques `cv_bot_*` (ex. `cv_bot_http_requests_total`, `cv_bot_adaptations_total`, `cv_bot_pdfs_generated_total`, `cv_bot_http_request_duration_seconds`).
+
+Comportement identique à l’ancienne interface : aperçu du CV, collage de l’annonce, adaptation avec Gemini, export PDF et dossier candidature, liste des candidatures avec statut et archivage.
+
+**Section Profil** : onglet « Profil » pour éditer ton CV (identité, expériences, formations, projets). Tu peux ajouter ou supprimer des expériences ; les données sont enregistrées en JSON via `PUT /api/cv`. Avec **Supabase** : configure `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY` dans `frontend/.env`, et `SUPABASE_JWT_SECRET` dans le `.env` racine (Dashboard Supabase → API → JWT Secret). Les utilisateurs peuvent alors se connecter / créer un compte ; le CV est stocké par utilisateur (table `cv_base`, id = user_id). Sans auth, le CV est stocké sous l’id `default`.
+
+### Ancienne interface (Flask, monolith)
 
 ```bash
 python app.py
@@ -159,6 +202,7 @@ Si `cv_base.json` ou `preview.html` ont déjà été commitées, exécute `git r
 
 - **Limite d’appels Gemini (429)** : attente 15 s puis nouvel essai automatique.
 - **WeasyPrint manquant / erreur PDF** : vérifier l’installation (MSYS2 + `WEASYPRINT_DLL_DIRECTORIES` sur Windows, paquets système sur Linux/macOS).
+- **« cannot load library 'libgobject-2.0-0' » (Windows)** : installer [MSYS2](https://www.msys2.org/), dans le shell MSYS2 lancer `pacman -S mingw-w64-x86_64-pango`, puis dans `.env` définir `WEASYPRINT_DLL_DIRECTORIES=C:\msys64\mingw64\bin` (adapter si MSYS2 est ailleurs). Redémarrer l’app après modification du `.env`.
 
 ---
 

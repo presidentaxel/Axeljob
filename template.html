@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="{% if for_preview %}cv-preview{% endif %}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -37,12 +37,12 @@
         <h2 class="section-title">EXPÉRIENCE PROFESSIONNELLE</h2>
         <div class="experiences-list">
           {% for exp in experiences_for_display %}
-          <div class="experience-item">
+          <div class="experience-item" itemscope itemtype="https://schema.org/JobPosition">
             <div class="exp-header">
-              <span class="exp-entreprise">{{ exp.entreprise }}</span>
-              <span class="exp-dates">{{ exp.date_debut }} - {{ exp.date_fin }}{% if exp.lieu %} · {{ exp.lieu }}{% endif %}</span>
+              <span class="exp-entreprise"><span class="ats-label">Organisation : </span><span itemprop="worksFor" itemscope itemtype="https://schema.org/Organization"><span itemprop="name">{{ exp.entreprise }}</span></span></span>
+              <span class="exp-dates">{% if exp.date_debut or exp.date_fin %}{{ exp.date_debut }} - {{ exp.date_fin }}{% endif %}{% if exp.lieu %}{% if exp.date_debut or exp.date_fin %} · {% endif %}{{ exp.lieu }}{% endif %}</span>
             </div>
-            <p class="exp-poste">{{ exp.poste }}{% if exp.secteur %} — {{ exp.secteur }}{% endif %}</p>
+            <p class="exp-poste"><span class="ats-label">Fonction : </span><span itemprop="name">{{ exp.poste }}{% if exp.secteur %} — {{ exp.secteur }}{% endif %}</span></p>
             {% for bullet in exp.bullet_points %}
             <p class="bullet">- {{ bullet.html|safe }}</p>
             {% endfor %}
@@ -60,7 +60,7 @@
         <div class="formation-item">
           <p class="formation-header">
             <span class="formation-diplome">{{ form.etablissement }} - {{ form.diplome }}</span>
-            <span class="formation-date">{{ form.date }}</span>
+            {% if form.date %}<span class="formation-date">{{ form.date }}</span>{% endif %}
           </p>
           {% if form.mention %}
           <p class="formation-mention">{{ form.mention }}</p>
@@ -83,34 +83,41 @@
     </div>
 
     <div class="cv-sidebar">
+      {% set competences = competences or {} %}
+      {% if competences.techniques %}
       <section class="section-sidebar" id="competences-techniques">
         <h2 class="section-title">COMPÉTENCES</h2>
         <h3 class="sidebar-category">Compétences techniques</h3>
         {% for item in competences.techniques %}
-        <p class="sidebar-item">{{ item }}</p>
+        {% if item %}<p class="sidebar-item">{{ item }}</p>{% endif %}
         {% endfor %}
       </section>
+      {% endif %}
 
+      {% if competences.logiciels or competences.informatiques %}
       <section class="section-sidebar" id="competences-informatiques">
         <h3 class="sidebar-category">Logiciels & outils</h3>
         {% for item in competences.logiciels or competences.informatiques or [] %}
-        <p class="sidebar-item">{{ item }}</p>
+        {% if item %}<p class="sidebar-item">{{ item }}</p>{% endif %}
         {% endfor %}
       </section>
+      {% endif %}
 
+      {% if competences.langues %}
       <section class="section-sidebar" id="langues">
         <h2 class="section-title">LANGUES</h2>
         {% for l in competences.langues %}
-        <p class="sidebar-item">{{ l.langue }} - {{ l.niveau }}</p>
+        {% if l.langue or l.niveau %}<p class="sidebar-item">{{ l.langue }} - {{ l.niveau }}</p>{% endif %}
         {% endfor %}
       </section>
+      {% endif %}
 
       {% set autres_items = competences.autres or loisirs or [] %}
       {% if autres_items %}
       <section class="section-sidebar" id="autres">
         <h2 class="section-title">AUTRES</h2>
         {% for item in autres_items %}
-        <p class="sidebar-item">{{ item }}</p>
+        {% if item %}<p class="sidebar-item">{{ item }}</p>{% endif %}
         {% endfor %}
       </section>
       {% endif %}

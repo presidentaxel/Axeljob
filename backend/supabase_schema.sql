@@ -30,6 +30,5 @@
   drop policy if exists "Service role full access applications" on public.applications;
   create policy "Service role full access applications" on public.applications for all using (true) with check (true);
 
-  -- Storage : bucket public pour les photos CV (uniquement Supabase, pas de fichiers locaux)
-  -- Dans le Dashboard Supabase : Storage > New bucket > nom « cv_photos », cocher Public.
-  -- Les photos sont stockées sous {user_id}/photo.jpg ; l'URL publique est enregistrée dans cv_base.data.photo_url.
+  -- Storage : bucket public pour la photo CV (créé automatiquement au premier upload si absent)
+  -- Une seule image partagée : photo.jpg dans le bucket cv_photos. URL dans cv_base.data.photo_url.

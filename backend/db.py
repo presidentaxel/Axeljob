@@ -198,16 +198,27 @@ def save_cv_base(data: dict, user_id: Optional[str] = None) -> None:
 
 # --- Photo CV : Supabase Storage (bucket cv_photos, public) ---
 CV_PHOTOS_BUCKET = "cv_photos"
+CV_PHOTOS_PATH = "photo.jpg"  # une seule image partagée, pas par utilisateur
+
+
+def _ensure_cv_photos_bucket(sb) -> None:
+    """Crée le bucket cv_photos (public) s'il n'existe pas."""
+    try:
+        sb.storage.create_bucket(CV_PHOTOS_BUCKET, options={"public": True})
+    except Exception as e:
+        err = str(e).lower()
+        if "already exists" in err or "duplicate" in err or "409" in str(e):
+            return
+        raise
 
 
 def upload_photo_to_storage(user_safe_id: str, image_bytes: bytes) -> str:
-    """Envoie la photo dans Supabase Storage (bucket cv_photos). Retourne l’URL publique.
-    Le bucket doit exister et être public (Dashboard Supabase > Storage > New bucket > cv_photos, Public).
-    """
+    """Envoie la photo dans Supabase Storage (bucket cv_photos). Une seule image partagée (pas par user). Retourne l’URL publique."""
     sb = _get_supabase()
     if not sb:
         raise RuntimeError("Supabase non configuré.")
-    path = f"{user_safe_id}/photo.jpg"
+    _ensure_cv_photos_bucket(sb)
+    path = CV_PHOTOS_PATH
     # Ne pas mettre de booléen dans file_options (ex. upsert) : ils sont parfois envoyés en headers et doivent être str/bytes
     sb.storage.from_(CV_PHOTOS_BUCKET).upload(
         path=path,

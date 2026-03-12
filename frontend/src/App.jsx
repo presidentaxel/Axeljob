@@ -308,8 +308,17 @@ export default function App() {
     if (authLoading) return;
     if (!supabase) return;
     if (session) {
-      if (pathname === '/' || pathname === '/login') navigate('/app', { replace: true });
-      else if (pathname === '/app' || pathname === '/app/') navigate('/app/cv', { replace: true });
+      const params = new URLSearchParams(location.search);
+      if (pathname === '/' || pathname === '/login') {
+        if (params.get('plan') === 'pro') {
+          navigate('/app/cv', { replace: true });
+          setTimeout(() => handleUpgradeClick(), 500);
+        } else {
+          navigate('/app', { replace: true });
+        }
+      } else if (pathname === '/app' || pathname === '/app/') {
+        navigate('/app/cv', { replace: true });
+      }
     } else {
       if (pathname.startsWith('/app')) navigate('/', { replace: true });
     }
@@ -893,8 +902,8 @@ export default function App() {
     return (
       <div className="login-screen">
         <div className="login-screen-card">
-          <img src="/logoaxel.ico" alt="CV Bot" className="login-screen-logo" />
-          <h1>CV Bot</h1>
+          <img src="/logoaxel.ico" alt="AxeL Job" className="login-screen-logo" />
+          <h1>AxeL Job</h1>
           <p className="login-screen-intro">
             Configure Supabase pour utiliser l'application. Ajoute <code>VITE_SUPABASE_URL</code> et <code>VITE_SUPABASE_ANON_KEY</code> dans <code>.env</code> (voir <code>.env.example</code>).
           </p>
@@ -909,8 +918,8 @@ export default function App() {
       return (
         <div className="login-screen">
           <div className="login-screen-card">
-            <img src="/logoaxel.ico" alt="CV Bot" className="login-screen-logo" />
-            <h1>CV Bot</h1>
+            <img src="/logoaxel.ico" alt="AxeL Job" className="login-screen-logo" />
+            <h1>AxeL Job</h1>
             <p className="login-screen-intro">Adapte ton CV à chaque offre en quelques secondes grâce à l'IA.</p>
             <AuthForm onSuccess={() => setAuthLoading(false)} />
             <div className="login-reassurance">
@@ -927,7 +936,7 @@ export default function App() {
     if (pathname === '/mentions-legales' || pathname === '/confidentialite' || pathname === '/cgu') {
       return <LegalPages page={pathname.slice(1)} onBack={() => navigate('/')} />;
     }
-    return <LandingPage onCtaClick={() => navigate('/login')} />;
+    return <LandingPage onCtaClick={() => navigate('/login')} onProClick={() => navigate('/login?plan=pro')} />;
   }
 
   const sidebarCollapsed = !sidebarHovered && !sidebarOpen;
@@ -945,7 +954,7 @@ export default function App() {
         onMouseLeave={() => setSidebarHovered(false)}
       >
         <div className="sidebar-header">
-          <img src="/logoaxel.ico" alt="CV Bot" className="sidebar-logo" />
+          <img src="/logoaxel.ico" alt="AxeL Job" className="sidebar-logo" />
         </div>
         <span className="sidebar-section-label">Principal</span>
         <nav className="sidebar-nav">
@@ -1035,7 +1044,7 @@ export default function App() {
             <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
           </svg>
         </button>
-        <img src="/logoaxel.ico" alt="CV Bot" className="sidebar-logo mobile-logo" />
+        <img src="/logoaxel.ico" alt="AxeL Job" className="sidebar-logo mobile-logo" />
       </header>
 
       <div className="app-main">
@@ -1626,7 +1635,7 @@ export default function App() {
         <div id="viewSupport" className={`view-panel app-page view-support ${view === 'support' ? 'active' : ''}`} style={{ display: view === 'support' ? 'flex' : 'none' }}>
           <div className="support-hero">
             <h1 className="support-hero-title">Support</h1>
-            <p className="support-hero-subtitle">On t&apos;aide à tirer le meilleur de CV Bot. Sujets fréquents ci-dessous, conversation à venir.</p>
+            <p className="support-hero-subtitle">On t&apos;aide à tirer le meilleur de AxeL Job. Sujets fréquents ci-dessous, conversation à venir.</p>
           </div>
           <div className="page-content support-page-content">
             <section className="support-usecases">
@@ -1733,7 +1742,7 @@ export default function App() {
               </ul>
               <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
                 <button type="button" className="btn btn-primary" onClick={handleUpgradeClick} disabled={checkoutLoading}>
-                  {checkoutLoading ? 'Redirection…' : 'Passer en Pro - 9€/mois'}
+                  {checkoutLoading ? 'Redirection…' : 'Passer en Pro - 10€/mois'}
                 </button>
                 <button type="button" className="btn btn-secondary" onClick={() => setUpgradeModalVisible(false)}>
                   Plus tard

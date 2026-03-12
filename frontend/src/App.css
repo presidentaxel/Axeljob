@@ -2659,89 +2659,210 @@ textarea::placeholder {
 }
 
 /* ============================================
-   MOBILE-FIRST RESPONSIVE OVERRIDES
+   MOBILE / SMALL SCREEN RESPONSIVE
    ============================================ */
+
+/* -- Tablet: reduce CV layout -- */
+@media (max-width: 1100px) {
+  .app-page main.app-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* -- Mobile: full overhaul -- */
 @media (max-width: 767px) {
-  .page-header {
-    padding: 0.75rem 1rem;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
 
-  .page-header h1 {
-    font-size: 1.1rem;
-  }
-
-  .page-header-actions {
-    width: 100%;
+  /* Page header */
+  .page-header,
+  .app-page .page-header {
+    padding: 0.65rem 0.75rem;
     flex-wrap: wrap;
     gap: 0.4rem;
   }
 
-  .page-header-actions .btn {
-    font-size: 0.8rem;
-    padding: 0.4rem 0.65rem;
+  .page-header h1,
+  .app-page .page-title {
+    font-size: 1rem;
   }
 
-  .cv-chat-panel {
+  .page-header-actions,
+  .dashboard-header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .page-header-actions .btn,
+  .dashboard-header-actions .btn {
+    font-size: 0.78rem;
+    padding: 0.38rem 0.6rem;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .page-header-dashboard {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  /* Page content */
+  .app-page .page-content {
     padding: 0.75rem;
   }
 
+  /* CV Chat layout */
+  .cv-chat-page .cv-chat-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+  }
+
+  .cv-chat-preview {
+    display: none;
+  }
+
+  .cv-chat-panel {
+    padding: 0.5rem;
+  }
+
   .cv-chat-messages {
-    padding: 0.75rem 0;
+    padding: 0.5rem 0;
   }
 
   .cv-chat-msg {
-    max-width: 95%;
+    max-width: 96%;
     font-size: 0.82rem;
-    padding: 0.6rem 0.8rem;
+    padding: 0.55rem 0.75rem;
   }
 
   .cv-chat-input-bar {
-    padding: 0.5rem;
-    gap: 0.35rem;
+    padding: 0.4rem;
+    gap: 0.3rem;
   }
 
   .cv-chat-input {
     font-size: 0.85rem;
-    padding: 0.55rem 0.65rem;
+    padding: 0.5rem 0.6rem;
   }
 
-  .cv-chat-preview {
-    max-height: 40vh;
-    overflow-y: auto;
-  }
-
+  /* Kanban / Candidatures */
   .kanban-board {
     grid-template-columns: 1fr;
-    gap: 0.75rem;
+    gap: 0.6rem;
   }
 
   .kanban-column {
     max-height: none;
   }
 
-  .setup-modal {
-    margin: 0.75rem;
-    max-width: calc(100vw - 1.5rem);
+  .kanban-column-header {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.6rem;
   }
 
+  .application-card {
+    padding: 0.65rem 0.75rem;
+    font-size: 0.78rem;
+  }
+
+  .applications-stats {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.4rem;
+  }
+
+  /* Onboarding banner */
+  .onboarding-banner {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .onboarding-banner-inner {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+  }
+
+  .onboarding-banner-text {
+    font-size: 0.85rem;
+    min-width: 0;
+  }
+
+  /* Modals */
+  .setup-modal,
+  .linkedin-sync-modal,
+  .upgrade-modal {
+    margin: 0.5rem;
+    max-width: calc(100vw - 1rem);
+    padding: 1rem;
+  }
+
+  .application-detail-overlay .application-detail-modal,
   .modal-overlay .modal-content,
   .detail-modal-content {
     margin: 0.5rem;
     max-width: calc(100vw - 1rem);
     max-height: 90vh;
     border-radius: 12px;
+    padding: 1rem;
   }
 
+  /* Sidebar (already in slide-out mode) */
   .sidebar-upgrade-btn,
   .sidebar-plan-btn {
     font-size: 0.8rem;
     padding: 0.5rem 0.75rem;
   }
 
+  .sidebar-auth {
+    padding: 0.65rem 0.75rem;
+  }
+
+  /* Login screen */
+  .login-screen {
+    padding: 1rem;
+  }
+
   .login-screen-card {
-    padding: 1.5rem;
-    margin: 1rem;
+    padding: 1.5rem 1.25rem;
+  }
+
+  .login-screen-card h1 {
+    font-size: 1.25rem;
+  }
+
+  .login-reassurance {
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  /* ATS score bar */
+  .ats-score-bar {
+    padding: 0.35rem 0.65rem;
+  }
+
+  /* Template picker */
+  .template-picker-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  /* Support / chat views */
+  .support-conv-input-bar {
+    flex-wrap: wrap;
+  }
+
+  /* General buttons tighter on mobile */
+  .btn {
+    font-size: 0.82rem;
+    padding: 0.45rem 0.75rem;
+  }
+
+  .btn-lg {
+    padding: 0.55rem 1rem;
+    font-size: 0.88rem;
+  }
+
+  /* Empty states */
+  .applications-empty-state h2 {
+    font-size: 1.1rem;
   }
 }

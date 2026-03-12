@@ -127,7 +127,7 @@ export default function OnboardingWizard({ session, onComplete }) {
 
         {step === 0 && (
           <div className="onb-content">
-            <h1 className="onb-title">Bienvenue sur CV Bot</h1>
+            <h1 className="onb-title">Bienvenue sur AxeL Job</h1>
             <p className="onb-subtitle">
               Pour commencer, on a besoin de tes informations. Choisis comment les importer :
             </p>

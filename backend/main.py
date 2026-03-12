@@ -371,7 +371,15 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
     html_str = template.render(**ctx)
 
     actual_tid = tmpl_meta.get("id") or "classic"
-    html_str = html_str.replace('href="template.css"', f'href="/api/templates/{actual_tid}/template.css"')
+    css_path = tmpl_dir / "template.css"
+    if css_path.is_file():
+        css_content = css_path.read_text(encoding="utf-8")
+        html_str = html_str.replace(
+            '<link rel="stylesheet" href="template.css">',
+            f"<style>{css_content}</style>",
+        )
+    else:
+        html_str = html_str.replace('href="template.css"', f'href="/api/templates/{actual_tid}/template.css"')
     if 'src="assets/' in html_str:
         html_str = html_str.replace('src="assets/', 'src="/api/assets/')
 

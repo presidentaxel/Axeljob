@@ -323,21 +323,14 @@ export default function ProfileView({ onSaveSuccess, session }) {
   const initiateLinkedInOAuth = async (pendingKey) => {
     if (!supabase) return;
     localStorage.setItem(pendingKey, '1');
-    const { error: linkErr } = await supabase.auth.linkIdentity({
+    const { error: oauthErr } = await supabase.auth.signInWithOAuth({
       provider: 'linkedin_oidc',
       options: { redirectTo: window.location.origin + '/app/profil' },
     });
-    if (linkErr) {
+    if (oauthErr) {
       localStorage.removeItem(pendingKey);
-      if (linkErr.message?.includes('already') || linkErr.status === 422) {
-        await supabase.auth.signInWithOAuth({
-          provider: 'linkedin_oidc',
-          options: { redirectTo: window.location.origin + '/app/profil' },
-        });
-      } else {
-        setLinkedinError(linkErr.message || 'Erreur de connexion LinkedIn.');
-        setLinkedinModalOpen(true);
-      }
+      setLinkedinError(oauthErr.message || 'Erreur de connexion LinkedIn.');
+      setLinkedinModalOpen(true);
     }
   };
 

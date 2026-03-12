@@ -4,7 +4,7 @@ import './LegalPages.css';
 const SITE_NAME = 'CV Bot';
 const SITE_URL = 'https://job.axelproject.fr';
 const COMPANY_NAME = 'Axel Project';
-const CONTACT_EMAIL = 'contact@axelproject.fr';
+const CONTACT_EMAIL = 'louis.vedovato@axelproject.fr';
 const HOSTING = 'DigitalOcean, LLC — 101 Avenue of the Americas, New York, NY 10013, États-Unis';
 
 function MentionsLegales() {

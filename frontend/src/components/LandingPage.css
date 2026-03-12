@@ -81,7 +81,7 @@
   .landing-nav { display: none; }
 }
 
-.landing-mobile-cta {
+.landing-mobile-cta.btn {
   display: none;
   margin-left: auto;
   padding: 0.4rem 0.9rem;
@@ -89,7 +89,7 @@
 }
 
 @media (max-width: 767px) {
-  .landing-mobile-cta { display: inline-flex; }
+  .landing-mobile-cta.btn { display: inline-flex; }
 }
 
 /* Hero */

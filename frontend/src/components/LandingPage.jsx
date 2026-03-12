@@ -47,14 +47,14 @@ const PRO_FEATURES = [
   'Support prioritaire',
 ];
 
-export default function LandingPage({ onCtaClick }) {
+export default function LandingPage({ onCtaClick, onProClick }) {
   return (
     <div className="landing">
       <header className="landing-header">
         <div className="landing-container">
           <div className="landing-header-inner">
             <img src="/favicon.svg" alt="CV Bot" className="landing-logo" />
-            <span className="landing-brand">CV Bot</span>
+            <span className="landing-brand">AxeL Job</span>
             <nav className="landing-nav">
               <a href="#comment">Comment ça marche</a>
               <a href="#tarifs">Tarifs</a>
@@ -192,8 +192,8 @@ export default function LandingPage({ onCtaClick }) {
                   </li>
                 ))}
               </ul>
-              <button type="button" className="btn btn-primary pricing-cta" onClick={onCtaClick}>
-                Essayer gratuitement
+              <button type="button" className="btn btn-primary pricing-cta" onClick={onProClick || onCtaClick}>
+                Passer Pro
               </button>
             </div>
           </div>
@@ -216,7 +216,7 @@ export default function LandingPage({ onCtaClick }) {
 
       <section className="landing-section">
         <div className="landing-container">
-          <h2 className="landing-section-title">Pourquoi CV Bot ?</h2>
+          <h2 className="landing-section-title">Pourquoi AxeL Job ?</h2>
           <div className="landing-features-grid">
             {BENEFITS.map((b) => (
               <div key={b.title} className="landing-feature-card">
@@ -241,7 +241,7 @@ export default function LandingPage({ onCtaClick }) {
       <footer className="landing-footer">
         <div className="landing-container">
           <div className="landing-footer-inner">
-            <p>© {new Date().getFullYear()} CV Bot — Ton CV sur-mesure pour chaque annonce.</p>
+            <p>© {new Date().getFullYear()} AxeL Job — Ton CV sur-mesure pour chaque annonce.</p>
             <nav className="landing-footer-links">
               <Link to="/mentions-legales">Mentions légales</Link>
               <Link to="/confidentialite">Politique de confidentialité</Link>

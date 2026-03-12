@@ -965,8 +965,8 @@ export default function App() {
     <div className="app-shell">
       <header className="topbar">
         <div className="topbar-left">
-          <img src="/favicon.svg" alt="CV Bot" className="topbar-logo" />
-          <span className="topbar-brand">CV Bot</span>
+          <img src="/logoaxel.ico" alt="AxeL Job" className="topbar-logo" />
+          <span className="topbar-brand">AxeL Job</span>
         </div>
         <nav className="topbar-nav">
           <NavLink to="/app/cv" className={({ isActive }) => `topbar-link ${isActive ? 'active' : ''}`}>
@@ -1764,7 +1764,7 @@ export default function App() {
               </p>
               <p style={{ fontSize: '0.85rem', lineHeight: 1.5, color: 'var(--muted)' }}>
                 Il est de votre responsabilité de relire et vérifier l'exactitude des informations
-                avant tout envoi. CV Bot ne saurait être tenu responsable d'éventuelles inexactitudes
+                avant tout envoi. AxeL Job ne saurait être tenu responsable d'éventuelles inexactitudes
                 ou du résultat de vos candidatures.
               </p>
               <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>

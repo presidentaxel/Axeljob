@@ -252,13 +252,15 @@ docker compose version
 
 ### Cloner le projet
 
+Le code est sur GitHub (voir [section 2](#2-pousser-le-code-git-workflow) pour le workflow Git complet).
+
 ```bash
 cd /opt
-git clone https://ton-repo.git cv-bot
+git clone https://github.com/presidentaxel/Axeljob.git cv-bot
 cd cv-bot
 ```
 
-> Si le repo est prive, configure une deploy key SSH ou un token d'acces.
+> Si le repo est prive, configure une **deploy key SSH** ou un **Personal Access Token** (voir section 2.2).
 
 ---
 
@@ -401,7 +403,7 @@ docker compose build && docker compose up -d
 
 ## 7. Configurer le domaine et HTTPS
 
-### 6.1 DNS
+### 7.1 DNS
 
 Dans le panneau DNS de ton registrar (ou DigitalOcean Networking) :
 
@@ -411,7 +413,7 @@ Dans le panneau DNS de ton registrar (ou DigitalOcean Networking) :
 
 > Remplace `cv` par le sous-domaine souhaite. Si ton domaine est `tondomaine.com`, ca donne `cv.tondomaine.com`.
 
-### 6.2 Option A : Caddy (plus simple)
+### 7.2 Option A : Caddy (plus simple)
 
 Caddy gere automatiquement le certificat Let's Encrypt.
 
@@ -437,7 +439,7 @@ systemctl restart caddy
 
 C'est tout. Caddy obtient et renouvelle le certificat automatiquement.
 
-### 6.2 Option B : nginx + Certbot
+### 7.3 Option B : nginx + Certbot
 
 ```bash
 apt-get install -y nginx certbot python3-certbot-nginx
@@ -479,7 +481,7 @@ nginx -t && systemctl reload nginx
 certbot --nginx -d cv.tondomaine.com
 ```
 
-### 6.2 Option C : Cloudflare (le plus simple)
+### 7.4 Option C : Cloudflare (le plus simple)
 
 1. Ajoute ton domaine a Cloudflare
 2. DNS : A record `cv` → IP du serveur, proxy active (orange cloud)
@@ -492,21 +494,21 @@ certbot --nginx -d cv.tondomaine.com
 
 Pour activer le plan Pro payant :
 
-### 7.1 Stripe Dashboard
+### 8.1 Stripe Dashboard
 
 1. Cree un compte sur [stripe.com](https://stripe.com)
 2. Cree un **Product** avec un **Price** (abonnement mensuel)
 3. Note le `price_id` (commence par `price_...`)
 4. Va dans Developers > API Keys et note la **Secret key** (`sk_live_...`)
 
-### 7.2 Webhook
+### 8.2 Webhook
 
 1. Developers > Webhooks > Add endpoint
 2. URL : `https://cv.tondomaine.com/api/stripe-webhook`
 3. Events : `checkout.session.completed`
 4. Note le **Signing secret** (`whsec_...`)
 
-### 7.3 Variables d'environnement
+### 8.3 Variables d'environnement
 
 Ajoute dans `.env` :
 
@@ -558,7 +560,7 @@ docker compose up
 
 ---
 
-## 9. Maintenance et mises a jour
+## 10. Maintenance et mises a jour
 
 ### Mettre a jour le code
 
@@ -604,7 +606,7 @@ tar czf /root/cv-bot-logs-$(date +%Y%m%d).tar.gz logs/
 
 ---
 
-## 10. Securite en production
+## 11. Securite en production
 
 ### Ce qui est deja configure
 

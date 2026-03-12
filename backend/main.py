@@ -969,8 +969,10 @@ def api_cv_preview(request: Request):
 
 
 @app.post("/api/render-html", response_class=HTMLResponse)
-def api_render_html(body: RenderHtmlBody):
+def api_render_html(request: Request, body: RenderHtmlBody):
     REQUEST_COUNT.labels(method="POST", endpoint="/api/render-html").inc()
+    user_id = _get_user_id(request)
+    _check_premium_template(user_id, body.template_id)
     html = _render_cv_html(
         body.cv,
         base_cv=body.base_cv,
@@ -984,6 +986,19 @@ def api_render_html(body: RenderHtmlBody):
 
 FREE_ADAPTATIONS_LIMIT = 3
 FREE_APPLICATIONS_LIMIT = 5
+
+
+def _check_premium_template(user_id: str | None, template_id: str | None):
+    """Raise 402 if a free user tries to use a premium template."""
+    if not template_id:
+        return
+    from backend.template_registry import get_template
+    meta = get_template(template_id)
+    if not meta.get("premium"):
+        return
+    plan = get_user_plan(user_id) if user_id else "free"
+    if plan != "pro":
+        raise HTTPException(status_code=402, detail="Ce template est réservé aux abonnés Pro.")
 
 
 @app.post("/api/create-checkout-session")
@@ -1201,6 +1216,7 @@ def api_pdf(request: Request, body: PdfBody):
     REQUEST_COUNT.labels(method="POST", endpoint="/api/pdf").inc()
     user_id = _get_user_id(request)
     _check_rate_limit(user_id, 10)
+    _check_premium_template(user_id, body.template_id)
     offre = {"titre": body.titre, "entreprise": body.entreprise}
     try:
         from generator import generer_pdf_bytes
@@ -1706,7 +1722,7 @@ def api_company_logo(company: str = ""):
 
 @app.get("/api/templates")
 def api_templates_list():
-    """Liste tous les templates CV disponibles (id, nom, description, options, tags)."""
+    """Liste tous les templates CV disponibles (id, nom, description, options, tags, premium)."""
     from backend.template_registry import list_templates
     return list_templates()
 

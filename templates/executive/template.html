@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr" class="{% if for_preview %}cv-preview{% endif %}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CV - {{ prenom }} {{ nom }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="template.css">
+</head>
+<body class="{% if for_preview %}cv-preview{% endif %}">
+  <article class="cv">
+    <header class="cv-header">
+      <div class="header-top-row">
+        <div class="header-photo">
+          {% if photo_url %}
+          <img src="{{ photo_url }}" alt="">
+          {% endif %}
+        </div>
+        <h1 class="header-nom">{{ prenom }} {{ nom }}{% if titre_professionnel_display %}<span class="header-titre-sep"> - </span><span class="header-titre-inline">{{ titre_professionnel_display|safe }}</span>{% endif %}</h1>
+      </div>
+      {% if resume_display %}
+      <p class="resume-text">{{ resume_display|safe }}</p>
+      {% endif %}
+      {% if telephone or email or linkedin %}
+      <p class="header-contact">
+        {% if telephone %}<span class="contact-icon">✆</span> {{ telephone }}{% endif %}
+        {% if telephone and email %}<span class="contact-spacer"> </span>{% endif %}
+        {% if email %}<span class="contact-icon">✉</span> {{ email }}{% endif %}
+        {% if linkedin %}{% if telephone or email %}<span class="contact-spacer"> </span>{% endif %}<span class="contact-icon">◉</span> {{ linkedin }}{% endif %}
+      </p>
+      {% endif %}
+    </header>
+
+    <!-- Corps en flux unique : ordre DOM = ordre de lecture ATS (main puis sidebar) ; le CSS positionne la sidebar à gauche visuellement -->
+    <div class="cv-body">
+    <div class="cv-main">
+      {% if experiences_for_display %}
+      <section class="section-experiences" id="experiences">
+        <h2 class="section-title">EXPÉRIENCE PROFESSIONNELLE</h2>
+        <div class="experiences-list">
+          {% for exp in experiences_for_display %}
+          <div class="experience-item" itemscope itemtype="https://schema.org/JobPosition">
+            <div class="exp-header">
+              <span class="exp-entreprise"><span class="ats-label">Organisation : </span><span itemprop="worksFor" itemscope itemtype="https://schema.org/Organization"><span itemprop="name">{{ exp.entreprise_display|safe }}</span></span></span>
+              <span class="exp-dates">{% if exp.date_debut or exp.date_fin %}{{ exp.date_debut_display|safe }} - {{ exp.date_fin_display|safe }}{% endif %}{% if exp.lieu %}{% if exp.date_debut or exp.date_fin %} · {% endif %}{{ exp.lieu_display|safe }}{% endif %}</span>
+            </div>
+            <p class="exp-poste"><span class="ats-label">Fonction : </span><span itemprop="name">{{ exp.poste_display|safe }}{% if exp.secteur %} - {{ exp.secteur_display|safe }}{% endif %}</span></p>
+            {% for bullet in exp.bullet_points %}
+            <p class="bullet">- {{ bullet.html|safe }}</p>
+            {% endfor %}
+            {% if exp.clients %}
+            <p class="exp-clients">Clients : {{ exp.clients_display|safe }}</p>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      {% if formations_for_display %}
+      <section class="section-formation" id="formation">
+        <h2 class="section-title">FORMATION</h2>
+        {% for form in formations_for_display %}
+        <div class="formation-item">
+          <p class="formation-header">
+            <span class="formation-diplome">{{ form.etablissement }}{% if form.etablissement and form.diplome %} - {% endif %}{{ form.diplome }}</span>
+            {% if form.date %}<span class="formation-date">{{ form.date }}</span>{% endif %}
+          </p>
+          {% if form.mention %}
+          <p class="formation-mention">{{ form.mention }}</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </section>
+      {% endif %}
+
+      {% if projets_for_display %}
+      <section class="section-projets" id="projets">
+        <h2 class="section-title">PROJETS</h2>
+        {% for proj in projets_for_display %}
+        <div class="projet-item">
+          <p class="projet-nom">{{ proj.nom }}</p>
+          <p class="projet-description">{{ proj.description }}</p>
+        </div>
+        {% endfor %}
+      </section>
+      {% endif %}
+    </div>
+
+    <div class="cv-sidebar">
+      {% set competences = competences or {} %}
+      {% if competences.techniques %}
+      {% set tech_filtered = competences.techniques | select() | list %}
+      {% if tech_filtered %}
+      <section class="section-sidebar" id="competences-techniques">
+        <h2 class="section-title">COMPÉTENCES</h2>
+        <h3 class="sidebar-category">Compétences techniques</h3>
+        {% for item in competences.techniques %}
+        {% if item %}<p class="sidebar-item">{{ item }}</p>{% endif %}
+        {% endfor %}
+      </section>
+      {% endif %}
+      {% endif %}
+
+      {% if competences.logiciels or competences.informatiques %}
+      {% set logiciels_filtered = (competences.logiciels or competences.informatiques or []) | select() | list %}
+      {% if logiciels_filtered %}
+      <section class="section-sidebar" id="competences-informatiques">
+        <h3 class="sidebar-category">Logiciels & outils</h3>
+        {% for item in competences.logiciels or competences.informatiques or [] %}
+        {% if item %}<p class="sidebar-item">{{ item }}</p>{% endif %}
+        {% endfor %}
+      </section>
+      {% endif %}
+      {% endif %}
+
+      {% if certifications_for_display %}
+      <section class="section-sidebar" id="certifications">
+        <h3 class="sidebar-category">Certifications</h3>
+        {% for c in certifications_for_display %}
+        <p class="sidebar-item">{% if c.nom %}{{ c.nom }}{% endif %}{% if c.organisme %}{% if c.nom %} – {% endif %}{{ c.organisme }}{% endif %}{% if c.date %}{% if c.nom or c.organisme %} · {% endif %}{{ c.date }}{% endif %}</p>
+        {% endfor %}
+      </section>
+      {% endif %}
+
+      {% if langues_for_display %}
+      <section class="section-sidebar" id="langues">
+        <h2 class="section-title">LANGUES</h2>
+        {% for l in langues_for_display %}
+        <p class="sidebar-item">{{ l.langue }} - {{ l.niveau }}</p>
+        {% endfor %}
+      </section>
+      {% endif %}
+
+      {% set autres_items = competences.autres or loisirs or [] %}
+      {% set autres_filtered = autres_items | select() | list %}
+      {% if autres_filtered %}
+      <section class="section-sidebar" id="autres">
+        <h2 class="section-title">AUTRES</h2>
+        {% for item in autres_items %}
+        {% if item %}<p class="sidebar-item">{{ item }}</p>{% endif %}
+        {% endfor %}
+      </section>
+      {% endif %}
+
+      <!-- Mots-clés ATS : sous AUTRES, titre visible pour vérification ; le texte est invisible (même couleur que le fond) pour les ATS -->
+      {% if show_mots_cles_ats and mots_cles_cache %}
+      <section class="section-sidebar section-mots-cles-ats" id="mots-cles-ats">
+        <h3 class="sidebar-category mots-cles-ats-titre">Mots-clés ATS</h3>
+        <p class="mots-cles-ats-invisible" aria-hidden="true">{{ mots_cles_cache }}</p>
+      </section>
+      {% endif %}
+    </div>
+    </div>
+  </article>
+</body>
+</html>

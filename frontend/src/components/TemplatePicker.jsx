@@ -2,9 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { apiGet } from '../api';
 
 const PREVIEW_THUMBNAILS = {
-  classic: { bg: '#1e2a3a', sidebar: '#f4f4f2', accent: '#1e2a3a', layout: 'right-sidebar' },
-  modern: { bg: '#2d3748', sidebar: '#2d3748', accent: '#3182ce', layout: 'left-sidebar' },
-  minimal: { bg: '#ffffff', sidebar: null, accent: '#111827', layout: 'single' },
+  classic:   { bg: '#1e2a3a', sidebar: '#f4f4f2', accent: '#1e2a3a', layout: 'right-sidebar' },
+  modern:    { bg: '#2d3748', sidebar: '#2d3748', accent: '#3182ce', layout: 'left-sidebar' },
+  minimal:   { bg: '#ffffff', sidebar: null,      accent: '#111827', layout: 'single' },
+  executive: { bg: '#0f172a', sidebar: '#f8f6f0', accent: '#b8860b', layout: 'right-sidebar' },
+  elegant:   { bg: '#ffffff', sidebar: null,      accent: '#4a5568', layout: 'single-centered' },
+  creative:  { bg: '#6366f1', sidebar: '#6366f1', accent: '#f59e0b', layout: 'left-sidebar' },
+  bold:      { bg: '#1e293b', sidebar: '#f1f5f9', accent: '#dc2626', layout: 'right-sidebar' },
 };
 
 function MiniPreview({ templateId, isActive }) {
@@ -45,6 +49,15 @@ function MiniPreview({ templateId, isActive }) {
           </div>
         </div>
       )}
+      {t.layout === 'single-centered' && (
+        <div className="tpl-mini-inner" style={{ borderBottom: `1px solid ${t.accent}` }}>
+          <div className="tpl-mini-main" style={{ padding: '3px 4px', textAlign: 'center' }}>
+            <div className="tpl-mini-ln" style={{ background: t.accent, width: '40%', height: 3, margin: '0 auto 2px' }} />
+            <div className="tpl-mini-ln" style={{ width: '70%', margin: '0 auto 1px' }} />
+            <div className="tpl-mini-ln" style={{ width: '85%', margin: '0 auto' }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -60,7 +73,7 @@ function OptionsPopover({ options, templateOptions, onChangeOptions, onClose }) 
     return () => document.removeEventListener('mousedown', handler);
   }, [onClose]);
 
-  const COLOR_PRESETS = ['#1e2a3a', '#2d3748', '#3182ce', '#6366f1', '#059669', '#dc2626', '#7c3aed', '#111827'];
+  const COLOR_PRESETS = ['#1e2a3a', '#2d3748', '#3182ce', '#6366f1', '#059669', '#dc2626', '#7c3aed', '#111827', '#b8860b', '#f59e0b'];
 
   return (
     <div className="tpl-popover" ref={ref}>
@@ -113,7 +126,7 @@ function OptionsPopover({ options, templateOptions, onChangeOptions, onClose }) 
   );
 }
 
-export default function TemplatePicker({ templateId, templateOptions, onChangeTemplate, onChangeOptions }) {
+export default function TemplatePicker({ templateId, templateOptions, onChangeTemplate, onChangeOptions, userPlan, onUpgradeClick }) {
   const [templates, setTemplates] = useState([]);
   const [showOptions, setShowOptions] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -129,20 +142,48 @@ export default function TemplatePicker({ templateId, templateOptions, onChangeTe
   const currentMeta = templates.find(t => t.id === templateId) || templates[0] || {};
   const options = currentMeta.options || [];
 
+  const freeTemplates = templates.filter(t => !t.premium);
+  const premiumTemplates = templates.filter(t => t.premium);
+
+  const handleTemplateClick = (t) => {
+    if (t.premium && userPlan !== 'pro') {
+      if (onUpgradeClick) onUpgradeClick();
+      return;
+    }
+    onChangeTemplate(t.id);
+  };
+
   return (
     <div className="tpl-bar">
       <div className="tpl-bar-left">
-        {templates.map(t => (
+        {freeTemplates.map(t => (
           <button
             key={t.id}
             className={`tpl-chip${templateId === t.id ? ' tpl-chip--active' : ''}`}
-            onClick={() => onChangeTemplate(t.id)}
+            onClick={() => handleTemplateClick(t)}
             title={t.description}
           >
             <MiniPreview templateId={t.id} isActive={templateId === t.id} />
             <span className="tpl-chip-label">{t.name}</span>
           </button>
         ))}
+        {premiumTemplates.length > 0 && (
+          <>
+            <span className="tpl-separator" />
+            {premiumTemplates.map(t => (
+              <button
+                key={t.id}
+                className={`tpl-chip${templateId === t.id ? ' tpl-chip--active' : ''}${userPlan !== 'pro' ? ' tpl-chip--locked' : ''}`}
+                onClick={() => handleTemplateClick(t)}
+                title={t.description}
+              >
+                <MiniPreview templateId={t.id} isActive={templateId === t.id} />
+                <span className="tpl-chip-label">{t.name}</span>
+                {userPlan !== 'pro' && <span className="tpl-lock">&#128274;</span>}
+              </button>
+            ))}
+          </>
+        )}
       </div>
       {options.length > 0 && (
         <div className="tpl-bar-right">

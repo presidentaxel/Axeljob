@@ -1,0 +1,15 @@
+{
+  "id": "bold",
+  "name": "Impact",
+  "description": "Template à fort impact visuel. En-tête pleine page, sections marquées, double colonne. Premium.",
+  "tags": ["ats-safe", "sidebar", "photo", "premium", "bold"],
+  "premium": true,
+  "options": [
+    {"key": "header_color", "type": "color", "default": "#1e293b", "label": "Couleur en-tête"},
+    {"key": "sidebar_color", "type": "color", "default": "#f1f5f9", "label": "Couleur sidebar"},
+    {"key": "accent_color", "type": "color", "default": "#dc2626", "label": "Couleur accent"},
+    {"key": "font", "type": "select", "choices": ["Plus Jakarta Sans", "Inter", "Georgia"], "default": "Plus Jakarta Sans", "label": "Police titres"},
+    {"key": "show_photo", "type": "boolean", "default": true, "label": "Afficher la photo"},
+    {"key": "show_mots_cles_ats", "type": "boolean", "default": true, "label": "Mots-clés ATS"}
+  ]
+}

@@ -1,0 +1,162 @@
+/* ============================================
+   CV Template "Élégant" — Refined single-column
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Georgia&family=Inter:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
+
+:root {
+  --cv-header-color: #ffffff;
+  --cv-accent-color: #4a5568;
+  --cv-font-heading: Georgia, 'Times New Roman', serif;
+}
+
+@page { size: A4; margin: 0; }
+* { box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', Arial, sans-serif;
+  font-size: 9.5pt;
+  line-height: 1.5;
+  color: #2d3748;
+  margin: 0;
+  padding: 0;
+}
+
+.cv {
+  width: 210mm;
+  height: 297mm;
+  max-height: 297mm;
+  margin: 0 auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header — centered, refined */
+.cv-header {
+  text-align: center;
+  padding: 22px 30px 16px;
+  background: var(--cv-header-color);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.header-photo { margin: 0 auto 8px; width: 56px; height: 56px; }
+.header-photo img {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--cv-accent-color);
+}
+
+.header-nom {
+  font-family: var(--cv-font-heading);
+  font-size: 20pt;
+  font-weight: 700;
+  margin: 0;
+  color: var(--cv-accent-color);
+  letter-spacing: 0.04em;
+}
+
+.header-titre {
+  font-family: var(--cv-font-heading);
+  font-size: 10.5pt;
+  font-weight: 400;
+  font-style: italic;
+  color: #718096;
+  margin: 4px 0 0 0;
+}
+
+.header-contact {
+  font-size: 8.5pt;
+  color: #718096;
+  margin: 8px 0 0 0;
+  letter-spacing: 0.02em;
+}
+.contact-sep { margin: 0 8px; color: #cbd5e0; }
+
+/* Body */
+.cv-body {
+  flex: 1;
+  padding: 0 30px;
+  overflow: hidden;
+}
+
+.cv-section {
+  padding: 8px 0;
+  border-bottom: 1px solid #edf2f7;
+}
+.cv-section:last-of-type { border-bottom: none; }
+
+.section-title {
+  font-family: var(--cv-font-heading);
+  font-size: 10pt;
+  font-weight: 700;
+  color: var(--cv-accent-color);
+  margin: 0 0 6px 0;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Resume */
+.resume-text {
+  font-size: 9pt;
+  font-style: italic;
+  color: #4a5568;
+  line-height: 1.5;
+  margin: 0;
+  text-align: justify;
+}
+
+/* Experiences */
+.experience-item { margin-bottom: 6px; }
+.experience-item:last-child { margin-bottom: 0; }
+.exp-header { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.ats-label { font-size: 0.9em; color: #999; }
+.exp-entreprise { font-weight: 700; color: #1a202c; }
+.exp-dates { font-size: 8.5pt; color: var(--cv-accent-color); white-space: nowrap; flex-shrink: 0; }
+.exp-poste { font-size: 9pt; color: #718096; margin: 1px 0 3px 0; font-style: italic; }
+.bullet { margin: 0; padding-left: 10px; font-size: 8.5pt; line-height: 1.4; color: #2d3748; position: relative; }
+.bullet::before { content: '–'; position: absolute; left: 0; color: var(--cv-accent-color); }
+.exp-clients { font-style: italic; font-size: 8pt; color: #a0aec0; margin: 3px 0 0 0; }
+
+/* Formation */
+.formation-item { margin-bottom: 3px; }
+.formation-header { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.formation-diplome { font-weight: 600; }
+.formation-date { font-size: 8.5pt; color: var(--cv-accent-color); white-space: nowrap; }
+.formation-mention { font-style: italic; color: #718096; margin: 0; font-size: 8.5pt; }
+
+/* Skills — tag cloud */
+.skills-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+.skill-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #edf2f7;
+  border-radius: 3px;
+  font-size: 8pt;
+  color: #2d3748;
+}
+.skill-tag--tool { background: #e2e8f0; }
+
+/* Certs / Langs */
+.cert-item, .lang-item { font-size: 8.5pt; margin: 0 0 2px 0; }
+
+/* Projets */
+.projet-nom { font-weight: 600; font-size: 9pt; margin: 0 0 1px 0; }
+.projet-description { font-size: 8.5pt; color: #718096; margin: 0 0 4px 0; line-height: 1.4; }
+
+/* ATS */
+.section-mots-cles-ats { margin-top: 8px; }
+.mots-cles-ats-invisible { font-size: 5pt; line-height: 1.15; color: #fff; margin: 0; }
+body.cv-preview .mots-cles-ats-invisible { color: #000; font-size: 7pt; }
+@media print { .mots-cles-ats-invisible { color: #fff !important; } }
+
+/* PDF compact */
+body:not(.cv-preview) .cv-header { padding: 14px 24px 10px; }
+body:not(.cv-preview) .header-nom { font-size: 16pt; }
+body:not(.cv-preview) .header-photo, body:not(.cv-preview) .header-photo img { width: 46px; height: 46px; }
+
+/* Preview */
+html.cv-preview, body.cv-preview { width: 100%; min-width: 210mm; }
+.cv-changed { background-color: #b8d4be; padding: 0 1px; border-radius: 1px; }
+@media print { .cv-changed { background-color: transparent; } }

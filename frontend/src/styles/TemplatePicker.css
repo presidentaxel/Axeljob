@@ -53,6 +53,29 @@
   white-space: nowrap;
 }
 
+.tpl-chip--locked {
+  opacity: 0.6;
+  position: relative;
+}
+
+.tpl-chip--locked:hover {
+  opacity: 0.85;
+}
+
+.tpl-lock {
+  font-size: 9px;
+  margin-left: -2px;
+  flex-shrink: 0;
+}
+
+.tpl-separator {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
 /* Mini thumbnail */
 .tpl-mini {
   width: 28px;

@@ -1,0 +1,169 @@
+/* ============================================
+   CV Template "Créatif" — Vibrant left sidebar
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=Inter:wght@400;600;700&display=swap');
+
+:root {
+  --cv-header-color: #6366f1;
+  --cv-sidebar-color: #6366f1;
+  --cv-accent-color: #f59e0b;
+  --cv-font-heading: 'Plus Jakarta Sans', Arial, sans-serif;
+}
+
+@page { size: A4; margin: 0; }
+* { box-sizing: border-box; }
+
+body {
+  font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+  font-size: 9.5pt;
+  line-height: 1.45;
+  color: #1a1a1a;
+  margin: 0;
+  padding: 0;
+}
+
+.cv {
+  display: grid;
+  grid-template-columns: 210px 1fr;
+  width: 210mm;
+  height: 297mm;
+  max-height: 297mm;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+/* Sidebar — bold color */
+.cv-sidebar {
+  background: var(--cv-sidebar-color);
+  color: #fff;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-photo { padding: 20px 20px 10px; text-align: center; }
+.sidebar-photo img {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--cv-accent-color);
+}
+
+.sidebar-identity { padding: 0 16px 12px; text-align: center; }
+.sidebar-nom {
+  font-family: var(--cv-font-heading);
+  font-size: 14pt;
+  font-weight: 700;
+  margin: 0;
+  color: #fff;
+  line-height: 1.2;
+}
+.sidebar-titre {
+  font-size: 9pt;
+  font-weight: 400;
+  opacity: 0.9;
+  margin: 4px 0 0 0;
+  font-style: italic;
+}
+
+.sidebar-contact {
+  padding: 10px 16px;
+  border-top: 1px solid rgba(255,255,255,0.2);
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+
+.sidebar-section-title {
+  font-family: var(--cv-font-heading);
+  font-size: 8.5pt;
+  font-weight: 700;
+  color: var(--cv-accent-color);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 6px 0;
+}
+
+.sidebar-section {
+  padding: 8px 16px 4px;
+}
+
+.sidebar-item {
+  font-size: 8pt;
+  line-height: 1.5;
+  margin: 0 0 2px 0;
+  color: rgba(255,255,255,0.92);
+}
+
+.section-mots-cles-ats { padding: 4px 16px; }
+.mots-cles-ats-invisible { font-size: 5pt; line-height: 1.15; color: var(--cv-sidebar-color); margin: 0; }
+body.cv-preview .mots-cles-ats-invisible { color: rgba(255,255,255,0.6); font-size: 7pt; }
+@media print { .mots-cles-ats-invisible { color: var(--cv-sidebar-color) !important; } }
+
+/* Main */
+.cv-main {
+  padding: 0;
+  overflow: hidden;
+  background: #fff;
+}
+
+.main-section {
+  padding: 8px 20px;
+}
+
+.main-section-title {
+  font-family: var(--cv-font-heading);
+  font-size: 10pt;
+  font-weight: 700;
+  color: var(--cv-sidebar-color);
+  margin: 0 0 6px 0;
+  padding-bottom: 3px;
+  border-bottom: 2px solid var(--cv-accent-color);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.section-resume { padding-top: 14px; }
+
+.resume-text {
+  font-size: 9pt;
+  font-style: italic;
+  color: #555;
+  margin: 0;
+  line-height: 1.5;
+  text-align: justify;
+}
+
+/* Experiences */
+.experience-item { margin-bottom: 7px; }
+.experience-item:last-child { margin-bottom: 0; }
+.exp-header { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.ats-label { font-size: 0.9em; color: #999; }
+.exp-entreprise { font-weight: 700; color: #1a1a1a; }
+.exp-dates { font-size: 8.5pt; color: var(--cv-sidebar-color); white-space: nowrap; flex-shrink: 0; font-weight: 600; }
+.exp-poste { font-size: 9pt; color: #666; margin: 1px 0 3px 0; }
+.bullet { margin: 0; font-size: 8.5pt; line-height: 1.4; padding-left: 10px; position: relative; }
+.bullet::before { content: '▸'; position: absolute; left: 0; color: var(--cv-accent-color); font-size: 8pt; }
+.exp-clients { font-style: italic; font-size: 8pt; color: #888; margin: 3px 0 0 0; }
+
+/* Formation */
+.formation-item { margin-bottom: 3px; }
+.formation-header { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.formation-diplome { font-weight: 600; }
+.formation-date { font-size: 8.5pt; color: var(--cv-sidebar-color); white-space: nowrap; }
+.formation-mention { font-style: italic; color: #666; margin: 0; font-size: 8.5pt; }
+
+/* Projets */
+.projet-nom { font-weight: 700; font-size: 9.5pt; margin: 0 0 1px 0; }
+.projet-description { font-size: 8.5pt; color: #666; margin: 0 0 4px 0; line-height: 1.4; }
+
+/* PDF compact */
+body:not(.cv-preview) .sidebar-photo img { width: 64px; height: 64px; }
+body:not(.cv-preview) .sidebar-nom { font-size: 12pt; }
+body:not(.cv-preview) .cv { grid-template-columns: 190px 1fr; }
+
+/* Preview */
+html.cv-preview, body.cv-preview { width: 100%; min-width: 210mm; }
+.cv-changed { background-color: #b8d4be; padding: 0 1px; border-radius: 1px; }
+.cv-sidebar .cv-changed { background-color: #3d6b4a; color: #b8e0c0; }
+@media print { .cv-changed, .cv-sidebar .cv-changed { background-color: transparent; color: inherit; } }

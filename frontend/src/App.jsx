@@ -1105,6 +1105,8 @@ export default function App() {
                 templateOptions={templateOptions}
                 onChangeTemplate={(id) => { setTemplateId(id); setTemplateOptions({}); trackEvent('template_changed', { template_id: id }); }}
                 onChangeOptions={setTemplateOptions}
+                userPlan={usage?.plan}
+                onUpgradeClick={handleUpgradeClick}
               />
               {lastAdaptedCv && adaptRating === null && (
                 <div className="adapt-rating-bar">

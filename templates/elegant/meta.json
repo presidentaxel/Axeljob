@@ -1,0 +1,14 @@
+{
+  "id": "elegant",
+  "name": "Élégant",
+  "description": "Template raffiné mono-colonne avec header centré, tons subtils et lignes fines. Premium.",
+  "tags": ["ats-safe", "single-column", "no-sidebar", "premium", "elegant"],
+  "premium": true,
+  "options": [
+    {"key": "header_color", "type": "color", "default": "#ffffff", "label": "Couleur en-tête"},
+    {"key": "accent_color", "type": "color", "default": "#4a5568", "label": "Couleur accent"},
+    {"key": "font", "type": "select", "choices": ["Georgia", "Inter", "Plus Jakarta Sans"], "default": "Georgia", "label": "Police titres"},
+    {"key": "show_photo", "type": "boolean", "default": true, "label": "Afficher la photo"},
+    {"key": "show_mots_cles_ats", "type": "boolean", "default": true, "label": "Mots-clés ATS"}
+  ]
+}

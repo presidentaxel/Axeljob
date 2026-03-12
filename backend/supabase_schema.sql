@@ -30,5 +30,6 @@
   drop policy if exists "Service role full access applications" on public.applications;
   create policy "Service role full access applications" on public.applications for all using (true) with check (true);
 
-  -- Storage : bucket public pour la photo CV (créé automatiquement au premier upload si absent)
-  -- Une seule image partagée : photo.jpg dans le bucket cv_photos. URL dans cv_base.data.photo_url.
+  -- Storage : bucket public « cv_photos » pour la photo CV.
+  -- Créer le bucket via : supabase_migration_storage_cv_photos.sql (Dashboard > SQL Editor).
+  -- Une photo par utilisateur : {user_id}/photo.jpg dans le bucket cv_photos. URL dans cv_base.data.photo_url.

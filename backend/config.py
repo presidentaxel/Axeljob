@@ -2,27 +2,30 @@
 import os
 from pathlib import Path
 
-# Racine du projet cv-bot (parent du dossier backend)
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Variables d'environnement (chargées depuis cv-bot/.env ou backend/.env)
 def _env(key: str, default: str = "") -> str:
     return os.environ.get(key, default).strip()
 
-# Supabase (optionnel : si non défini, fallback fichier cv_base.json + adaptations/)
+ENVIRONMENT = _env("ENVIRONMENT", "development")
+IS_PRODUCTION = ENVIRONMENT == "production"
+
 SUPABASE_URL = _env("SUPABASE_URL")
-SUPABASE_SERVICE_KEY = _env("SUPABASE_SERVICE_KEY")  # service_role pour backend
+SUPABASE_SERVICE_KEY = _env("SUPABASE_SERVICE_KEY")
 
 USE_SUPABASE = bool(SUPABASE_URL and SUPABASE_SERVICE_KEY)
 
-# URL publique du backend (pour que l’iframe preview charge CSS/assets depuis le bon serveur)
-# En dev front sur 5173 + back sur 8000 : http://localhost:8000
-API_BASE_URL = _env("CV_BOT_API_BASE_URL") or "http://localhost:8000"
+API_BASE_URL = _env("CV_BOT_API_BASE_URL")
 
-# Secret JWT Supabase pour vérifier le token et récupérer user_id (Dashboard > API > JWT Secret)
 SUPABASE_JWT_SECRET = _env("SUPABASE_JWT_SECRET")
 
-# WeasyPrint (Windows)
+STRIPE_SECRET_KEY = _env("STRIPE_SECRET_KEY")
+STRIPE_PRICE_ID_PRO_MONTHLY = _env("STRIPE_PRICE_ID_PRO_MONTHLY")
+STRIPE_WEBHOOK_SECRET = _env("STRIPE_WEBHOOK_SECRET")
+FRONTEND_URL = _env("CV_BOT_FRONTEND_URL") or _env("VITE_APP_URL")
+
+METRICS_AUTH_TOKEN = _env("METRICS_AUTH_TOKEN")
+
 if os.name == "nt":
     dll_dirs = _env("WEASYPRINT_DLL_DIRECTORIES")
     if dll_dirs:

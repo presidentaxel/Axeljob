@@ -1,0 +1,14 @@
+{
+  "id": "modern",
+  "name": "Moderne",
+  "description": "Template épuré avec sidebar colorée à gauche et typographie contemporaine. ATS-safe.",
+  "tags": ["ats-safe", "sidebar-left", "photo", "modern"],
+  "options": [
+    {"key": "header_color", "type": "color", "default": "#2d3748", "label": "Couleur en-tête"},
+    {"key": "sidebar_color", "type": "color", "default": "#2d3748", "label": "Couleur sidebar"},
+    {"key": "accent_color", "type": "color", "default": "#3182ce", "label": "Couleur accent"},
+    {"key": "font", "type": "select", "choices": ["Inter", "Plus Jakarta Sans", "Georgia"], "default": "Inter", "label": "Police titres"},
+    {"key": "show_photo", "type": "boolean", "default": true, "label": "Afficher la photo"},
+    {"key": "show_mots_cles_ats", "type": "boolean", "default": true, "label": "Mots-clés ATS"}
+  ]
+}

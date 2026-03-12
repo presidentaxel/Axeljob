@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="fr" class="{% if for_preview %}cv-preview{% endif %}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CV - {{ prenom }} {{ nom }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="template.css">
+</head>
+<body class="{% if for_preview %}cv-preview{% endif %}">
+  <article class="cv">
+    <header class="cv-header">
+      {% if photo_url %}
+      <div class="header-photo">
+        <img src="{{ photo_url }}" alt="">
+      </div>
+      {% endif %}
+      <div class="header-text">
+        <h1 class="header-nom">{{ prenom }} {{ nom }}</h1>
+        {% if titre_professionnel_display %}
+        <p class="header-titre">{{ titre_professionnel_display|safe }}</p>
+        {% endif %}
+        {% if telephone or email or linkedin %}
+        <p class="header-contact">
+          {% if telephone %}{{ telephone }}{% endif %}
+          {% if telephone and email %} · {% endif %}
+          {% if email %}{{ email }}{% endif %}
+          {% if linkedin %}{% if telephone or email %} · {% endif %}{{ linkedin }}{% endif %}
+        </p>
+        {% endif %}
+      </div>
+    </header>
+
+    <div class="cv-body">
+      {% if resume_display %}
+      <section class="section">
+        <p class="resume-text">{{ resume_display|safe }}</p>
+      </section>
+      {% endif %}
+
+      {% if experiences_for_display %}
+      <section class="section">
+        <h2 class="section-title">Expérience professionnelle</h2>
+        {% for exp in experiences_for_display %}
+        <div class="experience-item" itemscope itemtype="https://schema.org/JobPosition">
+          <div class="exp-header">
+            <span class="exp-left"><span class="exp-entreprise"><span class="ats-label">Organisation : </span><span itemprop="worksFor" itemscope itemtype="https://schema.org/Organization"><span itemprop="name">{{ exp.entreprise_display|safe }}</span></span></span>{% if exp.poste %} — <span class="exp-poste-inline"><span class="ats-label">Fonction : </span><span itemprop="name">{{ exp.poste_display|safe }}</span></span>{% endif %}</span>
+            <span class="exp-dates">{% if exp.date_debut or exp.date_fin %}{{ exp.date_debut_display|safe }} – {{ exp.date_fin_display|safe }}{% endif %}</span>
+          </div>
+          {% for bullet in exp.bullet_points %}
+          <p class="bullet">- {{ bullet.html|safe }}</p>
+          {% endfor %}
+          {% if exp.clients %}
+          <p class="exp-clients">Clients : {{ exp.clients_display|safe }}</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </section>
+      {% endif %}
+
+      {% if formations_for_display %}
+      <section class="section">
+        <h2 class="section-title">Formation</h2>
+        {% for form in formations_for_display %}
+        <div class="formation-item">
+          <div class="formation-header">
+            <span class="formation-diplome">{{ form.etablissement }}{% if form.etablissement and form.diplome %} – {% endif %}{{ form.diplome }}</span>
+            {% if form.date %}<span class="formation-date">{{ form.date }}</span>{% endif %}
+          </div>
+          {% if form.mention %}
+          <p class="formation-mention">{{ form.mention }}</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </section>
+      {% endif %}
+
+      {% set competences = competences or {} %}
+      {% if competences.techniques %}
+      {% set tech_filtered = competences.techniques | select() | list %}
+      {% if tech_filtered %}
+      <section class="section">
+        <h2 class="section-title">Compétences</h2>
+        <p class="skills-line">{{ competences.techniques | select() | join(', ') }}</p>
+        {% if competences.logiciels or competences.informatiques %}
+        {% set logiciels_filtered = (competences.logiciels or competences.informatiques or []) | select() | list %}
+        {% if logiciels_filtered %}
+        <p class="skills-line"><strong>Outils :</strong> {{ logiciels_filtered | join(', ') }}</p>
+        {% endif %}
+        {% endif %}
+      </section>
+      {% endif %}
+      {% endif %}
+
+      {% if certifications_for_display %}
+      <section class="section">
+        <h2 class="section-title">Certifications</h2>
+        {% for c in certifications_for_display %}
+        <p class="cert-item">{% if c.nom %}{{ c.nom }}{% endif %}{% if c.organisme %}{% if c.nom %} – {% endif %}{{ c.organisme }}{% endif %}{% if c.date %}{% if c.nom or c.organisme %} · {% endif %}{{ c.date }}{% endif %}</p>
+        {% endfor %}
+      </section>
+      {% endif %}
+
+      {% if langues_for_display %}
+      <section class="section">
+        <h2 class="section-title">Langues</h2>
+        <p class="skills-line">{% for l in langues_for_display %}{{ l.langue }} ({{ l.niveau }}){% if not loop.last %}, {% endif %}{% endfor %}</p>
+      </section>
+      {% endif %}
+
+      {% if projets_for_display %}
+      <section class="section">
+        <h2 class="section-title">Projets</h2>
+        {% for proj in projets_for_display %}
+        <div class="projet-item">
+          <span class="projet-nom">{{ proj.nom }}</span> — <span class="projet-description">{{ proj.description }}</span>
+        </div>
+        {% endfor %}
+      </section>
+      {% endif %}
+
+      {% set autres_items = competences.autres or loisirs or [] %}
+      {% set autres_filtered = autres_items | select() | list %}
+      {% if autres_filtered %}
+      <section class="section">
+        <h2 class="section-title">Autres</h2>
+        <p class="skills-line">{{ autres_filtered | join(', ') }}</p>
+      </section>
+      {% endif %}
+
+      {% if show_mots_cles_ats and mots_cles_cache %}
+      <div class="section-mots-cles-ats">
+        <p class="mots-cles-ats-invisible" aria-hidden="true">{{ mots_cles_cache }}</p>
+      </div>
+      {% endif %}
+    </div>
+  </article>
+</body>
+</html>

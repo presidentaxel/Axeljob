@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { apiGet, apiPut, apiPost, apiPostFile, apiUrl } from '../api';
-import { defaultCv, newExpId, newFormId, newProjId } from '../data/cvDefault';
+import { defaultCv, newExpId, newFormId, newCertId, newProjId } from '../data/cvDefault';
 import '../styles/ProfileView.css';
 
 const AUTO_SAVE_DELAY_MS = 1500;
+const LIVE_PREVIEW_DEBOUNCE_MS = 600;
 
 /** Convertit une date stockée (MM/AAAA, AAAA-MM, etc.) en valeur pour input type="month" (AAAA-MM). Pour expériences on utilise du texte libre. */
 function toMonthValue(str) {
@@ -14,6 +15,54 @@ function toMonthValue(str) {
   const match2 = s.match(/^(\d{1,2})\/(\d{4})$/); // MM/AAAA
   if (match2) return `${match2[2]}-${match2[1].padStart(2, '0')}`;
   return s;
+}
+
+function ProfileCompletion({ cv }) {
+  const checks = [
+    { label: 'Prénom & nom', ok: !!(cv.prenom?.trim() && cv.nom?.trim()) },
+    { label: 'Titre professionnel', ok: !!cv.titre_professionnel?.trim() },
+    { label: 'Email', ok: !!cv.email?.trim() },
+    { label: 'Au moins 1 expérience', ok: (cv.experiences || []).some(e => e.poste?.trim()) },
+    { label: 'Au moins 1 formation', ok: (cv.formations || []).some(f => f.diplome?.trim()) },
+    { label: 'Compétences', ok: (cv.competences?.techniques || []).some(c => typeof c === 'string' && c.trim()) },
+  ];
+  const done = checks.filter(c => c.ok).length;
+  const pct = Math.round((done / checks.length) * 100);
+  return (
+    <div className="profile-completion">
+      <div className="profile-completion-bar">
+        <div className="profile-completion-fill" style={{ width: `${pct}%` }} />
+      </div>
+      <span className="profile-completion-text">Profil complet à {pct}%</span>
+      <div className="profile-completion-checks">
+        {checks.map(c => (
+          <span key={c.label} className={`profile-check ${c.ok ? 'profile-check--done' : ''}`}>
+            {c.ok ? (
+              <svg className="profile-check-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            ) : (
+              <svg className="profile-check-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/></svg>
+            )} {c.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CollapsibleSection({ title, defaultOpen = true, required, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className={`profile-section profile-section--collapsible ${open ? 'open' : 'closed'}`}>
+      <button type="button" className="profile-section-toggle" onClick={() => setOpen(v => !v)}>
+        <span className="profile-section-toggle-text">
+          <h2>{title}</h2>
+          {required && <span className="profile-required-badge">requis</span>}
+        </span>
+        <svg className={`profile-chevron ${open ? 'profile-chevron--open' : ''}`} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      {open && <div className="profile-section-body">{children}</div>}
+    </section>
+  );
 }
 
 export default function ProfileView({ onSaveSuccess, session }) {
@@ -30,6 +79,8 @@ export default function ProfileView({ onSaveSuccess, session }) {
   const [selectedChangeIds, setSelectedChangeIds] = useState(new Set());
   const [importPhotoLoading, setImportPhotoLoading] = useState(false);
   const [uploadPhotoLoading, setUploadPhotoLoading] = useState(false);
+  const [livePreviewHtml, setLivePreviewHtml] = useState('');
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const fileInputRef = useRef(null);
   const skipNextAutoSaveRef = useRef(true);
   const autoSaveTimeoutRef = useRef(null);
@@ -71,6 +122,17 @@ export default function ProfileView({ onSaveSuccess, session }) {
       return;
     }
     const t = setTimeout(() => saveToApi(), AUTO_SAVE_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [cv, loading]);
+
+  // Aperçu CV en temps réel (debounced)
+  useEffect(() => {
+    if (loading) return;
+    const t = setTimeout(() => {
+      apiPost('/api/render-html', { cv, highlight_changes: false })
+        .then((html) => setLivePreviewHtml(html))
+        .catch(() => setLivePreviewHtml(''));
+    }, LIVE_PREVIEW_DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [cv, loading]);
 
@@ -157,6 +219,25 @@ export default function ProfileView({ onSaveSuccess, session }) {
       const next = [...(prev.formations || [])];
       next[index] = { ...next[index], [field]: value };
       return { ...prev, formations: next };
+    });
+  };
+
+  const addCertification = () => {
+    setCv((prev) => ({
+      ...prev,
+      certifications: [...(prev.certifications || []), { id: newCertId(), nom: '', organisme: '', date: '' }],
+    }));
+  };
+
+  const removeCertification = (index) => {
+    setCv((prev) => ({ ...prev, certifications: (prev.certifications || []).filter((_, i) => i !== index) }));
+  };
+
+  const updateCertification = (index, field, value) => {
+    setCv((prev) => {
+      const next = [...(prev.certifications || [])];
+      next[index] = { ...next[index], [field]: value };
+      return { ...prev, certifications: next };
     });
   };
 
@@ -320,7 +401,8 @@ export default function ProfileView({ onSaveSuccess, session }) {
   if (loading) return <div className="profile-loading">Chargement du profil…</div>;
 
   return (
-    <div className="profile-view">
+    <div className="profile-view profile-view-with-preview">
+      <div className="profile-form-pane">
       <div className="profile-header">
         <h1>Mon profil CV</h1>
         <p className="profile-subtitle">Complète tes informations. Le CV est généré à partir de ces données.</p>
@@ -334,12 +416,13 @@ export default function ProfileView({ onSaveSuccess, session }) {
         </div>
       </div>
 
-      {message && <div className="profile-message">{message}</div>}
-      {error && <div className="profile-error">{error}</div>}
+      {message && <div className="profile-toast profile-toast--success" role="status">{message}</div>}
+      {error && <div className="profile-toast profile-toast--error" role="alert">{error}</div>}
 
-      <section className="profile-section">
-        <h2>Identité</h2>
-        <div className="profile-photo-row">
+      <ProfileCompletion cv={cv} />
+
+      <CollapsibleSection title="Identité" defaultOpen={true}>
+        <div className="profile-photo-row profile-photo-row-simple">
           <div className="profile-photo-preview">
             {(cv.photo_url || '').trim() ? (
               <img
@@ -352,25 +435,37 @@ export default function ProfileView({ onSaveSuccess, session }) {
               <span className="profile-photo-placeholder">Aucune photo</span>
             )}
           </div>
-          <div className="profile-photo-actions">
-            <label className="profile-full">URL photo <input type="text" value={cv.photo_url || ''} onChange={(e) => update('photo_url', e.target.value)} placeholder="https://… ou importer depuis ton PC / LinkedIn" /></label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              className="profile-photo-file-input"
-              onChange={handleUploadPhoto}
-              aria-label="Choisir une image"
-            />
-            <button type="button" className="btn btn-upload-pc" onClick={() => fileInputRef.current?.click()} disabled={uploadPhotoLoading}>
-              {uploadPhotoLoading ? 'Import…' : 'Importer depuis mon PC'}
-            </button>
-            <button type="button" className="btn btn-linkedin-sync" onClick={handleImportLinkedInPhoto} disabled={importPhotoLoading}>
-              {importPhotoLoading ? 'Import…' : 'Importer la photo LinkedIn'}
-            </button>
-          </div>
+          <button type="button" className="btn btn-secondary profile-photo-edit-btn" onClick={() => setPhotoModalOpen(true)}>
+            Modifier la photo
+          </button>
         </div>
-        <div className="profile-grid">
+        {photoModalOpen && (
+          <div className="profile-photo-modal-overlay" onClick={() => setPhotoModalOpen(false)} role="dialog" aria-modal="true" aria-labelledby="photo-modal-title">
+            <div className="profile-photo-modal" onClick={(e) => e.stopPropagation()}>
+              <h3 id="photo-modal-title">Modifier la photo</h3>
+              <label className="profile-photo-modal-option">
+                <span>URL de l&apos;image</span>
+                <input type="text" value={cv.photo_url || ''} onChange={(e) => update('photo_url', e.target.value)} placeholder="https://…" />
+              </label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="profile-photo-file-input"
+                onChange={(e) => { handleUploadPhoto(e); if (e?.target?.files?.[0]) setPhotoModalOpen(false); }}
+                aria-label="Choisir une image"
+              />
+              <button type="button" className="btn btn-secondary profile-photo-modal-btn" onClick={() => { fileInputRef.current?.click(); }} disabled={uploadPhotoLoading}>
+                {uploadPhotoLoading ? 'Import…' : 'Importer depuis mon PC'}
+              </button>
+              <button type="button" className="btn btn-linkedin-sync profile-photo-modal-btn" onClick={() => { handleImportLinkedInPhoto(); setPhotoModalOpen(false); }} disabled={importPhotoLoading}>
+                {importPhotoLoading ? 'Import…' : 'Importer la photo LinkedIn'}
+              </button>
+              <button type="button" className="btn btn-tertiary profile-photo-modal-close" onClick={() => setPhotoModalOpen(false)}>Fermer</button>
+            </div>
+          </div>
+        )}
+        <div className="profile-grid profile-grid-identity">
           <label>Prénom <input type="text" value={cv.prenom || ''} onChange={(e) => update('prenom', e.target.value)} /></label>
           <label>Nom <input type="text" value={cv.nom || ''} onChange={(e) => update('nom', e.target.value)} /></label>
           <label>Email <input type="email" value={cv.email || ''} onChange={(e) => update('email', e.target.value)} /></label>
@@ -380,11 +475,10 @@ export default function ProfileView({ onSaveSuccess, session }) {
         </div>
         <label className="profile-full">Titre professionnel <input type="text" value={cv.titre_professionnel || ''} onChange={(e) => update('titre_professionnel', e.target.value)} placeholder="ex. Étudiant ESSEC - Alternance" /></label>
         <label className="profile-full">Résumé / Accroche <textarea value={cv.resume || ''} onChange={(e) => update('resume', e.target.value)} rows={3} placeholder="Quelques lignes pour te présenter" /></label>
-      </section>
+      </CollapsibleSection>
 
-      <section className="profile-section">
+      <CollapsibleSection title="Expériences professionnelles" defaultOpen={true}>
         <div className="profile-section-head">
-          <h2>Expériences professionnelles</h2>
           <button type="button" className="btn btn-add" onClick={addExp}>+ Ajouter une expérience</button>
         </div>
         {(cv.experiences || []).map((exp, i) => (
@@ -414,13 +508,13 @@ export default function ProfileView({ onSaveSuccess, session }) {
                 </div>
               ))}
             </div>
+            <label className="profile-full">Clients <input type="text" value={exp.clients || ''} onChange={(e) => updateExp(i, 'clients', e.target.value)} placeholder="ex. L'Oréal, Charal, Herta (vide = pas affiché sur le CV)" title="Liste de clients ou types de clients (vide = pas affiché)" /></label>
           </div>
         ))}
-      </section>
+      </CollapsibleSection>
 
-      <section className="profile-section">
+      <CollapsibleSection title="Formations" defaultOpen={true}>
         <div className="profile-section-head">
-          <h2>Formations</h2>
           <button type="button" className="btn btn-add" onClick={addFormation}>+ Ajouter</button>
         </div>
         {(cv.formations || []).map((form, i) => (
@@ -437,11 +531,30 @@ export default function ProfileView({ onSaveSuccess, session }) {
             </div>
           </div>
         ))}
-      </section>
+      </CollapsibleSection>
 
-      <section className="profile-section">
+      <CollapsibleSection title="Certifications" defaultOpen={false}>
+        <p className="profile-subtitle" style={{ marginTop: 0, marginBottom: '0.75rem' }}>Tu pourras les ajouter au CV plus tard.</p>
         <div className="profile-section-head">
-          <h2>Projets</h2>
+          <button type="button" className="btn btn-add" onClick={addCertification}>+ Ajouter</button>
+        </div>
+        {(cv.certifications || []).map((cert, i) => (
+          <div key={cert.id} className="profile-card">
+            <div className="profile-card-head">
+              <span>Certification {i + 1}</span>
+              <button type="button" className="btn btn-remove" onClick={() => removeCertification(i)}>×</button>
+            </div>
+            <div className="profile-grid">
+              <label>Intitulé <input type="text" value={cert.nom || ''} onChange={(e) => updateCertification(i, 'nom', e.target.value)} placeholder="ex. PMP, AWS Solutions Architect" /></label>
+              <label>Organisme <input type="text" value={cert.organisme || ''} onChange={(e) => updateCertification(i, 'organisme', e.target.value)} placeholder="ex. PMI, Amazon" /></label>
+              <label>Date <input type="text" value={cert.date || ''} onChange={(e) => updateCertification(i, 'date', e.target.value)} placeholder="ex. 2024, 06/2023" /></label>
+            </div>
+          </div>
+        ))}
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Projets" defaultOpen={false}>
+        <div className="profile-section-head">
           <button type="button" className="btn btn-add" onClick={addProjet}>+ Ajouter</button>
         </div>
         {(cv.projets || []).map((proj, i) => (
@@ -454,11 +567,9 @@ export default function ProfileView({ onSaveSuccess, session }) {
             <label className="profile-full">Description <textarea value={proj.description || ''} onChange={(e) => updateProjet(i, 'description', e.target.value)} rows={2} /></label>
           </div>
         ))}
-      </section>
+      </CollapsibleSection>
 
-      <section className="profile-section">
-        <h2>Compétences, langues & autres</h2>
-        <p className="profile-subtitle" style={{ marginTop: 0 }}>Ces blocs apparaissent dans la colonne de droite du CV. Données exclusivement depuis Supabase.</p>
+      <CollapsibleSection title="Compétences, langues & autres" defaultOpen={false}>
         <div className="profile-card">
           <h3 className="sidebar-category">Compétences techniques</h3>
           {(comp.techniques || []).map((item, i) => (
@@ -500,12 +611,24 @@ export default function ProfileView({ onSaveSuccess, session }) {
           ))}
           <button type="button" className="btn btn-add" onClick={() => addCompList('autres', '')}>+ Ajouter</button>
         </div>
-      </section>
+      </CollapsibleSection>
 
       <div className="profile-footer">
         <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
           {saving ? 'Enregistrement…' : 'Enregistrer le CV'}
         </button>
+      </div>
+      </div>
+
+      <div className="profile-preview-pane">
+        <h2 className="profile-preview-title">Aperçu du CV</h2>
+        <div className="profile-preview-wrap">
+          {livePreviewHtml ? (
+            <iframe title="Aperçu CV en direct" srcDoc={livePreviewHtml} className="profile-preview-iframe" />
+          ) : (
+            <p className="profile-preview-empty">Modifiez le formulaire pour voir l&apos;aperçu.</p>
+          )}
+        </div>
       </div>
 
       {linkedinModalOpen && (
@@ -525,8 +648,8 @@ export default function ProfileView({ onSaveSuccess, session }) {
                         <span className="change-label">{c.label}</span>
                       </label>
                       <div className="change-values">
-                        <div className="change-current"><strong>Actuel :</strong> {c.field === 'photo_url' ? c.current_value : (c.current_value || '—')}</div>
-                        <div className="change-new"><strong>LinkedIn :</strong> {c.field === 'photo_url' ? '(photo)' : (c.linkedin_value || '—')}</div>
+                        <div className="change-current"><strong>Actuel :</strong> {c.field === 'photo_url' ? c.current_value : (c.current_value || '-')}</div>
+                        <div className="change-new"><strong>LinkedIn :</strong> {c.field === 'photo_url' ? '(photo)' : (c.linkedin_value || '-')}</div>
                       </div>
                     </li>
                   ))}

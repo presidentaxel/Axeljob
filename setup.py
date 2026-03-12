@@ -120,7 +120,7 @@ def _afficher_resume(data: dict) -> None:
     print("\n" + "=" * 50)
     print("RÉSUMÉ DE VOTRE CV")
     print("=" * 50)
-    print(f"  {data['prenom']} {data['nom']} — {data['titre_professionnel']}")
+    print(f"  {data['prenom']} {data['nom']} - {data['titre_professionnel']}")
     print(f"  {data['email']} | {data['telephone']} | {data['ville']}")
     print(f"  Expériences : {len(data['experiences'])}")
     print(f"  Formations : {len(data['formations'])}")

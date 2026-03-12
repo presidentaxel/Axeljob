@@ -1,0 +1,89 @@
+/* Wrapper : même rendu que l’iframe, scroll vertical uniquement */
+.cv-editable-preview {
+  width: 100%;
+  max-width: 100%;
+  min-height: 600px;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 25px rgba(0, 0, 0, 0.08);
+  overflow-x: auto;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* Réappliquer les polices/typo du template (éviter héritage depuis l'app) */
+.cv-editable-preview .cv,
+.cv-editable-preview .cv * {
+  font-family: Arial, sans-serif;
+}
+.cv-editable-preview .cv {
+  font-size: 9.5pt;
+  line-height: 1.4;
+  color: #1a1a1a;
+}
+.cv-editable-preview .cv-header .header-nom,
+.cv-editable-preview .cv-header h1 {
+  font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+}
+.cv-editable-preview .section-title {
+  font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+}
+.cv-editable-preview .formation-diplome {
+  font-weight: bold;
+  color: #1a1a1a;
+}
+.cv-editable-preview .formation-date {
+  font-weight: bold;
+  white-space: nowrap;
+}
+.cv-editable-preview .formation-mention {
+  font-style: italic;
+  color: #555;
+}
+
+.cv-editable-preview .cv-editable {
+  outline: none;
+}
+
+.cv-editable-preview .cv.cv-editable {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: auto !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+/* Zones éditables : léger surlignage au focus pour montrer qu’on peut modifier */
+.cv-editable-preview [data-cv-field][contenteditable="true"] {
+  outline: none;
+  border-radius: 2px;
+}
+
+.cv-editable-preview [data-cv-field][contenteditable="true"]:focus {
+  background: rgba(79, 70, 229, 0.04);
+  box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.18);
+}
+
+.cv-editable-preview .cv-editable-empty {
+  min-width: 1em;
+  min-height: 1em;
+  display: inline-block;
+}
+
+.cv-editable-preview .header-titre-sep {
+  user-select: none;
+}
+
+/* Surlignage vert : texte modifié par l’IA (comme dans l’iframe) */
+.cv-editable-preview .cv-changed {
+  background-color: #b8d4be;
+  padding: 0 1px;
+  border-radius: 1px;
+}
+
+.cv-editable-preview .cv-header .cv-changed {
+  background-color: #3d6b4a;
+  color: #b8e0c0;
+}

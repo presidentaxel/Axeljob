@@ -5,7 +5,7 @@
   "telephone": "+33 6 12 34 56 78",
   "linkedin": "https://www.linkedin.com/in/marie-martin-demo/",
   "ville": "Paris",
-  "titre_professionnel": "Profil type — À remplacer avec vos données",
+  "titre_professionnel": "Profil type - À remplacer avec vos données",
   "resume": "Ceci est un aperçu du template CV avec des données de démonstration. Lancez « python main.py --setup » pour remplir votre cv_base.json, ou copiez cv_base_vierge.json vers cv_base.json et complétez-le.",
   "photo_url": "",
   "experiences": [
@@ -82,7 +82,7 @@
   "projets": [
     {
       "id": "proj_1",
-      "nom": "Projet associatif — Organisation d'un événement",
+      "nom": "Projet associatif - Organisation d'un événement",
       "description": "Co-organisation d'une journée portes ouvertes pour une association étudiante : logistique, communication, partenariats.",
       "mots_cles": ["événementiel", "travail d'équipe", "communication"]
     }

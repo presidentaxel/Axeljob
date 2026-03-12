@@ -9,7 +9,7 @@
   <article class="fiche-poste">
     <h1 class="fiche-titre">Fiche de poste</h1>
     {% if entreprise or poste %}
-    <p class="fiche-meta">{% if entreprise %}{{ entreprise }}{% endif %}{% if entreprise and poste %} — {% endif %}{% if poste %}{{ poste }}{% endif %}</p>
+    <p class="fiche-meta">{% if entreprise %}{{ entreprise }}{% endif %}{% if entreprise and poste %} - {% endif %}{% if poste %}{{ poste }}{% endif %}</p>
     {% endif %}
     <div class="fiche-contenu">{{ contenu }}</div>
   </article>

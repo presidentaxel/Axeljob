@@ -1,5 +1,5 @@
   /* ============================================
-   CV Template — ATS-safe, single column, print
+   CV Template - ATS-safe, single column, print
    ============================================ */
 
   /* Polices identiques en navigateur et en PDF (WeasyPrint charge ce CSS) */
@@ -395,12 +395,14 @@
   }
   
   #competences-informatiques,
+  #certifications,
   #langues,
   #loisirs {
     padding-top: 4px;
   }
   
   #competences-informatiques .section-title,
+  #certifications .section-title,
   #langues .section-title,
   #loisirs .section-title {
     margin-top: 14px;
@@ -442,6 +444,7 @@
   }
   
   #competences-informatiques,
+  #certifications,
   #langues,
   #loisirs,
   #autres {

@@ -40,7 +40,7 @@ def extraire_mots_cles(description: str, top_n: int = 55) -> list[str]:
         if kw in desc_lower:
             scores[kw] = scores.get(kw, 0) + 3
 
-    stop = {"le", "la", "les", "de", "du", "des", "et", "en", "un", "une", "pour", "dans", "sur", "avec", "par", "aux", "ce", "cette", "son", "sa", "ses", "que", "qui", "qu", "au", "à", "est", "sont", "être", "avoir", "nous", "vous", "ils", "elle", "on"}
+    stop = {"le", "la", "les", "de", "du", "des", "et", "en", "un", "une", "pour", "dans", "sur", "avec", "par", "aux", "ce", "cette", "son", "sa", "ses", "que", "qui", "qu", "au", "à", "est", "sont", "être", "avoir", "nous", "vous", "ils", "elle", "on", "il", "je", "tu", "me", "te", "se", "ou", "mais", "donc", "car", "ni", "pas", "plus", "très", "tout", "tous", "bien", "aussi", "même", "ces", "nos", "vos", "leurs", "dont", "où", "quel", "quelle", "entre", "comme", "lors", "sous", "chez", "soit", "sans", "être", "avoir", "fait", "faire", "peut", "doit", "sera", "été", "notre", "votre", "leur"}
     tokens = _tokeniser_et_nettoyer(description)
     for t in tokens:
         if len(t) >= 2 and t not in stop:
@@ -77,6 +77,6 @@ def offre_from_description(description: str, titre: str = "", entreprise: str = 
         "localisation": "",
         "description_brute": description,
         "mots_cles_extraits": mots,
-        "competences_requises": mots[:55],
+        "competences_requises": [],
         "soft_skills": [],
     }

@@ -1,0 +1,272 @@
+/* TemplatePicker — compact bar above preview */
+
+.tpl-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 10px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.tpl-bar-left {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.tpl-bar-right {
+  position: relative;
+}
+
+/* Template chip */
+.tpl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px 3px 4px;
+  border: 1.5px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
+.tpl-chip:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.tpl-chip--active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+}
+
+.tpl-chip-label {
+  white-space: nowrap;
+}
+
+/* Mini thumbnail */
+.tpl-mini {
+  width: 28px;
+  height: 36px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.tpl-mini--active {
+  border-color: var(--accent);
+}
+
+.tpl-mini-inner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.tpl-mini-hdr {
+  height: 7px;
+  flex-shrink: 0;
+}
+
+.tpl-mini-cols {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.tpl-mini-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5px;
+  padding: 2px 3px;
+}
+
+.tpl-mini-side {
+  width: 9px;
+  flex-shrink: 0;
+}
+
+.tpl-mini-side--left {
+  order: -1;
+}
+
+.tpl-mini-ln {
+  height: 1.5px;
+  background: #d1d5db;
+  border-radius: 0.5px;
+}
+
+/* Gear button */
+.tpl-gear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tpl-gear:hover,
+.tpl-gear--open {
+  background: var(--bg-secondary);
+  color: var(--accent);
+}
+
+/* Popover */
+.tpl-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 50;
+  min-width: 260px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tpl-popover-arrow {
+  position: absolute;
+  top: -5px;
+  right: 10px;
+  width: 10px;
+  height: 10px;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  transform: rotate(45deg);
+}
+
+.tpl-opt-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tpl-opt-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.tpl-opt-control {
+  display: flex;
+  align-items: center;
+}
+
+/* Colors */
+.tpl-colors {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.tpl-cdot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.1s, border-color 0.15s;
+}
+
+.tpl-cdot:hover {
+  transform: scale(1.2);
+}
+
+.tpl-cdot--on {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1.5px #fff;
+}
+
+.tpl-cinput-wrap {
+  width: 20px;
+  height: 20px;
+  position: relative;
+  cursor: pointer;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.tpl-cinput {
+  position: absolute;
+  inset: -4px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* Select */
+.tpl-sel {
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  width: 100%;
+}
+
+/* Toggle switch */
+.tpl-toggle {
+  width: 32px;
+  height: 18px;
+  border-radius: 9px;
+  border: none;
+  background: #d1d5db;
+  cursor: pointer;
+  position: relative;
+  padding: 0;
+  transition: background 0.2s;
+}
+
+.tpl-toggle--on {
+  background: var(--accent);
+}
+
+.tpl-toggle-knob {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+}
+
+.tpl-toggle--on .tpl-toggle-knob {
+  transform: translateX(14px);
+}

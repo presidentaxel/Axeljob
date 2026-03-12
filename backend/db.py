@@ -1,7 +1,7 @@
 """Accès données : Supabase (cv_base, applications) ou fallback fichiers."""
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from backend.config import BASE_DIR, USE_SUPABASE, SUPABASE_URL, SUPABASE_SERVICE_KEY
@@ -183,7 +183,7 @@ def save_cv_base(data: dict, user_id: Optional[str] = None) -> None:
     if sb:
         try:
             sb.table("cv_base").upsert(
-                {"id": row_id, "data": data, "updated_at": datetime.utcnow().isoformat()},
+                {"id": row_id, "data": data, "updated_at": datetime.now(timezone.utc).isoformat()},
                 on_conflict="id",
             ).execute()
             return
@@ -198,13 +198,18 @@ def save_cv_base(data: dict, user_id: Optional[str] = None) -> None:
 
 # --- Photo CV : Supabase Storage (bucket cv_photos, public) ---
 CV_PHOTOS_BUCKET = "cv_photos"
-CV_PHOTOS_PATH = "photo.jpg"  # une seule image partagée, pas par utilisateur
+
+
+def _user_photo_path(user_id: str) -> str:
+    """Chemin Storage pour la photo de l'utilisateur (un fichier par user)."""
+    safe = "".join(c for c in (user_id or "").strip() if c.isalnum() or c in "_-") or "user"
+    return f"{safe}/photo.jpg"
 
 
 def _ensure_cv_photos_bucket(sb) -> None:
     """Crée le bucket cv_photos (public) s'il n'existe pas."""
     try:
-        sb.storage.create_bucket(CV_PHOTOS_BUCKET, options={"public": True})
+        sb.storage.create_bucket(CV_PHOTOS_BUCKET, options={"public": False})
     except Exception as e:
         err = str(e).lower()
         if "already exists" in err or "duplicate" in err or "409" in str(e):
@@ -218,14 +223,79 @@ def upload_photo_to_storage(user_safe_id: str, image_bytes: bytes) -> str:
     if not sb:
         raise RuntimeError("Supabase non configuré.")
     _ensure_cv_photos_bucket(sb)
-    path = CV_PHOTOS_PATH
-    # Ne pas mettre de booléen dans file_options (ex. upsert) : ils sont parfois envoyés en headers et doivent être str/bytes
+    path = _user_photo_path(user_safe_id)
     sb.storage.from_(CV_PHOTOS_BUCKET).upload(
         path=path,
         file=image_bytes,
-        file_options={"content-type": "image/jpeg"},
+        file_options={"content-type": "image/jpeg", "upsert": "true"},
     )
-    return sb.storage.from_(CV_PHOTOS_BUCKET).get_public_url(path)
+    return _signed_url(sb, CV_PHOTOS_BUCKET, path)
+
+
+def _signed_url(sb, bucket: str, path: str) -> str:
+    try:
+        res = sb.storage.from_(bucket).create_signed_url(path, _SIGNED_URL_EXPIRY)
+        if isinstance(res, dict):
+            return res.get("signedURL") or res.get("signedUrl") or ""
+        return ""
+    except Exception:
+        return ""
+
+
+_SIGNED_URL_EXPIRY = 3600
+
+
+def get_cv_photo_public_url_for_user(user_id: Optional[str]) -> Optional[str]:
+    if not user_id or not _get_supabase():
+        return None
+    sb = _get_supabase()
+    path = _user_photo_path(user_id)
+    url = _signed_url(sb, CV_PHOTOS_BUCKET, path)
+    return url or None
+
+
+# --- Documents candidature (PDF : lettre, CV, fiche) — Supabase Storage ---
+APPLICATION_DOCS_BUCKET = "application_docs"
+APPLICATION_DOC_TYPES = ("lettre", "cv", "fiche")
+
+
+def _application_doc_path(user_id: str, application_id: str, doc_type: str) -> str:
+    """Chemin Storage pour un document PDF d'une candidature."""
+    safe_uid = "".join(c for c in (user_id or "").strip() if c.isalnum() or c in "_-") or "user"
+    safe_aid = "".join(c for c in (application_id or "").strip() if c.isalnum() or c in "_-") or "app"
+    if doc_type not in APPLICATION_DOC_TYPES:
+        doc_type = "fiche"
+    return f"{safe_uid}/{safe_aid}/{doc_type}.pdf"
+
+
+def _ensure_application_docs_bucket(sb) -> None:
+    """Crée le bucket application_docs (public) s'il n'existe pas."""
+    try:
+        sb.storage.create_bucket(APPLICATION_DOCS_BUCKET, options={"public": False})
+    except Exception as e:
+        err = str(e).lower()
+        if "already exists" in err or "duplicate" in err or "409" in str(e):
+            return
+        raise
+
+
+def upload_application_doc(
+    user_id: str, application_id: str, doc_type: str, file_bytes: bytes
+) -> str:
+    """Envoie un PDF (lettre, cv ou fiche) dans Supabase Storage. Retourne l'URL publique."""
+    if doc_type not in APPLICATION_DOC_TYPES:
+        raise ValueError(f"doc_type doit être parmi {APPLICATION_DOC_TYPES}")
+    sb = _get_supabase()
+    if not sb:
+        raise RuntimeError("Supabase non configuré.")
+    _ensure_application_docs_bucket(sb)
+    path = _application_doc_path(user_id, application_id, doc_type)
+    sb.storage.from_(APPLICATION_DOCS_BUCKET).upload(
+        path=path,
+        file=file_bytes,
+        file_options={"content-type": "application/pdf", "upsert": "true"},
+    )
+    return _signed_url(sb, APPLICATION_DOCS_BUCKET, path)
 
 
 # --- Applications (adaptations) ---
@@ -236,6 +306,11 @@ def save_adaptation(adaptation_id: str, payload: dict, user_id: Optional[str] = 
     payload.setdefault("archived", False)
     uid = (user_id or "default").strip() or "default"
     payload["user_id"] = uid
+    if "created_at" not in payload:
+        payload["created_at"] = datetime.now(timezone.utc).isoformat()
+    # Date d'envoi : fixée une seule fois quand la candidature est en "candidature_envoyee" (pour stats et affichage)
+    if payload.get("statut") == "candidature_envoyee" and not payload.get("date_envoi"):
+        payload["date_envoi"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     sb = _get_supabase()
     if sb:
@@ -245,7 +320,7 @@ def save_adaptation(adaptation_id: str, payload: dict, user_id: Optional[str] = 
                     "id": adaptation_id,
                     "user_id": uid,
                     "payload": payload,
-                    "updated_at": datetime.utcnow().isoformat(),
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
                 },
                 on_conflict="id",
             ).execute()
@@ -286,13 +361,28 @@ def list_applications(include_archived: bool = False, user_id: Optional[str] = N
 
 
 def _application_row(aid: str, data: dict, updated_at: Optional[str] = None) -> dict:
-    ts = None
-    if updated_at:
-        try:
-            ts = datetime.fromisoformat(updated_at.replace("Z", "+00:00")).timestamp()
-        except Exception:
-            pass
-    date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M") if ts else ""
+    # Date affichée = date d'envoi (apply) si présente, sinon fallback updated_at / created_at (rétrocompat)
+    date_str = (data.get("date_envoi") or "").strip()
+    if date_str and len(date_str) >= 10:
+        date_str = date_str[:10] + " 00:00" if len(date_str) <= 10 else date_str
+    else:
+        date_str = ""
+        ts = None
+        if updated_at:
+            try:
+                ts = datetime.fromisoformat(updated_at.replace("Z", "+00:00")).timestamp()
+            except Exception:
+                pass
+        if ts:
+            date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
+        created_val = data.get("created_at") or ""
+        if created_val and not date_str:
+            try:
+                ts_created = datetime.fromisoformat(created_val.replace("Z", "+00:00")).timestamp()
+                date_str = datetime.fromtimestamp(ts_created).strftime("%Y-%m-%d %H:%M")
+            except Exception:
+                pass
+    created = data.get("created_at") or ""
     return {
         "id": aid,
         "poste_offre": data.get("poste_offre", ""),
@@ -302,6 +392,16 @@ def _application_row(aid: str, data: dict, updated_at: Optional[str] = None) -> 
         "statut": data.get("statut", "candidature_envoyee"),
         "archived": data.get("archived", False),
         "date": date_str,
+        "created_at": created,
+        "refus_raison": data.get("refus_raison", ""),
+        "refus_raison_type": data.get("refus_raison_type", ""),
+        "interview_type": data.get("interview_type", ""),
+        "interview_feedback": data.get("interview_feedback", ""),
+        "interview_date": data.get("interview_date", ""),
+        "source_offre": data.get("source_offre", ""),
+        "pdf_lettre_url": data.get("pdf_lettre_url", ""),
+        "pdf_cv_url": data.get("pdf_cv_url", ""),
+        "pdf_fiche_url": data.get("pdf_fiche_url", ""),
     }
 
 
@@ -321,7 +421,8 @@ def _list_applications_files(include_archived: bool, user_id: str = "default") -
         if archived and not include_archived:
             continue
         applications.append(_application_row(path.stem, data, None))
-        applications[-1]["date"] = datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+        if not applications[-1]["date"]:
+            applications[-1]["date"] = datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
     return applications
 
 
@@ -355,18 +456,104 @@ def get_adaptation(adaptation_id: str, user_id: Optional[str] = None) -> Optiona
     return None
 
 
+def count_applications(user_id: Optional[str] = None) -> int:
+    """Nombre total de candidatures (adaptations) pour l'utilisateur (toutes, y compris archivées)."""
+    uid = (user_id or "default").strip() or "default"
+    sb = _get_supabase()
+    if sb:
+        try:
+            r = (
+                sb.table("applications")
+                .select("id", count="exact")
+                .eq("user_id", uid)
+                .execute()
+            )
+            return r.count if r.count is not None else len(r.data or [])
+        except Exception:
+            pass
+    if not ADAPTATIONS_DIR.is_dir():
+        return 0
+    count = 0
+    for path in ADAPTATIONS_DIR.glob("*.json"):
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            if data.get("user_id", "default") == uid:
+                count += 1
+        except (json.JSONDecodeError, OSError):
+            continue
+    return count
+
+
+def get_user_plan(user_id: Optional[str] = None) -> str:
+    """Retourne 'free' ou 'pro'. Par défaut 'free' si pas de ligne."""
+    uid = (user_id or "default").strip() or "default"
+    sb = _get_supabase()
+    if sb:
+        try:
+            r = sb.table("user_plans").select("plan").eq("user_id", uid).limit(1).execute()
+            if r.data and len(r.data) > 0 and r.data[0].get("plan") == "pro":
+                return "pro"
+        except Exception:
+            pass
+    return "free"
+
+
+def get_paywall_disabled(user_id: Optional[str] = None) -> bool:
+    """True si le paywall est désactivé pour cet utilisateur (option dans user_plans.paywall_disabled)."""
+    uid = (user_id or "default").strip() or "default"
+    sb = _get_supabase()
+    if not sb:
+        return False
+    try:
+        r = sb.table("user_plans").select("paywall_disabled").eq("user_id", uid).limit(1).execute()
+        if r.data and len(r.data) > 0:
+            return bool(r.data[0].get("paywall_disabled"))
+    except Exception:
+        pass
+    return False
+
+
+def set_user_plan(user_id: str, plan: str, stripe_customer_id: Optional[str] = None, stripe_subscription_id: Optional[str] = None) -> None:
+    """Met à jour le plan utilisateur (free/pro). Créé la ligne si besoin."""
+    uid = (user_id or "default").strip() or "default"
+    sb = _get_supabase()
+    if not sb:
+        return
+    try:
+        row = {
+            "user_id": uid,
+            "plan": plan,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        if stripe_customer_id is not None:
+            row["stripe_customer_id"] = stripe_customer_id
+        if stripe_subscription_id is not None:
+            row["stripe_subscription_id"] = stripe_subscription_id
+        sb.table("user_plans").upsert(row, on_conflict="user_id").execute()
+    except Exception:
+        raise
+
+
 def update_adaptation(adaptation_id: str, updates: dict, user_id: Optional[str] = None) -> Optional[dict]:
-    """Met à jour statut/archived/poste/entreprise d'une candidature. Retourne le payload mis à jour."""
+    """Met à jour statut/archived/poste/entreprise et champs quali d'une candidature. Retourne le payload mis à jour."""
     current = get_adaptation(adaptation_id, user_id)
     if not current:
         return None
+    statut_prev = current.get("statut", "candidature_envoyee")
     if "statut" in updates:
         current["statut"] = updates["statut"]
+        # Ne fixer date_envoi que lors du premier passage en "candidature_envoyee" (pas quand on y revient après un autre statut)
+        if updates["statut"] == "candidature_envoyee" and statut_prev != "candidature_envoyee":
+            current["date_envoi"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     if "archived" in updates:
         current["archived"] = bool(updates["archived"])
     if "poste" in updates:
         current["poste"] = (updates["poste"] or "").strip()
     if "entreprise" in updates:
         current["entreprise"] = (updates["entreprise"] or "").strip()
+    for key in ("refus_raison", "refus_raison_type", "interview_type", "interview_feedback", "interview_date", "source_offre"):
+        if key in updates:
+            current[key] = (updates[key] or "").strip() if isinstance(updates[key], str) else updates[key]
     save_adaptation(adaptation_id, current, user_id)
     return current

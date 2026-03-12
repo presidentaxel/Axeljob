@@ -1,0 +1,14 @@
+{
+  "id": "classic",
+  "name": "Classique",
+  "description": "Template professionnel avec header sombre et sidebar grise. ATS-safe, éprouvé.",
+  "tags": ["ats-safe", "sidebar", "photo"],
+  "options": [
+    {"key": "header_color", "type": "color", "default": "#1e2a3a", "label": "Couleur en-tête"},
+    {"key": "sidebar_color", "type": "color", "default": "#f4f4f2", "label": "Couleur sidebar"},
+    {"key": "accent_color", "type": "color", "default": "#1e2a3a", "label": "Couleur accent"},
+    {"key": "font", "type": "select", "choices": ["Plus Jakarta Sans", "Inter", "Georgia"], "default": "Plus Jakarta Sans", "label": "Police titres"},
+    {"key": "show_photo", "type": "boolean", "default": true, "label": "Afficher la photo"},
+    {"key": "show_mots_cles_ats", "type": "boolean", "default": true, "label": "Mots-clés ATS"}
+  ]
+}

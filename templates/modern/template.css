@@ -1,0 +1,306 @@
+/* ============================================
+   CV Template "Moderne" — sidebar gauche colorée
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
+
+:root {
+  --cv-header-color: #2d3748;
+  --cv-sidebar-color: #2d3748;
+  --cv-accent-color: #3182ce;
+  --cv-font-heading: 'Inter', Arial, sans-serif;
+}
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', Arial, sans-serif;
+  font-size: 9pt;
+  line-height: 1.4;
+  color: #1a1a1a;
+  margin: 0;
+  padding: 0;
+}
+
+.cv {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  grid-template-rows: 1fr;
+  width: 210mm;
+  height: 297mm;
+  max-height: 297mm;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+/* ----- Sidebar gauche ----- */
+.cv-sidebar {
+  background-color: var(--cv-sidebar-color);
+  color: #fff;
+  padding: 20px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+}
+
+.sidebar-photo {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 10px;
+}
+
+.sidebar-photo img {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.3);
+  object-fit: cover;
+  display: block;
+}
+
+.sidebar-identity {
+  text-align: center;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+
+.sidebar-nom {
+  font-family: var(--cv-font-heading);
+  font-size: 13pt;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.sidebar-titre {
+  font-size: 8.5pt;
+  font-weight: 400;
+  opacity: 0.85;
+  margin: 4px 0 0;
+  line-height: 1.3;
+}
+
+.sidebar-contact {
+  margin-bottom: 10px;
+}
+
+.sidebar-section {
+  margin-bottom: 8px;
+}
+
+.sidebar-section-title {
+  font-family: var(--cv-font-heading);
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--cv-accent-color);
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+  padding-bottom: 2px;
+  margin: 0 0 6px 0;
+}
+
+.sidebar-item {
+  font-size: 8pt;
+  line-height: 1.35;
+  margin: 0 0 2px 0;
+  opacity: 0.92;
+}
+
+/* ----- Main ----- */
+.cv-main {
+  padding: 16px 18px;
+  overflow: hidden;
+}
+
+.main-section {
+  margin-bottom: 10px;
+}
+
+.main-section-title {
+  font-family: var(--cv-font-heading);
+  font-size: 9.5pt;
+  font-weight: 700;
+  color: var(--cv-accent-color);
+  border-bottom: 2px solid var(--cv-accent-color);
+  padding-bottom: 2px;
+  margin: 0 0 6px 0;
+  letter-spacing: 0.04em;
+}
+
+.resume-text {
+  font-size: 9pt;
+  font-style: italic;
+  line-height: 1.4;
+  color: #444;
+  margin: 0;
+  text-align: justify;
+}
+
+/* Experiences */
+.experiences-list { margin: 0; padding: 0; }
+
+.experience-item {
+  margin-bottom: 6px;
+}
+
+.experience-item:last-child { margin-bottom: 0; }
+
+.exp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.ats-label {
+  font-weight: 400;
+  font-size: 0.9em;
+  color: #666;
+}
+
+.exp-entreprise {
+  font-weight: bold;
+  color: #1a1a1a;
+}
+
+.exp-dates {
+  font-weight: bold;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-size: 8.5pt;
+}
+
+.exp-poste {
+  font-size: 8.5pt;
+  color: #555;
+  margin: 0 0 3px 0;
+}
+
+.exp-poste .ats-label,
+.exp-poste span[itemprop="name"] {
+  font-size: 1em;
+}
+
+.exp-contexte {
+  font-size: 8pt;
+  font-style: italic;
+  color: #666;
+  margin: 0 0 3px 0;
+}
+
+.experience-item .bullet {
+  margin: 0;
+  padding-left: 0;
+  color: #1a1a1a;
+  font-size: 8.5pt;
+  line-height: 1.35;
+}
+
+.exp-clients {
+  font-style: italic;
+  font-size: 8pt;
+  color: #555;
+  margin: 4px 0 0 0;
+  padding-top: 3px;
+  border-top: 1px solid #eee;
+}
+
+/* Formation */
+.section-formation { padding-top: 0; }
+
+.formation-item { margin-bottom: 4px; }
+.formation-item:last-child { margin-bottom: 0; }
+
+.formation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.formation-diplome { font-weight: bold; color: #1a1a1a; }
+.formation-date { font-weight: bold; white-space: nowrap; font-size: 8.5pt; }
+.formation-mention { font-style: italic; color: #555; margin: 0; font-size: 8.5pt; }
+
+/* Projets */
+.projet-item { margin-bottom: 4px; }
+.projet-item:last-child { margin-bottom: 0; }
+.projet-nom { font-weight: bold; font-size: 9pt; margin: 0 0 1px 0; }
+.projet-description { font-size: 8.5pt; color: #555; margin: 0; line-height: 1.4; }
+
+/* ATS keywords (invisible) */
+.section-mots-cles-ats { margin-top: 6px; }
+.mots-cles-ats-invisible {
+  font-size: 5pt;
+  line-height: 1.15;
+  color: var(--cv-sidebar-color);
+  background: transparent;
+  margin: 0;
+  padding: 0;
+}
+
+/* PDF compact overrides */
+body:not(.cv-preview) .cv-sidebar {
+  padding: 14px 10px;
+}
+body:not(.cv-preview) .sidebar-photo,
+body:not(.cv-preview) .sidebar-photo img {
+  width: 60px;
+  height: 60px;
+}
+body:not(.cv-preview) .sidebar-nom { font-size: 11pt; }
+body:not(.cv-preview) .cv-main { padding: 10px 14px; }
+body:not(.cv-preview) .main-section { margin-bottom: 6px; }
+body:not(.cv-preview) .experience-item { margin-bottom: 4px; }
+body:not(.cv-preview) .experience-item .bullet {
+  font-size: 8pt;
+  line-height: 1.3;
+}
+
+/* Preview */
+html.cv-preview,
+body.cv-preview {
+  width: 100%;
+  min-width: 210mm;
+}
+
+/* Preview : mots-clés ATS visibles en blanc (sidebar sombre) */
+body.cv-preview .cv-sidebar .mots-cles-ats-invisible {
+  color: #fff;
+  font-size: 7pt;
+}
+
+/* Surlignage modifications */
+.cv-changed {
+  background-color: #b8d4be;
+  padding: 0 1px;
+  border-radius: 1px;
+}
+
+.cv-sidebar .cv-changed {
+  background-color: #3d6b4a;
+  color: #b8e0c0;
+}
+
+@media print {
+  .cv-changed,
+  .cv-sidebar .cv-changed {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+  }
+  /* Export PDF : cachés (même couleur que la sidebar) */
+  .mots-cles-ats-invisible {
+    color: var(--cv-sidebar-color) !important;
+    font-size: 5pt;
+    line-height: 1.15;
+  }
+}

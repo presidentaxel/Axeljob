@@ -42,9 +42,9 @@ Règles pour les bullet points (CRITIQUE) :
 
 Tu DOIS :
 - Utiliser les mots-clés de l'offre au mot près quand tu les insères (pas de synonymes pour les compétences techniques)
-- Rédiger le resume en 2-3 phrases max, ton professionnel mais personnel. Le résumé doit TOUJOURS commencer par « Étudiant ESSEC » (ex. « Étudiant ESSEC, je recherche… », « Étudiant ESSEC, passionné par… »). Enchaîner avec la 1ère personne et le titre du poste visé, des mots-clés de l'offre. Ne jamais écrire « je suis un futur X » ni revendiquer le poste comme si on l'occupait déjà. Éviter « professionnel autonome », « je suis un professionnel… » : garder l'ancrage étudiant ESSEC. Pour un domaine que le CV ne décrit pas en expérience directe : « atout pour… », « idéal pour… ».
+- Rédiger le resume en 2-3 phrases max, ton professionnel mais sobre et crédible. Le résumé doit TOUJOURS commencer par « Étudiant ESSEC » (ex. « Étudiant ESSEC, je recherche… », « Étudiant ESSEC, intéressé par… »). Enchaîner avec la 1ère personne et le titre du poste visé, des mots-clés de l'offre. Ne jamais écrire « je suis un futur X » ni revendiquer le poste comme si on l'occupait déjà. NE JAMAIS utiliser « passionné », « passionné par », « passion » (ex. « passionné par l'univers du luxe ») : bannir. Utiliser « intéressé par », « intérêt pour ». Éviter « professionnel autonome », « je suis un professionnel… », « une expertise » (préférer « compétences », « expérience ») : garder l'ancrage étudiant ESSEC, ton direct sans sur-enchère. Pour un domaine que le CV ne décrit pas en expérience directe : « atout pour… », « idéal pour… ».
 - Remplir mots_cles_cache avec une chaîne d'environ 50 à 60 mots-clés et courtes expressions de l'annonce (séparés par des espaces), pour optimisation ATS (mots-clés techniques, compétences, outils, métiers). Pas de phrases longues, uniquement des termes pertinents.
-- Extraire dans poste_offre UNIQUEMENT l'intitulé du poste (ex. "Alternance Risk Manager", "Gestionnaire Data Center F/H"), sans ajouter de mot parasite : pas de "demande", "offre", "recherche", "poste à pourvoir" — juste le titre du poste tel qu'un recruteur l'écrirait.
+- Extraire dans poste_offre UNIQUEMENT l'intitulé du poste (ex. "Alternance Risk Manager", "Gestionnaire Data Center"), sans ajouter de mot parasite : pas de "demande", "offre", "recherche", "poste à pourvoir". Ne jamais inclure « (H/F) » ni « (F/H) » dans le titre du poste ni dans le resume - les retirer systématiquement.
 - Ne jamais utiliser de formatage (pas de gras, pas d'astérisques) : tout le texte (resume, bullet_points) doit être en texte brut uniquement, sans ** ni __ ni aucun markdown.
 
 Format de sortie : UNIQUEMENT un objet JSON, sans markdown, sans commentaire, sans texte avant ou après.
@@ -84,10 +84,10 @@ def _build_user_prompt(cv_base: dict, offre: dict, rapport: dict | None) -> str:
 <instructions>
 À partir du CV source ci-dessus et de l'offre :
 
-1. Réécris le résumé (resume) en 2-3 phrases, ton professionnel et personnel. OBLIGATOIRE : la première phrase commence TOUJOURS par « Étudiant ESSEC ». Texte brut uniquement : aucun formatage, pas d'astérisques (**), pas de gras. Ne pas écrire « je suis un futur [poste] » ni « je suis un professionnel… ». Intègre le titre du poste et des mots-clés sans inventer de faits.
-2. Pour chaque expérience, réécris les bullet_points en restant FIDÈLE au contenu original. Texte brut uniquement, pas d'astérisques. Chaque bullet doit rester une phrase naturelle et humaine sur ce qui a été fait (action, résultat). Ne jamais ajouter en fin de phrase des formules comme « pertinent pour… », « atout pour… », « idéal pour un poste en… » — bannir ces tournures. Tu peux intégrer un mot-clé de l'offre dans la phrase seulement s'il décrit vraiment ce qui est déjà dit (ex. remplacer « tableaux » par « Excel » si c'est le cas). Maximum 3 bullet points par expérience. Garde les mêmes ids.
+1. Réécris le résumé (resume) en 2-3 phrases, ton professionnel et sobre. OBLIGATOIRE : la première phrase commence TOUJOURS par « Étudiant ESSEC ». Texte brut uniquement : aucun formatage, pas d'astérisques (**), pas de gras. Ne pas écrire « je suis un futur [poste] » ni « je suis un professionnel… ». NE JAMAIS utiliser « passionné » ni « passion » (ex. « passionné par l'univers du luxe ») : utiliser « intéressé par », « intérêt pour ». Éviter « une expertise » ; privilégier « compétences », « expérience ». Intègre le titre du poste et des mots-clés sans inventer de faits.
+2. Pour chaque expérience, réécris les bullet_points en restant FIDÈLE au contenu original. Texte brut uniquement, pas d'astérisques. Ne jamais utiliser « passionné » ni « passion » (utiliser « intéressé par », « intérêt pour »). Chaque bullet doit rester une phrase naturelle sur ce qui a été fait (action, résultat). Ne jamais ajouter en fin de phrase des formules comme « pertinent pour… », « atout pour… », « idéal pour un poste en… » - bannir ces tournures. Tu peux intégrer un mot-clé de l'offre dans la phrase seulement s'il décrit vraiment ce qui est déjà dit (ex. remplacer « tableaux » par « Excel » si c'est le cas). Maximum 3 bullet points par expérience. Garde les mêmes ids.
 3. Remplis mots_cles_cache avec une seule chaîne d'environ 50 à 60 mots-clés et courtes expressions de l'annonce (séparés par des espaces), pour que les ATS les détectent (outils, compétences, métier, secteur). Exemple : "gestion de projet Python analyse de données Excel reporting data center opérations bureautique autonomie rigueur".
-4. Dans poste_offre, mets UNIQUEMENT l'intitulé du poste (ex. "Gestionnaire Data Center F/H", "Alternance Risk Manager"), sans mot parasite : pas de "demande", "offre", "recherche" — juste le titre du poste.
+4. Dans poste_offre, mets UNIQUEMENT l'intitulé du poste (ex. "Gestionnaire Data Center", "Alternance Risk Manager"), sans mot parasite et sans « (H/F) » ni « (F/H) » - les retirer si l'annonce les contient.
 
 Important : l'objectif est de mieux correspondre aux critères en reformulant ce qui est déjà là, pas d'inventer des éléments pour coller à l'offre.
 
@@ -111,12 +111,36 @@ def _strip_markdown_bold(text: str) -> str:
     return text.replace("**", "").replace("__", "").strip()
 
 
+def _strip_h_f(text: str) -> str:
+    """Retire (H/F) et (F/H) du texte (insensible à la casse)."""
+    if not text or not isinstance(text, str):
+        return text
+    return re.sub(r"\s*\([HhFf]/[HhFf]\)", "", text).strip()
+
+
+def _strip_passion(text: str) -> str:
+    """Remplace « passionné » / « passion » par « intéressé » / « intérêt » (interdit en sortie CV)."""
+    if not text or not isinstance(text, str):
+        return text
+    s = text
+    s = re.sub(r"\bpassionné(?:e)?\s+par\b", "intéressé par", s, flags=re.IGNORECASE)
+    s = re.sub(r"\bpassionné(?:e)?\s+pour\b", "intéressé pour", s, flags=re.IGNORECASE)
+    s = re.sub(r"\bpassionné(?:e)?\b", "intéressé", s, flags=re.IGNORECASE)
+    s = re.sub(r"\bpassion\s+pour\b", "intérêt pour", s, flags=re.IGNORECASE)
+    s = re.sub(r"\bma\s+passion\b", "mon intérêt", s, flags=re.IGNORECASE)
+    return s
+
+
 def _sanitize_tweaks_text(tweaks: dict) -> None:
-    """Modifie tweaks in-place : retire ** et __ du resume et de tous les bullet_points."""
+    """Modifie tweaks in-place : retire ** et __ ; (H/F) ; remplace passionné/passion par intéressé/intérêt."""
     if "resume" in tweaks and tweaks["resume"]:
         tweaks["resume"] = _strip_markdown_bold(tweaks["resume"])
+        tweaks["resume"] = _strip_h_f(tweaks["resume"])
+        tweaks["resume"] = _strip_passion(tweaks["resume"])
     for exp in tweaks.get("experiences") or []:
-        exp["bullet_points"] = [_strip_markdown_bold(b) for b in (exp.get("bullet_points") or [])]
+        exp["bullet_points"] = [
+            _strip_passion(_strip_markdown_bold(b)) for b in (exp.get("bullet_points") or [])
+        ]
 
 
 def _extract_json(text: str) -> dict | None:
@@ -212,8 +236,9 @@ def adapter_cv(cv_base: dict, offre: dict, rapport: dict | None = None, retry_in
 
 
 def _nettoyer_poste_offre(poste: str) -> str:
-    """Retire les mots parasites souvent collés par les annonces (demande, offre, etc.)."""
+    """Retire les mots parasites souvent collés par les annonces (demande, offre, etc.) et (H/F)/(F/H)."""
     s = (poste or "").strip()
+    s = _strip_h_f(s)
     # Mots à retirer (souvent en début d'annonce : "Offre demande ...", "Recherche ...")
     for mot in ("demande", "offre", "recherche", "poste à pourvoir"):
         s = re.sub(rf"\b{re.escape(mot)}\b", "", s, flags=re.IGNORECASE)
@@ -229,9 +254,65 @@ def apply_tweaks_to_cv(cv_base: dict, tweaks: dict) -> dict:
     poste_offre = _nettoyer_poste_offre(str(tweaks.get("poste_offre") or ""))
     if poste_offre:
         merged["titre_professionnel"] = f"Étudiant ESSEC - {poste_offre}"
+    merged["titre_professionnel"] = _strip_h_f(merged.get("titre_professionnel") or "") or merged.get("titre_professionnel", "")
     by_id = {t["id"]: t for t in tweaks.get("experiences", []) if t.get("id")}
     for exp in merged.get("experiences", []):
         eid = exp.get("id")
         if eid and eid in by_id:
             exp["bullet_points"] = by_id[eid].get("bullet_points", exp.get("bullet_points", []))
     return merged
+
+
+REFINE_SYSTEM = """Tu es un assistant qui modifie un CV existant selon les instructions de l'utilisateur.
+Tu ne dois JAMAIS inventer d'expériences, de diplômes ou de faits absents du CV.
+Tu retournes UNIQUEMENT un objet JSON avec les clés que tu modifies (les autres restent inchangées côté client).
+Clés possibles : "resume" (texte), "experiences" (liste de { "id": "exp_1", "bullet_points": ["...", ...] }), "titre_professionnel", "mots_cles_cache".
+- Pour "experiences" : garde les mêmes ids que le CV source, au plus 3 bullet points par expérience.
+- Texte brut uniquement, pas de markdown (**), pas de gras.
+Retourne uniquement le JSON, sans markdown ni commentaire."""
+
+
+def refine_cv(cv_current: dict, instruction: str) -> dict:
+    """
+    Applique une instruction utilisateur (ex. "mets plus en avant Excel", "raccourcis le résumé")
+    au CV actuel. Retourne les tweaks à fusionner (même format que adapter_cv).
+    """
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY manquante.")
+
+    try:
+        from google import genai
+        from google.genai import types
+    except ImportError:
+        raise ImportError("pip install google-genai")
+
+    client = genai.Client(api_key=api_key)
+    experiences_input = [
+        {"id": e.get("id", ""), "poste": e.get("poste", ""), "bullet_points": e.get("bullet_points", [])}
+        for e in (cv_current.get("experiences") or [])[:8]
+    ]
+    user_prompt = f"""<cv_actuel>
+resume: {json.dumps((cv_current.get("resume") or "")[:1500], ensure_ascii=False)}
+titre_professionnel: {json.dumps(cv_current.get("titre_professionnel") or "", ensure_ascii=False)}
+experiences: {json.dumps(experiences_input, ensure_ascii=False, indent=2)}
+</cv_actuel>
+
+<instruction_utilisateur>
+{instruction.strip()[:2000]}
+</instruction_utilisateur>
+
+Retourne un JSON avec uniquement les clés à modifier (resume, experiences, titre_professionnel, mots_cles_cache). Même structure que le CV pour experiences (id + bullet_points)."""
+
+    r = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=REFINE_SYSTEM.strip() + "\n\n---\n\n" + user_prompt,
+        config=types.GenerateContentConfig(temperature=0.3),
+    )
+    if not r or not getattr(r, "text", None):
+        raise ValueError("Réponse Gemini vide")
+    tweaks = _extract_json(r.text)
+    if tweaks is None:
+        raise ValueError("Impossible d'extraire un JSON de la réponse.")
+    _sanitize_tweaks_text(tweaks)
+    return tweaks

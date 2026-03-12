@@ -135,11 +135,12 @@ def export_dossier_as_zip(
     poste: str,
     entreprise: str,
     description_fiche: str,
-) -> tuple[bytes, str, list[str]]:
+    lettre_corps: str | None = None,
+) -> tuple[bytes, str, list[str], str]:
     """
     Génère les 3 PDFs en mémoire et les renvoie dans un ZIP.
-    Retourne (zip_bytes, nom_dossier, liste_noms_fichiers).
-    Utilisé pour l'export via "Parcourir" (File System Access) côté client.
+    Retourne (zip_bytes, nom_dossier, liste_noms_fichiers, lettre_corps_utilisé).
+    Si lettre_corps est fourni, il est utilisé pour la lettre ; sinon on le génère.
     """
     import zipfile
     from io import BytesIO
@@ -177,10 +178,12 @@ def export_dossier_as_zip(
     fiche_bytes = fiche_buffer.getvalue()
     files_created.append(nom_fiche)
 
-    # 3) Lettre de motivation
-    from letter_generator import generer_lettre_pdf_bytes
-    lettre_bytes, nom_lettre = generer_lettre_pdf_bytes(
-        cv, description_fiche or "", poste or "", entreprise or ""
+    # 3) Lettre de motivation (réutiliser lettre_corps si fourni, sinon générer)
+    from letter_generator import generer_corps_lettre, generer_lettre_pdf_bytes_from_corps
+    if not lettre_corps:
+        lettre_corps = generer_corps_lettre(cv, description_fiche or "", poste or "", entreprise or "")
+    lettre_bytes, nom_lettre = generer_lettre_pdf_bytes_from_corps(
+        cv, lettre_corps, poste or "", entreprise or "", base_dir=base_dir
     )
     files_created.append(nom_lettre)
 
@@ -191,4 +194,4 @@ def export_dossier_as_zip(
         zf.writestr(f"{folder_name}/{nom_fiche}", fiche_bytes)
         zf.writestr(f"{folder_name}/{nom_lettre}", lettre_bytes)
 
-    return zip_buffer.getvalue(), folder_name, files_created
+    return zip_buffer.getvalue(), folder_name, files_created, lettre_corps

@@ -26,6 +26,13 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from photo_assets import ensure_compressed_photo, get_photo_url_for_cv
 
 
+def _strip_h_f(text: str) -> str:
+    """Retire (H/F) et (F/H) du titre (insensible à la casse)."""
+    if not text or not isinstance(text, str):
+        return text
+    return re.sub(r"\s*\([HhFf]/[HhFf]\)", "", text).strip()
+
+
 def _sanitize_filename(s: str, max_len: int = 80) -> str:
     """Retire les caractères interdits et normalise l'Unicode (évite latin-1 / zip)."""
     if not s:
@@ -73,64 +80,91 @@ def _nom_fichier_pdf(cv: dict, offre: dict) -> str:
 def generer_pdf(cv_adapte: dict, offre: dict, output_dir: str = ".") -> str:
     """
     Charge template.html, injecte cv_adapte, compile en PDF avec WeasyPrint.
-    output_dir : dossier de sortie (créé si besoin).
+    Même logique que generer_pdf_bytes : si la version compacte tient sur 1 page, on ajoute une 7e exp et un 2e projet.
     Retourne le chemin absolu du fichier PDF généré.
     """
-    try:
-        from weasyprint import HTML, CSS
-    except ImportError:
-        raise ImportError(
-            "WeasyPrint est requis pour générer le PDF.\n"
-            "Installation : pip install weasyprint\n"
-            "Windows : installer GTK3 si besoin — voir https://doc.courtbouillon.org/weasyprint/stable/first_steps.html\n"
-            "macOS : brew install pango gdk-pixbuf libffi\n"
-            "Linux : sudo apt-get install libpango-1.0-0 libgdk-pixbuf2.0-0"
-        )
-
-    base_dir = Path(__file__).resolve().parent
+    pdf_bytes, nom_pdf = generer_pdf_bytes(cv_adapte, offre, base_dir=Path(__file__).resolve().parent)
     out = Path(output_dir).resolve()
     out.mkdir(parents=True, exist_ok=True)
-
-    cv_adapte = dict(cv_adapte)
-    ensure_compressed_photo(base_dir, cv_adapte.get("photo_url"), cv_adapte.get("prenom"), cv_adapte.get("nom"))
-    photo_url = get_photo_url_for_cv(base_dir, cv_adapte.get("photo_url"), cv_adapte.get("prenom"), cv_adapte.get("nom"))
-    if photo_url:
-        cv_adapte["photo_url"] = photo_url
-
-    import html as html_module
-    cv_adapte["titre_professionnel_display"] = html_module.escape(cv_adapte.get("titre_professionnel") or "")
-    cv_adapte["resume_display"] = html_module.escape(cv_adapte.get("resume") or "")
-    cv_adapte["for_preview"] = False
-    experiences_for_display = []
-    for exp in (cv_adapte.get("experiences") or [])[:6]:
-        bullets = (exp.get("bullet_points") or [])[:2]
-        experiences_for_display.append({**exp, "bullet_points": [{"text": b, "html": html_module.escape(b)} for b in bullets]})
-    cv_adapte["experiences_for_display"] = experiences_for_display
-
-    env = Environment(
-        loader=FileSystemLoader(str(base_dir)),
-        autoescape=select_autoescape(("html", "xml")),
-    )
-    template = env.get_template("template.html")
-    html_str = template.render(**cv_adapte)
-
-    # Fichier HTML temporaire pour WeasyPrint (pour résoudre template.css)
-    html_path = base_dir / "template.html"
-    # WeasyPrint peut prendre une string HTML ; il faut alors une base_url pour les CSS
-    html_doc = HTML(string=html_str, base_url=str(base_dir))
-    css = CSS(filename=base_dir / "template.css")
-
-    nom_pdf = _nom_fichier_pdf(cv_adapte, offre)
     path_pdf = out / nom_pdf
-    html_doc.write_pdf(path_pdf, stylesheets=[css])
-
+    path_pdf.write_bytes(pdf_bytes)
     return str(path_pdf)
 
 
-def generer_pdf_bytes(cv_adapte: dict, offre: dict, base_dir: str | Path | None = None) -> tuple[bytes, str]:
+def _build_cv_display(cv_adapte: dict, html_module, n_experiences: int = 6, n_projets: int = 1) -> dict:
+    """Construit le contexte d’affichage : n_experiences (6 ou 7), n_projets (1 ou 2), 2 bullets par exp."""
+    experiences_for_display = []
+    for exp in (cv_adapte.get("experiences") or [])[:n_experiences]:
+        if not (exp.get("poste") or exp.get("entreprise") or any((exp.get("bullet_points") or []))):
+            continue
+        bullets = (exp.get("bullet_points") or [])[:2]
+        experiences_for_display.append({**exp, "bullet_points": [{"text": b, "html": html_module.escape(b)} for b in bullets]})
+
+    formations_all = cv_adapte.get("formations") or []
+    formations_for_display = [
+        f for f in formations_all[:5]
+        if (f.get("diplome") or f.get("etablissement") or f.get("date") or f.get("mention"))
+    ]
+
+    certs_all = cv_adapte.get("certifications") or []
+    certifications_for_display = [
+        c for c in certs_all
+        if (c.get("nom") or c.get("organisme") or c.get("date"))
+    ]
+
+    projs_all = cv_adapte.get("projets") or []
+    projets_for_display = [
+        p for p in projs_all[:n_projets]
+        if (p.get("nom") or p.get("description"))
+    ]
+
+    comp = cv_adapte.get("competences") or {}
+    langues_all = comp.get("langues") or []
+    langues_for_display = [
+        l for l in langues_all
+        if (l.get("langue") if isinstance(l, dict) else None) or (l.get("niveau") if isinstance(l, dict) else None)
+    ]
+
+    return {
+        "experiences_for_display": experiences_for_display,
+        "formations_for_display": formations_for_display,
+        "certifications_for_display": certifications_for_display,
+        "projets_for_display": projets_for_display,
+        "langues_for_display": langues_for_display,
+    }
+
+
+def _render_pdf_bytes_from_ctx(cv_ctx: dict, template_dir: Path, css, css_vars_style: str = "") -> bytes:
+    """Génère les bytes PDF à partir d’un contexte CV déjà prêt (photo, display, etc.)."""
+    from weasyprint import HTML
+    env = Environment(
+        loader=FileSystemLoader(str(template_dir)),
+        autoescape=select_autoescape(("html", "xml")),
+    )
+    template = env.get_template("template.html")
+    html_str = template.render(**cv_ctx)
+    if css_vars_style:
+        html_str = html_str.replace("</head>", css_vars_style + "</head>", 1)
+    html_doc = HTML(string=html_str, base_url=str(template_dir))
+    buffer = __import__("io").BytesIO()
+    html_doc.write_pdf(buffer, stylesheets=[css])
+    return buffer.getvalue()
+
+
+def _pdf_page_count(pdf_bytes: bytes) -> int:
+    """Retourne le nombre de pages du PDF."""
+    try:
+        from pypdf import PdfReader
+        return len(PdfReader(__import__("io").BytesIO(pdf_bytes)).pages)
+    except Exception:
+        return 1
+
+
+def generer_pdf_bytes(cv_adapte: dict, offre: dict, base_dir: str | Path | None = None, template_id: str | None = None, template_options: dict | None = None) -> tuple[bytes, str]:
     """
     Génère le PDF en mémoire. Retourne (bytes_du_pdf, nom_fichier).
-    base_dir : dossier des templates/CSS (par défaut = dossier du module). À passer depuis le backend pour garantir le bon chemin.
+    Si la version « compacte » (6 exp, 2 bullets, 1 projet) tient sur une page A4,
+    on tente d’ajouter une 7e expérience et un 2e projet pour remplir la page.
     """
     try:
         from weasyprint import HTML, CSS
@@ -141,33 +175,41 @@ def generer_pdf_bytes(cv_adapte: dict, offre: dict, base_dir: str | Path | None 
         )
 
     base_dir = Path(base_dir).resolve() if base_dir else Path(__file__).resolve().parent
+
+    from backend.template_registry import get_template_dir, resolve_options, options_to_css_vars
+    tmpl_dir = get_template_dir(template_id)
+    resolved_opts = resolve_options(template_id, template_options)
+    show_photo = resolved_opts.get("show_photo", True)
+
     cv_adapte = dict(cv_adapte)
     ensure_compressed_photo(base_dir, cv_adapte.get("photo_url"), cv_adapte.get("prenom"), cv_adapte.get("nom"))
     photo_url = get_photo_url_for_cv(base_dir, cv_adapte.get("photo_url"), cv_adapte.get("prenom"), cv_adapte.get("nom"))
     if photo_url:
         cv_adapte["photo_url"] = photo_url
 
+    if not show_photo:
+        cv_adapte["photo_url"] = None
+
     import html as html_module
-    cv_adapte["titre_professionnel_display"] = html_module.escape(cv_adapte.get("titre_professionnel") or "")
+    cv_adapte["titre_professionnel_display"] = html_module.escape(_strip_h_f(cv_adapte.get("titre_professionnel") or ""))
     cv_adapte["resume_display"] = html_module.escape(cv_adapte.get("resume") or "")
     cv_adapte["for_preview"] = False
-    experiences_for_display = []
-    for exp in (cv_adapte.get("experiences") or [])[:6]:
-        bullets = (exp.get("bullet_points") or [])[:2]
-        experiences_for_display.append({**exp, "bullet_points": [{"text": b, "html": html_module.escape(b)} for b in bullets]})
-    cv_adapte["experiences_for_display"] = experiences_for_display
+    css_vars = options_to_css_vars(resolved_opts)
+    css = CSS(filename=tmpl_dir / "template.css")
 
-    env = Environment(
-        loader=FileSystemLoader(str(base_dir)),
-        autoescape=select_autoescape(("html", "xml")),
-    )
-    template = env.get_template("template.html")
-    html_str = template.render(**cv_adapte)
-    html_doc = HTML(string=html_str, base_url=str(base_dir))
-    css = CSS(filename=base_dir / "template.css")
+    # Version compacte : 6 exp, 1 projet
+    display_compact = _build_cv_display(cv_adapte, html_module, n_experiences=6, n_projets=1)
+    ctx_compact = {**cv_adapte, **display_compact}
+    pdf_compact = _render_pdf_bytes_from_ctx(ctx_compact, tmpl_dir, css, css_vars)
+    n_pages = _pdf_page_count(pdf_compact)
+
+    # S’il reste de la place (1 page), tenter d’ajouter une 7e exp et un 2e projet
+    if n_pages == 1:
+        display_optional = _build_cv_display(cv_adapte, html_module, n_experiences=7, n_projets=2)
+        ctx_optional = {**cv_adapte, **display_optional}
+        pdf_optional = _render_pdf_bytes_from_ctx(ctx_optional, tmpl_dir, css, css_vars)
+        if _pdf_page_count(pdf_optional) == 1:
+            pdf_compact = pdf_optional
 
     nom_pdf = _nom_fichier_pdf(cv_adapte, offre)
-    from io import BytesIO
-    buffer = BytesIO()
-    html_doc.write_pdf(buffer, stylesheets=[css])
-    return buffer.getvalue(), nom_pdf
+    return pdf_compact, nom_pdf

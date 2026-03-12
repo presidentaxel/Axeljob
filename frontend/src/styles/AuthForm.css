@@ -2,17 +2,24 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  padding: 0 0.75rem 1rem;
+  padding: 0 0 0.75rem;
 }
 
 .auth-input {
-  padding: 0.5rem 0.75rem;
-  font-size: 0.8125rem;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.875rem;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs, 6px);
   font-family: inherit;
   background: var(--bg);
   color: var(--text);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.auth-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--shadow-focus, 0 0 0 3px rgba(79, 70, 229, 0.12));
 }
 
 .auth-input::placeholder {
@@ -20,50 +27,59 @@
 }
 
 .auth-error {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: var(--danger);
+  padding: 0.35rem 0.5rem;
+  background: var(--danger-light, #fef2f2);
+  border-radius: var(--radius-xs, 6px);
 }
 
 .auth-message {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: var(--success);
+  padding: 0.35rem 0.5rem;
+  background: var(--success-light, #ecfdf5);
+  border-radius: var(--radius-xs, 6px);
 }
 
 .auth-submit {
   margin-top: 0.25rem;
-  padding: 0.5rem;
-  font-size: 0.8125rem;
+  padding: 0.6rem;
+  font-size: 0.875rem;
 }
 
 .auth-toggle {
   background: none;
   border: none;
-  font-size: 0.75rem;
-  color: var(--accent);
+  font-size: 0.8rem;
+  color: var(--muted);
   cursor: pointer;
   padding: 0.25rem 0;
-  text-align: left;
+  text-align: center;
+  font-family: inherit;
+  transition: color 0.15s;
 }
 
 .auth-toggle:hover {
-  text-decoration: underline;
+  color: var(--accent);
 }
 
 .sidebar-auth-loading {
   font-size: 0.75rem;
   color: var(--muted);
-  padding: 0 0.75rem 0.5rem;
+  padding: 0.5rem 0.5rem;
 }
 
 .sidebar-auth-user {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  padding: 0 0.75rem 1rem;
+  padding: 0.25rem 0;
 }
 
 .sidebar-auth-email {
-  font-size: 0.8125rem;
+  font-size: 0.8rem;
+  font-weight: 500;
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -72,21 +88,25 @@
 
 .btn-signout {
   font-size: 0.75rem;
-  padding: 0.35rem 0.5rem;
-  background: var(--surface);
+  font-family: inherit;
+  padding: 0.35rem 0.6rem;
+  background: transparent;
   border: 1px solid var(--border);
   color: var(--muted);
-  border-radius: 6px;
+  border-radius: var(--radius-xs, 6px);
   cursor: pointer;
+  transition: all 0.15s;
+  align-self: flex-start;
 }
 
 .btn-signout:hover {
   color: var(--danger);
   border-color: var(--danger);
+  background: var(--danger-light, #fef2f2);
 }
 
-.auth-linkedin-btn {
-  font-family: 'Nunito Sans', sans-serif;
+.auth-google-btn {
+  font-family: inherit;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -94,13 +114,43 @@
   width: 100%;
   padding: 0.6rem 0.75rem;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs, 6px);
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: var(--shadow-sm);
+}
+
+.auth-google-btn:hover:not(:disabled) {
+  background: var(--bg-page);
+  border-color: var(--muted);
+}
+
+.auth-google-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.auth-linkedin-btn {
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
   color: #fff;
   background: #0A66C2;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs, 6px);
   cursor: pointer;
   transition: background 0.15s;
+  box-shadow: 0 1px 2px rgba(10, 102, 194, 0.3);
 }
 
 .auth-linkedin-btn:hover:not(:disabled) {
@@ -108,7 +158,7 @@
 }
 
 .auth-linkedin-btn:disabled {
-  opacity: 0.85;
+  opacity: 0.7;
   cursor: wait;
 }
 
@@ -116,5 +166,16 @@
   font-size: 0.75rem;
   color: var(--muted);
   text-align: center;
-  margin: 0.25rem 0;
+  margin: 0.15rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
 }

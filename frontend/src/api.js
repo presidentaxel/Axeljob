@@ -59,7 +59,9 @@ export async function apiPost(path, body) {
     const data = await r.json().catch(() => ({}));
     const detail = data.detail;
     const msg = Array.isArray(detail) ? (detail[0]?.msg || JSON.stringify(detail)) : (detail || data.error || r.statusText);
-    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    const err = new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    err.status = r.status;
+    throw err;
   }
   const ct = r.headers.get('content-type');
   if (ct && ct.includes('application/json')) return r.json();
@@ -104,10 +106,15 @@ export async function apiPut(path, body) {
 export async function apiPostFile(path, file, fieldName = 'file') {
   const form = new FormData();
   form.append(fieldName, file);
+  return apiPostFormData(path, form);
+}
+
+/** POST FormData (ex. type + file pour upload-doc). */
+export async function apiPostFormData(path, formData) {
   const r = await fetch(apiUrl(path), {
     method: 'POST',
     headers: getHeaders(),
-    body: form,
+    body: formData,
   });
   if (!r.ok) {
     checkUnauthorized(r);
@@ -161,4 +168,47 @@ export async function apiGetBlob(path) {
     if (m) filename = m[1].trim();
   }
   return { blob, filename };
+}
+
+/**
+ * Fire-and-forget event tracking for analytics / mémoire.
+ * Never throws — silently drops on error.
+ */
+export function trackEvent(eventType, context = {}) {
+  try {
+    fetch(apiUrl('/api/events/track'), {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ event_type: eventType, context }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {}
+}
+
+/** Télécharge un fichier via GET (ex. export CSV pour mémoire). */
+export async function apiDownload(path, defaultFilename = 'download') {
+  const r = await fetch(apiUrl(path), { headers: getHeaders() });
+  if (!r.ok) {
+    checkUnauthorized(r);
+    const text = await r.text();
+    let msg = r.statusText;
+    try {
+      const data = JSON.parse(text);
+      msg = data.detail || data.error || msg;
+    } catch {}
+    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+  }
+  const blob = await r.blob();
+  const disposition = r.headers.get('Content-Disposition');
+  let filename = defaultFilename;
+  if (disposition) {
+    const m = disposition.match(/filename="?([^";\n]+)"?/);
+    if (m) filename = m[1].trim();
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }

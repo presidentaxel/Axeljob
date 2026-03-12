@@ -15,6 +15,9 @@ export const defaultCv = () => ({
   formations: [
     { id: 'form_1', diplome: '', etablissement: '', date: '', mention: '' },
   ],
+  certifications: [
+    { id: 'cert_1', nom: '', organisme: '', date: '' },
+  ],
   competences: {
     techniques: [''],
     logiciels: [''],
@@ -28,4 +31,5 @@ export const defaultCv = () => ({
 
 export const newExpId = () => `exp_${Date.now()}`;
 export const newFormId = () => `form_${Date.now()}`;
+export const newCertId = () => `cert_${Date.now()}`;
 export const newProjId = () => `proj_${Date.now()}`;

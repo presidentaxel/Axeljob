@@ -6,6 +6,7 @@ Utilise la photo du dossier assets/ (compressée en photo_cv.jpg) si photo_url e
 """
 
 import json
+import re
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -33,7 +34,11 @@ def main() -> None:
 
     # Même contexte que generator.py pour le template (titre_professionnel_display, resume_display, experiences_for_display)
     import html as html_module
-    data["titre_professionnel_display"] = html_module.escape(data.get("titre_professionnel") or "")
+    def _strip_h_f(t):
+        if not t or not isinstance(t, str):
+            return t
+        return re.sub(r"\s*\([HhFf]/[HhFf]\)", "", t).strip()
+    data["titre_professionnel_display"] = html_module.escape(_strip_h_f(data.get("titre_professionnel") or ""))
     data["resume_display"] = html_module.escape(data.get("resume") or "")
     data["for_preview"] = True
     experiences_for_display = []

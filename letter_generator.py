@@ -26,7 +26,7 @@ Règles strictes :
 - Retourner UNIQUEMENT le corps de la lettre (pas de formule d'appel ni de signature)
 - Format : texte brut uniquement, paragraphes séparés par une ligne vide (double saut de ligne). Aucun formatage : pas d'astérisques (**), pas de gras ni markdown.
 
-Ton et formulation — à respecter absolument :
+Ton et formulation - à respecter absolument :
 - Bannir les tournures pompeuses, guindées ou "haute société" : par exemple "suscite mon plus vif intérêt", "je me permets de", "au vu de", "je nourris l'ambition de", "c'est avec un vif enthousiasme que", "je serais ravi de", "je demeure à votre disposition"
 - Privilégier des phrases simples, directes et naturelles : "ce poste m'intéresse parce que", "mon expérience en... correspond à", "je souhaite rejoindre", "je suis disponible pour"
 - Rester crédible et humain : pas de sur-enchère ni de formules de courtoisie excessives

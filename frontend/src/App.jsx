@@ -1,78 +1,157 @@
 import { useState, useRef, useEffect } from 'react';
+import DOMPurify from 'dompurify';
+import { useLocation, useNavigate, NavLink } from 'react-router-dom';
 import {
   apiGet,
   apiPost,
   apiPatch,
   apiPostBlob,
+  apiPostFormData,
   apiGetBlob,
   setAuthToken,
   setUnauthorizedCallback,
+  trackEvent,
 } from './api';
 import { supabase } from './lib/supabase';
 import ProfileView from './components/ProfileView';
 import AuthForm from './components/AuthForm';
+import LandingPage from './components/LandingPage';
+import OnboardingWizard from './components/OnboardingWizard';
+import CvEditablePreview from './components/CvEditablePreview';
+import CompanyLogo from './components/CompanyLogo';
+import ApplicationDetailModal from './components/ApplicationDetailModal';
+import TemplatePicker from './components/TemplatePicker';
+import GuidedTour from './components/GuidedTour';
+import { STORAGE_EXPORT_DIR, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
+import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight } from 'react-icons/hi2';
 import './App.css';
+import './styles/TemplatePicker.css';
+import './styles/GuidedTour.css';
 
-const STORAGE_EXPORT_DIR = 'cv_bot_last_export_dir';
-const STATUT_LABELS = {
-  candidature_envoyee: 'Candidature envoyée',
-  reponse_recue: 'Réponse reçue',
-  interview: 'Interview',
-  refus: 'Refus',
-};
-
-function getExportFolderName(entreprise, poste) {
-  const sanitize = (s) => (s || '').replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
-  const ent = sanitize(entreprise);
-  const pos = sanitize(poste) || 'Sans intitulé';
-  return ent ? ent + ' - ' + pos : pos;
-}
 
 /** URL logo entreprise (Clearbit, open source). Fallback: pas d’image. */
-function getCompanyLogoUrl(companyName) {
-  if (!companyName || typeof companyName !== 'string') return null;
-  try {
-    const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
-    const path = `/api/company-logo?company=${encodeURIComponent(companyName.trim())}`;
-    return base ? `${base}${path}` : path;
-  } catch {
-    return null;
-  }
-}
 
 /** Affiche le logo entreprise ou l’initiale (style app bancaire). */
-function CompanyLogo({ companyName, className, size = 40 }) {
-  const [failed, setFailed] = useState(false);
-  const url = getCompanyLogoUrl(companyName);
-  const initial = (companyName || '?').trim().charAt(0).toUpperCase();
-  if (failed || !url) {
-    return (
-      <div className={`company-logo-fallback ${className || ''}`} style={{ width: size, height: size, fontSize: Math.round(size * 0.5) }}>
-        {initial}
-      </div>
-    );
-  }
+
+function getViewFromPathname(pathname) {
+  if (pathname === '/app/cv' || pathname.startsWith('/app/cv')) return 'cv';
+  if (pathname === '/app/postule' || pathname.startsWith('/app/postule')) return 'candidatures';
+  if (pathname === '/app/profil' || pathname.startsWith('/app/profil')) return 'profil';
+  if (pathname === '/app/linkedin' || pathname.startsWith('/app/linkedin')) return 'profil';
+  if (pathname === '/app/support' || pathname.startsWith('/app/support')) return 'support';
+  return 'cv';
+}
+
+function CvEditPanel({ cv, onSave, onClose }) {
+  const [edited, setEdited] = useState(() => ({
+    ...cv,
+    experiences: (cv.experiences || []).map((e) => {
+      const b = e.bullet_points || [];
+      return { ...e, bullet_points: [b[0] || '', b[1] || '', b[2] || ''] };
+    }),
+  }));
+  const update = (path, value) => {
+    if (path.startsWith('experiences.')) {
+      const parts = path.split('.');
+      const idx = parseInt(parts[1], 10);
+      const field = parts[2];
+      if (field === 'bullet_points') {
+        setEdited((prev) => {
+          const next = [...(prev.experiences || [])];
+          next[idx] = { ...next[idx], bullet_points: value };
+          return { ...prev, experiences: next };
+        });
+        return;
+      }
+    }
+    setEdited((prev) => ({ ...prev, [path]: value }));
+  };
+  const handleSave = () => {
+    const out = { ...edited };
+    out.experiences = (edited.experiences || []).map((e) => ({
+      ...e,
+      bullet_points: (e.bullet_points || []).filter((b) => (b || '').trim()).slice(0, 3),
+    }));
+    onSave(out);
+  };
+  const setExpBullet = (expIndex, bulletIndex, value) => {
+    setEdited((prev) => {
+      const next = [...(prev.experiences || [])];
+      const bullets = [...(next[expIndex].bullet_points || ['', '', ''])];
+      bullets[bulletIndex] = value;
+      next[expIndex] = { ...next[expIndex], bullet_points: bullets };
+      return { ...prev, experiences: next };
+    });
+  };
   return (
-    <img
-      src={url}
-      alt=""
-      className={className}
-      width={size}
-      height={size}
-      onError={() => setFailed(true)}
-      style={{ width: size, height: size, objectFit: 'contain' }}
-    />
+    <div className="application-detail-overlay cv-edit-overlay" onClick={onClose} role="dialog" aria-modal="true">
+      <div className="cv-edit-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="cv-edit-header">
+          <h3>Modifier le texte du CV</h3>
+          <button type="button" className="btn-close-detail" onClick={onClose} aria-label="Fermer">×</button>
+        </div>
+        <div className="cv-edit-body">
+          <label className="input-label">Titre professionnel</label>
+          <input type="text" className="input-field" value={edited.titre_professionnel || ''} onChange={(e) => update('titre_professionnel', e.target.value)} />
+          <label className="input-label">Résumé / Accroche</label>
+          <textarea className="input-field" rows={4} value={edited.resume || ''} onChange={(e) => update('resume', e.target.value)} />
+          {(edited.experiences || []).map((exp, i) => (
+            <div key={exp.id || i} className="cv-edit-exp">
+              <span className="cv-edit-exp-title">{exp.poste || exp.entreprise || `Expérience ${i + 1}`}</span>
+              {(exp.bullet_points || ['', '', '']).slice(0, 3).map((b, j) => (
+                <textarea key={j} className="input-field" rows={2} value={b} onChange={(e) => setExpBullet(i, j, e.target.value)} placeholder={`Point ${j + 1}`} />
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="cv-edit-actions">
+          <button type="button" className="btn btn-primary" onClick={handleSave}>Enregistrer les modifications</button>
+          <button type="button" className="btn btn-secondary" onClick={onClose}>Annuler</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
-function escapeHtml(s) {
-  const div = document.createElement('div');
-  div.textContent = s;
-  return div.innerHTML;
-}
+const TOUR_STEPS = [
+  {
+    selector: '.cv-chat-input',
+    title: 'Colle une offre d\'emploi',
+    content: 'C\'est ici que tout commence. Colle la fiche de poste et l\'IA adapte ton CV automatiquement.',
+    position: 'top',
+  },
+  {
+    selector: '.tpl-bar',
+    title: 'Choisis ton template',
+    content: 'Sélectionne parmi 3 templates professionnels et personnalise les couleurs.',
+    position: 'bottom',
+  },
+  {
+    selector: '.cv-chat-preview',
+    title: 'Aperçu en direct',
+    content: 'Ton CV mis à jour s\'affiche ici. Tu peux cliquer sur le texte pour le modifier directement.',
+    position: 'left',
+  },
+  {
+    selector: '[href="/app/postule"]',
+    title: 'Suis tes candidatures',
+    content: 'Chaque CV adapté crée une candidature. Retrouve-les toutes ici avec le suivi.',
+    position: 'right',
+  },
+  {
+    selector: '[href="/app/profil"]',
+    title: 'Ton profil de base',
+    content: 'Complète ton profil une fois, et il servira de base pour toutes tes adaptations.',
+    position: 'right',
+  },
+];
 
 export default function App() {
-  const [view, setView] = useState('cv');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const pathname = location.pathname;
+  const view = getViewFromPathname(pathname);
+  const isCvView = view === 'cv';
   const [annonce, setAnnonce] = useState('');
   const [lastAdaptedCv, setLastAdaptedCv] = useState(null);
   const [lastBaseCv, setLastBaseCv] = useState(null);
@@ -101,7 +180,81 @@ export default function App() {
   const [detailLetterLoading, setDetailLetterLoading] = useState(false);
   const [detailDownloading, setDetailDownloading] = useState(null);
   const iframeRef = useRef(null);
+  const previewWrapRef = useRef(null);
   const exportDirHandleRef = useRef(null);
+  const chatMessagesEndRef = useRef(null);
+  // Modals quali (refus / interview) pour mémoire
+  const [statutModalType, setStatutModalType] = useState(null);
+  const [statutModalAppId, setStatutModalAppId] = useState(null);
+  const [statutModalApp, setStatutModalApp] = useState(null);
+  const [refusRaisonType, setRefusRaisonType] = useState('');
+  const [refusRaison, setRefusRaison] = useState('');
+  const [interviewType, setInterviewType] = useState('');
+  const [interviewFeedback, setInterviewFeedback] = useState('');
+  const [interviewDate, setInterviewDate] = useState('');
+  const [sourceOffreValue, setSourceOffreValue] = useState('');
+  const [statutModalSubmitting, setStatutModalSubmitting] = useState(false);
+  const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
+  const [usage, setUsage] = useState(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [adaptStepIndex, setAdaptStepIndex] = useState(0);
+  const [kanbanDraggedId, setKanbanDraggedId] = useState(null);
+  const [kanbanDragOverColumn, setKanbanDragOverColumn] = useState(null);
+  const [sidebarHovered, setSidebarHovered] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [cvEditPanelOpen, setCvEditPanelOpen] = useState(false);
+  const [atsScoreOpen, setAtsScoreOpen] = useState(false);
+  const [adaptRating, setAdaptRating] = useState(null);
+  const [setupModalOpen, setSetupModalOpen] = useState(false);
+  const [setupEntreprise, setSetupEntreprise] = useState('');
+  const [setupPoste, setSetupPoste] = useState('');
+  const [setupFiche, setSetupFiche] = useState('');
+  const [addManualModalOpen, setAddManualModalOpen] = useState(false);
+  const [addManualPoste, setAddManualPoste] = useState('');
+  const [addManualEntreprise, setAddManualEntreprise] = useState('');
+  const [addManualStatut, setAddManualStatut] = useState('candidature_envoyee');
+  const [addManualSource, setAddManualSource] = useState('');
+  const [addManualSubmitting, setAddManualSubmitting] = useState(false);
+  const [addManualPdfLettre, setAddManualPdfLettre] = useState(null);
+  const [addManualPdfCv, setAddManualPdfCv] = useState(null);
+  const [addManualPdfFiche, setAddManualPdfFiche] = useState(null);
+  const [justAddedAppId, setJustAddedAppId] = useState(null);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [userDisplayName, setUserDisplayName] = useState('');
+  const [templateId, setTemplateId] = useState(() => localStorage.getItem('cv_template_id') || 'classic');
+  const [templateOptions, setTemplateOptions] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('cv_template_options') || '{}'); } catch { return {}; }
+  });
+
+  // Persist template choice
+  useEffect(() => {
+    localStorage.setItem('cv_template_id', templateId);
+  }, [templateId]);
+  useEffect(() => {
+    localStorage.setItem('cv_template_options', JSON.stringify(templateOptions));
+  }, [templateOptions]);
+
+  const templateParams = { template_id: templateId, template_options: templateOptions };
+
+  // Re-render preview when template/options change (avec surlignage si on a base + adapté)
+  const templateKey = templateId + '|' + JSON.stringify(templateOptions);
+  const wantHighlight = !!(lastBaseCv && lastAdaptedCv);
+  useEffect(() => {
+    if (lastAdaptedCv) {
+      apiPost('/api/render-html', { cv: lastAdaptedCv, base_cv: lastBaseCv || undefined, highlight_changes: wantHighlight, template_id: templateId, template_options: templateOptions })
+        .then((html) => { if (iframeRef.current) iframeRef.current.srcdoc = html; setModifiedPreviewHtml(html); })
+        .catch(() => {});
+    } else {
+      loadInitialPreview();
+    }
+    if (lastBaseCv) {
+      apiPost('/api/render-html', { cv: lastBaseCv, template_id: templateId, template_options: templateOptions })
+        .then((html) => setOriginalPreviewHtml(html))
+        .catch(() => {});
+    }
+  }, [templateKey, wantHighlight]);
 
   useEffect(() => {
     if (!supabase) {
@@ -124,6 +277,43 @@ export default function App() {
     return () => subscription?.unsubscribe();
   }, []);
 
+  // Check if profile is empty → show onboarding + display name (prénom + nom)
+  useEffect(() => {
+    if (!session || authLoading) return;
+    setUserDisplayName(session.user?.email?.split('@')[0] || 'Compte');
+    setOnboardingChecked(false);
+    apiGet('/api/cv?profile=1')
+      .then((data) => {
+        const empty = !data || (typeof data === 'object' && Object.keys(data).length === 0);
+        setNeedsOnboarding(empty);
+        const prenom = (data?.prenom || '').trim();
+        const nom = (data?.nom || '').trim();
+        if (prenom || nom) {
+          setUserDisplayName([prenom, nom].filter(Boolean).join(' '));
+        }
+      })
+      .catch(() => {
+        setNeedsOnboarding(true);
+      })
+      .finally(() => setOnboardingChecked(true));
+  }, [session?.user?.id, session?.user?.email, authLoading]);
+
+  useEffect(() => {
+    if (session && view) trackEvent('page_view', { view });
+  }, [session, view]);
+
+  // Redirections selon auth et route
+  useEffect(() => {
+    if (authLoading) return;
+    if (!supabase) return;
+    if (session) {
+      if (pathname === '/' || pathname === '/login') navigate('/app', { replace: true });
+      else if (pathname === '/app' || pathname === '/app/') navigate('/app/cv', { replace: true });
+    } else {
+      if (pathname.startsWith('/app')) navigate('/', { replace: true });
+    }
+  }, [session, pathname, authLoading, navigate]);
+
   const setPreviewHtml = (html) => {
     if (iframeRef.current) iframeRef.current.srcdoc = html;
   };
@@ -136,7 +326,7 @@ export default function App() {
 
   const loadInitialPreview = async () => {
     try {
-      const html = await apiGet('/api/cv/preview');
+      const html = await apiGet(`/api/cv/preview?template_id=${encodeURIComponent(templateId)}`);
       setPreviewHtml(html);
     } catch (e) {
       showError('Impossible de charger le CV. ' + (e.message || e));
@@ -160,9 +350,13 @@ export default function App() {
   useEffect(() => {
     if (supabase && !session) return;
     if (view !== 'cv') return;
+    // Précharger le CV de base pour le diff (surlignage vert) après une adaptation
+    if (!lastBaseCv) {
+      apiGet('/api/cv').then((cv) => { if (cv) setLastBaseCv(cv); }).catch(() => {});
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- on veut la valeur courante de lastAdaptedCv au retour sur l’onglet CV, pas une re-exécution à chaque changement de référence
     if (lastAdaptedCv) {
-      apiPost('/api/render-html', { cv: lastAdaptedCv, highlight_changes: false })
+      apiPost('/api/render-html', { cv: lastAdaptedCv, highlight_changes: false, ...templateParams })
         .then((html) => { setPreviewHtml(html); setModifiedPreviewHtml(html); })
         .catch(() => loadInitialPreview());
     } else {
@@ -187,6 +381,62 @@ export default function App() {
     loadApplications();
   }, [showArchived, session?.user?.id]);
 
+  const loadUsage = async () => {
+    try {
+      const data = await apiGet('/api/usage');
+      setUsage(data);
+    } catch {
+      setUsage(null);
+    }
+  };
+
+  useEffect(() => {
+    if (supabase && !session) return;
+    loadUsage();
+  }, [session?.user?.id]);
+
+  const adaptSteps = [
+    'Analyse des mots-clés',
+    'Extraction des compétences',
+    'Réécriture du résumé',
+    'Adaptation des expériences',
+    'Optimisation ATS',
+    'Finalisation',
+  ];
+
+  useEffect(() => {
+    if (!adapting) {
+      setAdaptStepIndex(0);
+      return;
+    }
+    const id = setInterval(() => {
+      setAdaptStepIndex((i) => Math.min(i + 1, adaptSteps.length - 1));
+    }, 3800);
+    return () => clearInterval(id);
+  }, [adapting]);
+
+  // Scroll vers la réponse / animation quand on lance un prompt
+  useEffect(() => {
+    if (adapting || chatMessages.length > 0) {
+      const t = requestAnimationFrame(() => {
+        chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      });
+      return () => cancelAnimationFrame(t);
+    }
+  }, [adapting, chatMessages.length]);
+
+  useEffect(() => {
+    if (!atsScoreOpen) return;
+    const close = (e) => {
+      if (e.target.closest('.ats-score-bar')) return;
+      setAtsScoreOpen(false);
+    };
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [atsScoreOpen]);
+
+  // Ajuster l’échelle du preview CV pour tout voir sans scroll horizontal
+
   useEffect(() => {
     if (supabase && !session) return;
     if (view === 'candidatures') loadApplications();
@@ -202,6 +452,7 @@ export default function App() {
       const payload = await apiGet(`/api/applications/${encodeURIComponent(id)}`);
       setApplicationDetailId(id);
       setApplicationDetail(payload);
+      if (payload.lettre_html) setDetailLetterHtml(payload.lettre_html);
     } catch (e) {
       setError(e.message || 'Impossible de charger la candidature.');
     }
@@ -218,23 +469,28 @@ export default function App() {
     if (!applicationDetail || detailTab !== 'cv') return;
     const fullCv = applicationDetail.full_cv;
     if (!fullCv) return;
-    apiPost('/api/render-html', { cv: fullCv })
+    apiPost('/api/render-html', { cv: fullCv, ...templateParams })
       .then((html) => setDetailCvHtml(html))
       .catch(() => setDetailCvHtml('<p>Erreur chargement aperçu CV.</p>'));
   }, [applicationDetail, detailTab]);
 
-  useEffect(() => {
-    if (!applicationDetailId || !applicationDetail || detailTab !== 'lettre') return;
-    if (detailLetterHtml) return;
+  const handleGenerateLetter = async () => {
+    if (!applicationDetailId) return;
     setDetailLetterLoading(true);
-    apiPost(`/api/applications/${encodeURIComponent(applicationDetailId)}/generate-letter`)
-      .catch(() => ({}))
-      .then((data) => {
-        if (data && data.lettre_html) setDetailLetterHtml(data.lettre_html);
-        else setDetailLetterHtml('<p>Lettre non disponible.</p>');
-      })
-      .finally(() => setDetailLetterLoading(false));
-  }, [applicationDetailId, applicationDetail, detailTab, detailLetterHtml]);
+    try {
+      const data = await apiPost(`/api/applications/${encodeURIComponent(applicationDetailId)}/generate-letter`);
+      if (data && data.lettre_html) {
+        setDetailLetterHtml(data.lettre_html);
+        setApplicationDetail((prev) => (prev ? { ...prev, lettre_html: data.lettre_html } : null));
+      } else {
+        setError('Lettre non disponible.');
+      }
+    } catch (e) {
+      setError(e.message || 'Génération lettre impossible.');
+    } finally {
+      setDetailLetterLoading(false);
+    }
+  };
 
 
   const handleDetailDownload = async (type) => {
@@ -256,61 +512,126 @@ export default function App() {
     }
   };
 
-  const handleAdapt = async () => {
-    const description = annonce.trim();
-    if (!description) {
-      showError("Colle d'abord l'annonce dans la zone de texte.");
-      return;
-    }
+  const handleChatSend = async () => {
+    const text = (chatInput || '').trim();
+    if (!text || adapting) return;
+    setChatInput('');
+    setChatMessages((prev) => [...prev, { role: 'user', content: text }]);
     hideError();
     setAdapting(true);
     try {
-      const data = await apiPost('/api/adapt', { description });
-      setLastAdaptedCv(data.cv);
-      setLastAdaptationId(data.adaptation_id || null);
-      setRapport(data.rapport || {});
-      setExportBlockVisible(true);
-      setPreviewVariant('modified');
-      loadApplications();
-
-      let baseCv = null;
-      try {
-        baseCv = await apiGet('/api/cv');
-      } catch {}
-      if (baseCv) {
-        setLastBaseCv(baseCv);
-        setOriginalPreviewHtml('');
+      if (!lastAdaptedCv) {
+        setAnnonce(text);
+        trackEvent('job_description_pasted', { word_count: text.split(/\s+/).length });
+        setAdaptRating(null);
+        const data = await apiPost('/api/adapt', {
+          description: text,
+          titre: posteNom || undefined,
+          entreprise: entrepriseNom || undefined,
+        });
+        setLastAdaptedCv(data.cv);
+        setLastAdaptationId(data.adaptation_id || null);
+        setRapport(data.rapport || {});
+        setExportBlockVisible(true);
+        setSourceOffreValue('');
+        setPreviewVariant('modified');
+        loadApplications();
+        loadUsage();
+        let baseCv = null;
+        try {
+          baseCv = await apiGet('/api/cv');
+        } catch {}
+        if (baseCv) setLastBaseCv(baseCv);
+        const html = await apiPost('/api/render-html', {
+          cv: data.cv,
+          base_cv: baseCv ?? lastBaseCv ?? undefined,
+          highlight_changes: true,
+          ...templateParams,
+        });
+        setPreviewHtml(html);
+        setModifiedPreviewHtml(html);
+        const summary = data.rapport?.score_global != null
+          ? `CV adapté (score ${data.rapport.score_global}/10). Tu peux affiner en envoyant un autre message ou modifier le texte avant téléchargement.`
+          : 'CV adapté à l\'offre. Envoie un message pour affiner ou clique sur « Modifier le CV » pour éditer le texte.';
+        setChatMessages((prev) => [...prev, { role: 'assistant', content: summary }]);
+      } else {
+        const data = await apiPost('/api/adapt-refine', { cv: lastAdaptedCv, instruction: text });
+        setLastAdaptedCv(data.cv);
+        const html = await apiPost('/api/render-html', { cv: data.cv, highlight_changes: false, ...templateParams });
+        setPreviewHtml(html);
+        setModifiedPreviewHtml(html);
+        setChatMessages((prev) => [...prev, { role: 'assistant', content: 'Modifications appliquées. Tu peux continuer à affiner ou télécharger le CV.' }]);
       }
-      const html = await apiPost('/api/render-html', {
-        cv: data.cv,
-        base_cv: baseCv,
-        highlight_changes: true,
-      });
-      setPreviewHtml(html);
-      setModifiedPreviewHtml(html);
     } catch (e) {
-      showError(e.message || "Erreur lors de l'adaptation.");
+      if (e.status === 402 || (e.message && e.message.includes('épuisé'))) {
+        setUpgradeModalVisible(true);
+      } else {
+        setError(e.message || "Erreur.");
+      }
+      setChatMessages((prev) => [...prev, { role: 'assistant', content: 'Désolé, une erreur s\'est produite. ' + (e.message || '') }]);
     } finally {
       setAdapting(false);
     }
   };
 
+  const handleSaveCvEdits = (editedCv) => {
+    if (!editedCv) return;
+    setLastAdaptedCv(editedCv);
+    apiPost('/api/render-html', { cv: editedCv, highlight_changes: false, ...templateParams })
+      .then((html) => {
+        setPreviewHtml(html);
+        setModifiedPreviewHtml(html);
+      })
+      .catch(() => {});
+    setCvEditPanelOpen(false);
+  };
+
+  const handleUpgradeClick = async () => {
+    setCheckoutLoading(true);
+    try {
+      const { url } = await apiPost('/api/create-checkout-session', {});
+      if (url) window.location.href = url;
+      else setError('Impossible de créer la session de paiement.');
+    } catch (e) {
+      setError(e.message || 'Paiement non disponible.');
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
+
   const onPreviewVariantChange = (v) => {
     setPreviewVariant(v);
-    if (v === 'original') {
-      if (originalPreviewHtml) setPreviewHtml(originalPreviewHtml);
-      else if (lastBaseCv) {
-        apiPost('/api/render-html', { cv: lastBaseCv })
+  };
+
+  // Quand on switch sur "original", charger/afficher le HTML de base dans l'iframe
+  useEffect(() => {
+    if (!isCvView || previewVariant !== 'original') return;
+    const apply = () => {
+      if (!iframeRef.current) return;
+      if (originalPreviewHtml) {
+        iframeRef.current.srcdoc = originalPreviewHtml;
+        return;
+      }
+      if (lastBaseCv) {
+        apiPost('/api/render-html', { cv: lastBaseCv, ...templateParams })
           .then((html) => {
             setOriginalPreviewHtml(html);
-            setPreviewHtml(html);
+            if (iframeRef.current) iframeRef.current.srcdoc = html;
           })
           .catch(() => {});
       }
-    } else if (modifiedPreviewHtml) {
-      setPreviewHtml(modifiedPreviewHtml);
+    };
+    const t = setTimeout(apply, 0);
+    return () => clearTimeout(t);
+  }, [previewVariant, isCvView, originalPreviewHtml, lastBaseCv]);
+
+  // Quand on revient sur "modified" avec un template non-classic, afficher le modified HTML
+  useEffect(() => {
+    if (!isCvView || previewVariant !== 'modified' || templateId === 'classic') return;
+    if (modifiedPreviewHtml && iframeRef.current) {
+      iframeRef.current.srcdoc = modifiedPreviewHtml;
     }
-  };
+  }, [previewVariant, templateId, modifiedPreviewHtml, isCvView]);
 
   const handlePdf = async () => {
     if (!lastAdaptedCv) return;
@@ -318,12 +639,20 @@ export default function App() {
       const blob = await apiPostBlob('/api/pdf', {
         cv: lastAdaptedCv,
         titre: posteNom || undefined,
+              ...templateParams,
       });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = blob.type === 'application/pdf' ? 'CV.pdf' : 'CV.pdf';
       a.click();
       URL.revokeObjectURL(a.href);
+      if (lastAdaptationId) {
+        loadApplications().then(() => {
+          setJustAddedAppId(lastAdaptationId);
+          navigate('/app/postule');
+          setTimeout(() => setJustAddedAppId(null), 2800);
+        });
+      }
     } catch (e) {
       showError('Téléchargement PDF : ' + (e.message || e));
     }
@@ -351,10 +680,10 @@ export default function App() {
     };
 
     try {
-      const hasPickedHandle = exportDirHandleRef.current != null;
-      const usePicker = (hasPickedHandle || (!exportDossierPath.trim() && typeof showDirectoryPicker === 'function'));
+      const pickerAvailable = typeof showDirectoryPicker === 'function';
+      const usePicker = pickerAvailable;
       if (usePicker) {
-        const rootHandle = exportDirHandleRef.current ?? (await showDirectoryPicker());
+        const rootHandle = await showDirectoryPicker();
         const folderName = getExportFolderName(entrepriseNom, posteNom);
         const subDir = await rootHandle.getDirectoryHandle(folderName, { create: true });
         const blob = await apiPostBlob('/api/export-dossier-zip', {
@@ -362,6 +691,7 @@ export default function App() {
           titre: posteNom,
           entreprise: entrepriseNom,
           description: annonce,
+          adaptation_id: lastAdaptationId || undefined,
         });
         const JSZip = (await import('jszip')).default;
         const zip = await JSZip.loadAsync(blob);
@@ -382,7 +712,6 @@ export default function App() {
           files: filesWritten,
         });
         await updateAppMeta();
-        exportDirHandleRef.current = null;
       } else {
         const data = await apiPost('/api/export-dossier', {
           cv: lastAdaptedCv,
@@ -396,7 +725,11 @@ export default function App() {
         await updateAppMeta();
       }
     } catch (e) {
-      showError('Export dossier : ' + (e.message || e));
+      if (e.name === 'AbortError') {
+        hideError();
+      } else {
+        showError('Export dossier : ' + (e.message || e));
+      }
     } finally {
       setExporting(false);
     }
@@ -417,11 +750,86 @@ export default function App() {
     }
   };
 
-  const handleStatutChange = async (id, statut) => {
+  const handleStatutChange = async (id, statut, extra = {}) => {
     try {
-      await apiPatch(`/api/applications/${encodeURIComponent(id)}`, { statut });
+      await apiPatch(`/api/applications/${encodeURIComponent(id)}`, { statut, ...extra });
       loadApplications();
     } catch {}
+  };
+
+  const handleStatutSelect = (app, newStatut) => {
+    if (newStatut === 'refus') {
+      setStatutModalType('refus');
+      setStatutModalAppId(app.id);
+      setStatutModalApp(app);
+      setRefusRaisonType(app.refus_raison_type || '');
+      setRefusRaison(app.refus_raison || '');
+      return;
+    }
+    if (newStatut === 'interview') {
+      setStatutModalType('interview');
+      setStatutModalAppId(app.id);
+      setStatutModalApp(app);
+      setInterviewType(app.interview_type || '');
+      setInterviewFeedback(app.interview_feedback || '');
+      setInterviewDate(app.interview_date || '');
+      return;
+    }
+    handleStatutChange(app.id, newStatut);
+  };
+
+  const submitRefusModal = async (skipFeedback) => {
+    if (!statutModalAppId) return;
+    setStatutModalSubmitting(true);
+    try {
+      await apiPatch(`/api/applications/${encodeURIComponent(statutModalAppId)}`, {
+        statut: 'refus',
+        ...(skipFeedback ? {} : { refus_raison_type: refusRaisonType || undefined, refus_raison: refusRaison || undefined }),
+      });
+      loadApplications();
+      setStatutModalType(null);
+      setStatutModalAppId(null);
+      setStatutModalApp(null);
+    } catch (e) {
+      setError(e.message || 'Erreur enregistrement');
+    } finally {
+      setStatutModalSubmitting(false);
+    }
+  };
+
+  const submitInterviewModal = async () => {
+    if (!statutModalAppId) return;
+    setStatutModalSubmitting(true);
+    try {
+      await apiPatch(`/api/applications/${encodeURIComponent(statutModalAppId)}`, {
+        statut: 'interview',
+        interview_type: interviewType || undefined,
+        interview_feedback: interviewFeedback || undefined,
+        interview_date: interviewDate || undefined,
+      });
+      loadApplications();
+      setStatutModalType(null);
+      setStatutModalAppId(null);
+      setStatutModalApp(null);
+    } catch (e) {
+      setError(e.message || 'Erreur enregistrement');
+    } finally {
+      setStatutModalSubmitting(false);
+    }
+  };
+
+  const handleKanbanDrop = (targetStatut, app) => {
+    setKanbanDraggedId(null);
+    setKanbanDragOverColumn(null);
+    if (targetStatut === 'refus') {
+      handleStatutSelect(app, 'refus');
+      return;
+    }
+    if (targetStatut === 'interview') {
+      handleStatutSelect(app, 'interview');
+      return;
+    }
+    handleStatutChange(app.id, targetStatut);
   };
 
   const handleArchive = async (id, isArchived) => {
@@ -430,8 +838,6 @@ export default function App() {
       loadApplications();
     } catch {}
   };
-
-  const isCvView = view === 'cv';
 
   const handleSignOut = async () => {
     if (supabase) await supabase.auth.signOut();
@@ -450,8 +856,12 @@ export default function App() {
     const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
-    let countToday = 0, countYesterday = 0, countMonth = 0, countLastMonth = 0;
+    const statutPostule = new Set(['a_postuler', 'candidature_envoyee', 'reponse_recue']);
+    let countToday = 0, countYesterday = 0, countMonth = 0, countLastMonth = 0, total = 0;
     applications.forEach((app) => {
+      const statut = app.statut in STATUT_LABELS ? app.statut : 'candidature_envoyee';
+      if (!statutPostule.has(statut)) return;
+      total++;
       const d = (app.date || '').trim().split(/\s+/)[0];
       if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
       if (d === today) countToday++;
@@ -459,7 +869,6 @@ export default function App() {
       if (d.startsWith(thisMonth)) countMonth++;
       if (d.startsWith(lastMonth)) countLastMonth++;
     });
-    const total = applications.length;
     const todayPct = countYesterday > 0 ? Math.round(((countToday - countYesterday) / countYesterday) * 100) : (countToday > 0 ? 100 : 0);
     const monthPct = countLastMonth > 0 ? Math.round(((countMonth - countLastMonth) / countLastMonth) * 100) : (countMonth > 0 ? 100 : 0);
     return { countToday, countMonth, total, todayPct, monthPct };
@@ -480,74 +889,89 @@ export default function App() {
     );
   }
 
-  /* Non connecté : écran de connexion uniquement */
+  /* Non connecté : landing (/) ou login (/login) */
   if (!authLoading && !session) {
-    return (
-      <div className="login-screen">
-        <div className="login-screen-card">
-          <img src="/favicon.ico" alt="CV Bot" className="login-screen-logo" onError={(e) => { e.target.onerror = null; e.target.src = '/Axel_CV.ico'; }} />
-          <h1>CV Bot</h1>
-          <p className="login-screen-intro">Connecte-toi pour adapter ton CV et gérer tes candidatures.</p>
-          <AuthForm onSuccess={() => setAuthLoading(false)} />
+    if (pathname === '/login') {
+      return (
+        <div className="login-screen">
+          <div className="login-screen-card">
+            <img src="/favicon.ico" alt="CV Bot" className="login-screen-logo" onError={(e) => { e.target.onerror = null; e.target.src = '/Axel_CV.ico'; }} />
+            <h1>CV Bot</h1>
+            <p className="login-screen-intro">Adapte ton CV à chaque offre en quelques secondes grâce à l'IA.</p>
+            <AuthForm onSuccess={() => setAuthLoading(false)} />
+            <div className="login-reassurance">
+              <span><svg className="login-reassurance-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Gratuit — 3 adaptations offertes</span>
+              <span><svg className="login-reassurance-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Tes données restent privées</span>
+            </div>
+            <button type="button" className="auth-toggle" style={{ marginTop: '0.75rem' }} onClick={() => navigate('/')}>
+              &larr; Retour à l&apos;accueil
+            </button>
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
+    return <LandingPage onCtaClick={() => navigate('/login')} />;
   }
 
+  const sidebarCollapsed = !sidebarHovered && !sidebarOpen;
+
   return (
-    <>
+    <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       <div
         className={`sidebar-backdrop ${sidebarOpen ? 'visible' : ''}`}
         aria-hidden="true"
         onClick={() => setSidebarOpen(false)}
       />
-      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+      <aside
+        className={`sidebar ${sidebarOpen ? 'open' : ''} ${(sidebarHovered || sidebarOpen) ? 'expanded' : 'collapsed'}`}
+        onMouseEnter={() => setSidebarHovered(true)}
+        onMouseLeave={() => setSidebarHovered(false)}
+      >
         <div className="sidebar-header">
           <img src="/favicon.ico" alt="CV Bot" className="sidebar-logo" onError={(e) => { e.target.onerror = null; e.target.src = '/Axel_CV.ico'; }} />
         </div>
         <span className="sidebar-section-label">Principal</span>
         <nav className="sidebar-nav">
-          <button
-            type="button"
-            className={`sidebar-link ${isCvView ? 'active' : ''}`}
-            onClick={() => setView('cv')}
-            aria-current={isCvView ? 'page' : null}
+          <NavLink
+            to="/app/postule"
+            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            onClick={() => setSidebarOpen(false)}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+            </svg>
+            <span>Mes candidatures</span>
+          </NavLink>
+          <NavLink
+            to="/app/cv"
+            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            onClick={() => setSidebarOpen(false)}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>
             </svg>
-            <span>Adapter le CV</span>
-          </button>
-          <button
-            type="button"
-            className={`sidebar-link ${view === 'candidatures' ? 'active' : ''}`}
-            onClick={() => setView('candidatures')}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
-            <span>Postulé</span>
-          </button>
-          <button
-            type="button"
-            className={`sidebar-link ${view === 'profil' ? 'active' : ''}`}
-            onClick={() => setView('profil')}
+            <span>Adapter un CV</span>
+          </NavLink>
+          <NavLink
+            to="/app/profil"
+            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            onClick={() => setSidebarOpen(false)}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
             </svg>
-            <span>Profil</span>
-          </button>
-          <button
-            type="button"
-            className={`sidebar-link ${view === 'linkedin' ? 'active' : ''}`}
-            onClick={() => setView('linkedin')}
+            <span>Mon profil</span>
+          </NavLink>
+          <NavLink
+            to="/app/support"
+            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            onClick={() => setSidebarOpen(false)}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
-            <span>Connexion LinkedIn</span>
-          </button>
+            <span>Support</span>
+          </NavLink>
         </nav>
         {supabase && (
           <div className="sidebar-auth">
@@ -556,8 +980,16 @@ export default function App() {
               <span className="sidebar-auth-loading">Chargement…</span>
             ) : session ? (
               <div className="sidebar-auth-user">
-                <span className="sidebar-auth-email" title={session.user?.email}>{session.user?.email?.split('@')[0] || 'Compte'}</span>
-                <button type="button" className="btn btn-signout" onClick={handleSignOut}>Déconnexion</button>
+                <div className="sidebar-auth-avatar" aria-hidden>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
+                </div>
+                <div className="sidebar-auth-info">
+                  <span className="sidebar-auth-name" title={session.user?.email}>{userDisplayName || session.user?.email?.split('@')[0] || 'Compte'}</span>
+                  <button type="button" className="btn btn-signout" onClick={handleSignOut}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    <span>Déconnexion</span>
+                  </button>
+                </div>
               </div>
             ) : (
               <AuthForm onSuccess={() => setAuthLoading(false)} />
@@ -576,118 +1008,265 @@ export default function App() {
       </header>
 
       <div className="app-main">
-        <div id="viewCv" className={`view-panel ${isCvView ? 'active' : ''}`} style={{ display: isCvView ? 'flex' : 'none' }}>
-          <main className="app-content">
-            <div className="preview-pane">
-              <h2>Aperçu du CV</h2>
-              {lastBaseCv && lastAdaptedCv && (
-                <div className="preview-variant-slider">
-                  <span className={previewVariant === 'original' ? 'active' : ''}>Original</span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="1"
-                    value={previewVariant === 'original' ? 0 : 1}
-                    onChange={(e) => onPreviewVariantChange(e.target.value === '0' ? 'original' : 'modified')}
-                    aria-label="Afficher l’original ou le CV modifié"
-                  />
-                  <span className={previewVariant === 'modified' ? 'active' : ''}>Modifié</span>
-                </div>
-              )}
-              <div className="preview-wrap">
-                <iframe ref={iframeRef} title="Aperçu du CV" />
-              </div>
-            </div>
-            <div className="side-pane">
-              <h2>Annonce du poste</h2>
-              <div className="section">
-                <textarea
-                  value={annonce}
-                  onChange={(e) => setAnnonce(e.target.value)}
-                  placeholder="Colle ici le texte complet de l'annonce (description du poste, missions, compétences requises…). Le CV sera adapté aux mots-clés de l'annonce."
-                />
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  style={{ marginTop: '0.75rem' }}
-                  onClick={handleAdapt}
-                  disabled={adapting}
-                >
-                  {adapting ? 'Adaptation en cours…' : 'Adapter le CV avec Gemini'}
-                </button>
-                {rapport && (
-                  <div className="rapport">
-                    <h3>Rapport d'adaptation</h3>
-                    {rapport.folder != null ? (
-                      <>
-                        <p className="score">Dossier créé : {rapport.folder}</p>
-                        <p>Fichiers : {(rapport.files || []).join(', ')}</p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="score">Score de pertinence : {rapport.score_global != null ? rapport.score_global : '-'}/10</p>
-                        <p>Zones modifiées : {(rapport.zones_a_adapter || []).join(', ') || 'aucune'}</p>
-                        {(rapport.mots_cles_manquants || []).length > 0 && (
-                          <p>Mots-clés intégrés : {(rapport.mots_cles_manquants || []).slice(0, 10).join(', ')}{(rapport.mots_cles_manquants || []).length > 10 ? '…' : ''}</p>
-                        )}
-                      </>
+        {needsOnboarding && onboardingChecked && (
+          <OnboardingWizard
+            session={session}
+            onComplete={(target) => {
+              setNeedsOnboarding(false);
+              if (target === 'profil') navigate('/app/profil');
+              else navigate('/app/cv');
+            }}
+          />
+        )}
+        <div id="viewCv" className={`view-panel app-page cv-chat-page ${isCvView ? 'active' : ''}`} style={{ display: isCvView ? 'flex' : 'none' }}>
+          <header className="page-header">
+            <h1 className="page-title">Adapter un CV</h1>
+            <p className="page-subtitle">Colle une offre d'emploi, l'IA adapte ton CV. Affine par chat, puis exporte en PDF.</p>
+          </header>
+          <main className="cv-chat-layout">
+            <div className="cv-chat-area">
+              <div className="cv-chat-messages" role="log">
+                {chatMessages.length === 0 && (
+                  <div className="cv-chat-placeholder">
+                    <p>{annonce.trim() ? "Demande à l'IA d'ajuster ton CV (ex. « Mets plus en valeur mon expérience en React »)." : "Colle l'annonce ou décris le poste. L'IA adaptera ton CV. Tu pourras affiner par message."}</p>
+                    {usage && usage.plan === 'free' && (
+                      <p className="usage-hint">{usage.adaptations_used} / {usage.adaptations_limit} adaptations gratuites</p>
                     )}
                   </div>
                 )}
-                {error && <div className="error">{error}</div>}
-                {exportBlockVisible && (
-                  <div style={{ marginTop: '1rem' }}>
-                    <label className="input-label">Entreprise</label>
-                    <input
-                      type="text"
-                      className="input-field"
-                      placeholder="ex. Edmond de Rothschild"
-                      value={entrepriseNom}
-                      onChange={(e) => setEntrepriseNom(e.target.value)}
-                    />
-                    <label className="input-label">Intitulé du poste</label>
-                    <input
-                      type="text"
-                      className="input-field"
-                      placeholder="ex. Alternance Risk Manager"
-                      value={posteNom}
-                      onChange={(e) => setPosteNom(e.target.value)}
-                    />
-                    <label className="input-label">Dossier d'export (sous-dossier Entreprise - Poste)</label>
-                    <div className="export-path-row">
-                      <input
-                        type="text"
-                        className="input-field"
-                        placeholder="ex. D:\ESSEC\03. ALTERNANCE"
-                        value={exportDossierPath}
-                        onChange={(e) => setExportDossierPath(e.target.value)}
-                      />
-                      <button type="button" className="btn" onClick={handleBrowseExportDir}>Parcourir…</button>
+                {chatMessages.map((m, i) => (
+                  <div key={i} className={`cv-chat-msg cv-chat-msg--${m.role}`}>
+                    <div className="cv-chat-msg-content">{m.content}</div>
+                  </div>
+                ))}
+                {adapting && (
+                  <div className="cv-chat-msg cv-chat-msg--assistant">
+                    <div className="cv-chat-msg-content cv-adapt-steps-wrap">
+                      <p className="cv-adapt-steps-title">Adaptation du CV en cours…</p>
+                      <div className="cv-adapt-steps" role="list" aria-label="Étapes d’adaptation">
+                        {adaptSteps.map((label, i) => (
+                          <div
+                            key={i}
+                            className={`cv-adapt-step ${i < adaptStepIndex ? 'cv-adapt-step--done' : i === adaptStepIndex ? 'cv-adapt-step--current' : ''}`}
+                            role="listitem"
+                          >
+                            <span className="cv-adapt-step-icon">
+                              {i < adaptStepIndex ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                              ) : i === adaptStepIndex ? (
+                                <span className="cv-adapt-step-spinner" aria-hidden="true" />
+                              ) : (
+                                <span className="cv-adapt-step-dot" aria-hidden="true" />
+                              )}
+                            </span>
+                            <span className="cv-adapt-step-label">{label}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="cv-adapt-progress-bar">
+                        <div className="cv-adapt-progress-fill" style={{ width: `${((adaptStepIndex + 0.5) / adaptSteps.length) * 100}%` }} />
+                      </div>
                     </div>
-                    <button type="button" className="btn btn-success" style={{ marginRight: '0.5rem' }} onClick={handlePdf}>
-                      Exporter le CV en PDF
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-success"
-                      style={{ marginTop: '0.35rem' }}
-                      onClick={handleExportDossier}
-                      disabled={exporting}
-                    >
-                      {exporting ? 'Création du dossier en cours…' : 'Exporter le dossier (CV + lettre + fiche de poste)'}
-                    </button>
+                  </div>
+                )}
+                <div ref={chatMessagesEndRef} aria-hidden="true" style={{ height: 0 }} />
+              </div>
+              {error && <div className="error cv-chat-error">{error}</div>}
+              <div className="cv-chat-input-bar">
+                <textarea
+                  className="cv-chat-input"
+                  placeholder="Colle une offre d'emploi ou décris ce que tu veux modifier..."
+                  value={chatInput}
+                  onChange={(e) => { setChatInput(e.target.value); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px'; }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
+                  rows={1}
+                  disabled={adapting}
+                />
+                <button type="button" className="cv-chat-input-send" onClick={handleChatSend} disabled={adapting || !chatInput.trim()} aria-label="Envoyer">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
+                </button>
+              </div>
+            </div>
+            <div className="cv-chat-preview">
+              <TemplatePicker
+                templateId={templateId}
+                templateOptions={templateOptions}
+                onChangeTemplate={(id) => { setTemplateId(id); setTemplateOptions({}); trackEvent('template_changed', { template_id: id }); }}
+                onChangeOptions={setTemplateOptions}
+              />
+              {lastAdaptedCv && adaptRating === null && (
+                <div className="adapt-rating-bar">
+                  <span className="adapt-rating-label">Ce résultat te convient ?</span>
+                  <div className="adapt-rating-btns">
+                    {[
+                      { value: 'up', label: 'Bien', svg: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg> },
+                      { value: 'neutral', label: 'Moyen', svg: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="15" x2="16" y2="15"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg> },
+                      { value: 'down', label: 'Pas top', svg: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg> },
+                    ].map(({ value, label, svg }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`adapt-rating-btn adapt-rating-btn--${value}`}
+                        onClick={() => {
+                          setAdaptRating(value);
+                          trackEvent('adaptation_rated', {
+                            rating: value,
+                            adaptation_id: lastAdaptationId,
+                            score_ats: rapport?.score_global,
+                          });
+                        }}
+                        title={label}
+                      >
+                        {svg}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {adaptRating && (
+                <div className="adapt-rating-bar adapt-rating-bar--done">
+                  <span className="adapt-rating-thanks">Merci pour ton retour !</span>
+                </div>
+              )}
+              {lastBaseCv && lastAdaptedCv && (
+                <div className="preview-variant-row">
+                  <div className="preview-variant-toggle-wrap">
+                  <button type="button" className={`preview-variant-toggle-btn${previewVariant === 'original' ? ' active' : ''}`} onClick={() => onPreviewVariantChange('original')}>Original</button>
+                    <button type="button" className={`preview-variant-toggle-btn${previewVariant === 'modified' ? ' active' : ''}`} onClick={() => onPreviewVariantChange('modified')}>Modifié</button>
+                  </div>
+                  <span className="preview-editable-hint-inline">Clique sur le texte pour modifier.</span>
+                </div>
+              )}
+              <div className="preview-wrap" ref={previewWrapRef}>
+                {previewVariant === 'modified' && lastAdaptedCv ? (
+                  <CvEditablePreview
+                    cv={lastAdaptedCv}
+                    baseCv={lastBaseCv}
+                    templateId={templateId}
+                    showPhoto={templateOptions?.show_photo !== false}
+                    showMotsClesAts={templateOptions?.show_mots_cles_ats !== false}
+                    onChange={(updatedCv) => {
+                      setLastAdaptedCv(updatedCv);
+                      trackEvent('cv_manually_edited', { adaptation_id: lastAdaptationId });
+                      apiPost('/api/render-html', { cv: updatedCv, highlight_changes: false, ...templateParams })
+                        .then((html) => { setModifiedPreviewHtml(html); })
+                        .catch(() => {});
+                    }}
+                  />
+                ) : (
+                  <div className="preview-iframe-wrap">
+                    <iframe ref={iframeRef} title="Aperçu du CV" />
                   </div>
                 )}
               </div>
+              {exportBlockVisible && lastAdaptedCv && (
+                <div className="cv-chat-export">
+                  <input type="text" className="input-field" placeholder="Entreprise" value={entrepriseNom} onChange={(e) => setEntrepriseNom(e.target.value)} />
+                  <input type="text" className="input-field" placeholder="Intitulé du poste" value={posteNom} onChange={(e) => setPosteNom(e.target.value)} />
+                  {lastAdaptationId && (
+                    <select className="input-field" value={sourceOffreValue} onChange={(e) => { setSourceOffreValue(e.target.value); if (e.target.value.trim() && lastAdaptationId) { apiPatch(`/api/applications/${encodeURIComponent(lastAdaptationId)}`, { source_offre: e.target.value.trim() }).catch(() => {}); } }} style={{ maxWidth: '150px' }}>
+                      <option value="">Source</option>
+                      <option value="LinkedIn">LinkedIn</option>
+                      <option value="Site entreprise">Site entreprise</option>
+                      <option value="APEC">APEC</option>
+                      <option value="Indeed">Indeed</option>
+                      <option value="Autre">Autre</option>
+                    </select>
+                  )}
+                  {rapport?.score_global != null && (
+                    <div className="ats-score-inline">
+                      <button
+                        type="button"
+                        className="ats-score-trigger"
+                        onClick={() => { setAtsScoreOpen((v) => { if (!v) trackEvent('ats_details_opened', { score: rapport?.score_global }); return !v; }); }}
+                        aria-expanded={atsScoreOpen}
+                        aria-haspopup="dialog"
+                      >
+                        <span className="ats-score-label">Score ATS</span>
+                        <span className="ats-score-value">{Math.round((rapport.score_global / 10) * 100)}/100</span>
+                      </button>
+                      {atsScoreOpen && (
+                        <div className="ats-score-dropdown ats-score-dropdown--export" role="dialog" aria-label="Détails du score ATS">
+                          <div className="ats-score-section">
+                            <strong>Points forts</strong>
+                            <ul>
+                              {(!rapport.zones_a_adapter || rapport.zones_a_adapter.length === 0) && (
+                                <li>Structure et sections bien identifiables par les ATS</li>
+                              )}
+                              {(rapport.mots_cles_manquants || []).length <= 5 && (rapport.mots_cles_manquants || []).length > 0 && (
+                                <li>Peu de mots-clés manquants par rapport à l&apos;offre</li>
+                              )}
+                              {(rapport.mots_cles_manquants || []).length === 0 && (
+                                <li>Mots-clés pertinents trouvés dans le CV</li>
+                              )}
+                              <li>Score de pertinence calculé pour chaque expérience</li>
+                            </ul>
+                          </div>
+                          <div className="ats-score-section">
+                            <strong>Points d&apos;amélioration</strong>
+                            <ul>
+                              {(rapport.zones_a_adapter || []).includes('titre') && (
+                                <li>Titre professionnel à aligner avec l&apos;offre</li>
+                              )}
+                              {(rapport.zones_a_adapter || []).includes('resume') && (
+                                <li>Résumé / accroche à enrichir avec des mots-clés de l&apos;offre</li>
+                              )}
+                              {(rapport.zones_a_adapter || []).filter((z) => z.startsWith('exp_')).map((z) => (
+                                <li key={z}>Renforcer l&apos;expérience concernée avec des mots-clés ciblés</li>
+                              ))}
+                              {(rapport.mots_cles_manquants || []).length > 5 && (
+                                <li>Intégrer davantage de mots-clés de l&apos;offre (ex. : {(rapport.mots_cles_manquants || []).slice(0, 5).join(', ')}…)</li>
+                              )}
+                              {(rapport.zones_a_adapter || []).length === 0 && (rapport.mots_cles_manquants || []).length <= 5 && (
+                                <li>Aucun point critique ; tu peux affiner le style ou la formulation.</li>
+                              )}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="cv-chat-export-btns">
+                    <button type="button" className="btn btn-success" onClick={handlePdf} disabled={exporting}>Télécharger le PDF</button>
+                    <button type="button" className="btn btn-secondary" onClick={handleExportDossier} disabled={exporting} aria-busy={exporting}>
+                      {exporting ? (
+                        <>
+                          <span className="export-spinner" aria-hidden="true" />
+                          Export en cours…
+                        </>
+                      ) : (
+                        typeof showDirectoryPicker === 'function' ? 'Dossier complet (choisir un dossier…)' : 'Dossier complet'
+                      )}
+                    </button>
+                  </div>
+                  {exporting && (
+                    <p className="cv-chat-export-loading" role="status">Préparation du dossier (PDF, fichiers)…</p>
+                  )}
+                </div>
+              )}
             </div>
           </main>
+          {cvEditPanelOpen && lastAdaptedCv && (
+            <CvEditPanel cv={lastAdaptedCv} onSave={handleSaveCvEdits} onClose={() => setCvEditPanelOpen(false)} />
+          )}
         </div>
 
-        <div id="viewCandidatures" className={`view-panel view-candidatures ${view === 'candidatures' ? 'active' : ''}`} style={{ display: view === 'candidatures' ? 'flex' : 'none' }}>
-          <div className="applications-full">
-            <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', color: 'var(--muted)' }}>Mes candidatures</h2>
-            <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.875rem', color: 'var(--text)' }}>Suivi des postes auxquels tu as postulé.</p>
+        <div id="viewCandidatures" className={`view-panel app-page view-candidatures ${view === 'candidatures' ? 'active' : ''}`} style={{ display: view === 'candidatures' ? 'flex' : 'none' }}>
+          <header className="page-header page-header-dashboard">
+            <div>
+              <h1 className="page-title">Mes candidatures</h1>
+              <p className="page-subtitle">Suis toutes tes candidatures ici. Glisse les cartes pour changer le statut.</p>
+            </div>
+            <div className="dashboard-header-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => setAddManualModalOpen(true)}>
+                Ajouter une candidature (hors app)
+              </button>
+              <button type="button" className="btn btn-primary btn-new-candidature" onClick={() => setSetupModalOpen(true)}>
+                Nouvelle Candidature
+              </button>
+            </div>
+          </header>
+          <div className="page-content applications-full">
             <div className="applications-stats">
               <div className="stat-card">
                 <span className="stat-value">{applicationStats.countToday}</span>
@@ -714,126 +1293,459 @@ export default function App() {
               <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
               Afficher les archivées
             </label>
-            <div className="applications-list">
-                {applications.length === 0 && (
-                  <p className="applications-empty">Aucune candidature. Adapte une annonce pour l'ajouter ici.</p>
-                )}
-                {applications.map((app) => {
-                  const titre = app.poste || app.poste_offre || 'Sans intitulé';
-                  const sousTitre = [app.entreprise, app.description_preview ? app.description_preview.slice(0, 60) + '…' : ''].filter(Boolean).join(' · ');
-                  const statutVal = app.statut in STATUT_LABELS ? app.statut : 'candidature_envoyee';
-                  return (
-                    <div key={app.id} className={`application-card ${app.archived ? 'archived' : ''}`}>
-                      <div className="app-card-top">
-                        <CompanyLogo companyName={app.entreprise} className="app-company-logo" size={40} />
-                        <div className="app-poste-date">
-                          <div className="app-title">{titre}</div>
-                          <div className="app-date">{app.date}</div>
+            <div className="kanban-board">
+              {KANBAN_COLUMNS.map((col) => {
+                const columnApps = applications.filter((app) => {
+                  if (app.archived) return false;
+                  const s = app.statut in STATUT_LABELS ? app.statut : 'candidature_envoyee';
+                  return s === col.id;
+                });
+                return (
+                  <div
+                    key={col.id}
+                    className={`kanban-column ${kanbanDragOverColumn === col.id ? 'drag-over' : ''}`}
+                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setKanbanDragOverColumn(col.id); }}
+                    onDragLeave={() => setKanbanDragOverColumn(null)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setKanbanDragOverColumn(null);
+                      const appId = e.dataTransfer.getData('application/id');
+                      const app = applications.find((a) => a.id === appId);
+                      if (app) handleKanbanDrop(col.id, app);
+                    }}
+                  >
+                    <div className="kanban-column-header">
+                      <span className="kanban-column-title">{col.label}</span>
+                      <span className="kanban-column-count">{columnApps.length}</span>
+                    </div>
+                    <div className="kanban-column-cards">
+                      {columnApps.map((app) => {
+                        const titre = app.poste || app.poste_offre || 'Sans intitulé';
+                        const sousTitre = [app.entreprise].filter(Boolean).join(' · ');
+                        const isDragging = kanbanDraggedId === app.id;
+                        return (
+                          <div
+                            key={app.id}
+                            className={`application-card kanban-card ${app.archived ? 'archived' : ''} ${isDragging ? 'dragging' : ''} ${justAddedAppId === app.id ? 'just-added' : ''}`}
+                            draggable={!app.archived}
+                            onDragStart={(e) => {
+                              setKanbanDraggedId(app.id);
+                              e.dataTransfer.setData('application/id', app.id);
+                              e.dataTransfer.effectAllowed = 'move';
+                            }}
+                            onDragEnd={() => setKanbanDraggedId(null)}
+                          >
+                            <div className="app-card-actions-icons">
+                              <button type="button" className="btn btn-icon btn-icon-view" onClick={() => openApplicationDetail(app.id)} title="Voir" aria-label="Voir">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                              </button>
+                              <button type="button" className="btn btn-icon btn-icon-archive" onClick={() => handleArchive(app.id, true)} title="Archiver" aria-label="Archiver">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                              </button>
+                            </div>
+                            <div className={`app-status-dot app-status-dot--${(app.statut in STATUT_LABELS ? app.statut : 'candidature_envoyee')}`} title={STATUT_LABELS[app.statut in STATUT_LABELS ? app.statut : 'candidature_envoyee']} aria-hidden />
+                            <div className="app-card-top">
+                              <CompanyLogo companyName={app.entreprise} className="app-company-logo" size={36} />
+                              <div className="app-poste-date">
+                                <div className="app-title">{titre}</div>
+                                <div className="app-date">{app.date}</div>
+                              </div>
+                            </div>
+                            {sousTitre && <div className="app-meta">{sousTitre}</div>}
+                            {(app.pdf_lettre_url || app.pdf_cv_url || app.pdf_fiche_url) && (
+                              <div className="app-docs-badge" title="Documents PDF joints">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+                                <span>PDF</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {applications.filter((a) => !a.archived).length === 0 && !showArchived && (
+              <div className="applications-empty-state">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5" style={{ marginBottom: '1rem' }}>
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3-3 3 3"/>
+                </svg>
+                <h3>Pas encore de candidature</h3>
+                <p>Adapte ton CV à une offre d'emploi pour créer ta première candidature.</p>
+                <button type="button" className="btn btn-primary btn-lg" onClick={() => setSetupModalOpen(true)}>
+                  Lancer ma première candidature
+                </button>
+              </div>
+            )}
+            {showArchived && applications.filter((a) => a.archived).length > 0 && (
+              <div className="kanban-archived">
+                <h3 className="kanban-archived-title">Archivées</h3>
+                <div className="applications-list kanban-archived-list">
+                  {applications.filter((a) => a.archived).map((app) => {
+                    const titre = app.poste || app.poste_offre || 'Sans intitulé';
+                    const statutVal = app.statut in STATUT_LABELS ? app.statut : 'candidature_envoyee';
+                    return (
+                      <div key={app.id} className="application-card archived">
+                        <div className="app-card-top">
+                          <CompanyLogo companyName={app.entreprise} className="app-company-logo" size={36} />
+                          <div className="app-poste-date">
+                            <div className="app-title">{titre}</div>
+                            <div className="app-date">{app.date}</div>
+                          </div>
+                        </div>
+                        <div className="app-actions">
+                          <button type="button" className="btn btn-view" onClick={() => openApplicationDetail(app.id)}>Voir</button>
+                          <select className="app-statut" value={statutVal} onChange={(e) => handleStatutChange(app.id, e.target.value)}>
+                            {Object.entries(STATUT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                          </select>
+                          <button type="button" className="btn btn-archive" onClick={() => handleArchive(app.id, false)}>Désarchiver</button>
                         </div>
                       </div>
-                      {sousTitre && <div className="app-meta">{sousTitre}</div>}
-                      <div className="app-actions">
-                        <button
-                          type="button"
-                          className="btn btn-view"
-                          onClick={() => openApplicationDetail(app.id)}
-                        >
-                          Voir
-                        </button>
-                        <select
-                          className="app-statut"
-                          value={statutVal}
-                          disabled={app.archived}
-                          onChange={(e) => handleStatutChange(app.id, e.target.value)}
-                        >
-                          {Object.entries(STATUT_LABELS).map(([k, v]) => (
-                            <option key={k} value={k}>{v}</option>
-                          ))}
-                        </select>
-                        <button
-                          type="button"
-                          className="btn btn-archive"
-                          onClick={() => handleArchive(app.id, app.archived ? false : true)}
-                        >
-                          {app.archived ? 'Désarchiver' : 'Archiver'}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-          </div>
-        </div>
-
-        <div id="viewProfil" className={`view-panel view-profil ${view === 'profil' ? 'active' : ''}`} style={{ display: view === 'profil' ? 'flex' : 'none' }}>
-          <ProfileView onSaveSuccess={handleProfileSaveSuccess} session={session} />
-        </div>
-
-        <div id="viewLinkedIn" className={`view-panel view-linkedin ${view === 'linkedin' ? 'active' : ''}`} style={{ display: view === 'linkedin' ? 'flex' : 'none' }}>
-          <div className="linkedin-connection-page">
-            <h1>Connexion LinkedIn</h1>
-            <p className="linkedin-connection-intro">
-              Connecte-toi avec LinkedIn pour importer ta photo de profil et synchroniser ton CV avec ton profil (nom, prénom, expérience). Tu pourras ensuite utiliser « Mettre à jour depuis LinkedIn » et « Importer la photo LinkedIn » dans l’onglet Profil.
-            </p>
-            <AuthForm linkedInOnly onSuccess={() => {}} />
-          </div>
-        </div>
-
-        {applicationDetail && (
-          <div className="application-detail-overlay" onClick={closeApplicationDetail} role="dialog" aria-modal="true">
-            <div className="application-detail-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="application-detail-header">
-                <CompanyLogo companyName={applicationDetail.entreprise} className="detail-company-logo" size={44} />
-                <div className="detail-header-text">
-                  <span className="detail-entreprise">{applicationDetail.entreprise || ''}</span>
-                  <h3>{applicationDetail.poste || applicationDetail.poste_offre || 'Sans intitulé'}</h3>
-                  {(() => { const app = applications.find(a => a.id === applicationDetailId); return app?.date ? <span className="detail-date">{app.date}</span> : null; })()}
+                    );
+                  })}
                 </div>
-                <button type="button" className="btn-close-detail" onClick={closeApplicationDetail} aria-label="Fermer">×</button>
               </div>
-              <div className="application-detail-tabs">
-                <button type="button" className={detailTab === 'cv' ? 'active' : ''} onClick={() => setDetailTab('cv')}>CV</button>
-                <button type="button" className={detailTab === 'lettre' ? 'active' : ''} onClick={() => setDetailTab('lettre')}>Lettre</button>
-                <button type="button" className={detailTab === 'fiche' ? 'active' : ''} onClick={() => setDetailTab('fiche')}>Fiche de poste</button>
-              </div>
-              <div className="application-detail-downloads">
-                <button type="button" className="btn btn-download" onClick={() => handleDetailDownload('cv')} disabled={!applicationDetail.full_cv || detailDownloading}>
-                  {detailDownloading === 'cv' ? '…' : 'Télécharger CV PDF'}
+            )}
+          </div>
+        </div>
+
+        {/* Popup : Ajouter une candidature hors app */}
+        {addManualModalOpen && (
+          <div className="application-detail-overlay setup-modal-overlay" onClick={() => setAddManualModalOpen(false)} role="dialog" aria-modal="true" aria-labelledby="add-manual-modal-title">
+            <div className="setup-modal add-manual-modal" onClick={(e) => e.stopPropagation()}>
+              <h2 id="add-manual-modal-title">Ajouter une candidature (hors app)</h2>
+              <p className="setup-modal-intro">Tu as postulé ailleurs ? Saisis les infos pour suivre cette candidature dans le tableau.</p>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const poste = addManualPoste.trim();
+                const entreprise = addManualEntreprise.trim();
+                if (!poste && !entreprise) {
+                  showError('Renseigne au moins le poste ou l\'entreprise.');
+                  return;
+                }
+                setAddManualSubmitting(true);
+                hideError();
+                try {
+                  const data = await apiPost('/api/applications', {
+                    poste,
+                    entreprise,
+                    statut: addManualStatut,
+                    source_offre: addManualSource.trim() || undefined,
+                  });
+                  const appId = data.id;
+                  for (const { type, file } of [
+                    { type: 'lettre', file: addManualPdfLettre },
+                    { type: 'cv', file: addManualPdfCv },
+                    { type: 'fiche', file: addManualPdfFiche },
+                  ]) {
+                    if (file && (file.type === 'application/pdf' || (file.name || '').toLowerCase().endsWith('.pdf'))) {
+                      const form = new FormData();
+                      form.append('type', type);
+                      form.append('file', file);
+                      await apiPostFormData(`/api/applications/${encodeURIComponent(appId)}/upload-doc`, form);
+                    }
+                  }
+                  loadApplications();
+                  setJustAddedAppId(appId);
+                  setAddManualModalOpen(false);
+                  setAddManualPoste('');
+                  setAddManualEntreprise('');
+                  setAddManualStatut('candidature_envoyee');
+                  setAddManualSource('');
+                  setAddManualPdfLettre(null);
+                  setAddManualPdfCv(null);
+                  setAddManualPdfFiche(null);
+                } catch (err) {
+                  showError(err.message || 'Impossible d\'ajouter la candidature.');
+                } finally {
+                  setAddManualSubmitting(false);
+                }
+              }}>
+                <label className="setup-field">
+                  <span>Intitulé du poste</span>
+                  <input type="text" value={addManualPoste} onChange={(e) => setAddManualPoste(e.target.value)} placeholder="ex. Analyste Risk & Contrôle" />
+                </label>
+                <label className="setup-field">
+                  <span>Entreprise</span>
+                  <input type="text" value={addManualEntreprise} onChange={(e) => setAddManualEntreprise(e.target.value)} placeholder="ex. Société Dupont" />
+                </label>
+                <label className="setup-field">
+                  <span>Statut</span>
+                  <select value={addManualStatut} onChange={(e) => setAddManualStatut(e.target.value)}>
+                    {Object.entries(STATUT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </label>
+                <label className="setup-field">
+                  <span>Source de l&apos;offre (optionnel)</span>
+                  <input type="text" value={addManualSource} onChange={(e) => setAddManualSource(e.target.value)} placeholder="ex. LinkedIn, Indeed…" />
+                </label>
+                <div className="setup-field setup-field-docs">
+                  <span className="setup-field-label">Documents (optionnel)</span>
+                  <p className="setup-field-hint">Joins tes PDF pour y accéder depuis le dashboard.</p>
+                  <label className="setup-file-label">
+                    <span>Lettre de motivation (PDF)</span>
+                    <input type="file" accept=".pdf,application/pdf" onChange={(e) => setAddManualPdfLettre(e.target.files?.[0] || null)} />
+                    {addManualPdfLettre && <span className="setup-file-name">{addManualPdfLettre.name}</span>}
+                  </label>
+                  <label className="setup-file-label">
+                    <span>CV (PDF)</span>
+                    <input type="file" accept=".pdf,application/pdf" onChange={(e) => setAddManualPdfCv(e.target.files?.[0] || null)} />
+                    {addManualPdfCv && <span className="setup-file-name">{addManualPdfCv.name}</span>}
+                  </label>
+                  <label className="setup-file-label">
+                    <span>Fiche de poste (PDF)</span>
+                    <input type="file" accept=".pdf,application/pdf" onChange={(e) => setAddManualPdfFiche(e.target.files?.[0] || null)} />
+                    {addManualPdfFiche && <span className="setup-file-name">{addManualPdfFiche.name}</span>}
+                  </label>
+                </div>
+                <div className="setup-modal-actions">
+                  <button type="submit" className="btn btn-primary" disabled={addManualSubmitting}>
+                    {addManualSubmitting ? 'Ajout…' : 'Ajouter'}
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setAddManualModalOpen(false)}>Annuler</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Popup Setup : Nouvelle Candidature */}
+        {setupModalOpen && (
+          <div className="application-detail-overlay setup-modal-overlay" onClick={() => setSetupModalOpen(false)} role="dialog" aria-modal="true" aria-labelledby="setup-modal-title">
+            <div className="setup-modal" onClick={(e) => e.stopPropagation()}>
+              <h2 id="setup-modal-title">Nouvelle Candidature</h2>
+              <p className="setup-modal-intro">Renseigne l&apos;entreprise et la fiche de poste. L&apos;IA adaptera ton CV dans l&apos;espace de travail.</p>
+              <label className="setup-field">
+                <span>Nom de l&apos;entreprise</span>
+                <input type="text" value={setupEntreprise} onChange={(e) => setSetupEntreprise(e.target.value)} placeholder="ex. Société Dupont" />
+              </label>
+              <label className="setup-field">
+                <span>Intitulé du poste (optionnel, améliore le score ATS)</span>
+                <input type="text" value={setupPoste} onChange={(e) => setSetupPoste(e.target.value)} placeholder="ex. Analyste Risk & Contrôle" />
+              </label>
+              <label className="setup-field">
+                <span>Lien ou texte de la fiche de poste</span>
+                <textarea value={setupFiche} onChange={(e) => setSetupFiche(e.target.value)} placeholder="Colle le lien de l'annonce ou le texte de l'offre…" rows={6} />
+              </label>
+              <div className="setup-modal-actions">
+                <button type="button" className="btn btn-primary" onClick={async () => {
+                  const fiche = setupFiche.trim();
+                  const ent = setupEntreprise.trim();
+                  const pos = setupPoste.trim();
+                  setAnnonce(fiche);
+                  setEntrepriseNom(ent);
+                  setPosteNom(pos);
+                  setSetupModalOpen(false);
+                  setSetupEntreprise('');
+                  setSetupPoste('');
+                  setSetupFiche('');
+                  navigate('/app/cv');
+                  hideError();
+                  setAdapting(true);
+                  setChatMessages((prev) => [...prev, { role: 'user', content: fiche.slice(0, 300) + (fiche.length > 300 ? '…' : '') }]);
+                  try {
+                    const data = await apiPost('/api/adapt', { description: fiche, titre: pos || undefined, entreprise: ent || undefined });
+                    setLastAdaptedCv(data.cv);
+                    setLastAdaptationId(data.adaptation_id || null);
+                    setRapport(data.rapport || {});
+                    setExportBlockVisible(true);
+                    setPreviewVariant('modified');
+                    loadApplications();
+                    loadUsage();
+                    let baseCv = null;
+                    try { baseCv = await apiGet('/api/cv'); } catch {}
+                    if (baseCv) setLastBaseCv(baseCv);
+                    const html = await apiPost('/api/render-html', { cv: data.cv, base_cv: baseCv ?? lastBaseCv ?? undefined, highlight_changes: true, ...templateParams });
+                    setPreviewHtml(html);
+                    setModifiedPreviewHtml(html);
+                    const summary = data.rapport?.score_global != null
+                      ? `CV adapté (score ${data.rapport.score_global}/10). Tu peux affiner en envoyant un autre message.`
+                      : 'CV adapté. Envoie un message pour affiner ou clique sur le texte pour éditer.';
+                    setChatMessages((prev) => [...prev, { role: 'assistant', content: summary }]);
+                  } catch (e) {
+                    if (e.status === 402 || (e.message && e.message.includes('épuisé'))) {
+                      setUpgradeModalVisible(true);
+                    } else {
+                      showError(e.message || "Erreur lors de l'adaptation.");
+                    }
+                    setChatMessages((prev) => [...prev, { role: 'assistant', content: 'Erreur : ' + (e.message || '') }]);
+                  } finally {
+                    setAdapting(false);
+                  }
+                }} disabled={!setupFiche.trim()}>
+                  Démarrer l&apos;adaptation
                 </button>
-                <button type="button" className="btn btn-download" onClick={() => handleDetailDownload('lettre')} disabled={!applicationDetail.full_cv || detailDownloading}>
-                  {detailDownloading === 'lettre' ? '…' : 'Télécharger lettre PDF'}
-                </button>
-                <button type="button" className="btn btn-download" onClick={() => handleDetailDownload('fiche')} disabled={detailDownloading}>
-                  {detailDownloading === 'fiche' ? '…' : 'Télécharger fiche PDF'}
-                </button>
-              </div>
-              <div className="application-detail-content">
-                {detailTab === 'cv' && (
-                  <div className="detail-pane detail-cv">
-                    {applicationDetail.full_cv ? (
-                      detailCvHtml ? <iframe title="Aperçu CV" srcDoc={detailCvHtml} className="detail-iframe" /> : <p>Chargement de l’aperçu CV…</p>
-                    ) : (
-                      <p>Aucun CV enregistré pour cette candidature.</p>
-                    )}
-                  </div>
-                )}
-                {detailTab === 'lettre' && (
-                  <div className="detail-pane detail-lettre">
-                    {detailLetterLoading && <p>Génération de la lettre…</p>}
-                    {!detailLetterLoading && detailLetterHtml && <div className="letter-html" dangerouslySetInnerHTML={{ __html: detailLetterHtml }} />}
-                    {!detailLetterLoading && !detailLetterHtml && <p>Clique sur l’onglet Lettre pour générer la lettre.</p>}
-                  </div>
-                )}
-                {detailTab === 'fiche' && (
-                  <div className="detail-pane detail-fiche">
-                    <pre className="fiche-text">{(applicationDetail.description_full || '').trim() || 'Aucune fiche enregistrée.'}</pre>
-                  </div>
-                )}
+                <button type="button" className="btn btn-secondary" onClick={() => setSetupModalOpen(false)}>Annuler</button>
               </div>
             </div>
           </div>
         )}
+
+        <div id="viewProfil" className={`view-panel app-page view-profil ${view === 'profil' ? 'active' : ''}`} style={{ display: view === 'profil' ? 'flex' : 'none' }}>
+          <header className="page-header">
+            <h1 className="page-title">Profil</h1>
+            <p className="page-subtitle">Ton CV de base. Modifications enregistrées automatiquement.</p>
+          </header>
+          <div className="page-content">
+            <ProfileView onSaveSuccess={handleProfileSaveSuccess} session={session} />
+          </div>
+        </div>
+
+        <div id="viewSupport" className={`view-panel app-page view-support ${view === 'support' ? 'active' : ''}`} style={{ display: view === 'support' ? 'flex' : 'none' }}>
+          <div className="support-hero">
+            <h1 className="support-hero-title">Support</h1>
+            <p className="support-hero-subtitle">On t&apos;aide à tirer le meilleur de CV Bot. Sujets fréquents ci-dessous, conversation à venir.</p>
+          </div>
+          <div className="page-content support-page-content">
+            <section className="support-usecases">
+              <h2 className="support-section-title">Use cases classiques</h2>
+              <div className="support-usecase-grid">
+                <div className="support-usecase-card">
+                  <div className="support-usecase-icon-wrap">
+                    <HiDocumentText className="support-usecase-icon" aria-hidden />
+                  </div>
+                  <h3 className="support-usecase-title">Adapter mon CV à une offre</h3>
+                  <p className="support-usecase-desc">Colle l&apos;annonce dans « Adapter un CV », envoie. L&apos;IA adapte ton CV. Tu peux affiner par message ou modifier le texte à la main.</p>
+                </div>
+                <div className="support-usecase-card">
+                  <div className="support-usecase-icon-wrap">
+                    <HiArrowDownTray className="support-usecase-icon" aria-hidden />
+                  </div>
+                  <h3 className="support-usecase-title">Exporter en PDF</h3>
+                  <p className="support-usecase-desc">Après adaptation, utilise « Télécharger le PDF » dans la zone d&apos;export. Tu peux renseigner entreprise et intitulé pour le nom du fichier.</p>
+                </div>
+                <div className="support-usecase-card">
+                  <div className="support-usecase-icon-wrap">
+                    <HiClipboardDocumentList className="support-usecase-icon" aria-hidden />
+                  </div>
+                  <h3 className="support-usecase-title">Suivre mes candidatures</h3>
+                  <p className="support-usecase-desc">Les candidatures sont dans « Mes candidatures ». Glisse les cartes pour changer le statut (à postuler, envoyée, entretien, refus…).</p>
+                </div>
+                <div className="support-usecase-card">
+                  <div className="support-usecase-icon-wrap">
+                    <HiPencilSquare className="support-usecase-icon" aria-hidden />
+                  </div>
+                  <h3 className="support-usecase-title">Modifier le texte du CV</h3>
+                  <p className="support-usecase-desc">En vue « Modifié », clique sur n&apos;importe quel texte dans l&apos;aperçu pour l&apos;éditer directement. Les changements sont pris en compte à la sortie du champ.</p>
+                </div>
+              </div>
+            </section>
+            <section className="support-conv">
+              <h2 className="support-section-title">
+                <HiChatBubbleLeftRight className="support-conv-title-icon" aria-hidden />
+                Conversation avec le support
+              </h2>
+              <div className="support-conv-card">
+                <p className="support-conv-placeholder-text">Le système de conversation sera relié prochainement. En attendant, consulte les sujets ci-dessus ou contacte-nous par email.</p>
+                <div className="support-conv-input-bar">
+                  <input type="text" className="cv-chat-input" placeholder="Écris ton message… (bientôt connecté)" disabled />
+                  <button type="button" className="cv-chat-input-send" disabled title="Bientôt disponible" aria-label="Envoyer">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
+                  </button>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        {applicationDetailId && (
+          <ApplicationDetailModal
+            applicationDetailId={applicationDetailId}
+            applications={applications}
+            onClose={closeApplicationDetail}
+          />
+        )}
+
+        {statutModalType === 'refus' && (
+          <div className="application-detail-overlay linkedin-sync-overlay" onClick={() => { setStatutModalType(null); setStatutModalAppId(null); setStatutModalApp(null); }} role="dialog" aria-modal="true">
+            <div className="linkedin-sync-modal quali-modal" onClick={(e) => e.stopPropagation()}>
+              <h3>Raison du refus (optionnel)</h3>
+              <p className="profile-subtitle" style={{ marginTop: 0 }}>Pour ton mémoire / analyse : indique si tu connais la raison du refus.</p>
+              {statutModalApp && <p style={{ fontSize: '0.9rem', color: 'var(--muted)' }}>{statutModalApp.entreprise} – {statutModalApp.poste}</p>}
+              <label className="input-label">Type de raison</label>
+              <select className="input-field" value={refusRaisonType} onChange={(e) => setRefusRaisonType(e.target.value)}>
+                <option value="">- Choisir -</option>
+                <option value="Profil non retenu">Profil non retenu</option>
+                <option value="Poste pourvu">Poste pourvu</option>
+                <option value="Pas de réponse après relance">Pas de réponse après relance</option>
+                <option value="Autre">Autre</option>
+              </select>
+              <label className="input-label">Précisions (texte libre)</label>
+              <textarea className="input-field" value={refusRaison} onChange={(e) => setRefusRaison(e.target.value)} rows={3} placeholder="Optionnel" />
+              <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
+                <button type="button" className="btn btn-primary" onClick={() => submitRefusModal(false)} disabled={statutModalSubmitting}>
+                  {statutModalSubmitting ? 'Enregistrement…' : 'Enregistrer'}
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={() => submitRefusModal(true)} disabled={statutModalSubmitting}>
+                  Passer (refus sans détail)
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={() => { setStatutModalType(null); setStatutModalAppId(null); setStatutModalApp(null); }}>
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {upgradeModalVisible && (
+          <div className="application-detail-overlay linkedin-sync-overlay" onClick={() => setUpgradeModalVisible(false)} role="dialog" aria-modal="true" aria-labelledby="upgrade-modal-title">
+            <div className="linkedin-sync-modal upgrade-modal" onClick={(e) => e.stopPropagation()}>
+              <h3 id="upgrade-modal-title">Vous avez épuisé vos crédits gratuits</h3>
+              <p className="profile-subtitle" style={{ marginTop: 0 }}>
+                Passez en Pro pour des adaptations illimitées et décrocher le job de vos rêves.
+              </p>
+              <ul style={{ textAlign: 'left', margin: '1rem 0', paddingLeft: '1.25rem', color: 'var(--text)' }}>
+                <li>Adaptations IA illimitées</li>
+                <li>Suivi de candidatures illimité</li>
+                <li>Lettre de motivation ciblée (à venir)</li>
+              </ul>
+              <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
+                <button type="button" className="btn btn-primary" onClick={handleUpgradeClick} disabled={checkoutLoading}>
+                  {checkoutLoading ? 'Redirection…' : 'Passer en Pro - 9€/mois'}
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={() => setUpgradeModalVisible(false)}>
+                  Plus tard
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {statutModalType === 'interview' && (
+          <div className="application-detail-overlay linkedin-sync-overlay" onClick={() => { setStatutModalType(null); setStatutModalAppId(null); setStatutModalApp(null); }} role="dialog" aria-modal="true">
+            <div className="linkedin-sync-modal quali-modal" onClick={(e) => e.stopPropagation()}>
+              <h3>Entretien – quelques infos (optionnel)</h3>
+              <p className="profile-subtitle" style={{ marginTop: 0 }}>Pour ton mémoire : type d’entretien et ressenti.</p>
+              {statutModalApp && <p style={{ fontSize: '0.9rem', color: 'var(--muted)' }}>{statutModalApp.entreprise} – {statutModalApp.poste}</p>}
+              <label className="input-label">Type d’entretien</label>
+              <select className="input-field" value={interviewType} onChange={(e) => setInterviewType(e.target.value)}>
+                <option value="">- Choisir -</option>
+                <option value="Téléphone">Téléphone</option>
+                <option value="Visio">Visio</option>
+                <option value="Présentiel">Présentiel</option>
+                <option value="Autre">Autre</option>
+              </select>
+              <label className="input-label">Comment s’est passé l’entretien ? (texte libre)</label>
+              <textarea className="input-field" value={interviewFeedback} onChange={(e) => setInterviewFeedback(e.target.value)} rows={3} placeholder="Optionnel" />
+              <label className="input-label">Date de l’entretien (optionnel)</label>
+              <input type="date" className="input-field" value={interviewDate} onChange={(e) => setInterviewDate(e.target.value)} />
+              <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
+                <button type="button" className="btn btn-primary" onClick={submitInterviewModal} disabled={statutModalSubmitting}>
+                  {statutModalSubmitting ? 'Enregistrement…' : 'Enregistrer'}
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={() => { setStatutModalType(null); setStatutModalAppId(null); setStatutModalApp(null); }}>
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {session && !needsOnboarding && isCvView && (
+          <GuidedTour steps={TOUR_STEPS} tourKey="main" />
+        )}
       </div>
-    </>
+    </div>
   );
 }

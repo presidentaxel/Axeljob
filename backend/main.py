@@ -435,7 +435,8 @@ def _get_user_id(request: Request) -> str | None:
         import jwt
         payload = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"], audience="authenticated")
         return (payload.get("sub") or "").strip() or None
-    except Exception:
+    except Exception as e:
+        logger.warning("JWT decode failed: %s (token prefix: %s…)", e, token[:20] if token else "empty")
         return None
 
 

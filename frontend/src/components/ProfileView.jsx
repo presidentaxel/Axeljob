@@ -81,7 +81,9 @@ export default function ProfileView({ onSaveSuccess, session }) {
   const [uploadPhotoLoading, setUploadPhotoLoading] = useState(false);
   const [livePreviewHtml, setLivePreviewHtml] = useState('');
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
   const fileInputRef = useRef(null);
+  const importFileRef = useRef(null);
   const skipNextAutoSaveRef = useRef(true);
   const autoSaveTimeoutRef = useRef(null);
 
@@ -398,6 +400,27 @@ export default function ProfileView({ onSaveSuccess, session }) {
     }
   };
 
+  const handleImportCv = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportLoading(true);
+    setError('');
+    try {
+      const parsed = await apiPostFile('/api/cv/import', file);
+      if (parsed && typeof parsed === 'object') {
+        skipNextAutoSaveRef.current = true;
+        setCv((prev) => ({ ...defaultCv(), ...prev, ...parsed }));
+        setMessage('CV importé — vérifie et complète les champs ci-dessous.');
+        setTimeout(() => setMessage(''), 5000);
+      }
+    } catch (err) {
+      setError(err.message || 'Erreur lors de l\'import.');
+    } finally {
+      setImportLoading(false);
+      if (importFileRef.current) importFileRef.current.value = '';
+    }
+  };
+
   if (loading) return <div className="profile-loading">Chargement du profil…</div>;
 
   return (
@@ -407,6 +430,11 @@ export default function ProfileView({ onSaveSuccess, session }) {
         <h1>Mon profil CV</h1>
         <p className="profile-subtitle">Complète tes informations. Le CV est généré à partir de ces données.</p>
         <div className="profile-header-actions">
+          <input ref={importFileRef} type="file" accept=".pdf,.doc,.docx" style={{ display: 'none' }} onChange={handleImportCv} />
+          <button type="button" className="btn btn-import-cv" onClick={() => importFileRef.current?.click()} disabled={importLoading}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            {importLoading ? 'Import…' : 'Importer un CV'}
+          </button>
           <button type="button" className="btn btn-linkedin-sync" onClick={handleFetchLinkedIn} disabled={linkedinLoading}>
             {linkedinLoading ? 'Récupération…' : 'Mettre à jour depuis LinkedIn'}
           </button>

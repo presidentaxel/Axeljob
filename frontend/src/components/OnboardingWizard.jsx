@@ -111,7 +111,12 @@ export default function OnboardingWizard({ session, onComplete }) {
     onComplete('candidatures');
   };
 
-  const handleGoToProfile = () => {
+  const handleGoToProfile = async () => {
+    if (parsedCv) {
+      try {
+        await apiPut('/api/cv', parsedCv);
+      } catch {}
+    }
     onComplete('profil');
   };
 

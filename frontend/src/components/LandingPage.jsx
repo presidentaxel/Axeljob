@@ -36,7 +36,7 @@ export default function LandingPage({ onCtaClick }) {
       <header className="landing-header">
         <div className="landing-container">
           <div className="landing-header-inner">
-            <img src="/favicon.ico" alt="CV Bot" className="landing-logo" onError={(e) => { e.target.onerror = null; e.target.src = '/Axel_CV.ico'; }} />
+            <img src="/favicon.svg" alt="CV Bot" className="landing-logo" />
             <span className="landing-brand">CV Bot</span>
             <nav className="landing-nav">
               <a href="#comment">Comment ça marche</a>

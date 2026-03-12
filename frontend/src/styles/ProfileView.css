@@ -582,6 +582,30 @@
 }
 
 /* Buttons inside profile */
+.btn-import-cv {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--surface, #fff);
+  color: var(--primary, #5b4cff);
+  border: 1.5px solid var(--primary, #5b4cff);
+  border-radius: var(--radius-xs, 6px);
+  padding: 0.5rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-import-cv:hover:not(:disabled) {
+  background: var(--primary, #5b4cff);
+  color: #fff;
+}
+.btn-import-cv:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .btn-linkedin-sync {
   background: #0077b5;
   color: #fff;

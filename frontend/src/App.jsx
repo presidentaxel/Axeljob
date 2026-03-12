@@ -328,8 +328,8 @@ export default function App() {
     try {
       const html = await apiGet(`/api/cv/preview?template_id=${encodeURIComponent(templateId)}`);
       setPreviewHtml(html);
-    } catch (e) {
-      showError('Impossible de charger le CV. ' + (e.message || e));
+    } catch {
+      setPreviewHtml('<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#888;font-family:Plus Jakarta Sans,sans-serif;padding:2rem;text-align:center"><p>Complète ton profil pour voir l\'aperçu de ton CV ici.</p></div>');
     }
   };
 
@@ -879,7 +879,7 @@ export default function App() {
     return (
       <div className="login-screen">
         <div className="login-screen-card">
-          <img src="/favicon.ico" alt="CV Bot" className="login-screen-logo" onError={(e) => { e.target.onerror = null; e.target.src = '/Axel_CV.ico'; }} />
+          <img src="/logoaxel.ico" alt="CV Bot" className="login-screen-logo" />
           <h1>CV Bot</h1>
           <p className="login-screen-intro">
             Configure Supabase pour utiliser l'application. Ajoute <code>VITE_SUPABASE_URL</code> et <code>VITE_SUPABASE_ANON_KEY</code> dans <code>.env</code> (voir <code>.env.example</code>).
@@ -895,7 +895,7 @@ export default function App() {
       return (
         <div className="login-screen">
           <div className="login-screen-card">
-            <img src="/favicon.ico" alt="CV Bot" className="login-screen-logo" onError={(e) => { e.target.onerror = null; e.target.src = '/Axel_CV.ico'; }} />
+            <img src="/logoaxel.ico" alt="CV Bot" className="login-screen-logo" />
             <h1>CV Bot</h1>
             <p className="login-screen-intro">Adapte ton CV à chaque offre en quelques secondes grâce à l'IA.</p>
             <AuthForm onSuccess={() => setAuthLoading(false)} />
@@ -928,7 +928,7 @@ export default function App() {
         onMouseLeave={() => setSidebarHovered(false)}
       >
         <div className="sidebar-header">
-          <img src="/favicon.ico" alt="CV Bot" className="sidebar-logo" onError={(e) => { e.target.onerror = null; e.target.src = '/Axel_CV.ico'; }} />
+          <img src="/logoaxel.ico" alt="CV Bot" className="sidebar-logo" />
         </div>
         <span className="sidebar-section-label">Principal</span>
         <nav className="sidebar-nav">
@@ -973,6 +973,12 @@ export default function App() {
             <span>Support</span>
           </NavLink>
         </nav>
+        {session && (
+          <button type="button" className="sidebar-upgrade-btn" onClick={handleUpgradeClick} disabled={checkoutLoading}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span>{checkoutLoading ? 'Chargement…' : 'Passer Pro'}</span>
+          </button>
+        )}
         {supabase && (
           <div className="sidebar-auth">
             <span className="sidebar-section-label">Compte</span>
@@ -1004,7 +1010,7 @@ export default function App() {
             <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
           </svg>
         </button>
-        <img src="/favicon.ico" alt="CV Bot" className="sidebar-logo mobile-logo" onError={(e) => { e.target.onerror = null; e.target.src = '/Axel_CV.ico'; }} />
+        <img src="/logoaxel.ico" alt="CV Bot" className="sidebar-logo mobile-logo" />
       </header>
 
       <div className="app-main">

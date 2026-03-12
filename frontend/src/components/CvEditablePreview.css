@@ -15,19 +15,12 @@
 /* Réappliquer les polices/typo du template (éviter héritage depuis l'app) */
 .cv-editable-preview .cv,
 .cv-editable-preview .cv * {
-  font-family: Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
 }
 .cv-editable-preview .cv {
   font-size: 9.5pt;
   line-height: 1.4;
   color: #1a1a1a;
-}
-.cv-editable-preview .cv-header .header-nom,
-.cv-editable-preview .cv-header h1 {
-  font-family: 'Plus Jakarta Sans', Arial, sans-serif;
-}
-.cv-editable-preview .section-title {
-  font-family: 'Plus Jakarta Sans', Arial, sans-serif;
 }
 .cv-editable-preview .formation-diplome {
   font-weight: bold;

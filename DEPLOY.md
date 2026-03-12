@@ -374,7 +374,7 @@ docker compose up -d
 
 ```bash
 # Logs
-docker compose logs -f
+  docker compose logs -f
 
 # Health check
 curl http://localhost/health

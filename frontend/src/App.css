@@ -735,7 +735,7 @@ body {
   box-shadow: var(--shadow);
   padding: 1rem;
   z-index: 10;
-  max-height: 280px;
+  max-height: 400px;
   overflow-y: auto;
 }
 
@@ -760,6 +760,66 @@ body {
   font-size: 0.8125rem;
   color: var(--muted);
   line-height: 1.5;
+}
+
+/* Before/After score display */
+.ats-score-before {
+  color: var(--muted);
+  text-decoration: line-through;
+  font-weight: 400;
+  font-size: 0.8em;
+}
+.ats-score-arrow {
+  color: var(--muted);
+  font-size: 0.8em;
+  margin: 0 0.15em;
+}
+.ats-score-after {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Detail bars */
+.ats-detail-bars {
+  margin-bottom: 0.75rem;
+}
+.ats-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+}
+.ats-bar-label {
+  flex: 0 0 110px;
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.ats-bar-weight {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.85em;
+}
+.ats-bar-track {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.ats-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.ats-bar-value {
+  flex: 0 0 28px;
+  text-align: right;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
 }
 
 .cv-chat-preview .preview-variant-slider {

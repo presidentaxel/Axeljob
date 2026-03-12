@@ -2,25 +2,23 @@
 """
 Règles ATS déterministes : scoring, marquage des zones à adapter, réordonnancement, rapport.
 
-Calcul du score ATS (score_global sur 10) :
-  - Titre (20 %) : adéquation du titre professionnel du CV avec les mots du titre du poste.
-  - Résumé (30 %) : part des mots-clés de l'offre présents dans le résumé.
-  - Expériences (50 %) : moyenne des scores de pertinence de chaque expérience (mots-clés
-    de l'offre présents dans poste, entreprise, bullet_points, mots_cles).
-  Si l'offre n'a pas de titre renseigné, le poids est reporté sur résumé + expériences.
-  Les mots-clés de l'offre viennent de : mots_cles_extraits, competences_requises, et
-  tokens du titre de l'offre (passés par l'API adapt avec titre/entreprise quand dispo).
+Score ATS réaliste (0-100) tenant compte de :
+  - Couverture mots-clés (35 %) : mots-clés de l'offre retrouvés dans le CV entier
+    (titre, résumé, expériences, compétences, mots_cles_cache).
+  - Section ATS cachée (15 %) : bonus quand mots_cles_cache est rempli avec des termes pertinents.
+  - Structure & lisibilité (20 %) : qualité structurelle du CV (sections, bullet points, verbes).
+  - Titre professionnel (15 %) : correspondance titre CV / titre du poste.
+  - Compétences (15 %) : compétences techniques/outils retrouvées dans l'offre.
 """
 
 import re
 from copy import deepcopy
 
-# Suffixes à retirer pour pseudo-stemming français (pas de dépendance externe)
 _FR_SUFFIXES = sorted([
-    "ement", "ement", "ation", "ition", "ement", "ments", "ment", "ions",
-    "tion", "sion", "ence", "ance", "ités", "ités", "ique", "ques",
+    "ement", "ation", "ition", "ments", "ment", "ions",
+    "tion", "sion", "ence", "ance", "ités", "ique", "ques",
     "eurs", "euse", "eur", "eux", "ant", "ent", "ait", "ais",
-    "aux", "als", "ées", "ées", "és", "ée", "er", "ir", "es", "és",
+    "aux", "als", "ées", "és", "ée", "er", "ir", "es",
 ], key=len, reverse=True)
 
 _FR_STOPWORDS = frozenset({
@@ -36,9 +34,20 @@ _FR_STOPWORDS = frozenset({
     "an", "be", "as", "on", "it", "we", "you", "are", "was", "has", "had",
 })
 
+_ACTION_VERBS = frozenset({
+    "géré", "développé", "créé", "piloté", "animé", "coordonné", "optimisé",
+    "conçu", "dirigé", "réalisé", "analysé", "implémenté", "mis", "amélioré",
+    "organisé", "supervisé", "lancé", "établi", "contribué", "accompagné",
+    "négocié", "formé", "encadré", "déployé", "restructuré", "conduit",
+    "élaboré", "défini", "assuré", "réduit", "augmenté", "automatisé",
+    "suivi", "participé", "identifié", "résolu", "proposé", "livré",
+    "managed", "developed", "created", "led", "coordinated", "optimized",
+    "designed", "implemented", "improved", "organized", "launched", "built",
+    "analyzed", "delivered", "reduced", "increased", "automated", "resolved",
+})
+
 
 def _stem_fr(word: str) -> str:
-    """Pseudo-stemming français léger (sans dépendance externe)."""
     if len(word) <= 3:
         return word
     for suffix in _FR_SUFFIXES:
@@ -47,8 +56,11 @@ def _stem_fr(word: str) -> str:
     return word
 
 
+def _tokenize(text: str) -> set[str]:
+    return set(re.findall(r"\w+", text.lower())) if text else set()
+
+
 def _texte_plat(obj) -> str:
-    """Flatten dict/list/bullets into one lowercase string for matching."""
     if isinstance(obj, str):
         return obj.lower()
     if isinstance(obj, list):
@@ -58,8 +70,7 @@ def _texte_plat(obj) -> str:
     return ""
 
 
-def _mots_offre(offre: dict) -> set:
-    """Ensemble des mots-clés de l'offre, nettoyés et stemmés."""
+def _mots_offre(offre: dict) -> set[str]:
     mots = set()
     for k in ("mots_cles_extraits", "competences_requises"):
         for item in offre.get(k) or []:
@@ -74,9 +85,249 @@ def _mots_offre(offre: dict) -> set:
     return mots
 
 
-def _score_experience(exp: dict, mots_offre: set) -> float:
-    """Score 0-10 : mots-clés de l'offre retrouvés dans l'expérience (word-boundary + stemming)."""
-    if not mots_offre:
+def _keyword_in_text(keyword: str, text_flat: str, tokens: set[str], stems: set[str]) -> float:
+    """Returns 1.0 for exact match, 0.5 for stem match, 0 for no match."""
+    kw_words = keyword.split()
+    if len(kw_words) > 1:
+        if keyword in text_flat:
+            return 1.0
+        stems_phrase = " ".join(_stem_fr(w) for w in kw_words)
+        stemmed_text = " ".join(_stem_fr(w) for w in re.findall(r"\w+", text_flat))
+        if stems_phrase in stemmed_text:
+            return 0.5
+        return 0.0
+    if keyword in tokens:
+        return 1.0
+    if _stem_fr(keyword) in stems:
+        return 0.5
+    return 0.0
+
+
+# ---------------------------------------------------------------------------
+# Component scorers (each returns 0-100)
+# ---------------------------------------------------------------------------
+
+def _score_keyword_coverage(cv: dict, mots: set[str]) -> tuple[float, list[str], list[str]]:
+    """
+    Keyword coverage: what fraction of job keywords appear anywhere in the CV.
+    Returns (score_0_100, matched_keywords, missing_keywords).
+    """
+    if not mots:
+        return 50.0, [], []
+
+    full_text = _texte_plat({
+        "titre": cv.get("titre_professionnel", ""),
+        "resume": cv.get("resume", ""),
+        "experiences": cv.get("experiences", []),
+        "competences": cv.get("competences", {}),
+        "formations": cv.get("formations", []),
+        "projets": cv.get("projets", []),
+        "mots_cles_cache": cv.get("mots_cles_cache", ""),
+    })
+    tokens = _tokenize(full_text)
+    stems = {_stem_fr(t) for t in tokens}
+
+    total_score = 0.0
+    matched = []
+    missing = []
+    for m in mots:
+        s = _keyword_in_text(m, full_text, tokens, stems)
+        total_score += s
+        if s > 0:
+            matched.append(m)
+        else:
+            missing.append(m)
+
+    ratio = total_score / len(mots)
+    return min(100.0, ratio * 100.0), matched, missing
+
+
+def _score_ats_section(cv: dict, mots: set[str]) -> float:
+    """Bonus for having a filled mots_cles_cache section with relevant terms."""
+    cache = (cv.get("mots_cles_cache") or "").strip()
+    if not cache:
+        return 0.0
+    if not mots:
+        return 60.0
+
+    cache_lower = cache.lower()
+    cache_tokens = _tokenize(cache)
+    cache_stems = {_stem_fr(t) for t in cache_tokens}
+
+    matches = sum(1 for m in mots if _keyword_in_text(m, cache_lower, cache_tokens, cache_stems) > 0)
+    density = matches / len(mots)
+    word_count = len(cache.split())
+    length_bonus = min(1.0, word_count / 30.0)
+
+    return min(100.0, density * 70.0 + length_bonus * 30.0)
+
+
+def _score_structure(cv: dict) -> tuple[float, list[str], list[str]]:
+    """
+    Structure & readability score based on CV completeness and quality.
+    Returns (score_0_100, strengths, weaknesses).
+    """
+    points = 0.0
+    max_points = 0.0
+    strengths = []
+    weaknesses = []
+
+    has_title = bool((cv.get("titre_professionnel") or "").strip())
+    max_points += 12
+    if has_title:
+        points += 12
+        strengths.append("Titre professionnel présent")
+    else:
+        weaknesses.append("Ajouter un titre professionnel clair")
+
+    has_resume = bool((cv.get("resume") or "").strip())
+    resume_len = len((cv.get("resume") or "").split())
+    max_points += 15
+    if has_resume and resume_len >= 15:
+        points += 15
+        strengths.append("Résumé / accroche bien développé")
+    elif has_resume:
+        points += 8
+        weaknesses.append("Étoffer le résumé (viser 30+ mots)")
+    else:
+        weaknesses.append("Ajouter un résumé professionnel")
+
+    experiences = cv.get("experiences") or []
+    max_points += 20
+    if experiences:
+        points += min(20, len(experiences) * 5)
+        all_bullets = []
+        for exp in experiences:
+            for bp in exp.get("bullet_points") or []:
+                if isinstance(bp, str) and bp.strip():
+                    all_bullets.append(bp.strip())
+        if len(all_bullets) >= 3:
+            strengths.append(f"{len(all_bullets)} bullet points structurés")
+        else:
+            weaknesses.append("Ajouter des bullet points aux expériences")
+    else:
+        weaknesses.append("Aucune expérience renseignée")
+
+    max_points += 10
+    all_bullets = []
+    for exp in experiences:
+        for bp in exp.get("bullet_points") or []:
+            if isinstance(bp, str) and bp.strip():
+                all_bullets.append(bp.strip())
+    verb_count = sum(1 for b in all_bullets if b.split() and b.split()[0].lower() in _ACTION_VERBS)
+    if all_bullets:
+        verb_ratio = verb_count / len(all_bullets)
+        points += verb_ratio * 10
+        if verb_ratio >= 0.5:
+            strengths.append("Verbes d'action utilisés")
+    else:
+        points += 0
+
+    has_contact = bool((cv.get("email") or "").strip()) or bool((cv.get("telephone") or "").strip())
+    max_points += 8
+    if has_contact:
+        points += 8
+        strengths.append("Coordonnées présentes")
+    else:
+        weaknesses.append("Ajouter des coordonnées (email, téléphone)")
+
+    comp = cv.get("competences") or {}
+    tech = [c for c in (comp.get("techniques") or []) if isinstance(c, str) and c.strip()]
+    max_points += 15
+    if len(tech) >= 3:
+        points += 15
+        strengths.append(f"{len(tech)} compétences techniques listées")
+    elif tech:
+        points += 8
+        weaknesses.append("Ajouter plus de compétences techniques")
+    else:
+        weaknesses.append("Section compétences techniques manquante")
+
+    formations = cv.get("formations") or []
+    max_points += 10
+    if formations:
+        points += 10
+        strengths.append("Formation renseignée")
+    else:
+        weaknesses.append("Ajouter au moins une formation")
+
+    quant_count = sum(1 for b in all_bullets if re.search(r"\d+[%€$kKmM]?|\d+\s*%|\d+\s*€", b))
+    max_points += 10
+    if all_bullets and quant_count > 0:
+        quant_ratio = quant_count / len(all_bullets)
+        points += min(10, quant_ratio * 10)
+        if quant_ratio >= 0.2:
+            strengths.append("Résultats chiffrés mentionnés")
+
+    return (points / max(max_points, 1)) * 100.0, strengths, weaknesses
+
+
+def _score_title_match(cv: dict, offre: dict) -> float:
+    """How well the CV title matches the job title (0-100)."""
+    titre_offre = (offre.get("titre") or "").lower()
+    titre_cv = (cv.get("titre_professionnel") or "").lower()
+
+    offre_tokens = {t for t in re.findall(r"\w+", titre_offre) if len(t) > 2 and t not in _FR_STOPWORDS}
+    if not offre_tokens:
+        return 50.0
+
+    cv_tokens = _tokenize(titre_cv)
+    cv_stems = {_stem_fr(t) for t in cv_tokens}
+
+    matches = 0.0
+    for t in offre_tokens:
+        if t in cv_tokens:
+            matches += 1.0
+        elif _stem_fr(t) in cv_stems:
+            matches += 0.6
+    ratio = matches / len(offre_tokens)
+    return min(100.0, ratio * 100.0)
+
+
+def _score_skills_match(cv: dict, offre: dict) -> float:
+    """Match between CV skills and job requirements (0-100)."""
+    comp = cv.get("competences") or {}
+    all_skills = []
+    for key in ("techniques", "soft_skills", "transversales", "outils"):
+        for c in comp.get(key) or []:
+            if isinstance(c, str) and c.strip():
+                all_skills.append(c.lower().strip())
+
+    if not all_skills:
+        return 20.0
+
+    offre_text = _texte_plat({
+        "desc": offre.get("description_brute", ""),
+        "comp": offre.get("competences_requises", []),
+        "kw": offre.get("mots_cles_extraits", []),
+        "titre": offre.get("titre", ""),
+    })
+    offre_tokens = _tokenize(offre_text)
+    offre_stems = {_stem_fr(t) for t in offre_tokens}
+
+    matched = 0
+    for skill in all_skills:
+        skill_tokens = set(re.findall(r"\w+", skill))
+        if len(skill_tokens) > 1:
+            if skill in offre_text:
+                matched += 1
+                continue
+        for st in skill_tokens:
+            if st in offre_tokens or _stem_fr(st) in offre_stems:
+                matched += 1
+                break
+
+    ratio = matched / len(all_skills)
+    return min(100.0, ratio * 100.0)
+
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
+
+def _score_experience(exp: dict, mots: set[str]) -> float:
+    """Score 0-10 for backward compat: keywords found in one experience."""
+    if not mots:
         return 5.0
     texte = _texte_plat({
         "poste": exp.get("poste", ""),
@@ -85,19 +336,10 @@ def _score_experience(exp: dict, mots_offre: set) -> float:
         "mots_cles": exp.get("mots_cles", []),
         "clients": exp.get("clients", ""),
     })
-    tokens_texte = set(re.findall(r"\w+", texte))
-    stems_texte = {_stem_fr(t) for t in tokens_texte}
-
-    matches = 0
-    for m in mots_offre:
-        m_words = m.split()
-        if len(m_words) > 1:
-            if m in texte:
-                matches += 1
-        else:
-            if m in tokens_texte or _stem_fr(m) in stems_texte:
-                matches += 1
-    return min(10.0, max(0.0, (matches / max(len(mots_offre), 1)) * 10.0))
+    tokens = _tokenize(texte)
+    stems = {_stem_fr(t) for t in tokens}
+    total = sum(_keyword_in_text(m, texte, tokens, stems) for m in mots)
+    return min(10.0, max(0.0, (total / max(len(mots), 1)) * 10.0))
 
 
 def appliquer_regles(cv: dict, offre: dict) -> dict:
@@ -106,32 +348,28 @@ def appliquer_regles(cv: dict, offre: dict) -> dict:
     réordonne les expériences par pertinence, et ajoute un objet rapport.
     """
     cv_enrichi = deepcopy(cv)
-    mots_offre = _mots_offre(offre)
+    mots = _mots_offre(offre)
     titre_offre = (offre.get("titre") or "").lower()
     titre_cv = (cv.get("titre_professionnel") or "").lower()
     resume_cv = (cv.get("resume") or "").lower()
 
-    # Règle 1 - Scoring de pertinence
     for exp in cv_enrichi.get("experiences", []):
-        exp["score_pertinence"] = _score_experience(exp, mots_offre)
+        exp["score_pertinence"] = _score_experience(exp, mots)
 
-    # Règle 2 - Marquage des zones à adapter
     mots_dans_cv = _texte_plat(cv_enrichi)
-    mots_manquants = [m for m in mots_offre if len(m) > 2 and m not in mots_dans_cv]
+    mots_manquants_set = [m for m in mots if len(m) > 2 and m not in mots_dans_cv]
     titres_offre = {t for t in re.findall(r"\w+", titre_offre) if len(t) > 2 and t not in _FR_STOPWORDS}
 
     titre_a_adapter = bool(titres_offre and not any(t in titre_cv for t in titres_offre))
     cv_enrichi["titre_a_adapter"] = titre_a_adapter
 
-    resume_tokens = set(re.findall(r"\w+", resume_cv))
-    resume_a_adapter_count = sum(1 for m in mots_offre if m in resume_cv or m in resume_tokens)
+    resume_tokens = _tokenize(resume_cv)
+    resume_a_adapter_count = sum(1 for m in mots if m in resume_cv or m in resume_tokens)
     cv_enrichi["resume_a_adapter"] = resume_a_adapter_count < 2
 
-    # Marquer a_renforcer sur les expériences les plus pertinentes par secteur si mots manquants
-    if mots_manquants:
+    if mots_manquants_set:
         experiences = cv_enrichi.get("experiences", [])
         if experiences:
-            # Trier par score pour marquer les top exp (où on va injecter les mots-clés)
             sorted_exp = sorted(experiences, key=lambda e: e.get("score_pertinence", 0), reverse=True)
             for exp in sorted_exp[: max(2, len(experiences) // 2)]:
                 exp["a_renforcer"] = True
@@ -139,47 +377,27 @@ def appliquer_regles(cv: dict, offre: dict) -> dict:
         for exp in cv_enrichi.get("experiences", []):
             exp["a_renforcer"] = False
 
-    # Règle 3 - Réordonnancement des expériences par score décroissant
     cv_enrichi["experiences"] = sorted(
         cv_enrichi.get("experiences", []),
         key=lambda e: e.get("score_pertinence", 0),
         reverse=True,
     )
 
-    # Règle 4 - Rapport (score global pondéré pour varier selon le poste)
-    scores_exp = [e.get("score_pertinence", 0) for e in cv_enrichi.get("experiences", [])]
-    mean_exp = (sum(scores_exp) / len(scores_exp)) if scores_exp else 0.0
+    # --- Score ATS réaliste (0-100) ---
+    kw_score, kw_matched, kw_missing = _score_keyword_coverage(cv, mots)
+    ats_section_score = _score_ats_section(cv, mots)
+    structure_score, struct_strengths, struct_weaknesses = _score_structure(cv)
+    title_score = _score_title_match(cv, offre)
+    skills_score = _score_skills_match(cv, offre)
 
-    # Score titre 0-10 : mots du titre de l'offre présents dans le titre CV
-    if not titres_offre:
-        score_titre = 5.0
-    else:
-        tokens_titre_cv = set(re.findall(r"\w+", titre_cv))
-        stems_titre_cv = {_stem_fr(t) for t in tokens_titre_cv}
-        match_titre = sum(1 for t in titres_offre if t in tokens_titre_cv or _stem_fr(t) in stems_titre_cv)
-        score_titre = min(10.0, (match_titre / max(len(titres_offre), 1)) * 10.0)
-
-    resume_stems = {_stem_fr(t) for t in resume_tokens}
-    if not mots_offre:
-        score_resume = 5.0
-    else:
-        resume_match_count = 0
-        for m in mots_offre:
-            m_words = m.split()
-            if len(m_words) > 1:
-                if m in resume_cv:
-                    resume_match_count += 1
-            else:
-                if m in resume_tokens or _stem_fr(m) in resume_stems:
-                    resume_match_count += 1
-        score_resume = min(10.0, (resume_match_count / max(len(mots_offre), 1)) * 10.0)
-
-    # Pondération : titre 20 %, résumé 30 %, expériences 50 % (si pas de titre offre → 40 % résumé, 60 % exp)
-    if titres_offre:
-        score_global = 0.2 * score_titre + 0.3 * score_resume + 0.5 * mean_exp
-    else:
-        score_global = 0.4 * score_resume + 0.6 * mean_exp
-    score_global = round(min(10.0, max(0.0, score_global)), 1)
+    score_global = (
+        0.35 * kw_score
+        + 0.15 * ats_section_score
+        + 0.20 * structure_score
+        + 0.15 * title_score
+        + 0.15 * skills_score
+    )
+    score_global = round(min(100.0, max(0.0, score_global)))
 
     zones = []
     if cv_enrichi.get("titre_a_adapter"):
@@ -193,7 +411,17 @@ def appliquer_regles(cv: dict, offre: dict) -> dict:
     cv_enrichi["rapport"] = {
         "score_global": score_global,
         "zones_a_adapter": zones,
-        "mots_cles_manquants": mots_manquants[:35],
+        "mots_cles_manquants": kw_missing[:35],
+        "mots_cles_trouves": kw_matched[:35],
+        "detail": {
+            "keyword_coverage": round(kw_score),
+            "ats_section": round(ats_section_score),
+            "structure": round(structure_score),
+            "title_match": round(title_score),
+            "skills_match": round(skills_score),
+        },
+        "strengths": struct_strengths,
+        "weaknesses": struct_weaknesses,
     }
 
     return cv_enrichi

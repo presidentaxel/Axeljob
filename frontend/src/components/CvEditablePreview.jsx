@@ -39,8 +39,24 @@ function getByPath(obj, path) {
   return cur;
 }
 
-export default function CvEditablePreview({ cv, baseCv, onChange, templateId = 'classic', showPhoto = true, showMotsClesAts = true }) {
+const COLOR_RE = /^#[0-9a-fA-F]{3,8}$/;
+const CSS_VAR_MAP = { header_color: '--cv-header-color', sidebar_color: '--cv-sidebar-color', accent_color: '--cv-accent-color' };
+const FONT_SAFE = { 'Plus Jakarta Sans': "'Plus Jakarta Sans', Arial, sans-serif", 'Inter': "'Inter', Arial, sans-serif", 'Georgia': "Georgia, 'Times New Roman', serif" };
+
+function optionsToCssVars(opts) {
+  if (!opts) return {};
+  const vars = {};
+  for (const [key, cssVar] of Object.entries(CSS_VAR_MAP)) {
+    const v = opts[key];
+    if (v && typeof v === 'string' && COLOR_RE.test(v)) vars[cssVar] = v;
+  }
+  if (opts.font && FONT_SAFE[opts.font]) vars['--cv-font-heading'] = FONT_SAFE[opts.font];
+  return vars;
+}
+
+export default function CvEditablePreview({ cv, baseCv, onChange, templateId = 'classic', templateOptions, showPhoto = true, showMotsClesAts = true }) {
   const containerRef = useRef(null);
+  const cssVarOverrides = optionsToCssVars(templateOptions);
 
   const handleBlur = useCallback(() => {
     if (!containerRef.current || !onChange) return;
@@ -383,6 +399,7 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
     <div
       ref={containerRef}
       className="cv-editable-preview"
+      style={cssVarOverrides}
       onBlur={handleBlur}
     >
       <link rel="stylesheet" href={apiUrl(`/api/templates/${templateId}/template.css`)} />

@@ -24,7 +24,7 @@ Règles strictes :
 - Ton professionnel mais authentique, direct et accessible
 - 3 paragraphes maximum : accroche + adéquation CV/poste + motivation/disponibilité
 - Retourner UNIQUEMENT le corps de la lettre (pas de formule d'appel ni de signature)
-- Format : texte brut uniquement, paragraphes séparés par une ligne vide (double saut de ligne). Aucun formatage : pas d'astérisques (**), pas de gras ni markdown.
+- Format : texte brut uniquement, paragraphes séparés par une ligne vide (double saut de ligne). Aucun formatage : pas d'astérisques (**), pas de gras ni markdown. Ne jamais utiliser de tirets longs (– ou —) : utiliser uniquement le tiret simple (-).
 
 Ton et formulation - à respecter absolument :
 - Bannir les tournures pompeuses, guindées ou "haute société" : par exemple "suscite mon plus vif intérêt", "je me permets de", "au vu de", "je nourris l'ambition de", "c'est avec un vif enthousiasme que", "je serais ravi de", "je demeure à votre disposition"
@@ -86,7 +86,7 @@ Ton : direct et naturel. À proscrire : "suscite mon plus vif intérêt", "je me
     )
     if not r or not getattr(r, "text", None):
         raise ValueError("Réponse Gemini vide pour la lettre.")
-    corps = r.text.strip().replace("**", "").replace("__", "")
+    corps = r.text.strip().replace("**", "").replace("__", "").replace("\u2013", "-").replace("\u2014", "-")
     return corps
 
 
@@ -100,7 +100,7 @@ def _texte_to_html_paragraphes(texte: str) -> str:
 
 def corps_lettre_to_html(corps_brut: str) -> str:
     """Convertit le corps de lettre (texte brut) en HTML pour affichage."""
-    texte = (corps_brut or "").strip().replace("**", "").replace("__", "")
+    texte = (corps_brut or "").strip().replace("**", "").replace("__", "").replace("\u2013", "-").replace("\u2014", "-")
     return _texte_to_html_paragraphes(texte)
 
 
@@ -199,7 +199,7 @@ def generer_lettre_pdf_bytes_from_corps(
     from io import BytesIO
 
     base_dir = Path(base_dir).resolve() if base_dir else Path(__file__).resolve().parent
-    corps_html = _texte_to_html_paragraphes((corps_brut or "").strip().replace("**", "").replace("__", ""))
+    corps_html = _texte_to_html_paragraphes((corps_brut or "").strip().replace("**", "").replace("__", "").replace("\u2013", "-").replace("\u2014", "-"))
 
     from jinja2 import Environment, FileSystemLoader, select_autoescape
     from weasyprint import HTML, CSS

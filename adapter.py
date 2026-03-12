@@ -45,7 +45,7 @@ Tu DOIS :
 - Rédiger le resume en 2-3 phrases max, ton professionnel mais sobre et crédible. Le résumé doit TOUJOURS commencer par « Étudiant ESSEC » (ex. « Étudiant ESSEC, je recherche… », « Étudiant ESSEC, intéressé par… »). Enchaîner avec la 1ère personne et le titre du poste visé, des mots-clés de l'offre. Ne jamais écrire « je suis un futur X » ni revendiquer le poste comme si on l'occupait déjà. NE JAMAIS utiliser « passionné », « passionné par », « passion » (ex. « passionné par l'univers du luxe ») : bannir. Utiliser « intéressé par », « intérêt pour ». Éviter « professionnel autonome », « je suis un professionnel… », « une expertise » (préférer « compétences », « expérience ») : garder l'ancrage étudiant ESSEC, ton direct sans sur-enchère. Pour un domaine que le CV ne décrit pas en expérience directe : « atout pour… », « idéal pour… ».
 - Remplir mots_cles_cache avec une chaîne d'environ 50 à 60 mots-clés et courtes expressions de l'annonce (séparés par des espaces), pour optimisation ATS (mots-clés techniques, compétences, outils, métiers). Pas de phrases longues, uniquement des termes pertinents.
 - Extraire dans poste_offre UNIQUEMENT l'intitulé du poste (ex. "Alternance Risk Manager", "Gestionnaire Data Center"), sans ajouter de mot parasite : pas de "demande", "offre", "recherche", "poste à pourvoir". Ne jamais inclure « (H/F) » ni « (F/H) » dans le titre du poste ni dans le resume - les retirer systématiquement.
-- Ne jamais utiliser de formatage (pas de gras, pas d'astérisques) : tout le texte (resume, bullet_points) doit être en texte brut uniquement, sans ** ni __ ni aucun markdown.
+- Ne jamais utiliser de formatage (pas de gras, pas d'astérisques) : tout le texte (resume, bullet_points) doit être en texte brut uniquement, sans ** ni __ ni aucun markdown. Ne jamais utiliser de tirets longs (\u2013 ou \u2014) : utiliser uniquement le tiret simple (-).
 
 Format de sortie : UNIQUEMENT un objet JSON, sans markdown, sans commentaire, sans texte avant ou après.
 """
@@ -105,10 +105,10 @@ Retourne UNIQUEMENT un JSON avec exactement cette structure (pas d'autre clé) :
 
 
 def _strip_markdown_bold(text: str) -> str:
-    """Retire le formatage gras markdown (** ou __) pour ne garder que le texte brut."""
+    """Retire le formatage gras markdown (** ou __) et les tirets d'IA (\u2013 \u2014) pour ne garder que du texte brut."""
     if not text or not isinstance(text, str):
         return text
-    return text.replace("**", "").replace("__", "").strip()
+    return text.replace("**", "").replace("__", "").replace("\u2013", "-").replace("\u2014", "-").strip()
 
 
 def _strip_h_f(text: str) -> str:

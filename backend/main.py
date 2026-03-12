@@ -15,12 +15,16 @@ from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 
+from concurrent.futures import ThreadPoolExecutor
+
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
+
+_thread_pool = ThreadPoolExecutor(max_workers=8)
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -89,6 +93,11 @@ app = FastAPI(
     docs_url=None if IS_PRODUCTION else "/docs",
     redoc_url=None if IS_PRODUCTION else "/redoc",
 )
+
+@app.on_event("startup")
+def _set_thread_pool():
+    import asyncio
+    asyncio.get_event_loop().set_default_executor(_thread_pool)
 
 # --- Middlewares ---
 app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -390,6 +399,18 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
     css_vars_style = options_to_css_vars(resolved_opts)
     if css_vars_style:
         html_str = html_str.replace("</head>", css_vars_style + "</head>", 1)
+
+    exp_count = len(experiences_for_display)
+    bullet_count = sum(len(e.get("bullet_points") or []) for e in experiences_for_display)
+    form_count = len(ctx.get("formations_for_display") or [])
+    proj_count = len(ctx.get("projets_for_display") or [])
+    content_score = exp_count * 3 + bullet_count + form_count + proj_count
+    if content_score <= 6:
+        scale_css = "<style>body{font-size:11pt;line-height:1.55}.resume-text{font-size:10.5pt;line-height:1.6}.bullet{font-size:10.5pt;line-height:1.5}.sidebar-item{font-size:9.5pt;line-height:1.4}.section-title{font-size:10.5pt}.exp-poste{font-size:11pt}</style>"
+        html_str = html_str.replace("</head>", scale_css + "</head>", 1)
+    elif content_score <= 10:
+        scale_css = "<style>body{font-size:10pt;line-height:1.5}.resume-text{font-size:10pt;line-height:1.55}.bullet{font-size:9.5pt;line-height:1.45}.sidebar-item{font-size:9pt;line-height:1.35}</style>"
+        html_str = html_str.replace("</head>", scale_css + "</head>", 1)
 
     if highlight_changes and base_cv:
         highlight_styles = (
@@ -996,9 +1017,11 @@ def _check_premium_template(user_id: str | None, template_id: str | None):
     meta = get_template(template_id)
     if not meta.get("premium"):
         return
-    plan = get_user_plan(user_id) if user_id else "free"
-    if plan != "pro":
-        raise HTTPException(status_code=402, detail="Ce template est réservé aux abonnés Pro.")
+    uid = (user_id or "default").strip() or "default"
+    plan = get_user_plan(uid)
+    if plan == "pro" or get_paywall_disabled(uid):
+        return
+    raise HTTPException(status_code=402, detail="Ce template est réservé aux abonnés Pro.")
 
 
 @app.post("/api/create-checkout-session")
@@ -1014,6 +1037,7 @@ def api_create_checkout_session(request: Request):
         session = client.checkout.sessions.create(params={
             "mode": "subscription",
             "client_reference_id": user_id,
+            "allow_promotion_codes": True,
             "line_items": [{"price": STRIPE_PRICE_ID_PRO_MONTHLY, "quantity": 1}],
             "success_url": f"{base}/?success=pro",
             "cancel_url": f"{base}/?cancel=checkout",
@@ -1096,7 +1120,8 @@ def api_usage(request: Request):
     adaptations_limit = 999999 if (plan == "pro" or no_paywall) else FREE_ADAPTATIONS_LIMIT
     applications_limit = 999999 if (plan == "pro" or no_paywall) else FREE_APPLICATIONS_LIMIT
     return {
-        "plan": plan,
+        "plan": "pro" if no_paywall else plan,
+        "paywall_disabled": no_paywall,
         "adaptations_used": count,
         "adaptations_limit": adaptations_limit,
         "applications_count": count,
@@ -1184,6 +1209,7 @@ def api_adapt(request: Request, body: AdaptBody):
         return {
             "cv": merged,
             "rapport": rapport_after or rapport,
+            "rapport_before": rapport,
             "tweaks": tweaks,
             "adaptation_id": adaptation_id,
         }

@@ -87,7 +87,7 @@
 .profile-preview-wrap {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: hidden;
+  overflow: visible;
   background: var(--bg);
   box-shadow: var(--shadow-sm);
 }
@@ -95,7 +95,7 @@
 .profile-preview-iframe {
   border: none;
   width: 100%;
-  min-height: 600px;
+  min-height: 1150px;
   display: block;
 }
 

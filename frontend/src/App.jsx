@@ -161,6 +161,7 @@ export default function App() {
   const [originalPreviewHtml, setOriginalPreviewHtml] = useState('');
   const [modifiedPreviewHtml, setModifiedPreviewHtml] = useState('');
   const [rapport, setRapport] = useState(null);
+  const [rapportBefore, setRapportBefore] = useState(null);
   const [error, setError] = useState('');
   const [exportBlockVisible, setExportBlockVisible] = useState(false);
   const [adapting, setAdapting] = useState(false);
@@ -224,6 +225,7 @@ export default function App() {
   const [justAddedAppId, setJustAddedAppId] = useState(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [profileRefreshKey, setProfileRefreshKey] = useState(0);
   const [userDisplayName, setUserDisplayName] = useState('');
   const [templateId, setTemplateId] = useState(() => localStorage.getItem('cv_template_id') || 'classic');
   const [templateOptions, setTemplateOptions] = useState(() => {
@@ -551,6 +553,7 @@ export default function App() {
         setLastAdaptedCv(data.cv);
         setLastAdaptationId(data.adaptation_id || null);
         setRapport(data.rapport || {});
+        setRapportBefore(data.rapport_before || null);
         setExportBlockVisible(true);
         setSourceOffreValue('');
         setPreviewVariant('modified');
@@ -570,7 +573,7 @@ export default function App() {
         setPreviewHtml(html);
         setModifiedPreviewHtml(html);
         const summary = data.rapport?.score_global != null
-          ? `CV adapté (score ${data.rapport.score_global}/10). Tu peux affiner en envoyant un autre message ou modifier le texte avant téléchargement.`
+          ? `CV adapté (score ATS : ${data.rapport.score_global}/100). Tu peux affiner en envoyant un autre message ou modifier le texte avant téléchargement.`
           : 'CV adapté à l\'offre. Envoie un message pour affiner ou clique sur « Modifier le CV » pour éditer le texte.';
         setChatMessages((prev) => [...prev, { role: 'assistant', content: summary }]);
       } else {
@@ -1017,6 +1020,7 @@ export default function App() {
             session={session}
             onComplete={(target) => {
               setNeedsOnboarding(false);
+              setProfileRefreshKey((k) => k + 1);
               if (target === 'profil') navigate('/app/profil');
               else navigate('/app/cv');
             }}
@@ -1157,6 +1161,7 @@ export default function App() {
                     cv={lastAdaptedCv}
                     baseCv={lastBaseCv}
                     templateId={templateId}
+                    templateOptions={templateOptions}
                     showPhoto={templateOptions?.show_photo !== false}
                     showMotsClesAts={templateOptions?.show_mots_cles_ats !== false}
                     onChange={(updatedCv) => {
@@ -1197,42 +1202,61 @@ export default function App() {
                         aria-haspopup="dialog"
                       >
                         <span className="ats-score-label">Score ATS</span>
-                        <span className="ats-score-value">{Math.round((rapport.score_global / 10) * 100)}/100</span>
+                        {rapportBefore?.score_global != null && rapportBefore.score_global !== rapport.score_global ? (
+                          <span className="ats-score-value">
+                            <span className="ats-score-before">{rapportBefore.score_global}</span>
+                            <span className="ats-score-arrow">&rarr;</span>
+                            <span className="ats-score-after">{rapport.score_global}/100</span>
+                          </span>
+                        ) : (
+                          <span className="ats-score-value">{rapport.score_global}/100</span>
+                        )}
                       </button>
                       {atsScoreOpen && (
                         <div className="ats-score-dropdown ats-score-dropdown--export" role="dialog" aria-label="Détails du score ATS">
-                          <div className="ats-score-section">
-                            <strong>Points forts</strong>
-                            <ul>
-                              {(!rapport.zones_a_adapter || rapport.zones_a_adapter.length === 0) && (
-                                <li>Structure et sections bien identifiables par les ATS</li>
-                              )}
-                              {(rapport.mots_cles_manquants || []).length <= 5 && (rapport.mots_cles_manquants || []).length > 0 && (
-                                <li>Peu de mots-clés manquants par rapport à l&apos;offre</li>
-                              )}
-                              {(rapport.mots_cles_manquants || []).length === 0 && (
-                                <li>Mots-clés pertinents trouvés dans le CV</li>
-                              )}
-                              <li>Score de pertinence calculé pour chaque expérience</li>
-                            </ul>
-                          </div>
+                          {rapport.detail && (
+                            <div className="ats-score-section ats-detail-bars">
+                              <strong>Détail du score</strong>
+                              {[
+                                { key: 'keyword_coverage', label: 'Mots-clés', weight: 35 },
+                                { key: 'ats_section', label: 'Section ATS', weight: 15 },
+                                { key: 'structure', label: 'Structure', weight: 20 },
+                                { key: 'title_match', label: 'Titre', weight: 15 },
+                                { key: 'skills_match', label: 'Compétences', weight: 15 },
+                              ].map(({ key, label, weight }) => (
+                                <div key={key} className="ats-bar-row">
+                                  <span className="ats-bar-label">{label} <span className="ats-bar-weight">({weight}%)</span></span>
+                                  <div className="ats-bar-track">
+                                    <div className="ats-bar-fill" style={{ width: `${rapport.detail[key] || 0}%` }} />
+                                  </div>
+                                  <span className="ats-bar-value">{rapport.detail[key] || 0}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {(rapport.strengths || []).length > 0 && (
+                            <div className="ats-score-section">
+                              <strong>Points forts</strong>
+                              <ul>
+                                {rapport.strengths.map((s, i) => <li key={i}>{s}</li>)}
+                              </ul>
+                            </div>
+                          )}
                           <div className="ats-score-section">
                             <strong>Points d&apos;amélioration</strong>
                             <ul>
+                              {(rapport.weaknesses || []).map((w, i) => <li key={i}>{w}</li>)}
                               {(rapport.zones_a_adapter || []).includes('titre') && (
                                 <li>Titre professionnel à aligner avec l&apos;offre</li>
                               )}
                               {(rapport.zones_a_adapter || []).includes('resume') && (
                                 <li>Résumé / accroche à enrichir avec des mots-clés de l&apos;offre</li>
                               )}
-                              {(rapport.zones_a_adapter || []).filter((z) => z.startsWith('exp_')).map((z) => (
-                                <li key={z}>Renforcer l&apos;expérience concernée avec des mots-clés ciblés</li>
-                              ))}
                               {(rapport.mots_cles_manquants || []).length > 5 && (
                                 <li>Intégrer davantage de mots-clés de l&apos;offre (ex. : {(rapport.mots_cles_manquants || []).slice(0, 5).join(', ')}…)</li>
                               )}
-                              {(rapport.zones_a_adapter || []).length === 0 && (rapport.mots_cles_manquants || []).length <= 5 && (
-                                <li>Aucun point critique ; tu peux affiner le style ou la formulation.</li>
+                              {(rapport.weaknesses || []).length === 0 && (rapport.zones_a_adapter || []).length === 0 && (rapport.mots_cles_manquants || []).length <= 5 && (
+                                <li>Aucun point critique, tu peux affiner le style.</li>
                               )}
                             </ul>
                           </div>
@@ -1563,6 +1587,7 @@ export default function App() {
                     setLastAdaptedCv(data.cv);
                     setLastAdaptationId(data.adaptation_id || null);
                     setRapport(data.rapport || {});
+                    setRapportBefore(data.rapport_before || null);
                     setExportBlockVisible(true);
                     setPreviewVariant('modified');
                     loadApplications();
@@ -1574,7 +1599,7 @@ export default function App() {
                     setPreviewHtml(html);
                     setModifiedPreviewHtml(html);
                     const summary = data.rapport?.score_global != null
-                      ? `CV adapté (score ${data.rapport.score_global}/10). Tu peux affiner en envoyant un autre message.`
+                      ? `CV adapté (score ${data.rapport.score_global}/100). Tu peux affiner en envoyant un autre message.`
                       : 'CV adapté. Envoie un message pour affiner ou clique sur le texte pour éditer.';
                     setChatMessages((prev) => [...prev, { role: 'assistant', content: summary }]);
                   } catch (e) {
@@ -1602,7 +1627,7 @@ export default function App() {
             <p className="page-subtitle">Ton CV de base. Modifications enregistrées automatiquement.</p>
           </header>
           <div className="page-content">
-            <ProfileView onSaveSuccess={handleProfileSaveSuccess} session={session} />
+            <ProfileView onSaveSuccess={handleProfileSaveSuccess} session={session} refreshKey={profileRefreshKey} />
           </div>
         </div>
 

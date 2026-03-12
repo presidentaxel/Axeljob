@@ -208,7 +208,7 @@ nano .env.production
 nano frontend/.env
 ```
 
-Le `docker-compose.yml` utilise `env_file: .env.production` — Docker lira les secrets directement depuis ce fichier, qui n'est **jamais dans Git**.
+Le `docker-compose.yml` utilise `env_file: .env` — Docker lira les secrets directement depuis ce fichier, qui n'est **jamais dans Git**.
 
 **Pour les mises a jour suivantes**, seul le code change :
 
@@ -429,7 +429,7 @@ Creer `/etc/caddy/Caddyfile` :
 
 ```
 cv.tondomaine.com {
-    reverse_proxy localhost:80
+    reverse_proxy localhost:3000
 }
 ```
 

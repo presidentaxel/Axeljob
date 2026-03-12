@@ -69,7 +69,7 @@ function CollapsibleSection({ title, defaultOpen = true, required, children }) {
   );
 }
 
-export default function ProfileView({ onSaveSuccess, session }) {
+export default function ProfileView({ onSaveSuccess, session, refreshKey }) {
   const [cv, setCv] = useState(defaultCv());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -103,7 +103,7 @@ export default function ProfileView({ onSaveSuccess, session }) {
       })
       .catch(() => setCv(defaultCv()))
       .finally(() => setLoading(false));
-  }, [session?.user?.id]);
+  }, [session?.user?.id, refreshKey]);
 
   // Auto-trigger LinkedIn sync/photo after OAuth redirect
   const linkedinAutoTriggeredRef = useRef(false);

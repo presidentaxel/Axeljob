@@ -33,6 +33,7 @@ from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_
 from backend.config import (
     BASE_DIR as CONFIG_BASE_DIR,
     API_BASE_URL,
+    SUPABASE_URL,
     SUPABASE_JWT_SECRET,
     USE_SUPABASE,
     STRIPE_SECRET_KEY,
@@ -433,7 +434,17 @@ def _get_user_id(request: Request) -> str | None:
         return None
     try:
         import jwt
-        payload = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"], audience="authenticated")
+        header = jwt.get_unverified_header(token)
+        alg = header.get("alg", "HS256")
+        if alg == "HS256":
+            payload = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"], audience="authenticated")
+        else:
+            from jwt import PyJWKClient
+            jwks_url = f"{SUPABASE_URL.rstrip('/')}/auth/v1/.well-known/jwks.json"
+            if not hasattr(_get_user_id, "_jwks_client"):
+                _get_user_id._jwks_client = PyJWKClient(jwks_url, cache_keys=True)
+            signing_key = _get_user_id._jwks_client.get_signing_key_from_jwt(token)
+            payload = jwt.decode(token, signing_key.key, algorithms=[alg], audience="authenticated")
         return (payload.get("sub") or "").strip() or None
     except Exception as e:
         logger.warning("JWT decode failed: %s (token prefix: %s…)", e, token[:20] if token else "empty")

@@ -24,7 +24,7 @@ import ApplicationDetailModal from './components/ApplicationDetailModal';
 import TemplatePicker from './components/TemplatePicker';
 import GuidedTour from './components/GuidedTour';
 import { STORAGE_EXPORT_DIR, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
-import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight } from 'react-icons/hi2';
+import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiCheck } from 'react-icons/hi2';
 import './App.css';
 import './styles/TemplatePicker.css';
 import './styles/GuidedTour.css';
@@ -1737,10 +1737,10 @@ export default function App() {
                     Tu profites de tous les avantages du forfait Pro.
                   </p>
                   <ul className="pro-features-list">
-                    <li><span className="pro-check">&#10003;</span>Adaptations IA illimitées</li>
-                    <li><span className="pro-check">&#10003;</span>Suivi de candidatures illimité</li>
-                    <li><span className="pro-check">&#10003;</span>Templates premium</li>
-                    <li><span className="pro-check">&#10003;</span>Lettre de motivation ciblée (à venir)</li>
+                    <li><span className="pro-check"><HiCheck size={14} strokeWidth={2.5} /></span>Adaptations IA illimitées</li>
+                    <li><span className="pro-check"><HiCheck size={14} strokeWidth={2.5} /></span>Suivi de candidatures illimité</li>
+                    <li><span className="pro-check"><HiCheck size={14} strokeWidth={2.5} /></span>Templates premium</li>
+                    <li><span className="pro-check"><HiCheck size={14} strokeWidth={2.5} /></span>Lettre de motivation ciblée (à venir)</li>
                   </ul>
                   <div className="linkedin-sync-actions" style={{ marginTop: '1rem', flexDirection: 'column', gap: '0.5rem' }}>
                     <button type="button" className="btn btn-secondary" onClick={() => { setProModalVisible(false); handleManageSubscription(); }} disabled={checkoutLoading}>

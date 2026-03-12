@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { HiLockClosed } from 'react-icons/hi2';
 import { apiGet } from '../api';
 
 const PREVIEW_THUMBNAILS = {
@@ -179,7 +180,7 @@ export default function TemplatePicker({ templateId, templateOptions, onChangeTe
               >
                 <MiniPreview templateId={t.id} isActive={templateId === t.id} />
                 <span className="tpl-chip-label">{t.name}</span>
-                {userPlan !== 'pro' && <span className="tpl-lock">&#128274;</span>}
+                {userPlan !== 'pro' && <HiLockClosed className="tpl-lock" size={12} aria-hidden />}
               </button>
             ))}
           </>

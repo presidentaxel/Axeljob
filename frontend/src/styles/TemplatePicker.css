@@ -63,9 +63,11 @@
 }
 
 .tpl-lock {
-  font-size: 9px;
-  margin-left: -2px;
+  margin-left: 2px;
   flex-shrink: 0;
+  display: inline-flex;
+  vertical-align: middle;
+  color: var(--muted, #64748b);
 }
 
 .tpl-separator {

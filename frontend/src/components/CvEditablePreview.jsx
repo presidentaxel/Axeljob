@@ -1,4 +1,5 @@
 import { useCallback, useRef } from 'react';
+import { HiPhone, HiEnvelope, HiLink } from 'react-icons/hi2';
 import { apiUrl } from '../api';
 import './CvEditablePreview.css';
 
@@ -426,15 +427,15 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
           )}
           {((cv.telephone || '').trim() || (cv.email || '').trim() || (cv.linkedin || '').trim()) ? (
             <p className="header-contact">
-              <span className="contact-icon">✆</span>{' '}
+              <span className="contact-icon"><HiPhone size={14} aria-hidden /></span>{' '}
               <span data-cv-field="telephone" className={isChanged('telephone') ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{cv.telephone || ''}</span>
               <span className="contact-spacer"> </span>
-              <span className="contact-icon">✉</span>{' '}
+              <span className="contact-icon"><HiEnvelope size={14} aria-hidden /></span>{' '}
               <span data-cv-field="email" className={isChanged('email') ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{cv.email || ''}</span>
               {(cv.linkedin || '').trim() ? (
                 <>
                   <span className="contact-spacer"> </span>
-                  <span className="contact-icon">◉</span>{' '}
+                  <span className="contact-icon"><HiLink size={14} aria-hidden /></span>{' '}
                   <span data-cv-field="linkedin" className={isChanged('linkedin') ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{cv.linkedin || ''}</span>
                 </>
               ) : (

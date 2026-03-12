@@ -78,7 +78,18 @@
 }
 
 @media (max-width: 767px) {
-  .landing-nav a { display: none; }
+  .landing-nav { display: none; }
+}
+
+.landing-mobile-cta {
+  display: none;
+  margin-left: auto;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 767px) {
+  .landing-mobile-cta { display: inline-flex; }
 }
 
 /* Hero */
@@ -132,6 +143,18 @@
 .landing-cta-hero:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 16px rgba(79, 70, 229, 0.35);
+}
+
+.landing-hero-ctas {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.landing-hero-hint {
+  font-size: 0.8rem;
+  color: var(--muted);
 }
 
 /* Hero visual / mockup */
@@ -443,13 +466,162 @@
   font-size: 1rem;
 }
 
+/* Pricing */
+.landing-section-subtitle {
+  text-align: center;
+  color: var(--muted);
+  font-size: 1rem;
+  margin: -1.5rem 0 2.5rem;
+}
+
+.landing-pricing {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+@media (max-width: 600px) {
+  .landing-pricing {
+    grid-template-columns: 1fr;
+    max-width: 400px;
+  }
+}
+
+.pricing-card {
+  position: relative;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s;
+}
+
+.pricing-card--pro {
+  border-color: var(--accent);
+  box-shadow: 0 4px 24px rgba(79, 70, 229, 0.12);
+}
+
+.pricing-badge {
+  position: absolute;
+  top: -0.65rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.85rem;
+  border-radius: 100px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.pricing-card-header {
+  margin-bottom: 1.5rem;
+}
+
+.pricing-plan-name {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.pricing-price {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.pricing-amount {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.pricing-period {
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.pricing-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  flex: 1;
+}
+
+.pricing-features li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text);
+}
+
+.pricing-features li svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.pricing-cta {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  font-size: 0.9rem;
+}
+
 /* Footer */
 .landing-footer {
   width: 100%;
-  text-align: center;
-  padding: 1.25rem;
+  padding: 1.5rem 0;
   font-size: 0.8rem;
   color: var(--muted);
   border-top: 1px solid var(--border);
   background: var(--bg);
+}
+
+.landing-footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.landing-footer-inner p {
+  margin: 0;
+}
+
+.landing-footer-links {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.landing-footer-links a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.8rem;
+  transition: color 0.15s;
+}
+
+.landing-footer-links a:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+  .landing-footer-inner {
+    flex-direction: column;
+    text-align: center;
+  }
 }

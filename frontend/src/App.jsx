@@ -16,6 +16,7 @@ import { supabase } from './lib/supabase';
 import ProfileView from './components/ProfileView';
 import AuthForm from './components/AuthForm';
 import LandingPage from './components/LandingPage';
+import LegalPages from './components/LegalPages';
 import OnboardingWizard from './components/OnboardingWizard';
 import CvEditablePreview from './components/CvEditablePreview';
 import CompanyLogo from './components/CompanyLogo';
@@ -599,6 +600,19 @@ export default function App() {
     }
   };
 
+  const handleManageSubscription = async () => {
+    setCheckoutLoading(true);
+    try {
+      const { url } = await apiPost('/api/create-portal-session', {});
+      if (url) window.location.href = url;
+      else setError('Impossible d\'accéder au portail de gestion.');
+    } catch (e) {
+      setError(e.message || 'Gestion non disponible.');
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
+
   const onPreviewVariantChange = (v) => {
     setPreviewVariant(v);
   };
@@ -910,6 +924,9 @@ export default function App() {
         </div>
       );
     }
+    if (pathname === '/mentions-legales' || pathname === '/confidentialite' || pathname === '/cgu') {
+      return <LegalPages page={pathname.slice(1)} onBack={() => navigate('/')} />;
+    }
     return <LandingPage onCtaClick={() => navigate('/login')} />;
   }
 
@@ -973,11 +990,19 @@ export default function App() {
             <span>Support</span>
           </NavLink>
         </nav>
-        {session && (
-          <button type="button" className="sidebar-upgrade-btn" onClick={handleUpgradeClick} disabled={checkoutLoading}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            <span>{checkoutLoading ? 'Chargement…' : 'Passer Pro'}</span>
-          </button>
+        {session && usage && (
+          usage.plan === 'pro' ? (
+            <button type="button" className="sidebar-plan-btn sidebar-plan-btn--pro" onClick={handleManageSubscription} disabled={checkoutLoading}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              <span>Pro</span>
+              <span className="sidebar-plan-manage">Gérer</span>
+            </button>
+          ) : (
+            <button type="button" className="sidebar-upgrade-btn" onClick={handleUpgradeClick} disabled={checkoutLoading}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              <span>{checkoutLoading ? 'Chargement…' : 'Passer Pro'}</span>
+            </button>
+          )
         )}
         {supabase && (
           <div className="sidebar-auth">

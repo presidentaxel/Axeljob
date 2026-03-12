@@ -1022,6 +1022,40 @@ async def api_stripe_webhook(request: Request):
     return {"received": True}
 
 
+@app.post("/api/create-portal-session")
+def api_create_portal_session(request: Request):
+    """Crée une session Stripe Customer Portal pour gérer l'abonnement."""
+    user_id = _require_user_id(request)
+    if not STRIPE_SECRET_KEY:
+        raise HTTPException(status_code=503, detail="Paiement non configuré.")
+    try:
+        import stripe
+        client = stripe.StripeClient(STRIPE_SECRET_KEY)
+        customers = client.customers.search(params={"query": f"metadata['user_id']:'{user_id}'"})
+        if not customers.data:
+            sessions = client.checkout.sessions.list(params={"limit": 100})
+            customer_id = None
+            for s in sessions.data:
+                if s.client_reference_id == user_id and s.customer:
+                    customer_id = s.customer if isinstance(s.customer, str) else s.customer.id
+                    break
+            if not customer_id:
+                raise HTTPException(status_code=404, detail="Aucun abonnement trouvé.")
+        else:
+            customer_id = customers.data[0].id
+        base = (FRONTEND_URL or "").rstrip("/")
+        portal = client.billing_portal.sessions.create(params={
+            "customer": customer_id,
+            "return_url": f"{base}/app/profil",
+        })
+        return {"url": portal.url}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(e)
+        raise HTTPException(status_code=500, detail="Erreur interne.")
+
+
 @app.get("/api/usage")
 def api_usage(request: Request):
     """Retourne les quotas (adaptations, candidatures) et le plan (free/pro)."""

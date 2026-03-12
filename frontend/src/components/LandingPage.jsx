@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import './LandingPage.css';
 
 const STEPS = [
@@ -30,6 +31,22 @@ const BENEFITS = [
   { title: 'Suivi centralisé', desc: 'Toutes tes candidatures au même endroit : statuts, entretiens, relances et exports.' },
 ];
 
+const FREE_FEATURES = [
+  '3 adaptations de CV',
+  'Import PDF / Word / LinkedIn',
+  'Suivi de candidatures',
+  'Export PDF',
+];
+
+const PRO_FEATURES = [
+  'Adaptations illimitées',
+  'Import PDF / Word / LinkedIn',
+  'Suivi de candidatures illimité',
+  'Export PDF & dossier complet',
+  'Lettre de motivation IA',
+  'Support prioritaire',
+];
+
 export default function LandingPage({ onCtaClick }) {
   return (
     <div className="landing">
@@ -40,11 +57,15 @@ export default function LandingPage({ onCtaClick }) {
             <span className="landing-brand">CV Bot</span>
             <nav className="landing-nav">
               <a href="#comment">Comment ça marche</a>
+              <a href="#tarifs">Tarifs</a>
               <a href="#features">Fonctionnalités</a>
               <button type="button" className="btn btn-primary landing-cta-nav" onClick={onCtaClick}>
                 Essayer gratuitement
               </button>
             </nav>
+            <button type="button" className="landing-mobile-cta btn btn-primary" onClick={onCtaClick}>
+              Commencer
+            </button>
           </div>
         </div>
       </header>
@@ -54,14 +75,17 @@ export default function LandingPage({ onCtaClick }) {
           <div className="landing-hero-inner">
             <div className="landing-hero-content">
               <h1 className="landing-hero-title">
-                Ne rate plus aucune opportunité. Ton CV sur-mesure pour chaque annonce, en 1 clic.
+                Ton CV sur-mesure pour chaque annonce, en 1 clic.
               </h1>
               <p className="landing-hero-subtitle">
                 {"L'IA analyse l'offre d'emploi et adapte instantanément ton CV pour passer les filtres (ATS) et taper dans l'œil des recruteurs."}
               </p>
-              <button type="button" className="btn btn-primary landing-cta-hero" onClick={onCtaClick}>
-                Essayer gratuitement
-              </button>
+              <div className="landing-hero-ctas">
+                <button type="button" className="btn btn-primary landing-cta-hero" onClick={onCtaClick}>
+                  Essayer gratuitement
+                </button>
+                <span className="landing-hero-hint">3 adaptations offertes — sans carte bancaire</span>
+              </div>
             </div>
             <div className="landing-hero-visual">
               <div className="landing-hero-mockup">
@@ -95,61 +119,112 @@ export default function LandingPage({ onCtaClick }) {
 
       <section id="comment" className="landing-section">
         <div className="landing-container">
-        <h2 className="landing-section-title">Comment ça marche</h2>
-        <div className="landing-steps">
-          {STEPS.map((step, i) => (
-            <div key={step.icon} className="landing-step">
-              <div className="landing-step-icon">
-                {step.icon === 'profile' && (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-                  </svg>
-                )}
-                {step.icon === 'paste' && (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/>
-                  </svg>
-                )}
-                {step.icon === 'sparkles' && (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
-                  </svg>
-                )}
+          <h2 className="landing-section-title">Comment ça marche</h2>
+          <div className="landing-steps">
+            {STEPS.map((step, i) => (
+              <div key={step.icon} className="landing-step">
+                <div className="landing-step-icon">
+                  {step.icon === 'profile' && (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                    </svg>
+                  )}
+                  {step.icon === 'paste' && (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/>
+                    </svg>
+                  )}
+                  {step.icon === 'sparkles' && (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+                    </svg>
+                  )}
+                </div>
+                <span className="landing-step-num">Étape {i + 1}</span>
+                <h3 className="landing-step-title">{step.title}</h3>
+                <p className="landing-step-desc">{step.desc}</p>
               </div>
-              <span className="landing-step-num">Étape {i + 1}</span>
-              <h3 className="landing-step-title">{step.title}</h3>
-              <p className="landing-step-desc">{step.desc}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
+      </section>
+
+      <section id="tarifs" className="landing-section">
+        <div className="landing-container">
+          <h2 className="landing-section-title">Tarifs</h2>
+          <p className="landing-section-subtitle">Commence gratuitement. Passe Pro quand tu en as besoin.</p>
+          <div className="landing-pricing">
+            <div className="pricing-card">
+              <div className="pricing-card-header">
+                <h3 className="pricing-plan-name">Gratuit</h3>
+                <div className="pricing-price">
+                  <span className="pricing-amount">0€</span>
+                  <span className="pricing-period">pour toujours</span>
+                </div>
+              </div>
+              <ul className="pricing-features">
+                {FREE_FEATURES.map((f) => (
+                  <li key={f}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <button type="button" className="btn btn-secondary pricing-cta" onClick={onCtaClick}>
+                Commencer gratuitement
+              </button>
+            </div>
+
+            <div className="pricing-card pricing-card--pro">
+              <div className="pricing-badge">Populaire</div>
+              <div className="pricing-card-header">
+                <h3 className="pricing-plan-name">Pro</h3>
+                <div className="pricing-price">
+                  <span className="pricing-amount">10€</span>
+                  <span className="pricing-period">/ mois</span>
+                </div>
+              </div>
+              <ul className="pricing-features">
+                {PRO_FEATURES.map((f) => (
+                  <li key={f}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <button type="button" className="btn btn-primary pricing-cta" onClick={onCtaClick}>
+                Essayer gratuitement
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
       <section id="features" className="landing-section">
         <div className="landing-container">
-        <h2 className="landing-section-title">Fonctionnalités</h2>
-        <div className="landing-features-grid">
-          {FEATURES.map((f) => (
-            <div key={f.title} className="landing-feature-card">
-              <h3 className="landing-feature-title">{f.title}</h3>
-              <p className="landing-feature-desc">{f.desc}</p>
-            </div>
-          ))}
-        </div>
+          <h2 className="landing-section-title">Fonctionnalités</h2>
+          <div className="landing-features-grid">
+            {FEATURES.map((f) => (
+              <div key={f.title} className="landing-feature-card">
+                <h3 className="landing-feature-title">{f.title}</h3>
+                <p className="landing-feature-desc">{f.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       <section className="landing-section">
         <div className="landing-container">
-        <h2 className="landing-section-title">Pourquoi CV Bot ?</h2>
-        <div className="landing-features-grid">
-          {BENEFITS.map((b) => (
-            <div key={b.title} className="landing-feature-card">
-              <h3 className="landing-feature-title">{b.title}</h3>
-              <p className="landing-feature-desc">{b.desc}</p>
-            </div>
-          ))}
-        </div>
+          <h2 className="landing-section-title">Pourquoi CV Bot ?</h2>
+          <div className="landing-features-grid">
+            {BENEFITS.map((b) => (
+              <div key={b.title} className="landing-feature-card">
+                <h3 className="landing-feature-title">{b.title}</h3>
+                <p className="landing-feature-desc">{b.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -164,7 +239,16 @@ export default function LandingPage({ onCtaClick }) {
       </section>
 
       <footer className="landing-footer">
-        <p>© CV Bot — Ton CV sur-mesure pour chaque annonce.</p>
+        <div className="landing-container">
+          <div className="landing-footer-inner">
+            <p>© {new Date().getFullYear()} CV Bot — Ton CV sur-mesure pour chaque annonce.</p>
+            <nav className="landing-footer-links">
+              <Link to="/mentions-legales">Mentions légales</Link>
+              <Link to="/confidentialite">Politique de confidentialité</Link>
+              <Link to="/cgu">CGU</Link>
+            </nav>
+          </div>
+        </div>
       </footer>
     </div>
   );

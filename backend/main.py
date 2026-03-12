@@ -468,32 +468,37 @@ def _require_user_id(request: Request) -> str:
 
 
 def _fetch_linkedin_profile(access_token: str) -> dict:
-    """Appelle l'API LinkedIn v2 pour récupérer le profil (nom, prénom, photo si dispo)."""
+    """Appelle l'API LinkedIn (OIDC userinfo) pour récupérer le profil (nom, prénom, photo)."""
     import requests
     headers = {"Authorization": f"Bearer {access_token}"}
     out = {}
-    # Profil de base
     r = requests.get(
-        "https://api.linkedin.com/v2/me",
+        "https://api.linkedin.com/v2/userinfo",
         headers=headers,
         timeout=10,
     )
     if r.status_code != 200:
         raise HTTPException(status_code=400, detail="Token LinkedIn invalide ou expiré. Reconnecte-toi avec LinkedIn.")
     data = r.json()
-    out["prenom"] = (data.get("localizedFirstName") or "").strip()
-    out["nom"] = (data.get("localizedLastName") or "").strip()
-    # Photo de profil (sous-ressource)
-    r2 = requests.get(
-        "https://api.linkedin.com/v2/me?projection=(profilePicture(displayImage~:playableStreams))",
-        headers=headers,
-        timeout=10,
-    )
-    if r2.status_code == 200:
-        pic = r2.json().get("profilePicture", {}) or {}
-        display = (pic.get("displayImage~") or {}).get("elements") or []
+    out["prenom"] = (data.get("given_name") or "").strip()
+    out["nom"] = (data.get("family_name") or "").strip()
+    out["email"] = (data.get("email") or "").strip()
+    picture_url = (data.get("picture") or "").strip()
+    if picture_url:
+        out["photo_url"] = picture_url
+    # Fallback: also try old /v2/me endpoint for profile picture if OIDC didn't return one
+    if not picture_url:
+        r2 = requests.get(
+            "https://api.linkedin.com/v2/me?projection=(profilePicture(displayImage~:playableStreams))",
+            headers=headers,
+            timeout=10,
+        )
+        display = []
+        if r2.status_code == 200:
+            pic = r2.json().get("profilePicture", {}) or {}
+            display = (pic.get("displayImage~") or {}).get("elements") or []
         if display and isinstance(display[0], dict):
-            ids = (display[0].get("identifiers") or [])
+            ids = display[0].get("identifiers") or []
             if ids and ids[0].get("identifier"):
                 out["photo_url"] = ids[0]["identifier"]
     return out

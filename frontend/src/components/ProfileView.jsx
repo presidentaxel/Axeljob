@@ -347,7 +347,14 @@ export default function ProfileView({ onSaveSuccess, session }) {
         setLinkedinError('Aucune diff\u00e9rence entre ton CV et ton profil LinkedIn.');
       }
     } catch (e) {
-      setLinkedinError(e.message || 'Impossible de r\u00e9cup\u00e9rer le profil LinkedIn.');
+      const msg = e.message || '';
+      const isTokenError = msg.includes('invalide') || msg.includes('expir') || e.status === 400;
+      if (isTokenError) {
+        setLinkedinModalOpen(false);
+        setLinkedinLoading(false);
+        throw e;
+      }
+      setLinkedinError(msg || 'Impossible de r\u00e9cup\u00e9rer le profil LinkedIn.');
       setProposedChanges([]);
     } finally {
       setLinkedinLoading(false);
@@ -377,7 +384,11 @@ export default function ProfileView({ onSaveSuccess, session }) {
       await initiateLinkedInOAuth(LINKEDIN_SYNC_KEY);
       return;
     }
-    await fetchLinkedInWithToken(token);
+    try {
+      await fetchLinkedInWithToken(token);
+    } catch {
+      await initiateLinkedInOAuth(LINKEDIN_SYNC_KEY);
+    }
   };
 
   const toggleChangeSelection = (id) => {
@@ -419,7 +430,11 @@ export default function ProfileView({ onSaveSuccess, session }) {
       await initiateLinkedInOAuth(LINKEDIN_PHOTO_KEY);
       return;
     }
-    await handleImportLinkedInPhotoWithToken(token);
+    try {
+      await handleImportLinkedInPhotoWithToken(token);
+    } catch {
+      await initiateLinkedInOAuth(LINKEDIN_PHOTO_KEY);
+    }
   };
 
   const handleApplyLinkedInChanges = async () => {

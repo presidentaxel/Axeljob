@@ -605,7 +605,13 @@ export default function App() {
     setCvEditPanelOpen(false);
   };
 
-  const handleUpgradeClick = async () => {
+  const [proModalVisible, setProModalVisible] = useState(false);
+
+  const handleUpgradeClick = () => {
+    setProModalVisible(true);
+  };
+
+  const handleStartCheckout = async () => {
     setCheckoutLoading(true);
     try {
       const { url } = await apiPost('/api/create-checkout-session', {});
@@ -993,7 +999,7 @@ export default function App() {
             </button>
           )}
           {session && usage && usage.plan === 'pro' && (
-            <button type="button" className="topbar-pro-badge" onClick={handleManageSubscription} disabled={checkoutLoading}>
+            <button type="button" className="topbar-pro-badge" onClick={() => setProModalVisible(true)}>
               Pro
             </button>
           )}
@@ -1697,9 +1703,9 @@ export default function App() {
         {upgradeModalVisible && (
           <div className="application-detail-overlay linkedin-sync-overlay" onClick={() => setUpgradeModalVisible(false)} role="dialog" aria-modal="true" aria-labelledby="upgrade-modal-title">
             <div className="linkedin-sync-modal upgrade-modal" onClick={(e) => e.stopPropagation()}>
-              <h3 id="upgrade-modal-title">Vous avez épuisé vos crédits gratuits</h3>
+              <h3 id="upgrade-modal-title">Crédits gratuits épuisés</h3>
               <p className="profile-subtitle" style={{ marginTop: 0 }}>
-                Passez en Pro pour des adaptations illimitées et décrocher le job de vos rêves.
+                Passe en Pro pour continuer à adapter tes CV sans limite.
               </p>
               <ul style={{ textAlign: 'left', margin: '1rem 0', paddingLeft: '1.25rem', color: 'var(--text)' }}>
                 <li>Adaptations IA illimitées</li>
@@ -1707,13 +1713,77 @@ export default function App() {
                 <li>Lettre de motivation ciblée (à venir)</li>
               </ul>
               <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
-                <button type="button" className="btn btn-primary" onClick={handleUpgradeClick} disabled={checkoutLoading}>
-                  {checkoutLoading ? 'Redirection…' : 'Passer en Pro - 10€/mois'}
+                <button type="button" className="btn btn-primary" onClick={() => { setUpgradeModalVisible(false); handleStartCheckout(); }} disabled={checkoutLoading}>
+                  {checkoutLoading ? 'Redirection…' : 'Passer en Pro — 10€/mois'}
                 </button>
                 <button type="button" className="btn btn-secondary" onClick={() => setUpgradeModalVisible(false)}>
                   Plus tard
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {proModalVisible && (
+          <div className="application-detail-overlay linkedin-sync-overlay" onClick={() => setProModalVisible(false)} role="dialog" aria-modal="true">
+            <div className="linkedin-sync-modal upgrade-modal pro-details-modal" onClick={(e) => e.stopPropagation()}>
+              {usage?.plan === 'pro' ? (
+                <>
+                  <div className="pro-badge-big">Pro</div>
+                  <h3>Tu es abonné Pro</h3>
+                  <p className="profile-subtitle" style={{ marginTop: 0 }}>
+                    Tu profites de tous les avantages du forfait Pro.
+                  </p>
+                  <ul className="pro-features-list">
+                    <li><span className="pro-check">&#10003;</span>Adaptations IA illimitées</li>
+                    <li><span className="pro-check">&#10003;</span>Suivi de candidatures illimité</li>
+                    <li><span className="pro-check">&#10003;</span>Templates premium</li>
+                    <li><span className="pro-check">&#10003;</span>Lettre de motivation ciblée (à venir)</li>
+                  </ul>
+                  <div className="linkedin-sync-actions" style={{ marginTop: '1rem', flexDirection: 'column', gap: '0.5rem' }}>
+                    <button type="button" className="btn btn-secondary" onClick={() => { setProModalVisible(false); handleManageSubscription(); }} disabled={checkoutLoading}>
+                      {checkoutLoading ? 'Redirection…' : 'Gérer mon abonnement / Annuler'}
+                    </button>
+                    <button type="button" className="btn btn-ghost" onClick={() => setProModalVisible(false)}>
+                      Fermer
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3>Passer en Pro</h3>
+                  <p className="profile-subtitle" style={{ marginTop: 0 }}>
+                    Débloque tout le potentiel d'AxeL Job pour décrocher le poste idéal.
+                  </p>
+                  <div className="pro-comparison">
+                    <div className="pro-comparison-col">
+                      <h4>Gratuit</h4>
+                      <ul>
+                        <li>3 adaptations IA</li>
+                        <li>5 candidatures suivies</li>
+                        <li>Templates de base</li>
+                      </ul>
+                    </div>
+                    <div className="pro-comparison-col pro-comparison-col--pro">
+                      <h4>Pro — 10€/mois</h4>
+                      <ul>
+                        <li><strong>Illimité</strong> — adaptations IA</li>
+                        <li><strong>Illimité</strong> — candidatures</li>
+                        <li>Templates premium</li>
+                        <li>Lettre de motivation ciblée (à venir)</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
+                    <button type="button" className="btn btn-primary" onClick={() => { setProModalVisible(false); handleStartCheckout(); }} disabled={checkoutLoading}>
+                      {checkoutLoading ? 'Redirection…' : 'Passer en Pro — 10€/mois'}
+                    </button>
+                    <button type="button" className="btn btn-secondary" onClick={() => setProModalVisible(false)}>
+                      Plus tard
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

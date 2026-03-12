@@ -170,7 +170,7 @@ export default function App() {
   const [exportDossierPath, setExportDossierPath] = useState('');
   const [applications, setApplications] = useState([]);
   const [showArchived, setShowArchived] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  /* sidebar removed — now using topbar layout */
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(!!supabase);
   const [applicationDetailId, setApplicationDetailId] = useState(null);
@@ -201,7 +201,8 @@ export default function App() {
   const [adaptStepIndex, setAdaptStepIndex] = useState(0);
   const [kanbanDraggedId, setKanbanDraggedId] = useState(null);
   const [kanbanDragOverColumn, setKanbanDragOverColumn] = useState(null);
-  const [sidebarHovered, setSidebarHovered] = useState(false);
+  const [atsDisclaimerVisible, setAtsDisclaimerVisible] = useState(false);
+  const [pendingPdfAction, setPendingPdfAction] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [cvEditPanelOpen, setCvEditPanelOpen] = useState(false);
@@ -325,7 +326,15 @@ export default function App() {
   }, [session, pathname, authLoading, navigate]);
 
   const setPreviewHtml = (html) => {
-    if (iframeRef.current) iframeRef.current.srcdoc = html;
+    if (!iframeRef.current) return;
+    const iframe = iframeRef.current;
+    iframe.style.opacity = '0';
+    iframe.srcdoc = html;
+    const onLoad = () => {
+      iframe.style.opacity = '1';
+      iframe.removeEventListener('load', onLoad);
+    };
+    iframe.addEventListener('load', onLoad);
   };
 
   const showError = (msg) => {
@@ -656,19 +665,21 @@ export default function App() {
     }
   }, [previewVariant, templateId, modifiedPreviewHtml, isCvView]);
 
-  const handlePdf = async () => {
+  const doDownloadPdf = async () => {
     if (!lastAdaptedCv) return;
     try {
       const blob = await apiPostBlob('/api/pdf', {
         cv: lastAdaptedCv,
         titre: posteNom || undefined,
-              ...templateParams,
+        ...templateParams,
       });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = blob.type === 'application/pdf' ? 'CV.pdf' : 'CV.pdf';
+      a.download = 'CV.pdf';
       a.click();
       URL.revokeObjectURL(a.href);
+      const count = parseInt(localStorage.getItem('pdf_export_count') || '0', 10) + 1;
+      localStorage.setItem('pdf_export_count', String(count));
       if (lastAdaptationId) {
         loadApplications().then(() => {
           setJustAddedAppId(lastAdaptationId);
@@ -678,6 +689,17 @@ export default function App() {
       }
     } catch (e) {
       showError('Téléchargement PDF : ' + (e.message || e));
+    }
+  };
+
+  const handlePdf = () => {
+    if (!lastAdaptedCv) return;
+    const count = parseInt(localStorage.getItem('pdf_export_count') || '0', 10);
+    if (count < 3) {
+      setPendingPdfAction('pdf');
+      setAtsDisclaimerVisible(true);
+    } else {
+      doDownloadPdf();
     }
   };
 
@@ -939,112 +961,48 @@ export default function App() {
     return <LandingPage onCtaClick={() => navigate('/login')} onProClick={() => navigate('/login?plan=pro')} />;
   }
 
-  const sidebarCollapsed = !sidebarHovered && !sidebarOpen;
-
   return (
-    <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-      <div
-        className={`sidebar-backdrop ${sidebarOpen ? 'visible' : ''}`}
-        aria-hidden="true"
-        onClick={() => setSidebarOpen(false)}
-      />
-      <aside
-        className={`sidebar ${sidebarOpen ? 'open' : ''} ${(sidebarHovered || sidebarOpen) ? 'expanded' : 'collapsed'}`}
-        onMouseEnter={() => setSidebarHovered(true)}
-        onMouseLeave={() => setSidebarHovered(false)}
-      >
-        <div className="sidebar-header">
-          <img src="/logoaxel.ico" alt="AxeL Job" className="sidebar-logo" />
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="topbar-left">
+          <img src="/favicon.svg" alt="CV Bot" className="topbar-logo" />
+          <span className="topbar-brand">CV Bot</span>
         </div>
-        <span className="sidebar-section-label">Principal</span>
-        <nav className="sidebar-nav">
-          <NavLink
-            to="/app/postule"
-            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-            onClick={() => setSidebarOpen(false)}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-            </svg>
-            <span>Mes candidatures</span>
+        <nav className="topbar-nav">
+          <NavLink to="/app/cv" className={({ isActive }) => `topbar-link ${isActive ? 'active' : ''}`}>
+            <HiDocumentText size={18} />
+            <span>Adapter CV</span>
           </NavLink>
-          <NavLink
-            to="/app/cv"
-            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-            onClick={() => setSidebarOpen(false)}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>
-            </svg>
-            <span>Adapter un CV</span>
+          <NavLink to="/app/postule" className={({ isActive }) => `topbar-link ${isActive ? 'active' : ''}`}>
+            <HiClipboardDocumentList size={18} />
+            <span>Candidatures</span>
           </NavLink>
-          <NavLink
-            to="/app/profil"
-            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-            onClick={() => setSidebarOpen(false)}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-            </svg>
-            <span>Mon profil</span>
+          <NavLink to="/app/profil" className={({ isActive }) => `topbar-link ${isActive ? 'active' : ''}`}>
+            <HiPencilSquare size={18} />
+            <span>Profil</span>
           </NavLink>
-          <NavLink
-            to="/app/support"
-            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-            onClick={() => setSidebarOpen(false)}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
+          <NavLink to="/app/support" className={({ isActive }) => `topbar-link ${isActive ? 'active' : ''}`}>
+            <HiChatBubbleLeftRight size={18} />
             <span>Support</span>
           </NavLink>
         </nav>
-        {session && usage && (
-          usage.plan === 'pro' ? (
-            <button type="button" className="sidebar-plan-btn sidebar-plan-btn--pro" onClick={handleManageSubscription} disabled={checkoutLoading}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              <span>Pro</span>
-              <span className="sidebar-plan-manage">Gérer</span>
+        <div className="topbar-right">
+          {session && usage && usage.plan !== 'pro' && (
+            <button type="button" className="topbar-upgrade-btn" onClick={handleUpgradeClick} disabled={checkoutLoading}>
+              {checkoutLoading ? '…' : 'Passer Pro'}
             </button>
-          ) : (
-            <button type="button" className="sidebar-upgrade-btn" onClick={handleUpgradeClick} disabled={checkoutLoading}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              <span>{checkoutLoading ? 'Chargement…' : 'Passer Pro'}</span>
+          )}
+          {session && usage && usage.plan === 'pro' && (
+            <button type="button" className="topbar-pro-badge" onClick={handleManageSubscription} disabled={checkoutLoading}>
+              Pro
             </button>
-          )
-        )}
-        {supabase && (
-          <div className="sidebar-auth">
-            <span className="sidebar-section-label">Compte</span>
-            {authLoading ? (
-              <span className="sidebar-auth-loading">Chargement…</span>
-            ) : session ? (
-              <div className="sidebar-auth-user">
-                <div className="sidebar-auth-avatar" aria-hidden>
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
-                </div>
-                <div className="sidebar-auth-info">
-                  <span className="sidebar-auth-name" title={session.user?.email}>{userDisplayName || session.user?.email?.split('@')[0] || 'Compte'}</span>
-                  <button type="button" className="btn btn-signout" onClick={handleSignOut}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                    <span>Déconnexion</span>
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <AuthForm onSuccess={() => setAuthLoading(false)} />
-            )}
-          </div>
-        )}
-      </aside>
-
-      <header className="mobile-header">
-        <button type="button" className="mobile-menu-btn" aria-label="Ouvrir le menu" onClick={() => setSidebarOpen(true)}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-          </svg>
-        </button>
-        <img src="/logoaxel.ico" alt="AxeL Job" className="sidebar-logo mobile-logo" />
+          )}
+          {session && (
+            <button type="button" className="topbar-user-btn" onClick={handleSignOut} title="Déconnexion">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="app-main">
@@ -1063,6 +1021,14 @@ export default function App() {
             <h1 className="page-title">Adapter un CV</h1>
             <p className="page-subtitle">Colle une offre d'emploi, l'IA adapte ton CV. Affine par chat, puis exporte en PDF.</p>
           </header>
+          {usage && usage.plan === 'free' && usage.adaptations_used >= 2 && (
+            <div className="free-plan-banner">
+              <span>{usage.adaptations_limit - usage.adaptations_used <= 0 ? 'Tes adaptations gratuites sont épuisées.' : `Il te reste ${usage.adaptations_limit - usage.adaptations_used} adaptation${usage.adaptations_limit - usage.adaptations_used > 1 ? 's' : ''} gratuite${usage.adaptations_limit - usage.adaptations_used > 1 ? 's' : ''}.`}</span>
+              <button type="button" className="btn btn-primary btn-sm" onClick={handleUpgradeClick} disabled={checkoutLoading}>
+                {checkoutLoading ? '…' : 'Passer Pro — 10€/mois'}
+              </button>
+            </div>
+          )}
           <main className="cv-chat-layout">
             <div className="cv-chat-area">
               <div className="cv-chat-messages" role="log">
@@ -1784,6 +1750,37 @@ export default function App() {
 
         {session && !needsOnboarding && isCvView && (
           <GuidedTour steps={TOUR_STEPS} tourKey="main" />
+        )}
+
+        {atsDisclaimerVisible && (
+          <div className="application-detail-overlay linkedin-sync-overlay" onClick={() => { setAtsDisclaimerVisible(false); setPendingPdfAction(null); }} role="dialog" aria-modal="true">
+            <div className="linkedin-sync-modal ats-disclaimer-modal" onClick={(e) => e.stopPropagation()}>
+              <h3>Information importante</h3>
+              <p style={{ fontSize: '0.9rem', lineHeight: 1.6, color: 'var(--text)' }}>
+                Ce CV a été généré et adapté par une intelligence artificielle.
+                Bien que l'outil optimise le contenu pour les filtres ATS (Applicant Tracking Systems),
+                <strong> nous ne garantissons pas </strong> que le CV passera tous les filtres automatiques
+                de tous les recruteurs.
+              </p>
+              <p style={{ fontSize: '0.85rem', lineHeight: 1.5, color: 'var(--muted)' }}>
+                Il est de votre responsabilité de relire et vérifier l'exactitude des informations
+                avant tout envoi. CV Bot ne saurait être tenu responsable d'éventuelles inexactitudes
+                ou du résultat de vos candidatures.
+              </p>
+              <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
+                <button type="button" className="btn btn-primary" onClick={() => {
+                  setAtsDisclaimerVisible(false);
+                  if (pendingPdfAction === 'pdf') doDownloadPdf();
+                  setPendingPdfAction(null);
+                }}>
+                  J'ai compris, télécharger
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={() => { setAtsDisclaimerVisible(false); setPendingPdfAction(null); }}>
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

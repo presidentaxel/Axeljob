@@ -185,6 +185,12 @@ function CGU() {
         et valider le contenu de ses CV avant envoi.
       </p>
       <p>
+        En particulier, bien que l'outil optimise les CV pour les systèmes de filtrage automatique
+        des recruteurs (ATS — Applicant Tracking Systems), {COMPANY_NAME} ne garantit pas le
+        passage de ces filtres et ne saurait être tenu responsable du résultat des candidatures
+        de l'utilisateur.
+      </p>
+      <p>
         {COMPANY_NAME} ne pourra être tenu responsable de tout dommage indirect lié à l'utilisation
         du service, notamment la perte d'une opportunité d'emploi.
       </p>

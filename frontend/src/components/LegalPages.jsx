@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import './LegalPages.css';
 
-const SITE_NAME = 'CV Bot';
+const SITE_NAME = 'AxeL Job';
 const SITE_URL = 'https://job.axelproject.fr';
 const COMPANY_NAME = 'Axel Project';
 const CONTACT_EMAIL = 'louis.vedovato@axelproject.fr';

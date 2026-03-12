@@ -1,6 +1,6 @@
 # Guide de deploiement en production
 
-Ce guide couvre le deploiement de CV Bot sur un serveur DigitalOcean (Droplet) avec Docker, un sous-domaine et HTTPS.
+Ce guide couvre le deploiement de AxeL Job sur un serveur DigitalOcean (Droplet) avec Docker, un sous-domaine et HTTPS.
 
 ---
 

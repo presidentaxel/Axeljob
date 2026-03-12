@@ -1,5 +1,5 @@
 """
-Backend FastAPI : API CV Bot (adapter CV, PDF, export, candidatures).
+Backend FastAPI : API AxeL Job (adapter CV, PDF, export, candidatures).
 Sert les métriques Prometheus sur /metrics.
 Données : Supabase (cv_base, applications) ou fallback fichiers.
 """
@@ -84,7 +84,7 @@ logger.setLevel(logging.INFO)
 BASE_DIR = CONFIG_BASE_DIR
 
 app = FastAPI(
-    title="CV Bot API",
+    title="AxeL Job API",
     version="1.0.0",
     docs_url=None if IS_PRODUCTION else "/docs",
     redoc_url=None if IS_PRODUCTION else "/redoc",

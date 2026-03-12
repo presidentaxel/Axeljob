@@ -1,6 +1,6 @@
 <div align="center">
 
-# CV Bot
+# AxeL Job
 
 **Adapte automatiquement ton CV a chaque offre d'emploi grace a l'IA.**
 
@@ -17,7 +17,7 @@ Colle l'annonce, l'IA (Gemini) adapte resume et bullet points, tu recuperes **CV
 
 ## A propos
 
-CV Bot est une application web full-stack qui permet de maintenir un CV de base et de generer pour chaque offre :
+AxeL Job est une application web full-stack qui permet de maintenir un CV de base et de generer pour chaque offre :
 
 - un **CV adapte** aux mots-cles de l'annonce (resume et experiences reformules par Gemini)
 - une **lettre de motivation** generee par l'IA

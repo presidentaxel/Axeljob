@@ -1,4 +1,4 @@
-  -- Schéma Supabase pour CV Bot
+  -- Schéma Supabase pour AxeL Job
   -- Exécuter dans l’éditeur SQL du projet Supabase (Dashboard > SQL Editor).
 
   -- Table : CV de base (un seul enregistrement pour l’instant, id = 'default')

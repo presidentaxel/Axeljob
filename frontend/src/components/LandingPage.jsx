@@ -53,7 +53,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
       <header className="landing-header">
         <div className="landing-container">
           <div className="landing-header-inner">
-            <img src="/favicon.svg" alt="CV Bot" className="landing-logo" />
+            <img src="/logoaxel.ico" alt="AxeL Job" className="landing-logo" />
             <span className="landing-brand">AxeL Job</span>
             <nav className="landing-nav">
               <a href="#comment">Comment ça marche</a>

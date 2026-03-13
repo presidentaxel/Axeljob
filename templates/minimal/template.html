@@ -46,7 +46,7 @@
         {% for exp in experiences_for_display %}
         <div class="experience-item" itemscope itemtype="https://schema.org/JobPosition">
           <div class="exp-header">
-            <span class="exp-left"><span class="exp-entreprise"><span class="ats-label">Organisation : </span><span itemprop="worksFor" itemscope itemtype="https://schema.org/Organization"><span itemprop="name">{{ exp.entreprise_display|safe }}</span></span></span>{% if exp.poste %} — <span class="exp-poste-inline"><span class="ats-label">Fonction : </span><span itemprop="name">{{ exp.poste_display|safe }}</span></span>{% endif %}</span>
+            <span class="exp-left"><span class="exp-entreprise"><span class="ats-label">Organisation : </span><span itemprop="worksFor" itemscope itemtype="https://schema.org/Organization"><span itemprop="name">{{ exp.entreprise_display|safe }}</span></span></span>{% if exp.poste %} - <span class="exp-poste-inline"><span class="ats-label">Fonction : </span><span itemprop="name">{{ exp.poste_display|safe }}</span></span>{% endif %}</span>
             <span class="exp-dates">{% if exp.date_debut or exp.date_fin %}{{ exp.date_debut_display|safe }} – {{ exp.date_fin_display|safe }}{% endif %}</span>
           </div>
           {% for bullet in exp.bullet_points %}
@@ -115,7 +115,7 @@
         <h2 class="section-title">Projets</h2>
         {% for proj in projets_for_display %}
         <div class="projet-item">
-          <span class="projet-nom">{{ proj.nom }}</span> — <span class="projet-description">{{ proj.description }}</span>
+          <span class="projet-nom">{{ proj.nom }}</span> - <span class="projet-description">{{ proj.description }}</span>
         </div>
         {% endfor %}
       </section>

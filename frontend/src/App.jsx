@@ -17,6 +17,8 @@ import ProfileView from './components/ProfileView';
 import AuthForm from './components/AuthForm';
 import LandingPage from './components/LandingPage';
 import LegalPages from './components/LegalPages';
+import AtsPage from './components/AtsPage';
+import ArticlesPages from './components/ArticlesPages';
 import OnboardingWizard from './components/OnboardingWizard';
 import CvEditablePreview from './components/CvEditablePreview';
 import CompanyLogo from './components/CompanyLogo';
@@ -41,6 +43,124 @@ function getViewFromPathname(pathname) {
   if (pathname === '/app/linkedin' || pathname.startsWith('/app/linkedin')) return 'profil';
   if (pathname === '/app/support' || pathname.startsWith('/app/support')) return 'support';
   return 'cv';
+}
+
+function MfaChallengeScreen({ onSuccess }) {
+  const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (code.length !== 6) return;
+    setLoading(true);
+    try {
+      const { data: factorsData, error: factorsErr } = await supabase.auth.mfa.listFactors();
+      if (factorsErr) throw factorsErr;
+      const totpFactor = factorsData?.totp?.[0];
+      if (!totpFactor) throw new Error('Aucun facteur TOTP.');
+      const { data: challengeData, error: chErr } = await supabase.auth.mfa.challenge({ factorId: totpFactor.id });
+      if (chErr) throw chErr;
+      const { error: verifyErr } = await supabase.auth.mfa.verify({
+        factorId: totpFactor.id,
+        challengeId: challengeData.id,
+        code: code.trim(),
+      });
+      if (verifyErr) throw verifyErr;
+      onSuccess();
+    } catch (err) {
+      setError(err?.message || 'Code invalide. Réessaie.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <div className="login-screen">
+      <div className="login-screen-card">
+        <img src="/logoaxel.ico" alt="AxeL Job" className="login-screen-logo" />
+        <h1>Vérification en deux étapes</h1>
+        <p className="login-screen-intro">Entre le code à 6 chiffres de ton application authentificatrice.</p>
+        <form className="auth-form" onSubmit={handleSubmit}>
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={6}
+            placeholder="000000"
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            className="auth-input"
+            autoComplete="one-time-code"
+          />
+          {error && <div className="auth-error">{error}</div>}
+          <button type="submit" className="btn btn-primary auth-submit" disabled={loading || code.length !== 6}>
+            {loading ? '…' : 'Vérifier'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function RecoveryPasswordForm({ onDone }) {
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (password.length < 6) {
+      setError('Le mot de passe doit faire au moins 6 caractères.');
+      return;
+    }
+    if (password !== confirm) {
+      setError('Les deux mots de passe ne correspondent pas.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error: err } = await supabase.auth.updateUser({ password });
+      if (err) throw err;
+      onDone();
+    } catch (err) {
+      setError(err.message || 'Impossible de mettre à jour le mot de passe.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <div className="login-screen">
+      <div className="login-screen-card">
+        <img src="/logoaxel.ico" alt="AxeL Job" className="login-screen-logo" />
+        <h1>Nouveau mot de passe</h1>
+        <p className="login-screen-intro">Choisis un nouveau mot de passe pour ton compte.</p>
+        <form className="auth-form" onSubmit={handleSubmit}>
+          <input
+            type="password"
+            placeholder="Nouveau mot de passe"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="auth-input"
+            autoComplete="new-password"
+            minLength={6}
+          />
+          <input
+            type="password"
+            placeholder="Confirmer le mot de passe"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            className="auth-input"
+            autoComplete="new-password"
+            minLength={6}
+          />
+          {error && <div className="auth-error">{error}</div>}
+          <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
+            {loading ? '…' : 'Définir le mot de passe'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 function CvEditPanel({ cv, onSave, onClose }) {
@@ -171,7 +291,7 @@ export default function App() {
   const [exportDossierPath, setExportDossierPath] = useState('');
   const [applications, setApplications] = useState([]);
   const [showArchived, setShowArchived] = useState(false);
-  /* sidebar removed — now using topbar layout */
+  /* sidebar removed - now using topbar layout */
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(!!supabase);
   const [applicationDetailId, setApplicationDetailId] = useState(null);
@@ -227,10 +347,27 @@ export default function App() {
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [profileRefreshKey, setProfileRefreshKey] = useState(0);
   const [userDisplayName, setUserDisplayName] = useState('');
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [mfaChallengeRequired, setMfaChallengeRequired] = useState(false);
+  const [mfaChallengeChecked, setMfaChallengeChecked] = useState(false);
   const [templateId, setTemplateId] = useState(() => localStorage.getItem('cv_template_id') || 'classic');
   const [templateOptions, setTemplateOptions] = useState(() => {
     try { return JSON.parse(localStorage.getItem('cv_template_options') || '{}'); } catch { return {}; }
   });
+  const [templatesList, setTemplatesList] = useState([]);
+  const [tourRestartKey, setTourRestartKey] = useState(0);
+
+  const handleRestartTour = () => {
+    try { localStorage.removeItem('cv_bot_tour_done_main'); } catch (_) {}
+    setTourRestartKey((k) => k + 1);
+  };
+
+  // Liste des templates : un seul fetch partagé (évite 2x GET /api/templates avec CV + Profil montés)
+  useEffect(() => {
+    apiGet('/api/templates')
+      .then((data) => setTemplatesList(Array.isArray(data) ? data : []))
+      .catch(() => setTemplatesList([]));
+  }, []);
 
   // Persist template choice
   useEffect(() => {
@@ -246,6 +383,7 @@ export default function App() {
   const templateKey = templateId + '|' + JSON.stringify(templateOptions);
   const wantHighlight = !!(lastBaseCv && lastAdaptedCv);
   useEffect(() => {
+    if (!session) return;
     if (lastAdaptedCv) {
       apiPost('/api/render-html', { cv: lastAdaptedCv, base_cv: lastBaseCv || undefined, highlight_changes: wantHighlight, template_id: templateId, template_options: templateOptions })
         .then((html) => { if (iframeRef.current) iframeRef.current.srcdoc = html; setModifiedPreviewHtml(html); })
@@ -258,7 +396,7 @@ export default function App() {
         .then((html) => setOriginalPreviewHtml(html))
         .catch(() => {});
     }
-  }, [templateKey, wantHighlight]);
+  }, [session, templateKey, wantHighlight]);
 
   useEffect(() => {
     if (!supabase) {
@@ -274,12 +412,27 @@ export default function App() {
       setAuthToken(s?.access_token ?? null);
       setAuthLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       setAuthToken(s?.access_token ?? null);
+      if (event === 'PASSWORD_RECOVERY') setRecoveryMode(true);
+      if (s) setMfaChallengeChecked(false);
     });
     return () => subscription?.unsubscribe();
   }, []);
+
+  // Si l'utilisateur a activé la MFA (optionnel), demander le code TOTP après connexion
+  useEffect(() => {
+    if (!session || authLoading || recoveryMode || !supabase?.auth?.mfa?.getAuthenticatorAssuranceLevel) return;
+    if (mfaChallengeChecked) return;
+    setMfaChallengeChecked(true);
+    supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      .then(({ data, error }) => {
+        if (error || !data) return;
+        if (data.nextLevel === 'aal2' && data.currentLevel !== 'aal2') setMfaChallengeRequired(true);
+      })
+      .catch(() => {});
+  }, [session, authLoading, recoveryMode, mfaChallengeChecked]);
 
   // Check if profile is empty → show onboarding + display name (prénom + nom)
   useEffect(() => {
@@ -346,6 +499,10 @@ export default function App() {
   const hideError = () => setError('');
 
   const loadInitialPreview = async () => {
+    if (!session) {
+      setPreviewHtml('<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#888;font-family:Plus Jakarta Sans,sans-serif;padding:2rem;text-align:center"><p>Connecte-toi pour voir l\'aperçu de ton CV.</p></div>');
+      return;
+    }
     try {
       const html = await apiGet(`/api/cv/preview?template_id=${encodeURIComponent(templateId)}`);
       setPreviewHtml(html);
@@ -364,12 +521,12 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (supabase && !session) return;
+    if (!session) return;
     loadInitialPreview();
   }, [session?.user?.id]);
 
   useEffect(() => {
-    if (supabase && !session) return;
+    if (!session) return;
     if (view !== 'cv') return;
     // Précharger le CV de base pour le diff (surlignage vert) après une adaptation
     if (!lastBaseCv) {
@@ -943,29 +1100,51 @@ export default function App() {
     );
   }
 
+  /* Réinitialisation mot de passe : utilisateur arrivé via le lien email, doit définir un nouveau mot de passe */
+  if (session && recoveryMode) {
+    return <RecoveryPasswordForm onDone={() => setRecoveryMode(false)} />;
+  }
+
+  /* MFA optionnel : si l'utilisateur a activé la MFA, demander le code TOTP avant d'accéder à l'app */
+  if (session && mfaChallengeRequired) {
+    return (
+      <MfaChallengeScreen
+        onSuccess={() => {
+          setMfaChallengeRequired(false);
+          supabase?.auth?.getSession().then(({ data: { session: s } }) => {
+            setSession(s);
+            setAuthToken(s?.access_token ?? null);
+          });
+        }}
+      />
+    );
+  }
+
   /* Non connecté : landing (/) ou login (/login) */
   if (!authLoading && !session) {
     if (pathname === '/login') {
       return (
         <div className="login-screen">
+          <button type="button" className="login-screen-back" onClick={() => navigate('/')} aria-label="Retour à l'accueil">
+            &larr; Retour à l&apos;accueil
+          </button>
           <div className="login-screen-card">
             <img src="/logoaxel.ico" alt="AxeL Job" className="login-screen-logo" />
             <h1>AxeL Job</h1>
-            <p className="login-screen-intro">Adapte ton CV à chaque offre en quelques secondes grâce à l'IA.</p>
+            <p className="login-screen-intro">Adapte ton CV à chaque offre en quelques secondes.</p>
             <AuthForm onSuccess={() => setAuthLoading(false)} />
-            <div className="login-reassurance">
-              <span><svg className="login-reassurance-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Gratuit — 3 adaptations offertes</span>
-              <span><svg className="login-reassurance-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Tes données restent privées</span>
-            </div>
-            <button type="button" className="auth-toggle" style={{ marginTop: '0.75rem' }} onClick={() => navigate('/')}>
-              &larr; Retour à l&apos;accueil
-            </button>
           </div>
         </div>
       );
     }
     if (pathname === '/mentions-legales' || pathname === '/confidentialite' || pathname === '/cgu') {
       return <LegalPages page={pathname.slice(1)} onBack={() => navigate('/')} />;
+    }
+    if (pathname === '/ats') {
+      return <AtsPage onBack={() => navigate('/')} />;
+    }
+    if (pathname === '/modeles-cv' || pathname === '/guide-cv' || pathname === '/erreurs-cv' || pathname === '/cv-par-metier') {
+      return <ArticlesPages slug={pathname.slice(1)} onBack={() => navigate('/')} />;
     }
     return <LandingPage onCtaClick={() => navigate('/login')} onProClick={() => navigate('/login?plan=pro')} />;
   }
@@ -1028,14 +1207,19 @@ export default function App() {
         )}
         <div id="viewCv" className={`view-panel app-page cv-chat-page ${isCvView ? 'active' : ''}`} style={{ display: isCvView ? 'flex' : 'none' }}>
           <header className="page-header">
-            <h1 className="page-title">Adapter un CV</h1>
+            <div className="page-title-row">
+              <h1 className="page-title">Adapter un CV</h1>
+              <button type="button" className="page-tour-help" onClick={handleRestartTour} title="Revoir le tutoriel" aria-label="Revoir le tutoriel">
+                ?
+              </button>
+            </div>
             <p className="page-subtitle">Colle une offre d'emploi, l'IA adapte ton CV. Affine par chat, puis exporte en PDF.</p>
           </header>
           {usage && usage.plan === 'free' && usage.adaptations_used >= 2 && (
             <div className="free-plan-banner">
               <span>{usage.adaptations_limit - usage.adaptations_used <= 0 ? 'Tes adaptations gratuites sont épuisées.' : `Il te reste ${usage.adaptations_limit - usage.adaptations_used} adaptation${usage.adaptations_limit - usage.adaptations_used > 1 ? 's' : ''} gratuite${usage.adaptations_limit - usage.adaptations_used > 1 ? 's' : ''}.`}</span>
               <button type="button" className="btn btn-primary btn-sm" onClick={handleUpgradeClick} disabled={checkoutLoading}>
-                {checkoutLoading ? '…' : 'Passer Pro — 10€/mois'}
+                {checkoutLoading ? '…' : 'Passer Pro - 10€/mois'}
               </button>
             </div>
           )}
@@ -1105,6 +1289,7 @@ export default function App() {
             </div>
             <div className="cv-chat-preview">
               <TemplatePicker
+                templates={templatesList}
                 templateId={templateId}
                 templateOptions={templateOptions}
                 onChangeTemplate={(id) => { setTemplateId(id); setTemplateOptions({}); trackEvent('template_changed', { template_id: id }); }}
@@ -1156,6 +1341,7 @@ export default function App() {
                 </div>
               )}
               <div className="preview-wrap" ref={previewWrapRef}>
+                <div className="preview-a4-sheet">
                 {previewVariant === 'modified' && lastAdaptedCv ? (
                   <CvEditablePreview
                     cv={lastAdaptedCv}
@@ -1177,6 +1363,7 @@ export default function App() {
                     <iframe ref={iframeRef} title="Aperçu du CV" />
                   </div>
                 )}
+                </div>
               </div>
               {exportBlockVisible && lastAdaptedCv && (
                 <div className="cv-chat-export">
@@ -1627,7 +1814,7 @@ export default function App() {
             <p className="page-subtitle">Ton CV de base. Modifications enregistrées automatiquement.</p>
           </header>
           <div className="page-content">
-            <ProfileView onSaveSuccess={handleProfileSaveSuccess} session={session} refreshKey={profileRefreshKey} />
+            <ProfileView onSaveSuccess={handleProfileSaveSuccess} session={session} refreshKey={profileRefreshKey} usage={usage} onUpgradeClick={handleUpgradeClick} templatesList={templatesList} />
           </div>
         </div>
 
@@ -1741,7 +1928,7 @@ export default function App() {
               </ul>
               <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
                 <button type="button" className="btn btn-primary" onClick={() => { setUpgradeModalVisible(false); handleStartCheckout(); }} disabled={checkoutLoading}>
-                  {checkoutLoading ? 'Redirection…' : 'Passer en Pro — 10€/mois'}
+                  {checkoutLoading ? 'Redirection…' : 'Passer en Pro - 10€/mois'}
                 </button>
                 <button type="button" className="btn btn-secondary" onClick={() => setUpgradeModalVisible(false)}>
                   Plus tard
@@ -1792,10 +1979,10 @@ export default function App() {
                       </ul>
                     </div>
                     <div className="pro-comparison-col pro-comparison-col--pro">
-                      <h4>Pro — 10€/mois</h4>
+                      <h4>Pro - 10€/mois</h4>
                       <ul>
-                        <li><strong>Illimité</strong> — adaptations IA</li>
-                        <li><strong>Illimité</strong> — candidatures</li>
+                        <li><strong>Illimité</strong> - adaptations IA</li>
+                        <li><strong>Illimité</strong> - candidatures</li>
                         <li>Templates premium</li>
                         <li>Lettre de motivation ciblée (à venir)</li>
                       </ul>
@@ -1803,7 +1990,7 @@ export default function App() {
                   </div>
                   <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
                     <button type="button" className="btn btn-primary" onClick={() => { setProModalVisible(false); handleStartCheckout(); }} disabled={checkoutLoading}>
-                      {checkoutLoading ? 'Redirection…' : 'Passer en Pro — 10€/mois'}
+                      {checkoutLoading ? 'Redirection…' : 'Passer en Pro - 10€/mois'}
                     </button>
                     <button type="button" className="btn btn-secondary" onClick={() => setProModalVisible(false)}>
                       Plus tard
@@ -1846,7 +2033,7 @@ export default function App() {
         )}
 
         {session && !needsOnboarding && isCvView && (
-          <GuidedTour steps={TOUR_STEPS} tourKey="main" />
+          <GuidedTour key={`tour-${tourRestartKey}`} steps={TOUR_STEPS} tourKey="main" />
         )}
 
         {atsDisclaimerVisible && (

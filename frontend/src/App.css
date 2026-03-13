@@ -85,6 +85,7 @@ body {
 
 /* Écran de connexion pleine page (quand Supabase activé et non connecté) */
 .login-screen {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -92,6 +93,22 @@ body {
   width: 100%;
   background: var(--bg-page);
   padding: 1.5rem;
+}
+.login-screen-back {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  background: none;
+  border: none;
+  font-size: 0.9rem;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.4rem 0;
+  font-family: inherit;
+  transition: color 0.15s;
+}
+.login-screen-back:hover {
+  color: var(--text);
 }
 .login-screen-card {
   background: var(--bg);
@@ -364,10 +381,20 @@ body {
   color: var(--danger);
 }
 
-/* Old sidebar CSS removed — now using topbar layout */
+/* Old sidebar CSS removed - now using topbar layout */
 
 .view-profil .page-content {
-  overflow: auto;
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+}
+.view-profil .profile-view-with-preview {
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
 }
 
 /* Support : hero + use cases + zone conv */
@@ -541,12 +568,42 @@ body {
   background: var(--bg);
 }
 
+.page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .app-page .page-title {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--text);
   letter-spacing: -0.025em;
+}
+
+.page-tour-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.page-tour-help:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-light);
 }
 
 .app-page .page-subtitle {
@@ -1291,11 +1348,22 @@ body {
   justify-content: center;
 }
 
+/* Feuille A4 (210mm x 297mm) : représentation fidèle de l'export PDF */
+.preview-a4-sheet {
+  width: 210mm;
+  max-width: 100%;
+  min-height: 297mm;
+  flex-shrink: 0;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
 /* Conteneur CV : largeur 100 %, pas de dépassement horizontal (HTML preview responsive côté backend) */
 .preview-iframe-wrap {
   width: 100%;
   max-width: 100%;
-  min-height: 600px;
+  min-height: 297mm;
   background: #fff;
   border-radius: 2px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 25px rgba(0, 0, 0, 0.08);
@@ -1303,13 +1371,12 @@ body {
 
 .preview-wrap .preview-iframe-wrap iframe {
   width: 100%;
-  min-height: 600px;
+  min-height: 297mm;
   height: 100%;
   border: none;
   transition: opacity 0.15s ease;
   background: #fff;
   display: block;
-  background: #fff;
 }
 
 .preview-editable-hint {

@@ -20,4 +20,4 @@ create index idx_events_user_id on public.events (user_id);
 alter table public.events enable row level security;
 
 -- Politique : accès service_role uniquement (backend)
-create policy "Service role full access events" on public.events for all using (true) with check (true);
+create policy "Service role full access events" on public.events for all to service_role using (true) with check (true);

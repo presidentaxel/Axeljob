@@ -5,7 +5,7 @@ const SITE_NAME = 'AxeL Job';
 const SITE_URL = 'https://job.axelproject.fr';
 const COMPANY_NAME = 'Axel Project';
 const CONTACT_EMAIL = 'louis.vedovato@axelproject.fr';
-const HOSTING = 'DigitalOcean, LLC — 101 Avenue of the Americas, New York, NY 10013, États-Unis';
+const HOSTING = 'DigitalOcean, LLC - 101 Avenue of the Americas, New York, NY 10013, États-Unis';
 
 function MentionsLegales() {
   return (
@@ -85,7 +85,7 @@ function PolitiqueConfidentialite() {
       <ul>
         <li><strong>Supabase</strong> (hébergement de la base de données et authentification)</li>
         <li><strong>Stripe</strong> (traitement des paiements)</li>
-        <li><strong>Google Gemini</strong> (traitement IA — les données envoyées sont limitées au contenu du CV et de l'offre)</li>
+        <li><strong>Google Gemini</strong> (traitement IA - les données envoyées sont limitées au contenu du CV et de l'offre)</li>
         <li><strong>DigitalOcean</strong> (hébergement du serveur)</li>
       </ul>
 
@@ -186,7 +186,7 @@ function CGU() {
       </p>
       <p>
         En particulier, bien que l'outil optimise les CV pour les systèmes de filtrage automatique
-        des recruteurs (ATS — Applicant Tracking Systems), {COMPANY_NAME} ne garantit pas le
+        des recruteurs (ATS - Applicant Tracking Systems), {COMPANY_NAME} ne garantit pas le
         passage de ces filtres et ne saurait être tenu responsable du résultat des candidatures
         de l'utilisateur.
       </p>

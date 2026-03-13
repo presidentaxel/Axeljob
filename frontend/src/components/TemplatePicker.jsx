@@ -127,16 +127,19 @@ function OptionsPopover({ options, templateOptions, onChangeOptions, onClose }) 
   );
 }
 
-export default function TemplatePicker({ templateId, templateOptions, onChangeTemplate, onChangeOptions, userPlan, onUpgradeClick }) {
-  const [templates, setTemplates] = useState([]);
+export default function TemplatePicker({ templates: templatesProp, templateId, templateOptions, onChangeTemplate, onChangeOptions, userPlan, onUpgradeClick }) {
+  const [templatesLocal, setTemplatesLocal] = useState([]);
   const [showOptions, setShowOptions] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const useProp = templatesProp !== undefined;
+  const templates = useProp && Array.isArray(templatesProp) ? templatesProp : templatesLocal;
+  const loading = useProp ? templates.length === 0 : templatesLocal.length === 0;
 
   useEffect(() => {
+    if (useProp) return;
     apiGet('/api/templates')
-      .then(data => { setTemplates(data); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, []);
+      .then(data => setTemplatesLocal(Array.isArray(data) ? data : []))
+      .catch(() => setTemplatesLocal([]));
+  }, [useProp]);
 
   if (loading && templates.length === 0) return null;
 

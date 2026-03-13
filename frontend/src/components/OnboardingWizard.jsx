@@ -141,7 +141,7 @@ export default function OnboardingWizard({ session, onComplete }) {
                   </svg>
                 </div>
                 <span className="onb-method-title">Importer un CV</span>
-                <span className="onb-method-desc">PDF ou Word — on extrait tout automatiquement</span>
+                <span className="onb-method-desc">PDF ou Word - on extrait tout automatiquement</span>
               </button>
 
               <button type="button" className="onb-method-card" onClick={handleLinkedIn} disabled={loading}>
@@ -217,11 +217,11 @@ export default function OnboardingWizard({ session, onComplete }) {
                   <span className="onb-review-label">Nom</span>
                   <span>{parsedCv.prenom} {parsedCv.nom}</span>
                   <span className="onb-review-label">Email</span>
-                  <span>{parsedCv.email || '—'}</span>
+                  <span>{parsedCv.email || '-'}</span>
                   <span className="onb-review-label">Téléphone</span>
-                  <span>{parsedCv.telephone || '—'}</span>
+                  <span>{parsedCv.telephone || '-'}</span>
                   <span className="onb-review-label">Titre</span>
-                  <span>{parsedCv.titre_professionnel || '—'}</span>
+                  <span>{parsedCv.titre_professionnel || '-'}</span>
                 </div>
               </div>
 
@@ -229,7 +229,7 @@ export default function OnboardingWizard({ session, onComplete }) {
                 <h3>Expériences ({(parsedCv.experiences || []).length})</h3>
                 {(parsedCv.experiences || []).map((exp, i) => (
                   <div key={exp.id || i} className="onb-review-exp">
-                    <strong>{exp.poste || 'Sans titre'}</strong> — {exp.entreprise || ''}
+                    <strong>{exp.poste || 'Sans titre'}</strong> - {exp.entreprise || ''}
                     {exp.date_debut && <span className="onb-review-date"> ({exp.date_debut}{exp.date_fin ? ` → ${exp.date_fin}` : ''})</span>}
                   </div>
                 ))}
@@ -239,7 +239,7 @@ export default function OnboardingWizard({ session, onComplete }) {
                 <h3>Formations ({(parsedCv.formations || []).length})</h3>
                 {(parsedCv.formations || []).map((f, i) => (
                   <div key={f.id || i} className="onb-review-exp">
-                    <strong>{f.diplome || 'Sans titre'}</strong> — {f.etablissement || ''}
+                    <strong>{f.diplome || 'Sans titre'}</strong> - {f.etablissement || ''}
                   </div>
                 ))}
               </div>
@@ -251,7 +251,7 @@ export default function OnboardingWizard({ session, onComplete }) {
                     {[
                       ...(parsedCv.competences.techniques || []),
                       ...(parsedCv.competences.logiciels || []),
-                    ].filter(Boolean).join(' · ') || '—'}
+                    ].filter(Boolean).join(' · ') || '-'}
                   </p>
                 </div>
               )}

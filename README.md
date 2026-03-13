@@ -171,7 +171,7 @@ npm run dev
 
 Executer dans Supabase Dashboard > SQL Editor :
 
-1. `backend/supabase_schema.sql` — tables `cv_base` et `applications`
+1. `backend/supabase_schema.sql` - tables `cv_base` et `applications`
 
 ### Migrations (dans l'ordre)
 
@@ -183,6 +183,7 @@ Executer dans Supabase Dashboard > SQL Editor :
 | `supabase_migration_user_plans_paywall_disabled.sql` | Colonne `paywall_disabled` |
 | `supabase_migration_storage_cv_photos.sql` | Bucket Storage `cv_photos` |
 | `supabase_migration_storage_application_docs.sql` | Bucket Storage `application_docs` |
+| `supabase_migration_rls_service_role_only.sql` | RLS : politiques limitées au rôle `service_role` (corrige le linter) |
 
 ---
 

@@ -1,5 +1,5 @@
 /* ============================================
-   CV Template "Minimal" — single column, serif
+   CV Template "Minimal" - single column, serif
    ============================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
@@ -187,7 +187,7 @@ body {
 .formation-date { font-weight: 600; white-space: nowrap; font-size: 8.5pt; color: #444; }
 .formation-mention { font-style: italic; color: #555; margin: 0; font-size: 8.5pt; }
 
-/* Skills, Certifications, Langues — compact inline */
+/* Skills, Certifications, Langues - compact inline */
 .skills-line {
   font-size: 8.5pt;
   line-height: 1.4;

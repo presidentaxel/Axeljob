@@ -6,10 +6,7 @@
   background: #fff;
   border-radius: 2px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 25px rgba(0, 0, 0, 0.08);
-  overflow-x: auto;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+  overflow: visible;
 }
 
 /* Réappliquer les polices/typo du template (éviter héritage depuis l'app) */
@@ -80,3 +77,60 @@
   background-color: #3d6b4a;
   color: #b8e0c0;
 }
+
+/* Adaptation pour CV courts (étudiants) : police plus grande pour éviter l'effet "vide" */
+.cv-editable-preview--sparse .cv {
+  font-size: 10.5pt;
+  line-height: 1.55;
+}
+.cv-editable-preview--sparse .resume-text { font-size: 10pt; line-height: 1.6; }
+.cv-editable-preview--sparse .bullet { font-size: 10pt; line-height: 1.5; }
+.cv-editable-preview--sparse .sidebar-item { font-size: 9.5pt; line-height: 1.4; }
+.cv-editable-preview--sparse .section-title { font-size: 10.5pt; }
+.cv-editable-preview--sparse .exp-poste { font-size: 10.5pt; }
+
+.cv-editable-preview--medium .cv {
+  font-size: 10pt;
+  line-height: 1.5;
+}
+.cv-editable-preview--medium .resume-text { font-size: 9.5pt; line-height: 1.55; }
+.cv-editable-preview--medium .bullet { font-size: 9.5pt; line-height: 1.45; }
+.cv-editable-preview--medium .sidebar-item { font-size: 9pt; line-height: 1.35; }
+
+/* CV courts (étudiants) : polices plus grandes pour ne pas paraître vide */
+.cv-editable-preview[data-content-density="sparse"] .cv {
+  font-size: 11pt;
+  line-height: 1.55;
+}
+.cv-editable-preview[data-content-density="sparse"] .resume-text,
+.cv-editable-preview[data-content-density="sparse"] .bullet {
+  font-size: 10.5pt;
+  line-height: 1.5;
+}
+.cv-editable-preview[data-content-density="sparse"] .sidebar-item {
+  font-size: 9.5pt;
+  line-height: 1.4;
+}
+.cv-editable-preview[data-content-density="sparse"] .section-title,
+.cv-editable-preview[data-content-density="sparse"] .exp-poste {
+  font-size: 10.5pt;
+}
+.cv-editable-preview[data-content-density="medium"] .cv {
+  font-size: 10pt;
+  line-height: 1.5;
+}
+.cv-editable-preview[data-content-density="medium"] .resume-text,
+.cv-editable-preview[data-content-density="medium"] .bullet {
+  font-size: 9.5pt;
+}
+.cv-editable-preview[data-content-density="medium"] .sidebar-item {
+  font-size: 9pt;
+}
+
+/* CV courts (étudiants) : police plus grande pour éviter l'effet "CV vide" */
+.cv-editable-preview.cv-preview--sparse .cv { font-size: 10.5pt; line-height: 1.55; }
+.cv-editable-preview.cv-preview--sparse .resume-text { font-size: 10pt; line-height: 1.6; }
+.cv-editable-preview.cv-preview--sparse .bullet { font-size: 10pt; line-height: 1.5; }
+.cv-editable-preview.cv-preview--sparse .sidebar-item { font-size: 9.5pt; line-height: 1.4; }
+.cv-editable-preview.cv-preview--sparse .section-title { font-size: 10.5pt; }
+.cv-editable-preview.cv-preview--sparse .exp-poste { font-size: 11pt; }

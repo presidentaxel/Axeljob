@@ -172,7 +172,7 @@ export async function apiGetBlob(path) {
 
 /**
  * Fire-and-forget event tracking for analytics / mémoire.
- * Never throws — silently drops on error.
+ * Never throws - silently drops on error.
  */
 export function trackEvent(eventType, context = {}) {
   try {

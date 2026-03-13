@@ -405,6 +405,18 @@
   color: var(--muted);
 }
 
+.landing-ats-link {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+.landing-ats-link:hover {
+  text-decoration: underline;
+}
+
 /* Testimonials */
 .landing-testimonials {
   display: grid;
@@ -604,7 +616,13 @@
 
 .landing-footer-links {
   display: flex;
+  flex-wrap: wrap;
   gap: 1.25rem;
+  align-items: center;
+}
+.landing-footer-sep {
+  color: var(--border);
+  user-select: none;
 }
 
 .landing-footer-links a {

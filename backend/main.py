@@ -61,6 +61,7 @@ from backend.db import (
     get_user_plan,
     get_paywall_disabled,
     set_user_plan,
+    invite_user_by_email as db_invite_user_by_email,
 )
 from backend import event_log
 from backend.cv_analytics import profile_metrics, cv_content_metrics, adaptation_metrics
@@ -1428,6 +1429,10 @@ class TrackEventBody(BaseModel):
     context: dict = {}
 
 
+class InviteBody(BaseModel):
+    email: str = ""
+
+
 @app.post("/api/events/track")
 def api_events_track(request: Request, body: TrackEventBody):
     """Reçoit un événement frontend (léger, fire-and-forget). Whitelist d'events autorisés."""
@@ -1439,6 +1444,23 @@ def api_events_track(request: Request, body: TrackEventBody):
         ctx = {"_truncated": True}
     event_log.log_event(body.event_type, user_id, ctx)
     return {"ok": True}
+
+
+@app.post("/api/invite")
+def api_invite(request: Request, body: InviteBody):
+    """Invite un utilisateur par email (envoi d'un lien d'inscription). Réservé aux utilisateurs connectés."""
+    _require_user_id(request)
+    email = (body.email or "").strip()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Email invalide.")
+    base = (FRONTEND_URL or "").rstrip("/") or str(request.base_url).rstrip("/").replace("/api", "").rstrip("/")
+    redirect_to = f"{base}/login" if base else None
+    try:
+        db_invite_user_by_email(email, redirect_to=redirect_to)
+    except Exception as e:
+        logger.warning("Invite failed for %s: %s", email, e)
+        raise HTTPException(status_code=400, detail="Impossible d'envoyer l'invitation. Vérifie que l'email n'est pas déjà utilisé.")
+    return {"ok": True, "message": "Invitation envoyée par email."}
 
 
 @app.patch("/api/applications/{adaptation_id}")

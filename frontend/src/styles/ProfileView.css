@@ -10,9 +10,10 @@
   justify-items: end;
   grid-template-columns: minmax(320px, 530px) 1fr;
   gap: 0;
-  align-items: start;
+  align-items: stretch;
   max-width: 1400px;
   min-height: 0;
+  height: 100%;
 }
 
 .profile-form-pane {
@@ -59,8 +60,9 @@
 }
 
 .profile-form-pane {
-  max-height: calc(100vh - 100px);
-  overflow: auto;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  overflow-x: hidden;
   padding-bottom: 2rem;
 }
 
@@ -68,9 +70,13 @@
   position: sticky;
   top: 0;
   width: 100%;
-  max-height: calc(100vh - 100px);
-  overflow: auto;
-  padding: 1.5rem 1.5rem 2rem;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1rem 1rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .profile-preview-title {
@@ -84,10 +90,22 @@
   font-size: 0.7rem;
 }
 
+/* Format A4 exact (210mm x 297mm) comme l'export PDF */
+.profile-preview-wrap.profile-preview-a4 {
+  width: 210mm;
+  max-width: 100%;
+  min-height: 297mm;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  box-shadow: var(--shadow-sm);
+}
+
 .profile-preview-wrap {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: visible;
+  overflow: auto;
   background: var(--bg);
   box-shadow: var(--shadow-sm);
 }
@@ -95,7 +113,7 @@
 .profile-preview-iframe {
   border: none;
   width: 100%;
-  min-height: 1150px;
+  min-height: 297mm;
   display: block;
 }
 
@@ -611,6 +629,60 @@
   gap: 0.5rem;
   flex-wrap: wrap;
 }
+
+/* Change email modal */
+.profile-change-email-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.profile-change-email-modal {
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  min-width: 320px;
+  max-width: 90vw;
+  box-shadow: var(--shadow-lg, var(--shadow));
+}
+.profile-change-email-modal h3 { margin: 0 0 0.5rem; font-size: 1.05rem; }
+.profile-change-email-hint {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0 0 1rem;
+}
+.profile-change-email-modal label {
+  display: block;
+  margin-bottom: 0.75rem;
+}
+.profile-change-email-modal label input { width: 100%; margin-top: 0.25rem; }
+.profile-section-desc {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 0 0 0.75rem;
+}
+.profile-set-password-block { margin-top: 1rem; }
+.profile-invite-block { margin-top: 1rem; }
+.profile-invite-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.profile-invite-form .auth-input { flex: 1; min-width: 200px; }
+.profile-invite-form .auth-error { width: 100%; margin-top: 0.5rem; }
+
+/* MFA (optionnel) */
+.profile-mfa-block { margin-top: 1rem; }
+.profile-mfa-label { font-size: 0.9rem; color: var(--success); font-weight: 500; }
+.profile-mfa-factors { display: flex; flex-direction: column; gap: 0.5rem; }
+.profile-mfa-factor-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.profile-mfa-enroll-modal .profile-mfa-qr-wrap { text-align: center; margin: 1rem 0; }
+.profile-mfa-qr { max-width: 200px; height: auto; }
+.profile-mfa-code-input { max-width: 140px; text-align: center; font-variant-numeric: tabular-nums; }
 
 /* Buttons inside profile */
 .btn-import-cv {

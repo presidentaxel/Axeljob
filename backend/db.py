@@ -26,6 +26,21 @@ def _get_supabase():
         return None
 
 
+def invite_user_by_email(email: str, redirect_to: str | None = None) -> dict:
+    """Envoie une invitation par email (Auth Admin). Nécessite le client avec service_role."""
+    sb = _get_supabase()
+    if not sb:
+        raise RuntimeError("Supabase non configuré.")
+    try:
+        # supabase-py: invite_user_by_email(email, options=None) avec options.redirect_to
+        if redirect_to:
+            return sb.auth.admin.invite_user_by_email(email, {"redirect_to": redirect_to})
+        return sb.auth.admin.invite_user_by_email(email)
+    except TypeError:
+        # Fallback si la lib n'accepte qu'un seul argument
+        return sb.auth.admin.invite_user_by_email(email)
+
+
 # --- CV de base ---
 
 
@@ -254,7 +269,7 @@ def get_cv_photo_public_url_for_user(user_id: Optional[str]) -> Optional[str]:
     return url or None
 
 
-# --- Documents candidature (PDF : lettre, CV, fiche) — Supabase Storage ---
+# --- Documents candidature (PDF : lettre, CV, fiche) - Supabase Storage ---
 APPLICATION_DOCS_BUCKET = "application_docs"
 APPLICATION_DOC_TYPES = ("lettre", "cv", "fiche")
 

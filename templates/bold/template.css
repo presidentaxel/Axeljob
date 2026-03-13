@@ -1,5 +1,5 @@
 /* ============================================
-   CV Template "Impact" — Bold, high-contrast
+   CV Template "Impact" - Bold, high-contrast
    ============================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;600;700&display=swap');
@@ -35,7 +35,7 @@ body {
   overflow: hidden;
 }
 
-/* Header — big and bold */
+/* Header - big and bold */
 .cv-header {
   grid-area: header;
   background: var(--cv-header-color);
@@ -107,7 +107,7 @@ body {
   background: #fff;
 }
 
-/* Section titles — bold line */
+/* Section titles - bold line */
 .section-title {
   font-family: var(--cv-font-heading);
   font-size: 10pt;

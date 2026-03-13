@@ -208,7 +208,7 @@ nano .env.production
 nano frontend/.env
 ```
 
-Le `docker-compose.yml` utilise `env_file: .env` — Docker lira les secrets directement depuis ce fichier, qui n'est **jamais dans Git**.
+Le `docker-compose.yml` utilise `env_file: .env` - Docker lira les secrets directement depuis ce fichier, qui n'est **jamais dans Git**.
 
 **Pour les mises a jour suivantes**, seul le code change :
 
@@ -298,6 +298,15 @@ Dans Supabase Dashboard > Authentication > Providers :
 - Active **Email** (deja actif par defaut)
 - Configure le **Site URL** : `https://cv.tondomaine.com`
 - Configure les **Redirect URLs** : `https://cv.tondomaine.com/**`
+
+Dans **Authentication > Email** (ou Providers > Email), tu peux activer selon tes besoins :
+- **Confirm sign up** : demander aux utilisateurs de confirmer leur email apres inscription
+- **Magic link** : connexion par lien envoye par email (deja utilise dans l’app)
+- **Reset password** : reinitialisation du mot de passe par email (deja utilise)
+- **Secure email change** : verification de la nouvelle adresse lors d’un changement d’email
+- **Reauthentication** : l’app demande le mot de passe avant les actions sensibles (changement d’email, etc.)
+- **MFA (TOTP)** : dans Authentication > MFA, tu peux activer « TOTP (App Authenticator) » en **Enabled** pour que les utilisateurs puissent l’activer **en option** depuis Profil > Compte et sécurité. Ce n’est pas obligatoire : seuls ceux qui l’activent devront saisir le code à la connexion.
+- **Protection mots de passe compromis** : dans Authentication > Settings (ou Providers > Email), active « Leaked password protection » pour que Supabase vérifie les mots de passe contre HaveIBeenPwned et refuse les mots de passe connus comme compromis.
 
 ---
 

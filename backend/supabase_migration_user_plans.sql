@@ -12,4 +12,4 @@ create table if not exists public.user_plans (
 
 alter table public.user_plans enable row level security;
 drop policy if exists "Service role full access user_plans" on public.user_plans;
-create policy "Service role full access user_plans" on public.user_plans for all using (true) with check (true);
+create policy "Service role full access user_plans" on public.user_plans for all to service_role using (true) with check (true);

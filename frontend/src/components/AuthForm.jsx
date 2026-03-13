@@ -29,6 +29,7 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
   const [linkedInLoading, setLinkedInLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [resetMode, setResetMode] = useState(false);
+  const [magicLinkMode, setMagicLinkMode] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
@@ -66,6 +67,31 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
     }
   };
 
+  const handleMagicLink = async (e) => {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+    if (!email.trim()) {
+      setError('Entre ton email pour recevoir le lien de connexion.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error: err } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin + '/login' : undefined,
+        },
+      });
+      if (err) throw err;
+      setMessage('Un lien de connexion a été envoyé à ta boîte mail. Clique dessus pour te connecter.');
+    } catch (err) {
+      setError(err.message || 'Impossible d\'envoyer le lien.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleResetPassword = async (e) => {
     e.preventDefault();
     setError('');
@@ -92,6 +118,7 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
     e.preventDefault();
     setError('');
     setMessage('');
+    if (magicLinkMode) return handleMagicLink(e);
     if (resetMode) return handleResetPassword(e);
     if (!email.trim() || !password) {
       setError('Email et mot de passe requis.');
@@ -102,7 +129,7 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
       if (isSignUp) {
         const { error: err } = await supabase.auth.signUp({ email: email.trim(), password });
         if (err) throw err;
-        setMessage('Compte créé. Vérifie ta boîte mail pour confirmer (si activé par le projet).');
+        setMessage('Compte créé. Un email de confirmation a été envoyé - clique sur le lien pour activer ton compte.');
       } else {
         const { error: err } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (err) throw err;
@@ -161,7 +188,7 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
         className="auth-input"
         autoComplete="email"
       />
-      {!resetMode && (
+      {!resetMode && !magicLinkMode && (
         <input
           type="password"
           placeholder="Mot de passe"
@@ -174,14 +201,19 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
       {error && <div className="auth-error">{error}</div>}
       {message && <div className="auth-message">{message}</div>}
       <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
-        {loading ? '…' : resetMode ? 'Envoyer le lien' : isSignUp ? 'Créer un compte' : 'Se connecter'}
+        {loading ? '…' : magicLinkMode ? 'Envoyer le lien de connexion' : resetMode ? 'Envoyer le lien' : isSignUp ? 'Créer un compte' : 'Se connecter'}
       </button>
-      {!resetMode && (
+      {!resetMode && !magicLinkMode && (
         <button type="button" className="auth-toggle" onClick={() => { setResetMode(true); setError(''); setMessage(''); }}>
           Mot de passe oublié ?
         </button>
       )}
-      <button type="button" className="auth-toggle" onClick={() => { setIsSignUp((v) => !v); setResetMode(false); setError(''); setMessage(''); }}>
+      {!resetMode && (
+        <button type="button" className="auth-toggle" onClick={() => { setMagicLinkMode((v) => !v); setResetMode(false); setError(''); setMessage(''); }}>
+          {magicLinkMode ? 'Se connecter avec mot de passe' : '← Lien magique par email'}
+        </button>
+      )}
+      <button type="button" className="auth-toggle" onClick={() => { setIsSignUp((v) => !v); setResetMode(false); setMagicLinkMode(false); setError(''); setMessage(''); }}>
         {resetMode ? '← Retour à la connexion' : isSignUp ? 'Déjà un compte ? Se connecter' : 'Pas de compte ? Créer un compte'}
       </button>
     </form>

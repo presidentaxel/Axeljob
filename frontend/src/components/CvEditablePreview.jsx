@@ -54,9 +54,22 @@ function optionsToCssVars(opts) {
   return vars;
 }
 
+/** Score de contenu pour adapter la typo aux CV courts (étudiants). Même logique que le backend. */
+function getContentDensity(cv) {
+  const expCount = (cv?.experiences || []).filter((e) => (e?.poste || '').trim() || (e?.entreprise || '').trim() || (e?.bullet_points || []).some((b) => (b || '').trim())).length;
+  const bulletCount = (cv?.experiences || []).reduce((n, e) => n + (e?.bullet_points || []).filter((b) => (b || '').trim()).length, 0);
+  const formCount = (cv?.formations || []).filter((f) => (f?.diplome || '').trim() || (f?.etablissement || '').trim()).length;
+  const projCount = (cv?.projets || []).filter((p) => (p?.nom || '').trim() || (p?.description || '').trim()).length;
+  const score = expCount * 3 + bulletCount + formCount + projCount;
+  if (score <= 6) return 'sparse';
+  if (score <= 10) return 'medium';
+  return 'full';
+}
+
 export default function CvEditablePreview({ cv, baseCv, onChange, templateId = 'classic', templateOptions, showPhoto = true, showMotsClesAts = true }) {
   const containerRef = useRef(null);
   const cssVarOverrides = optionsToCssVars(templateOptions);
+  const contentDensity = getContentDensity(cv);
 
   const handleBlur = useCallback(() => {
     if (!containerRef.current || !onChange) return;
@@ -156,7 +169,7 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
                         <span className="ats-label">Organisation : </span>
                         <span data-cv-field={`experiences.${oi}.entreprise`} className={isChanged(`experiences.${oi}.entreprise`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.entreprise || ''}</span>
                       </span>
-                      {exp.poste ? <> — <span className="exp-poste-inline"><span className="ats-label">Fonction : </span><span data-cv-field={`experiences.${oi}.poste`} suppressContentEditableWarning contentEditable="true">{exp.poste || ''}</span></span></> : null}
+                      {exp.poste ? <> - <span className="exp-poste-inline"><span className="ats-label">Fonction : </span><span data-cv-field={`experiences.${oi}.poste`} suppressContentEditableWarning contentEditable="true">{exp.poste || ''}</span></span></> : null}
                     </span>
                     <span className="exp-dates">
                       <span data-cv-field={`experiences.${oi}.date_debut`} suppressContentEditableWarning contentEditable="true">{exp.date_debut || ''}</span>
@@ -234,7 +247,7 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
               return (
                 <div key={proj.id || i} className="projet-item">
                   <span className="projet-nom"><span data-cv-field={`projets.${oi}.nom`} suppressContentEditableWarning contentEditable="true">{proj.nom || ''}</span></span>
-                  {' — '}
+                  {' - '}
                   <span className="projet-description"><span data-cv-field={`projets.${oi}.description`} suppressContentEditableWarning contentEditable="true">{proj.description || ''}</span></span>
                 </div>
               );
@@ -398,8 +411,9 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
   return (
     <div
       ref={containerRef}
-      className="cv-editable-preview"
+      className={`cv-editable-preview cv-editable-preview--${contentDensity}`}
       style={cssVarOverrides}
+      data-content-density={contentDensity}
       onBlur={handleBlur}
     >
       <link rel="stylesheet" href={apiUrl(`/api/templates/${templateId}/template.css`)} />

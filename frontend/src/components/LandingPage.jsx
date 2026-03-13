@@ -21,12 +21,12 @@ const STEPS = [
 
 const FEATURES = [
   { title: 'Générateur de CV IA', desc: 'Adaptation aux mots-clés de chaque annonce (ATS-friendly).' },
-  { title: 'Suivi de candidatures', desc: 'Statuts, entretiens, refus — tout centralisé au même endroit.' },
+  { title: 'Suivi de candidatures', desc: 'Statuts, entretiens, refus - tout centralisé au même endroit.' },
   { title: 'Export PDF ultra-propre', desc: 'CV et lettre de motivation prêts à envoyer.' },
 ];
 
 const BENEFITS = [
-  { title: 'Score ATS optimisé', desc: 'Chaque CV est analysé et adapté pour maximiser son passage dans les filtres automatiques des recruteurs (ATS).' },
+  { title: 'Score ATS optimisé', desc: 'Chaque CV est analysé et adapté pour maximiser son passage dans les filtres automatiques des recruteurs (voir Qu’est-ce que l’ATS ?).', linkToAts: true },
   { title: 'Gain de temps massif', desc: "Plus besoin de réécrire manuellement chaque candidature. L'IA adapte en quelques secondes." },
   { title: 'Suivi centralisé', desc: 'Toutes tes candidatures au même endroit : statuts, entretiens, relances et exports.' },
 ];
@@ -59,6 +59,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
               <a href="#comment">Comment ça marche</a>
               <a href="#tarifs">Tarifs</a>
               <a href="#features">Fonctionnalités</a>
+              <Link to="/ats">Qu&apos;est-ce que l&apos;ATS ?</Link>
               <button type="button" className="btn btn-primary landing-cta-nav" onClick={onCtaClick}>
                 Essayer gratuitement
               </button>
@@ -84,7 +85,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
                 <button type="button" className="btn btn-primary landing-cta-hero" onClick={onCtaClick}>
                   Essayer gratuitement
                 </button>
-                <span className="landing-hero-hint">3 adaptations offertes — sans carte bancaire</span>
+                <span className="landing-hero-hint">3 adaptations offertes - sans carte bancaire</span>
               </div>
             </div>
             <div className="landing-hero-visual">
@@ -222,6 +223,9 @@ export default function LandingPage({ onCtaClick, onProClick }) {
               <div key={b.title} className="landing-feature-card">
                 <h3 className="landing-feature-title">{b.title}</h3>
                 <p className="landing-feature-desc">{b.desc}</p>
+                {b.linkToAts && (
+                  <Link to="/ats" className="landing-ats-link">Qu&apos;est-ce que l&apos;ATS ?</Link>
+                )}
               </div>
             ))}
           </div>
@@ -241,10 +245,16 @@ export default function LandingPage({ onCtaClick, onProClick }) {
       <footer className="landing-footer">
         <div className="landing-container">
           <div className="landing-footer-inner">
-            <p>© {new Date().getFullYear()} AxeL Job — Ton CV sur-mesure pour chaque annonce.</p>
+            <p>© {new Date().getFullYear()} AxeL Job - Ton CV sur-mesure pour chaque annonce.</p>
             <nav className="landing-footer-links">
+              <Link to="/ats">CV et ATS</Link>
+              <Link to="/modeles-cv">Modèles de CV</Link>
+              <Link to="/guide-cv">Guide CV</Link>
+              <Link to="/erreurs-cv">Erreurs à éviter</Link>
+              <Link to="/cv-par-metier">CV par métier</Link>
+              <span className="landing-footer-sep">|</span>
               <Link to="/mentions-legales">Mentions légales</Link>
-              <Link to="/confidentialite">Politique de confidentialité</Link>
+              <Link to="/confidentialite">Confidentialité</Link>
               <Link to="/cgu">CGU</Link>
             </nav>
           </div>

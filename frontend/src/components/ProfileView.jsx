@@ -2,7 +2,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { apiGet, apiPut, apiPost, apiPostFile, apiUrl } from '../api';
 import { supabase } from '../lib/supabase';
 import { defaultCv, newExpId, newFormId, newCertId, newProjId } from '../data/cvDefault';
+import TemplatePicker from './TemplatePicker';
+import ReauthModal from './ReauthModal';
 import '../styles/ProfileView.css';
+import '../styles/TemplatePicker.css';
 
 const LINKEDIN_SYNC_KEY = 'linkedin_sync_pending';
 const LINKEDIN_PHOTO_KEY = 'linkedin_photo_pending';
@@ -69,8 +72,15 @@ function CollapsibleSection({ title, defaultOpen = true, required, children }) {
   );
 }
 
-export default function ProfileView({ onSaveSuccess, session, refreshKey }) {
+export default function ProfileView({ onSaveSuccess, session, refreshKey, usage, onUpgradeClick, templatesList }) {
   const [cv, setCv] = useState(defaultCv());
+  const [templateId, setTemplateId] = useState(() => localStorage.getItem('cv_template_id') || 'classic');
+  const [templateOptions, setTemplateOptions] = useState(() => {
+    try {
+      const stored = localStorage.getItem('cv_template_options');
+      return stored ? JSON.parse(stored) : {};
+    } catch { return {}; }
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -86,6 +96,27 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey }) {
   const [livePreviewHtml, setLivePreviewHtml] = useState('');
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
+  const [changeEmailOpen, setChangeEmailOpen] = useState(false);
+  const [changeEmailNew, setChangeEmailNew] = useState('');
+  const [changeEmailPassword, setChangeEmailPassword] = useState('');
+  const [changeEmailLoading, setChangeEmailLoading] = useState(false);
+  const [changeEmailError, setChangeEmailError] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState('');
+  const [setPasswordOpen, setSetPasswordOpen] = useState(false);
+  const [setPasswordNew, setSetPasswordNew] = useState('');
+  const [setPasswordConfirm, setSetPasswordConfirm] = useState('');
+  const [setPasswordLoading, setSetPasswordLoading] = useState(false);
+  const [setPasswordError, setSetPasswordError] = useState('');
+  const [mfaFactors, setMfaFactors] = useState({ totp: [], phone: [] });
+  const [mfaEnrollOpen, setMfaEnrollOpen] = useState(false);
+  const [mfaEnrollQr, setMfaEnrollQr] = useState('');
+  const [mfaEnrollFactorId, setMfaEnrollFactorId] = useState('');
+  const [mfaEnrollCode, setMfaEnrollCode] = useState('');
+  const [mfaEnrollLoading, setMfaEnrollLoading] = useState(false);
+  const [mfaEnrollError, setMfaEnrollError] = useState('');
+  const [mfaUnenrollLoading, setMfaUnenrollLoading] = useState(null);
   const fileInputRef = useRef(null);
   const importFileRef = useRef(null);
   const skipNextAutoSaveRef = useRef(true);
@@ -104,6 +135,20 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey }) {
       .catch(() => setCv(defaultCv()))
       .finally(() => setLoading(false));
   }, [session?.user?.id, refreshKey]);
+
+  // Charger les facteurs MFA (optionnel, pour la section Compte et sécurité)
+  useEffect(() => {
+    if (!session || !supabase?.auth?.mfa?.listFactors) return;
+    supabase.auth.mfa.listFactors()
+      .then(({ data, error }) => {
+        if (error) return;
+        setMfaFactors({
+          totp: (data?.totp || []).filter((f) => f.status === 'verified'),
+          phone: (data?.phone || []).filter((f) => f.status === 'verified'),
+        });
+      })
+      .catch(() => {});
+  }, [session?.user?.id]);
 
   // Auto-trigger LinkedIn sync/photo after OAuth redirect
   const linkedinAutoTriggeredRef = useRef(false);
@@ -150,16 +195,29 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey }) {
     return () => clearTimeout(t);
   }, [cv, loading]);
 
-  // Aperçu CV en temps réel (debounced)
+  useEffect(() => {
+    localStorage.setItem('cv_template_id', templateId);
+  }, [templateId]);
+  useEffect(() => {
+    localStorage.setItem('cv_template_options', JSON.stringify(templateOptions));
+  }, [templateOptions]);
+
+  // Aperçu CV en temps réel (debounced) - avec template et options pour que les réglages s'appliquent avant Gemini
+  const templateKey = templateId + '|' + JSON.stringify(templateOptions);
   useEffect(() => {
     if (loading) return;
     const t = setTimeout(() => {
-      apiPost('/api/render-html', { cv, highlight_changes: false })
+      apiPost('/api/render-html', {
+        cv,
+        highlight_changes: false,
+        template_id: templateId,
+        template_options: templateOptions,
+      })
         .then((html) => setLivePreviewHtml(html))
         .catch(() => setLivePreviewHtml(''));
     }, LIVE_PREVIEW_DEBOUNCE_MS);
     return () => clearTimeout(t);
-  }, [cv, loading]);
+  }, [cv, loading, templateKey]);
 
   const update = (path, value) => {
     if (path.includes('.')) {
@@ -469,7 +527,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey }) {
       if (parsed && typeof parsed === 'object') {
         skipNextAutoSaveRef.current = true;
         setCv((prev) => ({ ...defaultCv(), ...prev, ...parsed }));
-        setMessage('CV importé — vérifie et complète les champs ci-dessous.');
+        setMessage('CV importé - vérifie et complète les champs ci-dessous.');
         setTimeout(() => setMessage(''), 5000);
       }
     } catch (err) {
@@ -562,6 +620,187 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey }) {
         </div>
         <label className="profile-full">Titre professionnel <input type="text" value={cv.titre_professionnel || ''} onChange={(e) => update('titre_professionnel', e.target.value)} placeholder="ex. Étudiant ESSEC - Alternance" /></label>
         <label className="profile-full">Résumé / Accroche <textarea value={cv.resume || ''} onChange={(e) => update('resume', e.target.value)} rows={3} placeholder="Quelques lignes pour te présenter" /></label>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Compte et sécurité" defaultOpen={false}>
+        <p className="profile-section-desc">Gère l&apos;email de connexion et la sécurité de ton compte.</p>
+        <button type="button" className="btn btn-secondary" onClick={() => { setChangeEmailOpen(true); setChangeEmailNew(''); setChangeEmailPassword(''); setChangeEmailError(''); }}>
+          Changer l&apos;email du compte
+        </button>
+        <div className="profile-set-password-block">
+          <p className="profile-section-desc">Tu peux définir un mot de passe pour te connecter aussi par email et mot de passe (utile si tu n&apos;utilises que le lien magique ou Google/LinkedIn).</p>
+          <button type="button" className="btn btn-secondary" onClick={() => { setSetPasswordOpen(true); setSetPasswordNew(''); setSetPasswordConfirm(''); setSetPasswordError(''); }}>
+            Définir ou modifier mon mot de passe
+          </button>
+        </div>
+        {setPasswordOpen && (
+          <div className="profile-change-email-overlay" onClick={() => setSetPasswordOpen(false)} role="dialog" aria-modal="true">
+            <div className="profile-change-email-modal" onClick={(e) => e.stopPropagation()}>
+              <h3>Définir un mot de passe</h3>
+              <p className="profile-change-email-hint">Tu pourras ensuite te connecter avec ton email et ce mot de passe en plus du lien magique ou des réseaux sociaux.</p>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                setSetPasswordError('');
+                if (setPasswordNew.length < 6) { setSetPasswordError('Le mot de passe doit faire au moins 6 caractères.'); return; }
+                if (setPasswordNew !== setPasswordConfirm) { setSetPasswordError('Les deux mots de passe ne correspondent pas.'); return; }
+                setSetPasswordLoading(true);
+                try {
+                  const { error: updateErr } = await supabase.auth.updateUser({ password: setPasswordNew });
+                  if (updateErr) throw updateErr;
+                  setMessage('Mot de passe enregistré. Tu peux maintenant te connecter avec ton email et ce mot de passe.');
+                  setSetPasswordOpen(false);
+                } catch (err) {
+                  setSetPasswordError(err?.message || 'Impossible de définir le mot de passe.');
+                } finally {
+                  setSetPasswordLoading(false);
+                }
+              }}>
+                <label>Nouveau mot de passe <input type="password" value={setPasswordNew} onChange={(e) => setSetPasswordNew(e.target.value)} placeholder="••••••••" className="auth-input" autoComplete="new-password" minLength={6} /></label>
+                <label>Confirmer le mot de passe <input type="password" value={setPasswordConfirm} onChange={(e) => setSetPasswordConfirm(e.target.value)} placeholder="••••••••" className="auth-input" autoComplete="new-password" minLength={6} /></label>
+                {setPasswordError && <div className="auth-error">{setPasswordError}</div>}
+                <div className="reauth-actions">
+                  <button type="submit" className="btn btn-primary" disabled={setPasswordLoading || setPasswordNew.length < 6 || setPasswordNew !== setPasswordConfirm}>{setPasswordLoading ? '…' : 'Enregistrer le mot de passe'}</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setSetPasswordOpen(false)}>Annuler</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+        <div className="profile-invite-block">
+          <p className="profile-section-desc">Invite une personne qui n&apos;a pas encore de compte : elle recevra un email avec un lien pour s&apos;inscrire.</p>
+          <form className="profile-invite-form" onSubmit={async (e) => {
+            e.preventDefault();
+            setInviteError('');
+            if (!inviteEmail.trim()) return;
+            setInviteLoading(true);
+            try {
+              await apiPost('/api/invite', { email: inviteEmail.trim() });
+              setMessage('Invitation envoyée par email à ' + inviteEmail.trim());
+              setInviteEmail('');
+            } catch (err) {
+              setInviteError(err?.message || err?.detail || 'Impossible d\'envoyer l\'invitation.');
+            } finally {
+              setInviteLoading(false);
+            }
+          }}>
+            <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="email@exemple.fr" className="auth-input" />
+            <button type="submit" className="btn btn-secondary" disabled={inviteLoading}>{inviteLoading ? 'Envoi…' : 'Inviter par email'}</button>
+          </form>
+          {inviteError && <div className="auth-error">{inviteError}</div>}
+        </div>
+        <div className="profile-mfa-block">
+          <p className="profile-section-desc">Authentification à deux facteurs (optionnel) : ajoute une vérification via une app (Google Authenticator, Authy, etc.). Ce n&apos;est pas obligatoire.</p>
+          {(mfaFactors.totp && mfaFactors.totp.length > 0) ? (
+            <div className="profile-mfa-factors">
+              <span className="profile-mfa-label">App authentificatrice activée</span>
+              {mfaFactors.totp.map((f) => (
+                <div key={f.id} className="profile-mfa-factor-row">
+                  <span>{f.friendly_name || 'TOTP'}</span>
+                  <button type="button" className="btn btn-secondary btn-sm" disabled={mfaUnenrollLoading === f.id} onClick={async () => {
+                    setMfaUnenrollLoading(f.id);
+                    try {
+                      const { error: err } = await supabase.auth.mfa.unenroll({ factorId: f.id });
+                      if (err) throw err;
+                      setMfaFactors((prev) => ({ ...prev, totp: (prev.totp || []).filter((x) => x.id !== f.id) }));
+                      setMessage('Authentification à deux facteurs désactivée.');
+                    } catch (e) {
+                      setError(e?.message || 'Impossible de retirer le facteur.');
+                    } finally {
+                      setMfaUnenrollLoading(null);
+                    }
+                  }}>{mfaUnenrollLoading === f.id ? '…' : 'Retirer'}</button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <button type="button" className="btn btn-secondary" onClick={() => {
+              setMfaEnrollOpen(true);
+              setMfaEnrollError('');
+              setMfaEnrollCode('');
+              setMfaEnrollQr('');
+              setMfaEnrollFactorId('');
+              if (!supabase?.auth?.mfa?.enroll) return;
+              supabase.auth.mfa.enroll({ factorType: 'totp' })
+                .then(({ data, error }) => {
+                  if (error) throw error;
+                  setMfaEnrollFactorId(data?.id ?? '');
+                  const qr = data?.totp?.qr_code;
+                  if (qr) setMfaEnrollQr(qr.startsWith('data:') ? qr : `data:image/svg+xml;charset=utf-8,${encodeURIComponent(qr)}`);
+                })
+                .catch((e) => setMfaEnrollError(e?.message || 'Impossible de démarrer l\'activation MFA.'));
+            }}>
+              Activer l&apos;authentification à deux facteurs (app authentificatrice)
+            </button>
+          )}
+        </div>
+        {mfaEnrollOpen && (
+          <div className="profile-change-email-overlay" onClick={() => setMfaEnrollOpen(false)} role="dialog" aria-modal="true">
+            <div className="profile-change-email-modal profile-mfa-enroll-modal" onClick={(e) => e.stopPropagation()}>
+              <h3>Activer l&apos;authentification à deux facteurs</h3>
+              <p className="profile-change-email-hint">Scanne le QR code avec ton app (Google Authenticator, Authy, etc.) puis entre le code à 6 chiffres.</p>
+              {mfaEnrollQr && <div className="profile-mfa-qr-wrap"><img src={mfaEnrollQr} alt="QR code TOTP" className="profile-mfa-qr" /></div>}
+              <input type="text" inputMode="numeric" maxLength={6} placeholder="Code à 6 chiffres" value={mfaEnrollCode} onChange={(e) => setMfaEnrollCode(e.target.value.replace(/\D/g, '').slice(0, 6))} className="auth-input profile-mfa-code-input" />
+              {mfaEnrollError && <div className="auth-error">{mfaEnrollError}</div>}
+              <div className="reauth-actions">
+                <button type="button" className="btn btn-primary" disabled={mfaEnrollLoading || !mfaEnrollFactorId || mfaEnrollCode.length !== 6} onClick={async () => {
+                  setMfaEnrollError('');
+                  setMfaEnrollLoading(true);
+                  try {
+                    const { data: challengeData, error: chErr } = await supabase.auth.mfa.challenge({ factorId: mfaEnrollFactorId });
+                    if (chErr) throw chErr;
+                    const { error: verifyErr } = await supabase.auth.mfa.verify({ factorId: mfaEnrollFactorId, challengeId: challengeData.id, code: mfaEnrollCode });
+                    if (verifyErr) throw verifyErr;
+                    setMfaFactors((prev) => ({ ...prev, totp: [...(prev.totp || []), { id: mfaEnrollFactorId, friendly_name: 'TOTP', status: 'verified' }] }));
+                    setMessage('Authentification à deux facteurs activée.');
+                    setMfaEnrollOpen(false);
+                  } catch (e) {
+                    setMfaEnrollError(e?.message || 'Code invalide. Réessaie.');
+                  } finally {
+                    setMfaEnrollLoading(false);
+                  }
+                }}>{mfaEnrollLoading ? '…' : 'Activer'}</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setMfaEnrollOpen(false)}>Annuler</button>
+              </div>
+            </div>
+          </div>
+        )}
+        {changeEmailOpen && (
+          <div className="profile-change-email-overlay" onClick={() => setChangeEmailOpen(false)} role="dialog" aria-modal="true">
+            <div className="profile-change-email-modal" onClick={(e) => e.stopPropagation()}>
+              <h3>Changer l&apos;email</h3>
+              <p className="profile-change-email-hint">Un lien de confirmation sera envoyé à ta nouvelle adresse. Tu devras le valider pour que le changement soit pris en compte.</p>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                setChangeEmailError('');
+                if (!changeEmailNew.trim()) { setChangeEmailError('Saisis ta nouvelle adresse email.'); return; }
+                setChangeEmailLoading(true);
+                try {
+                  const currentEmail = session?.user?.email;
+                  if (currentEmail && changeEmailPassword) {
+                    const { error: signErr } = await supabase.auth.signInWithPassword({ email: currentEmail, password: changeEmailPassword });
+                    if (signErr) throw signErr;
+                  }
+                  const { error: updateErr } = await supabase.auth.updateUser({ email: changeEmailNew.trim() });
+                  if (updateErr) throw updateErr;
+                  setMessage('Un lien de confirmation a été envoyé à ta nouvelle adresse. Clique dessus pour valider le changement.');
+                  setChangeEmailOpen(false);
+                } catch (err) {
+                  setChangeEmailError(err.message || 'Impossible de changer l\'email.');
+                } finally {
+                  setChangeEmailLoading(false);
+                }
+              }}>
+                <label>Nouvel email <input type="email" value={changeEmailNew} onChange={(e) => setChangeEmailNew(e.target.value)} placeholder="nouvelle@email.fr" className="auth-input" /></label>
+                <label>Mot de passe actuel (pour confirmer) <input type="password" value={changeEmailPassword} onChange={(e) => setChangeEmailPassword(e.target.value)} placeholder="••••••••" className="auth-input" autoComplete="current-password" /></label>
+                {changeEmailError && <div className="auth-error">{changeEmailError}</div>}
+                <div className="reauth-actions">
+                  <button type="submit" className="btn btn-primary" disabled={changeEmailLoading}>{changeEmailLoading ? '…' : 'Envoyer le lien de confirmation'}</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setChangeEmailOpen(false)}>Annuler</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </CollapsibleSection>
 
       <CollapsibleSection title="Expériences professionnelles" defaultOpen={true}>
@@ -709,7 +948,16 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey }) {
 
       <div className="profile-preview-pane">
         <h2 className="profile-preview-title">Aperçu du CV</h2>
-        <div className="profile-preview-wrap">
+        <TemplatePicker
+          templates={templatesList}
+          templateId={templateId}
+          templateOptions={templateOptions}
+          onChangeTemplate={(id) => { setTemplateId(id); setTemplateOptions({}); }}
+          onChangeOptions={setTemplateOptions}
+          userPlan={usage?.plan}
+          onUpgradeClick={onUpgradeClick}
+        />
+        <div className="profile-preview-wrap profile-preview-a4">
           {livePreviewHtml ? (
             <iframe title="Aperçu CV en direct" srcDoc={livePreviewHtml} className="profile-preview-iframe" />
           ) : (

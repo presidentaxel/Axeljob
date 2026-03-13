@@ -1,5 +1,5 @@
 /* ============================================
-   CV Template "Élégant" — Refined single-column
+   CV Template "Élégant" - Refined single-column
    ============================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Georgia&family=Inter:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
@@ -32,7 +32,7 @@ body {
   flex-direction: column;
 }
 
-/* Header — centered, refined */
+/* Header - centered, refined */
 .cv-header {
   text-align: center;
   padding: 22px 30px 16px;
@@ -126,7 +126,7 @@ body {
 .formation-date { font-size: 8.5pt; color: var(--cv-accent-color); white-space: nowrap; }
 .formation-mention { font-style: italic; color: #718096; margin: 0; font-size: 8.5pt; }
 
-/* Skills — tag cloud */
+/* Skills - tag cloud */
 .skills-grid { display: flex; flex-wrap: wrap; gap: 4px; }
 .skill-tag {
   display: inline-block;

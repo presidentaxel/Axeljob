@@ -322,7 +322,8 @@
           if (root) root.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:\'Plus Jakarta Sans\',sans-serif;color:#64748b;">Chargement…</div>';
           var el = document.createElement('script');
           el.type = 'module';
-          el.src = '/src/main.jsx';
+          var isDev = window.location.hostname === 'localhost' && (window.location.port === '5173' || window.location.port === '');
+          el.src = isDev ? '/src/main.jsx' : '/assets/main.js';
           document.body.appendChild(el);
         }
       })();

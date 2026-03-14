@@ -1,3 +1,5 @@
+# Page d'accueil 100% statique (visible en curl / crawlers)
+/  /home.html  200
 # Pages static + React (crawlers = static, users = React)
 /ats  /ats.html  200
 /faq  /faq.html  200

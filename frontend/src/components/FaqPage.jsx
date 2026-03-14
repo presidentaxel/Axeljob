@@ -42,6 +42,11 @@ const FAQ_ITEMS = [
     slug: 'mots-cles-cv-ats',
   },
   {
+    q: "L'IA peut-elle personnaliser mon CV automatiquement ?",
+    a: "Oui. AxeL Job utilise l'IA pour personnaliser ton CV à partir du texte de l'annonce : mots-clés, formulations, mise en avant des expériences pertinentes. En un clic. Essai gratuit sur job.axelproject.fr.",
+    slug: 'ia-personnaliser-cv',
+  },
+  {
     q: "Meilleur outil pour créer un CV avec l'IA ?",
     a: "AxeL Job adapte ton CV à chaque offre en un clic avec l'IA, améliore ton score ATS, propose des modèles compatibles ATS et un suivi des candidatures. Essai gratuit sans carte bancaire. Idéal pour personnaliser son CV pour chaque annonce sans tout réécrire.",
     slug: 'outil-cv-ia',

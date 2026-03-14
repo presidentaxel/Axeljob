@@ -9,7 +9,6 @@
     { "source": "/erreurs-cv", "headers": [{ "key": "Content-Type", "value": "text/html; charset=UTF-8" }] },
     { "source": "/cv-par-metier", "headers": [{ "key": "Content-Type", "value": "text/html; charset=UTF-8" }] },
     { "source": "/cv-adapte-chaque-offre", "headers": [{ "key": "Content-Type", "value": "text/html; charset=UTF-8" }] },
-    { "source": "/login", "headers": [{ "key": "Content-Type", "value": "text/html; charset=UTF-8" }] },
     { "source": "/mentions-legales", "headers": [{ "key": "Content-Type", "value": "text/html; charset=UTF-8" }] },
     { "source": "/confidentialite", "headers": [{ "key": "Content-Type", "value": "text/html; charset=UTF-8" }] },
     { "source": "/cgu", "headers": [{ "key": "Content-Type", "value": "text/html; charset=UTF-8" }] }
@@ -23,7 +22,6 @@
     { "source": "/erreurs-cv", "destination": "/erreurs-cv.html" },
     { "source": "/cv-par-metier", "destination": "/cv-par-metier.html" },
     { "source": "/cv-adapte-chaque-offre", "destination": "/cv-adapte-chaque-offre.html" },
-    { "source": "/login", "destination": "/login.html" },
     { "source": "/mentions-legales", "destination": "/mentions-legales.html" },
     { "source": "/confidentialite", "destination": "/confidentialite.html" },
     { "source": "/cgu", "destination": "/cgu.html" },

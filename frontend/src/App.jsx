@@ -433,6 +433,26 @@ export default function App() {
     setTourRestartKey((k) => k + 1);
   };
 
+  // Titre de l’onglet selon la route (évite que la home affiche encore "FAQ" après navigation)
+  useEffect(() => {
+    const titles = {
+      '/': "AxeL Job - CV adapté à chaque offre en 1 clic | IA & score ATS",
+      '/faq': "FAQ : CV, ATS et outil IA | AxeL Job",
+      '/ats': "Qu'est-ce qu'un ATS ? | AxeL Job",
+      '/login': "Connexion | AxeL Job",
+      '/cv-adapte-chaque-offre': "CV adapté à chaque offre | AxeL Job",
+      '/mentions-legales': "Mentions légales | AxeL Job",
+      '/confidentialite': "Confidentialité | AxeL Job",
+      '/cgu': "CGU | AxeL Job",
+    };
+    const exact = titles[pathname];
+    if (exact) {
+      document.title = exact;
+      return;
+    }
+    if (pathname.startsWith('/app')) document.title = "AxeL Job - Adapter ton CV à l'offre";
+  }, [pathname]);
+
   // Liste des templates : fetch uniquement en app (pas sur la landing) pour alléger le chemin critique
   useEffect(() => {
     if (!pathname.startsWith('/app')) return;
@@ -539,23 +559,25 @@ export default function App() {
     if (session && view) trackEvent('page_view', { view });
   }, [session, view]);
 
-  // Détecter erreur magic link (lien expiré) sur /login et nettoyer l'URL
+  // Détecter erreur magic link (lien expiré) sur /login : seulement après que l'auth ait eu le temps de traiter le hash (évite "expiré" au premier clic)
   useEffect(() => {
     if (pathname !== '/login') {
       setLoginOtpExpired(false);
       return;
     }
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || authLoading) return;
     const hash = window.location.hash || '';
     const params = new URLSearchParams(hash.replace(/^#/, ''));
     const code = params.get('error_code');
-    const desc = params.get('error_description') || params.get('error') || '';
-    const expired = code === 'otp_expired' || /expired|invalid|expiré|invalide/i.test(desc);
+    const hasTokens = params.has('access_token') || params.has('refresh_token');
+    if (hasTokens) return;
+    const expiredCodes = ['otp_expired', 'expired_token', 'invalid_otp'];
+    const expired = code && expiredCodes.includes(code);
     if (expired) {
       setLoginOtpExpired(true);
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
     }
-  }, [pathname]);
+  }, [pathname, authLoading]);
 
   // Redirections selon auth et route
   useEffect(() => {

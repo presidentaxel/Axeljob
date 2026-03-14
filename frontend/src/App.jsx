@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import DOMPurify from 'dompurify';
 import { useLocation, useNavigate, NavLink } from 'react-router-dom';
 import {
@@ -13,21 +13,23 @@ import {
   trackEvent,
 } from './api';
 import { supabase } from './lib/supabase';
-import ProfileView from './components/ProfileView';
 import AuthForm from './components/AuthForm';
-import LandingPage from './components/LandingPage';
-import LegalPages from './components/LegalPages';
-import AtsPage from './components/AtsPage';
-import ArticlesPages from './components/ArticlesPages';
-import OnboardingWizard from './components/OnboardingWizard';
-import CvEditablePreview from './components/CvEditablePreview';
 import CompanyLogo from './components/CompanyLogo';
-import ApplicationDetailModal from './components/ApplicationDetailModal';
-import TemplatePicker from './components/TemplatePicker';
-import GuidedTour from './components/GuidedTour';
-import SupportHighlight from './components/SupportHighlight';
 import { STORAGE_EXPORT_DIR, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
 import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiCheck, HiSwatch } from 'react-icons/hi2';
+
+const ProfileView = lazy(() => import('./components/ProfileView'));
+const LandingPage = lazy(() => import('./components/LandingPage'));
+const LegalPages = lazy(() => import('./components/LegalPages'));
+const AtsPage = lazy(() => import('./components/AtsPage'));
+const ArticlesPages = lazy(() => import('./components/ArticlesPages'));
+const FaqPage = lazy(() => import('./components/FaqPage'));
+const OnboardingWizard = lazy(() => import('./components/OnboardingWizard'));
+const CvEditablePreview = lazy(() => import('./components/CvEditablePreview'));
+const ApplicationDetailModal = lazy(() => import('./components/ApplicationDetailModal'));
+const TemplatePicker = lazy(() => import('./components/TemplatePicker'));
+const GuidedTour = lazy(() => import('./components/GuidedTour'));
+const SupportHighlight = lazy(() => import('./components/SupportHighlight'));
 import './App.css';
 import './styles/TemplatePicker.css';
 import './styles/GuidedTour.css';
@@ -678,9 +680,9 @@ export default function App() {
     } catch (_) {}
   }, [view]);
 
-  // Export default dir : chargé uniquement sur la vue CV pour réduire la latence du premier chargement
+  // Export default dir : uniquement en app et sur la vue CV (pas sur la landing pour alléger le chemin critique)
   useEffect(() => {
-    if (view !== 'cv') return;
+    if (!pathname.startsWith('/app') || view !== 'cv') return;
     const saved = localStorage.getItem(STORAGE_EXPORT_DIR);
     if (saved) setExportDossierPath(saved);
     else {
@@ -688,7 +690,7 @@ export default function App() {
         if (data.path) setExportDossierPath((p) => p || data.path);
       }).catch(() => {});
     }
-  }, [view]);
+  }, [pathname, view]);
 
   useEffect(() => {
     if (supabase && !session) return;
@@ -1300,18 +1302,22 @@ export default function App() {
       );
     }
     if (pathname === '/mentions-legales' || pathname === '/confidentialite' || pathname === '/cgu') {
-      return <LegalPages page={pathname.slice(1)} onBack={() => navigate('/')} />;
+      return <Suspense fallback={<div className="app-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}><LegalPages page={pathname.slice(1)} onBack={() => navigate('/')} /></Suspense>;
     }
     if (pathname === '/ats') {
-      return <AtsPage onBack={() => navigate('/')} />;
+      return <Suspense fallback={<div className="app-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}><AtsPage onBack={() => navigate('/')} /></Suspense>;
     }
     if (pathname === '/modeles-cv' || pathname === '/guide-cv' || pathname === '/erreurs-cv' || pathname === '/cv-par-metier') {
-      return <ArticlesPages slug={pathname.slice(1)} onBack={() => navigate('/')} />;
+      return <Suspense fallback={<div className="app-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}><ArticlesPages slug={pathname.slice(1)} onBack={() => navigate('/')} /></Suspense>;
     }
-    return <LandingPage onCtaClick={() => navigate('/login')} onProClick={() => navigate('/login?plan=pro')} />;
+    if (pathname === '/faq') {
+      return <Suspense fallback={<div className="app-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}><FaqPage onBack={() => navigate('/')} /></Suspense>;
+    }
+    return <Suspense fallback={<div className="landing" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}><LandingPage onCtaClick={() => navigate('/login')} onProClick={() => navigate('/login?plan=pro')} /></Suspense>;
   }
 
   return (
+    <Suspense fallback={<div className="app-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}>
     <div className="app-shell">
       <header className="topbar">
         <div className="topbar-left">
@@ -2278,5 +2284,6 @@ export default function App() {
         )}
       </main>
     </div>
+    </Suspense>
   );
 }

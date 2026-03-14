@@ -117,6 +117,7 @@ export default function AtsPage({ onBack }) {
 
       <footer className="content-footer">
         <nav className="content-footer-nav">
+          <Link to="/faq">FAQ</Link>
           <Link to="/modeles-cv">Modèles de CV</Link>
           <Link to="/guide-cv">Guide CV</Link>
           <Link to="/erreurs-cv">Erreurs à éviter</Link>

@@ -250,10 +250,12 @@ export default function LandingPage({ onCtaClick, onProClick }) {
             <p>© {new Date().getFullYear()} AxeL Job - Ton CV sur-mesure pour chaque annonce.</p>
             <nav className="landing-footer-links">
               <Link to="/ats">CV et ATS</Link>
+              <Link to="/faq">FAQ</Link>
               <Link to="/modeles-cv">Modèles de CV</Link>
               <Link to="/guide-cv">Guide CV</Link>
               <Link to="/erreurs-cv">Erreurs à éviter</Link>
               <Link to="/cv-par-metier">CV par métier</Link>
+              <Link to="/cv-adapte-chaque-offre">CV adapté à chaque offre</Link>
               <span className="landing-footer-sep">|</span>
               <Link to="/mentions-legales">Mentions légales</Link>
               <Link to="/confidentialite">Confidentialité</Link>

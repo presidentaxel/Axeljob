@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    { "source": "/ats", "destination": "/ats.html" },
+    { "source": "/faq", "destination": "/faq.html" },
+    { "source": "/guide-cv", "destination": "/guide-cv.html" },
+    { "source": "/modeles-cv", "destination": "/modeles-cv.html" },
+    { "source": "/erreurs-cv", "destination": "/erreurs-cv.html" },
+    { "source": "/cv-par-metier", "destination": "/cv-par-metier.html" },
+    { "source": "/cv-adapte-chaque-offre", "destination": "/cv-adapte-chaque-offre.html" },
+    { "source": "/login", "destination": "/login.html" },
+    { "source": "/mentions-legales", "destination": "/mentions-legales.html" },
+    { "source": "/confidentialite", "destination": "/confidentialite.html" },
+    { "source": "/cgu", "destination": "/cgu.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

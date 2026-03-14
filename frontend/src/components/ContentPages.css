@@ -271,6 +271,32 @@
   color: var(--accent);
 }
 
+/* FAQ GEO : une question = un bloc, réponse directe citable */
+.content-section-inner.faq-inner {
+  max-width: 800px;
+  grid-template-columns: 1fr;
+}
+.faq-item {
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.faq-item:last-child {
+  border-bottom: none;
+}
+.faq-question {
+  margin: 0 0 0.5rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.35;
+}
+.faq-answer {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
 /* Lien retour en bas du contenu */
 .content-back-link {
   display: inline-flex;

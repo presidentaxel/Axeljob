@@ -27,22 +27,105 @@
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "WebApplication",
+      "@type": "SoftwareApplication",
       "name": "AxeL Job",
       "url": "https://job.axelproject.fr",
-      "description": "Adaptez votre CV à chaque annonce avec l'IA. Améliorez votre score ATS, suivez vos candidatures et décrochez plus d'entretiens. Essai gratuit.",
+      "description": "Outil pour créer et optimiser son CV pour l'ATS. CV adapté à chaque offre d'emploi en un clic avec l'IA. Score ATS, personnalisation par annonce, suivi des candidatures, export PDF. Générateur de CV IA compatible ATS. Essai gratuit.",
       "applicationCategory": "BusinessApplication",
       "operatingSystem": "Web",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "EUR"
-      }
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+      "featureList": "Adaptation du CV à chaque offre avec IA; Score ATS; Mots-clés et format compatible ATS; Suivi des candidatures; Export PDF"
     }
     </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "C'est quoi un ATS ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Un ATS (Applicant Tracking System) est le logiciel utilisé par les recruteurs pour trier les candidatures. Il scanne les CV, en extrait les infos (expériences, compétences, formation) et les compare aux critères du poste. Les candidats dont le profil correspond le mieux aux mots-clés de l'annonce remontent en tête."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Comment fonctionne un logiciel ATS ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "L'ATS reçoit ton CV (site carrière, LinkedIn, Indeed…), le parse pour extraire expériences, compétences et formation, puis compare ces données aux critères et mots-clés du poste. Les CV les mieux alignés obtiennent un score plus élevé et sont présentés en priorité aux recruteurs."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Format CV compatible ATS : Word ou PDF ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Les deux peuvent être compatibles ATS si le contenu est en texte sélectionnable (pas d'image de texte), avec une structure simple : titres clairs (Expérience, Formation, Compétences), listes à puces, polices standards (Arial, Helvetica). Éviter tableaux complexes et graphiques. Quand l'annonce ne précise pas, le PDF est souvent un bon choix."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Quelles erreurs de CV bloquent l'ATS ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Tableaux ou mises en page complexes (mal lus par l'ATS), titres ou texte en image (non extraits), polices fantaisistes ou trop petites. Côté contenu : CV générique sans mots-clés de l'offre, mentions vagues sans détail, fautes d'orthographe. Un CV structuré, en texte, avec les mots-clés de l'annonce passe beaucoup mieux."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Comment personnaliser son CV pour chaque offre ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Reprendre les mots-clés de l'offre dans ton résumé et tes expériences. Adapter les formulations et mettre en avant les missions les plus pertinentes. Des outils comme AxeL Job font cette adaptation automatiquement à partir du texte de l'annonce, en un clic, tout en gardant un CV honnête et lisible."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Pourquoi mon CV est rejeté automatiquement ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Souvent à cause de l'ATS : le CV ne contient pas assez de mots-clés de l'offre, le format est illisible (tableaux, texte en image), ou des erreurs récurrentes (formulations vagues, fautes). Adapter le CV à chaque annonce et utiliser un format sobre (une colonne, titres en texte, listes) améliore fortement le passage."
+          }
+        }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "HowTo",
+      "name": "Comment optimiser son CV pour l'ATS",
+      "description": "Guide pour faire passer son CV dans les logiciels de tri des candidatures (ATS).",
+      "step": [
+        { "@type": "HowToStep", "name": "Choisir un format compatible", "text": "Utiliser une seule colonne ou deux colonnes simples, des titres en texte (Expérience, Formation, Compétences), des listes à puces, des polices standards (10-12 pt)." },
+        { "@type": "HowToStep", "name": "Reprendre les mots-clés de l'offre", "text": "Intégrer les termes de l'annonce dans ton résumé et tes expériences de façon naturelle pour améliorer le score ATS." },
+        { "@type": "HowToStep", "name": "Éviter les pièges", "text": "Pas de tableaux complexes, pas de texte en image, pas de CV générique envoyé partout sans adaptation." },
+        { "@type": "HowToStep", "name": "Adapter à chaque candidature", "text": "Personnaliser le CV pour chaque offre. Un outil comme AxeL Job peut faire cette adaptation en un clic avec l'IA." }
+      ]
+    }
+    </script>
+    <style>.js-enabled #root .static-crawlable{display:none!important}</style>
   </head>
   <body>
-    <div id="root"></div>
+    <script>document.documentElement.classList.add('js-enabled');</script>
+    <div id="root">
+      <!-- Contenu statique pour crawlers (sans JS) — remplacé par l'app au chargement -->
+      <div class="static-crawlable" style="max-width:720px;margin:0 auto;padding:2rem 1.5rem;font-family:'Plus Jakarta Sans',sans-serif;">
+        <h1 style="font-size:1.75rem;font-weight:800;margin:0 0 1rem;color:#0f172a;">AxeL Job — CV adapté à chaque offre en 1 clic</h1>
+        <p style="font-size:1.1rem;line-height:1.6;color:#64748b;margin:0 0 1.5rem;">Adaptez votre CV à chaque annonce avec l'IA. Améliorez votre score ATS, suivez vos candidatures et décrochez plus d'entretiens. Essai gratuit.</p>
+        <p style="margin:0 0 1rem;"><strong>CV adapté automatiquement à chaque offre</strong> : AxeL Job utilise l'IA pour personnaliser ton CV à partir du texte de l'annonce — mots-clés, formulations, mise en avant des expériences pertinentes. En un clic.</p>
+        <p style="margin:0 0 1.5rem;">
+          <a href="/ats" style="color:#4f46e5;font-weight:600;">Qu'est-ce qu'un ATS ?</a> ·
+          <a href="/faq" style="color:#4f46e5;font-weight:600;">FAQ CV &amp; ATS</a> ·
+          <a href="/guide-cv" style="color:#4f46e5;font-weight:600;">Guide CV</a> ·
+          <a href="/cv-adapte-chaque-offre" style="color:#4f46e5;font-weight:600;">CV adapté à chaque offre</a>
+        </p>
+        <p><a href="/login" style="display:inline-block;padding:0.75rem 1.5rem;background:#4f46e5;color:#fff;font-weight:600;text-decoration:none;border-radius:12px;">Essayer gratuitement</a></p>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

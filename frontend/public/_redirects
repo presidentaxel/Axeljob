@@ -1,0 +1,14 @@
+# Pages static + React (crawlers = static, users = React)
+/ats  /ats.html  200
+/faq  /faq.html  200
+/guide-cv  /guide-cv.html  200
+/modeles-cv  /modeles-cv.html  200
+/erreurs-cv  /erreurs-cv.html  200
+/cv-par-metier  /cv-par-metier.html  200
+/cv-adapte-chaque-offre  /cv-adapte-chaque-offre.html  200
+/login  /login.html  200
+/mentions-legales  /mentions-legales.html  200
+/confidentialite  /confidentialite.html  200
+/cgu  /cgu.html  200
+# SPA fallback
+/*  /index.html  200

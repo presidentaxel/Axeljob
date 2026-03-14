@@ -53,7 +53,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
       <header className="landing-header">
         <div className="landing-container">
           <div className="landing-header-inner">
-            <img src="/logoaxel.ico" alt="AxeL Job" className="landing-logo" />
+            <img src="/favicon.svg" alt="AxeL Job" className="landing-logo" />
             <span className="landing-brand">AxeL Job</span>
             <nav className="landing-nav">
               <a href="#comment">Comment ça marche</a>
@@ -71,6 +71,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
         </div>
       </header>
 
+      <main id="main-content">
       <section className="landing-hero">
         <div className="landing-container">
           <div className="landing-hero-inner">
@@ -241,6 +242,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
           </button>
         </div>
       </section>
+      </main>
 
       <footer className="landing-footer">
         <div className="landing-container">

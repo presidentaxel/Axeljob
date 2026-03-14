@@ -701,15 +701,18 @@ def api_cv(request: Request, profile: bool = False):
         if profile and cv.get("__example__"):
             return {}
         cv_out = {k: v for k, v in cv.items() if k != "__example__"}
-        # Sync : si pas de photo_url en base mais qu’on utilise Supabase Storage, utiliser l’URL publique du bucket (photo déjà uploadée = 409 avant fix)
-        if USE_SUPABASE and not (cv_out.get("photo_url") or "").strip() and user_id:
-            try:
-                from backend.db import get_cv_photo_public_url_for_user
-                url = get_cv_photo_public_url_for_user(user_id)
-                if url:
-                    cv_out["photo_url"] = url
-            except Exception:
-                pass
+        # Photo Supabase : URL signée fraîche à chaque GET (évite JWT expiré). Sinon qu’on utilise Supabase Storage, utiliser l’URL publique du bucket (photo déjà uploadée = 409 avant fix)
+        if USE_SUPABASE and user_id:
+            photo_url = (cv_out.get("photo_url") or "").strip()
+            is_supabase_photo = "supabase.co/storage" in photo_url and "/object/sign" in photo_url
+            if not photo_url or is_supabase_photo:
+                try:
+                    from backend.db import get_cv_photo_public_url_for_user
+                    url = get_cv_photo_public_url_for_user(user_id)
+                    if url:
+                        cv_out["photo_url"] = url
+                except Exception:
+                    pass
         return cv_out
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))

@@ -80,7 +80,7 @@ function MfaChallengeScreen({ onSuccess }) {
   return (
     <div className="login-screen">
       <div className="login-screen-card">
-        <img src="/logoaxel.ico" alt="AxeL Job" className="login-screen-logo" />
+        <img src="/favicon.svg" alt="AxeL Job" className="login-screen-logo" />
         <h1>Vérification en deux étapes</h1>
         <p className="login-screen-intro">Entre le code à 6 chiffres de ton application authentificatrice.</p>
         <form className="auth-form" onSubmit={handleSubmit}>
@@ -134,7 +134,7 @@ function RecoveryPasswordForm({ onDone }) {
   return (
     <div className="login-screen">
       <div className="login-screen-card">
-        <img src="/logoaxel.ico" alt="AxeL Job" className="login-screen-logo" />
+        <img src="/favicon.svg" alt="AxeL Job" className="login-screen-logo" />
         <h1>Nouveau mot de passe</h1>
         <p className="login-screen-intro">Choisis un nouveau mot de passe pour ton compte.</p>
         <form className="auth-form" onSubmit={handleSubmit}>
@@ -369,6 +369,11 @@ export default function App() {
   const previewWrapRef = useRef(null);
   const exportDirHandleRef = useRef(null);
   const chatMessagesEndRef = useRef(null);
+  /** Photo Supabase : fenêtre 1 semaine ; si l'URL a expiré, déco + redirect login pour tout remettre à jour */
+  const handlePhotoSessionExpired = () => {
+    if (supabase) supabase.auth.signOut();
+    navigate('/login', { replace: true });
+  };
   // Modals quali (refus / interview) pour mémoire
   const [statutModalType, setStatutModalType] = useState(null);
   const [statutModalAppId, setStatutModalAppId] = useState(null);
@@ -426,12 +431,13 @@ export default function App() {
     setTourRestartKey((k) => k + 1);
   };
 
-  // Liste des templates : un seul fetch partagé (évite 2x GET /api/templates avec CV + Profil montés)
+  // Liste des templates : fetch uniquement en app (pas sur la landing) pour alléger le chemin critique
   useEffect(() => {
+    if (!pathname.startsWith('/app')) return;
     apiGet('/api/templates')
       .then((data) => setTemplatesList(Array.isArray(data) ? data : []))
       .catch(() => setTemplatesList([]));
-  }, []);
+  }, [pathname]);
 
   // Persist template choice (localStorage + base de données)
   useEffect(() => {
@@ -672,7 +678,9 @@ export default function App() {
     } catch (_) {}
   }, [view]);
 
+  // Export default dir : chargé uniquement sur la vue CV pour réduire la latence du premier chargement
   useEffect(() => {
+    if (view !== 'cv') return;
     const saved = localStorage.getItem(STORAGE_EXPORT_DIR);
     if (saved) setExportDossierPath(saved);
     else {
@@ -680,7 +688,7 @@ export default function App() {
         if (data.path) setExportDossierPath((p) => p || data.path);
       }).catch(() => {});
     }
-  }, []);
+  }, [view]);
 
   useEffect(() => {
     if (supabase && !session) return;
@@ -1239,7 +1247,7 @@ export default function App() {
     return (
       <div className="login-screen">
         <div className="login-screen-card">
-          <img src="/logoaxel.ico" alt="AxeL Job" className="login-screen-logo" />
+          <img src="/favicon.svg" alt="AxeL Job" className="login-screen-logo" />
           <h1>AxeL Job</h1>
           <p className="login-screen-intro">
             Configure Supabase pour utiliser l'application. Ajoute <code>VITE_SUPABASE_URL</code> et <code>VITE_SUPABASE_ANON_KEY</code> dans <code>.env</code> (voir <code>.env.example</code>).
@@ -1278,7 +1286,7 @@ export default function App() {
             &larr; Retour à l&apos;accueil
           </button>
           <div className="login-screen-card">
-            <img src="/logoaxel.ico" alt="AxeL Job" className="login-screen-logo" />
+            <img src="/favicon.svg" alt="AxeL Job" className="login-screen-logo" />
             <h1>AxeL Job</h1>
             <p className="login-screen-intro">Adapte ton CV à chaque offre en quelques secondes.</p>
             {loginOtpExpired && (
@@ -1307,7 +1315,7 @@ export default function App() {
     <div className="app-shell">
       <header className="topbar">
         <div className="topbar-left">
-          <img src="/logoaxel.ico" alt="AxeL Job" className="topbar-logo" />
+          <img src="/favicon.svg" alt="AxeL Job" className="topbar-logo" />
           <span className="topbar-brand">AxeL Job</span>
         </div>
         <nav className="topbar-nav">
@@ -1347,7 +1355,7 @@ export default function App() {
         </div>
       </header>
 
-      <div className="app-main">
+      <main className="app-main" id="main-content">
         {needsOnboarding && onboardingChecked && (
           <OnboardingWizard
             session={session}
@@ -1377,7 +1385,7 @@ export default function App() {
               </button>
             </div>
           )}
-          <main className="cv-chat-layout">
+          <div className="cv-chat-layout">
             <div className="cv-chat-area">
               <div className="cv-chat-messages" role="log">
                 {chatMessages.length === 0 && (
@@ -1507,6 +1515,7 @@ export default function App() {
                     templateOptions={templateOptions}
                     showPhoto={templateOptions?.show_photo !== false}
                     showMotsClesAts={templateOptions?.show_mots_cles_ats !== false}
+                    onPhotoSessionExpired={handlePhotoSessionExpired}
                     onChange={(updatedCv) => {
                       setLastAdaptedCv(updatedCv);
                       trackEvent('cv_manually_edited', { adaptation_id: lastAdaptationId });
@@ -1627,7 +1636,7 @@ export default function App() {
                 </div>
               )}
             </div>
-          </main>
+          </div>
           {exporting && (
             <div className="application-detail-overlay linkedin-sync-overlay export-overlay" role="dialog" aria-modal="true" aria-live="polite" aria-busy="true">
               <div className="linkedin-sync-modal export-modal" onClick={(e) => e.stopPropagation()}>
@@ -1981,7 +1990,7 @@ export default function App() {
             <p className="page-subtitle">Ton CV de base. Modifications enregistrées automatiquement.</p>
           </header>
           <div className="page-content">
-            <ProfileView onSaveSuccess={handleProfileSaveSuccess} session={session} refreshKey={profileRefreshKey} usage={usage} onUpgradeClick={handleUpgradeClick} templatesList={templatesList} templateId={templateId} templateOptions={templateOptions} onTemplateIdChange={setTemplateId} onTemplateOptionsChange={setTemplateOptions} />
+            <ProfileView onSaveSuccess={handleProfileSaveSuccess} session={session} refreshKey={profileRefreshKey} usage={usage} onUpgradeClick={handleUpgradeClick} templatesList={templatesList} templateId={templateId} templateOptions={templateOptions} onTemplateIdChange={setTemplateId} onTemplateOptionsChange={setTemplateOptions} onPhotoSessionExpired={handlePhotoSessionExpired} />
           </div>
         </div>
 
@@ -2267,7 +2276,7 @@ export default function App() {
             </div>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }

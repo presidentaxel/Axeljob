@@ -72,7 +72,11 @@ function CollapsibleSection({ title, defaultOpen = true, required, children }) {
   );
 }
 
-export default function ProfileView({ onSaveSuccess, session, refreshKey, usage, onUpgradeClick, templatesList, templateId: templateIdProp, templateOptions: templateOptionsProp, onTemplateIdChange, onTemplateOptionsChange }) {
+function isSupabaseSignedPhotoUrl(url) {
+  return typeof url === 'string' && url.includes('supabase.co/storage') && url.includes('/object/sign');
+}
+
+export default function ProfileView({ onSaveSuccess, session, refreshKey, usage, onUpgradeClick, templatesList, templateId: templateIdProp, templateOptions: templateOptionsProp, onTemplateIdChange, onTemplateOptionsChange, onPhotoSessionExpired }) {
   const [cv, setCv] = useState(defaultCv());
   const [localTemplateId, setLocalTemplateId] = useState(() => localStorage.getItem('cv_template_id') || 'classic');
   const [localTemplateOptions, setLocalTemplateOptions] = useState(() => {
@@ -736,7 +740,14 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                 src={(cv.photo_url || '').startsWith('http') ? cv.photo_url : apiUrl('/api/assets/' + (cv.photo_url || '').replace(/^assets\//, ''))}
                 alt="Photo CV"
                 className="profile-photo-img"
-                onError={(e) => { e.target.style.display = 'none'; }}
+                onError={(e) => {
+                  const src = e.target?.src;
+                  if (isSupabaseSignedPhotoUrl(src) && onPhotoSessionExpired) {
+                    onPhotoSessionExpired();
+                    return;
+                  }
+                  e.target.style.display = 'none';
+                }}
               />
             ) : (
               <span className="profile-photo-placeholder">Aucune photo</span>

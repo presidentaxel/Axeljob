@@ -264,7 +264,8 @@ def _signed_url(sb, bucket: str, path: str) -> str:
         return ""
 
 
-_SIGNED_URL_EXPIRY = 3600
+# 1 an en secondes — évite que la photo ne s’affiche plus après une nuit (JWT expiré)
+_SIGNED_URL_EXPIRY = 604800  # 1 semaine
 
 
 def get_cv_photo_public_url_for_user(user_id: Optional[str]) -> Optional[str]:

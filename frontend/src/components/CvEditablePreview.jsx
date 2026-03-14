@@ -39,6 +39,10 @@ function getByPath(obj, path) {
   return cur;
 }
 
+function isSupabaseSignedPhotoUrl(url) {
+  return typeof url === 'string' && url.includes('supabase.co/storage') && url.includes('/object/sign');
+}
+
 const COLOR_RE = /^#[0-9a-fA-F]{3,8}$/;
 const CSS_VAR_MAP = { header_color: '--cv-header-color', sidebar_color: '--cv-sidebar-color', accent_color: '--cv-accent-color' };
 const FONT_SAFE = { 'Plus Jakarta Sans': "'Plus Jakarta Sans', Arial, sans-serif", 'Inter': "'Inter', Arial, sans-serif", 'Georgia': "Georgia, 'Times New Roman', serif" };
@@ -67,7 +71,7 @@ function getContentDensity(cv) {
   return 'full';
 }
 
-export default function CvEditablePreview({ cv, baseCv, onChange, templateId = 'classic', templateOptions, showPhoto = true, showMotsClesAts = true }) {
+export default function CvEditablePreview({ cv, baseCv, onChange, templateId = 'classic', templateOptions, showPhoto = true, showMotsClesAts = true, onPhotoSessionExpired }) {
   const containerRef = useRef(null);
   const cssVarOverrides = optionsToCssVars(templateOptions);
   const contentDensity = getContentDensity(cv);
@@ -130,7 +134,11 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
       <header className="cv-header">
         {showPhoto && photoUrl && (
           <div className="header-photo">
-            <img src={photoUrl} alt="" />
+            <img
+              src={photoUrl}
+              alt=""
+              onError={(e) => { if (isSupabaseSignedPhotoUrl(e.target?.src) && onPhotoSessionExpired) onPhotoSessionExpired(); }}
+            />
           </div>
         )}
         <div className="header-text">
@@ -276,7 +284,15 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
   const renderModern = () => (
     <article className="cv cv-preview cv-editable">
       <div className="cv-sidebar">
-        {showPhoto && photoUrl && <div className="sidebar-photo"><img src={photoUrl} alt="" /></div>}
+        {showPhoto && photoUrl && (
+          <div className="sidebar-photo">
+            <img
+              src={photoUrl}
+              alt=""
+              onError={(e) => { if (isSupabaseSignedPhotoUrl(e.target?.src) && onPhotoSessionExpired) onPhotoSessionExpired(); }}
+            />
+          </div>
+        )}
         <div className="sidebar-identity">
           <h1 className="sidebar-nom">
             <span data-cv-field="prenom" className={isChanged('prenom') ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{cv.prenom || ''}</span>
@@ -430,6 +446,7 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
                   <img
                     src={(cv.photo_url || '').startsWith('http') ? cv.photo_url : apiUrl('/api/assets/' + (cv.photo_url || '').replace(/^assets\//, ''))}
                     alt=""
+                    onError={(e) => { if (isSupabaseSignedPhotoUrl(e.target?.src) && onPhotoSessionExpired) onPhotoSessionExpired(); }}
                   />
                 ) : null}
               </div>

@@ -197,7 +197,7 @@
 
 .mockup-title {
   margin-left: 0.6rem;
-  color: #71717a;
+  color: #a1a1aa;
   font-size: 0.7rem;
   font-weight: 500;
 }
@@ -474,7 +474,7 @@
 
 .landing-cta-bottom p {
   margin: 0 0 1.75rem;
-  color: var(--muted);
+  color: var(--text-secondary);
   font-size: 1rem;
 }
 

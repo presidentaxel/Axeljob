@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'fs'
 import { join } from 'path'
 
 /** Sur les pages publiques (/ats, /faq, etc.) servir le HTML statique au lieu de index.html (SPA). */
@@ -29,7 +29,7 @@ function staticPagesPlugin() {
   }
 }
 
-/** Rendre le CSS des chunks non bloquant après build (LCP). Le CSS principal reste bloquant pour que polices et boutons soient corrects en prod. */
+/** Rendre le CSS des chunks non bloquant après build (LCP). Le CSS principal reste bloquant. */
 function cssNonBlockingPlugin() {
   let outDir = 'dist'
   return {
@@ -39,17 +39,25 @@ function cssNonBlockingPlugin() {
     },
     closeBundle() {
       const indexPath = join(process.cwd(), outDir, 'index.html')
+      const assetsDir = join(process.cwd(), outDir, 'assets')
       try {
         let html = readFileSync(indexPath, 'utf-8')
         html = html.replace(
           /<link([^>]*rel="stylesheet"[^>]*)href="([^"]+\.css)"([^>]*)>/gi,
           (match, before, href, after) => {
             if (match.includes('media=') || match.includes('fonts.googleapis')) return match
-            // Ne pas différer le CSS principal (index-*.css) : boutons + police doivent être appliqués au premier paint
-            if (/\/index-[^/]+\.css$/i.test(href)) return match
+            if (/\/index-[^/]+\.css$/i.test(href) || /landing-static\.css/i.test(href)) return match
             return `<link${before}href="${href}" media="print" onload="this.media='all'"${after}>`
           }
         )
+        // Remplir __APP_CSS_FILENAME__ pour que /login et /app chargent le CSS de l'app
+        let appCssFilename = ''
+        if (existsSync(assetsDir)) {
+          const files = readdirSync(assetsDir)
+          const cssFile = files.find((f) => /\.css$/.test(f))
+          if (cssFile) appCssFilename = cssFile
+        }
+        html = html.replace(/__APP_CSS_FILENAME__/g, appCssFilename)
         writeFileSync(indexPath, html)
       } catch (_) {}
     },

@@ -109,6 +109,7 @@
     </script>
     <link rel="stylesheet" href="/landing-static.css" />
     <style>.js-enabled #root .static-crawlable{display:none!important}</style>
+    <script>window.__APP_CSS__ = "__APP_CSS_FILENAME__";</script>
   </head>
   <body>
     <script>
@@ -320,9 +321,15 @@
         if (p.indexOf('/app') === 0 || p === '/login') {
           var root = document.getElementById('root');
           if (root) root.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:\'Plus Jakarta Sans\',sans-serif;color:#64748b;">Chargement…</div>';
+          var isDev = window.location.hostname === 'localhost' && (window.location.port === '5173' || window.location.port === '');
+          if (!isDev && typeof __APP_CSS__ === 'string' && __APP_CSS__) {
+            var link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = '/assets/' + __APP_CSS__;
+            document.head.appendChild(link);
+          }
           var el = document.createElement('script');
           el.type = 'module';
-          var isDev = window.location.hostname === 'localhost' && (window.location.port === '5173' || window.location.port === '');
           el.src = isDev ? '/src/main.jsx' : '/assets/main.js';
           document.body.appendChild(el);
         }

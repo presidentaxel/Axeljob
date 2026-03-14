@@ -86,7 +86,12 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
       if (err) throw err;
       setMessage('Un lien de connexion a été envoyé à ta boîte mail. Clique dessus pour te connecter.');
     } catch (err) {
-      setError(err.message || 'Impossible d\'envoyer le lien.');
+      const msg = err?.message || '';
+      if (msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('rate_limit') || err?.status === 429) {
+        setError('Trop de demandes d\'email envoyées (limite Supabase). Réessaie dans environ 1 heure, ou utilise une autre adresse email. Pour en envoyer plus, configure un SMTP personnalisé dans le tableau de bord Supabase (Authentication → SMTP).');
+      } else {
+        setError(msg || 'Impossible d\'envoyer le lien.');
+      }
     } finally {
       setLoading(false);
     }
@@ -108,7 +113,12 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
       if (err) throw err;
       setMessage('Email de réinitialisation envoyé. Vérifie ta boîte mail.');
     } catch (err) {
-      setError(err.message || 'Impossible d\'envoyer l\'email.');
+      const msg = err?.message || '';
+      if (msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('rate_limit') || err?.status === 429) {
+        setError('Trop de demandes d\'email envoyées (limite Supabase). Réessaie dans environ 1 heure ou utilise une autre adresse. Pour augmenter la limite : Supabase Dashboard → Authentication → SMTP (configurer un fournisseur personnalisé).');
+      } else {
+        setError(msg || 'Impossible d\'envoyer l\'email.');
+      }
     } finally {
       setLoading(false);
     }

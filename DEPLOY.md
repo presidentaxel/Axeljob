@@ -308,6 +308,10 @@ Dans **Authentication > Email** (ou Providers > Email), tu peux activer selon te
 - **MFA (TOTP)** : dans Authentication > MFA, tu peux activer « TOTP (App Authenticator) » en **Enabled** pour que les utilisateurs puissent l’activer **en option** depuis Profil > Compte et sécurité. Ce n’est pas obligatoire : seuls ceux qui l’activent devront saisir le code à la connexion.
 - **Protection mots de passe compromis** : dans Authentication > Settings (ou Providers > Email), active « Leaked password protection » pour que Supabase vérifie les mots de passe contre HaveIBeenPwned et refuse les mots de passe connus comme compromis.
 
+**Limite d’emails (rate limit)** : avec le SMTP intégré Supabase, tu as environ **4 emails/heure** (magic link, reset password, etc.). Si tu vois « Email rate limit exceeded » après quelques essais :
+- En dev : attends ~1 h ou utilise une autre adresse email pour tester.
+- En prod : configure un **SMTP personnalisé** : Dashboard > **Project Settings > Authentication > SMTP**. Ajoute un fournisseur (SendGrid, Resend, Mailgun, etc.) pour lever cette limite et gérer tes propres quotas.
+
 ---
 
 ## 5. Preparer les variables d'environnement

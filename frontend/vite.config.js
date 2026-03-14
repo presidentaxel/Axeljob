@@ -1,7 +1,33 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { readFileSync, writeFileSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { join } from 'path'
+
+/** Sur les pages publiques (/ats, /faq, etc.) servir le HTML statique au lieu de index.html (SPA). */
+const STATIC_ROUTES = ['/ats', '/faq', '/guide-cv', '/modeles-cv', '/erreurs-cv', '/cv-par-metier', '/cv-adapte-chaque-offre', '/mentions-legales', '/confidentialite', '/cgu']
+
+function staticPagesPlugin() {
+  return {
+    name: 'static-pages',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.method !== 'GET' || !req.url) return next()
+        const path = req.url.split('?')[0].replace(/%24/g, '$')
+        if (!STATIC_ROUTES.includes(path)) return next()
+        const file = path.slice(1) + '.html'
+        const filePath = join(process.cwd(), 'public', file)
+        if (!existsSync(filePath)) return next()
+        try {
+          const html = readFileSync(filePath, 'utf-8')
+          res.setHeader('Content-Type', 'text/html; charset=utf-8')
+          res.end(html)
+        } catch (_) {
+          next()
+        }
+      })
+    },
+  }
+}
 
 /** Rendre le CSS des chunks non bloquant après build (LCP). Le CSS principal reste bloquant pour que polices et boutons soient corrects en prod. */
 function cssNonBlockingPlugin() {
@@ -32,7 +58,7 @@ function cssNonBlockingPlugin() {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), cssNonBlockingPlugin()],
+  plugins: [react(), staticPagesPlugin(), cssNonBlockingPlugin()],
   build: {
     sourcemap: true,
     rollupOptions: {

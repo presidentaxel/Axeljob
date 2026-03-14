@@ -54,8 +54,10 @@ function cssNonBlockingPlugin() {
         let appCssFilename = ''
         if (existsSync(assetsDir)) {
           const files = readdirSync(assetsDir)
-          const cssFile = files.find((f) => /\.css$/.test(f))
-          if (cssFile) appCssFilename = cssFile
+          const mainCss = files.find((f) => /^main-.+\.css$/.test(f)) || files.find((f) => /^index-.+\.css$/.test(f))
+          const anyCss = files.find((f) => /\.css$/.test(f))
+          if (mainCss) appCssFilename = mainCss
+          else if (anyCss) appCssFilename = anyCss
         }
         html = html.replace(/__APP_CSS_FILENAME__/g, appCssFilename)
         writeFileSync(indexPath, html)

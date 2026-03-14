@@ -25,8 +25,9 @@ import CompanyLogo from './components/CompanyLogo';
 import ApplicationDetailModal from './components/ApplicationDetailModal';
 import TemplatePicker from './components/TemplatePicker';
 import GuidedTour from './components/GuidedTour';
+import SupportHighlight from './components/SupportHighlight';
 import { STORAGE_EXPORT_DIR, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
-import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiCheck } from 'react-icons/hi2';
+import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiCheck, HiSwatch } from 'react-icons/hi2';
 import './App.css';
 import './styles/TemplatePicker.css';
 import './styles/GuidedTour.css';
@@ -35,6 +36,8 @@ import './styles/GuidedTour.css';
 /** URL logo entreprise (Clearbit, open source). Fallback: pas d’image. */
 
 /** Affiche le logo entreprise ou l’initiale (style app bancaire). */
+
+const TPL_FONT_SAFE = { 'Plus Jakarta Sans': "'Plus Jakarta Sans', Arial, sans-serif", 'Inter': "'Inter', Arial, sans-serif", 'Georgia': "Georgia, 'Times New Roman', serif" };
 
 function getViewFromPathname(pathname) {
   if (pathname === '/app/cv' || pathname.startsWith('/app/cv')) return 'cv';
@@ -257,13 +260,73 @@ const TOUR_STEPS = [
     selector: '[href="/app/postule"]',
     title: 'Suis tes candidatures',
     content: 'Chaque CV adapté crée une candidature. Retrouve-les toutes ici avec le suivi.',
-    position: 'right',
+    position: 'bottom',
   },
   {
     selector: '[href="/app/profil"]',
     title: 'Ton profil de base',
     content: 'Complète ton profil une fois, et il servira de base pour toutes tes adaptations.',
-    position: 'right',
+    position: 'bottom',
+  },
+];
+
+/** Sujets Support : au clic, on ouvre la page et on affiche un spotlight + bulle sur l’élément concerné. */
+const SUPPORT_TOPICS = [
+  {
+    id: 'adapter-cv',
+    route: '/app/cv',
+    selector: '.cv-chat-input',
+    title: 'Adapter mon CV à une offre',
+    description: 'Colle l\'annonce dans « Adapter un CV », envoie. L\'IA adapte ton CV. Tu peux affiner par message ou modifier le texte à la main.',
+    bubbleTitle: 'Colle une offre ici',
+    bubbleContent: 'C\'est ici que tout commence. Colle la fiche de poste et envoie : l\'IA adapte ton CV. Tu pourras affiner par message ou modifier le texte à la main.',
+    position: 'top',
+    icon: HiDocumentText,
+  },
+  {
+    id: 'exporter-pdf',
+    route: '/app/cv',
+    selector: '.cv-chat-preview',
+    title: 'Exporter en PDF',
+    description: 'Après adaptation, utilise « Télécharger le PDF » dans la zone d\'export. Tu peux renseigner entreprise et intitulé pour le nom du fichier.',
+    bubbleTitle: 'Zone d\'export',
+    bubbleContent: 'Après avoir adapté ton CV, la zone d\'export avec le bouton « Télécharger le PDF » apparaît juste en dessous de l\'aperçu. Tu peux renseigner entreprise et intitulé pour le nom du fichier.',
+    position: 'left',
+    icon: HiArrowDownTray,
+  },
+  {
+    id: 'suivre-candidatures',
+    route: '/app/postule',
+    selector: '.kanban-board',
+    title: 'Suivre mes candidatures',
+    description: 'Les candidatures sont dans « Mes candidatures ». Glisse les cartes pour changer le statut (à postuler, envoyée, entretien, refus…).',
+    bubbleTitle: 'Suivi des candidatures',
+    bubbleContent: 'Les candidatures s\'affichent ici. Glisse les cartes entre les colonnes pour changer le statut (à postuler, envoyée, entretien, refus…).',
+    position: 'top',
+    icon: HiClipboardDocumentList,
+  },
+  {
+    id: 'modifier-texte-cv',
+    route: '/app/cv',
+    selector: '.cv-chat-preview',
+    title: 'Modifier le texte du CV',
+    description: 'En vue « Modifié », clique sur n\'importe quel texte dans l\'aperçu pour l\'éditer directement. Les changements sont pris en compte à la sortie du champ.',
+    bubbleTitle: 'Édition directe',
+    bubbleContent: 'En vue « Modifié », clique sur n\'importe quel texte dans l\'aperçu pour l\'éditer directement. Les changements sont pris en compte à la sortie du champ.',
+    position: 'left',
+    icon: HiPencilSquare,
+  },
+  {
+    id: 'personnaliser-couleurs',
+    route: '/app/cv',
+    selector: '.tpl-popover',
+    title: 'Personnaliser les couleurs et la police',
+    description: 'Choisis les couleurs de l\'en-tête, de la sidebar et d\'accent, la police des titres, et affiche ou masque la photo et les mots-clés ATS.',
+    bubbleTitle: 'Menu de personnalisation',
+    bubbleContent: 'Ici tu peux modifier la couleur de l\'en-tête, de la sidebar et d\'accent, choisir la police des titres, afficher ou non ta photo et la section mots-clés ATS. Les réglages s\'appliquent à ton aperçu et sont mémorisés.',
+    position: 'left',
+    icon: HiSwatch,
+    openTemplateOptions: true,
   },
 ];
 
@@ -294,6 +357,7 @@ export default function App() {
   /* sidebar removed - now using topbar layout */
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(!!supabase);
+  const [loginOtpExpired, setLoginOtpExpired] = useState(false);
   const [applicationDetailId, setApplicationDetailId] = useState(null);
   const [applicationDetail, setApplicationDetail] = useState(null);
   const [detailTab, setDetailTab] = useState('cv');
@@ -369,13 +433,21 @@ export default function App() {
       .catch(() => setTemplatesList([]));
   }, []);
 
-  // Persist template choice
+  // Persist template choice (localStorage + base de données)
   useEffect(() => {
     localStorage.setItem('cv_template_id', templateId);
   }, [templateId]);
   useEffect(() => {
     localStorage.setItem('cv_template_options', JSON.stringify(templateOptions));
   }, [templateOptions]);
+
+  useEffect(() => {
+    if (!session) return;
+    const t = setTimeout(() => {
+      apiPatch('/api/cv', { template_id: templateId, template_options: templateOptions }).catch(() => {});
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [session, templateId, templateOptions]);
 
   const templateParams = { template_id: templateId, template_options: templateOptions };
 
@@ -459,6 +531,24 @@ export default function App() {
     if (session && view) trackEvent('page_view', { view });
   }, [session, view]);
 
+  // Détecter erreur magic link (lien expiré) sur /login et nettoyer l'URL
+  useEffect(() => {
+    if (pathname !== '/login') {
+      setLoginOtpExpired(false);
+      return;
+    }
+    if (typeof window === 'undefined') return;
+    const hash = window.location.hash || '';
+    const params = new URLSearchParams(hash.replace(/^#/, ''));
+    const code = params.get('error_code');
+    const desc = params.get('error_description') || params.get('error') || '';
+    const expired = code === 'otp_expired' || /expired|invalid|expiré|invalide/i.test(desc);
+    if (expired) {
+      setLoginOtpExpired(true);
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  }, [pathname]);
+
   // Redirections selon auth et route
   useEffect(() => {
     if (authLoading) return;
@@ -488,8 +578,24 @@ export default function App() {
     const onLoad = () => {
       iframe.style.opacity = '1';
       iframe.removeEventListener('load', onLoad);
+      resizeIframeToContent(iframe);
     };
     iframe.addEventListener('load', onLoad);
+  };
+
+  // Une seule zone de scroll (.preview-wrap) : l’iframe s’adapte à la hauteur du contenu
+  const resizeIframeToContent = (iframe) => {
+    try {
+      const doc = iframe.contentDocument;
+      if (!doc || !doc.documentElement) return;
+      const height = Math.max(
+        doc.documentElement.scrollHeight,
+        doc.documentElement.offsetHeight,
+        doc.body?.scrollHeight ?? 0,
+        doc.body?.offsetHeight ?? 0
+      );
+      if (height > 0) iframe.style.height = `${height}px`;
+    } catch (_) { /* cross-origin or not loaded */ }
   };
 
   const showError = (msg) => {
@@ -498,13 +604,17 @@ export default function App() {
   };
   const hideError = () => setError('');
 
-  const loadInitialPreview = async () => {
+  const loadInitialPreview = async (tid = templateId, opts = templateOptions) => {
     if (!session) {
       setPreviewHtml('<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#888;font-family:Plus Jakarta Sans,sans-serif;padding:2rem;text-align:center"><p>Connecte-toi pour voir l\'aperçu de ton CV.</p></div>');
       return;
     }
     try {
-      const html = await apiGet(`/api/cv/preview?template_id=${encodeURIComponent(templateId)}`);
+      const params = new URLSearchParams({ template_id: tid });
+      if (opts && Object.keys(opts).length > 0) {
+        params.set('template_options', JSON.stringify(opts));
+      }
+      const html = await apiGet(`/api/cv/preview?${params.toString()}`);
       setPreviewHtml(html);
     } catch {
       setPreviewHtml('<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#888;font-family:Plus Jakarta Sans,sans-serif;padding:2rem;text-align:center"><p>Complète ton profil pour voir l\'aperçu de ton CV ici.</p></div>');
@@ -543,6 +653,24 @@ export default function App() {
     // Ne pas mettre lastAdaptedCv en dépendance : au retour sur l’onglet CV on affiche
     // la dernière version adaptée (valeur à l’exécution), sans recharger le CV de base.
   }, [view, session?.user?.id]);
+
+  // Réappliquer les options (couleurs, police) à l'aperçu même sans CV adapté par Gemini
+  useEffect(() => {
+    if (!session || view !== 'cv') return;
+    if (lastAdaptedCv) return;
+    loadInitialPreview(templateId, templateOptions);
+  }, [templateKey]);
+
+  // Synchroniser template/options depuis le localStorage en passant sur l'onglet CV (au cas où modifié depuis Profil)
+  useEffect(() => {
+    if (view !== 'cv') return;
+    try {
+      const tid = localStorage.getItem('cv_template_id');
+      const topt = localStorage.getItem('cv_template_options');
+      if (tid) setTemplateId(tid);
+      if (topt) setTemplateOptions(JSON.parse(topt));
+    } catch (_) {}
+  }, [view]);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_EXPORT_DIR);
@@ -784,14 +912,27 @@ export default function App() {
     }
   };
 
-  const handleManageSubscription = async () => {
+  const handleManageSubscriptionClick = () => {
+    setManageSubscriptionModalOpen(true);
+  };
+
+  const handleManageSubscriptionConfirm = async () => {
     setCheckoutLoading(true);
+    setManageSubscriptionModalOpen(false);
+    if (cancelReason || cancelReasonText.trim()) {
+      try {
+        await apiPost('/api/cancel-feedback', { reason: cancelReason, comment: cancelReasonText.trim() });
+      } catch (_) { /* endpoint optionnel */ }
+    }
+    setCancelReason('');
+    setCancelReasonText('');
     try {
       const { url } = await apiPost('/api/create-portal-session', {});
       if (url) window.location.href = url;
       else setError('Impossible d\'accéder au portail de gestion.');
     } catch (e) {
-      setError(e.message || 'Gestion non disponible.');
+      if (e.status === 503) setError('Le portail de gestion des abonnements n\'est pas disponible (paiement non configuré).');
+      else setError(e.message || 'Gestion non disponible.');
     } finally {
       setCheckoutLoading(false);
     }
@@ -903,6 +1044,7 @@ export default function App() {
           entreprise: entrepriseNom,
           description: annonce,
           adaptation_id: lastAdaptationId || undefined,
+          ...templateParams,
         });
         const JSZip = (await import('jszip')).default;
         const zip = await JSZip.loadAsync(blob);
@@ -930,6 +1072,7 @@ export default function App() {
           entreprise: entrepriseNom,
           description: annonce,
           dossier: exportDossierPath.trim() || undefined,
+          ...templateParams,
         });
         if (exportDossierPath.trim()) localStorage.setItem(STORAGE_EXPORT_DIR, exportDossierPath.trim());
         setRapport({ ...rapport, folder: data.folder, files: data.files || [] });
@@ -1050,7 +1193,13 @@ export default function App() {
     } catch {}
   };
 
+  const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
+  const [manageSubscriptionModalOpen, setManageSubscriptionModalOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelReasonText, setCancelReasonText] = useState('');
+
   const handleSignOut = async () => {
+    setSignOutConfirmOpen(false);
     if (supabase) await supabase.auth.signOut();
   };
 
@@ -1132,6 +1281,11 @@ export default function App() {
             <img src="/logoaxel.ico" alt="AxeL Job" className="login-screen-logo" />
             <h1>AxeL Job</h1>
             <p className="login-screen-intro">Adapte ton CV à chaque offre en quelques secondes.</p>
+            {loginOtpExpired && (
+              <div className="auth-error" style={{ marginBottom: '1rem' }}>
+                Le lien de connexion a expiré ou n&apos;est plus valide. Demande un nouveau lien ci-dessous.
+              </div>
+            )}
             <AuthForm onSuccess={() => setAuthLoading(false)} />
           </div>
         </div>
@@ -1186,7 +1340,7 @@ export default function App() {
             </button>
           )}
           {session && (
-            <button type="button" className="topbar-user-btn" onClick={handleSignOut} title="Déconnexion">
+            <button type="button" className="topbar-user-btn" onClick={() => setSignOutConfirmOpen(true)} title="Déconnexion">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
             </button>
           )}
@@ -1288,15 +1442,18 @@ export default function App() {
               </div>
             </div>
             <div className="cv-chat-preview">
-              <TemplatePicker
-                templates={templatesList}
-                templateId={templateId}
-                templateOptions={templateOptions}
-                onChangeTemplate={(id) => { setTemplateId(id); setTemplateOptions({}); trackEvent('template_changed', { template_id: id }); }}
-                onChangeOptions={setTemplateOptions}
-                userPlan={usage?.plan}
-                onUpgradeClick={handleUpgradeClick}
-              />
+              <div className="cv-tpl-scope" style={{ ['--cv-font-heading']: templateOptions?.font && TPL_FONT_SAFE[templateOptions.font] ? TPL_FONT_SAFE[templateOptions.font] : undefined }}>
+                <TemplatePicker
+                  templates={templatesList}
+                  templateId={templateId}
+                  templateOptions={templateOptions}
+                  onChangeTemplate={(id) => { setTemplateId(id); setTemplateOptions({}); trackEvent('template_changed', { template_id: id }); }}
+                  onChangeOptions={setTemplateOptions}
+                  userPlan={usage?.plan}
+                  onUpgradeClick={handleUpgradeClick}
+                  openOptionsFromSupport={location.state?.supportHighlight?.openTemplateOptions}
+                />
+              </div>
               {lastAdaptedCv && adaptRating === null && (
                 <div className="adapt-rating-bar">
                   <span className="adapt-rating-label">Ce résultat te convient ?</span>
@@ -1360,7 +1517,7 @@ export default function App() {
                   />
                 ) : (
                   <div className="preview-iframe-wrap">
-                    <iframe ref={iframeRef} title="Aperçu du CV" />
+                    <iframe ref={iframeRef} title="Aperçu du CV" onLoad={(e) => resizeIframeToContent(e.target)} />
                   </div>
                 )}
                 </div>
@@ -1471,6 +1628,16 @@ export default function App() {
               )}
             </div>
           </main>
+          {exporting && (
+            <div className="application-detail-overlay linkedin-sync-overlay export-overlay" role="dialog" aria-modal="true" aria-live="polite" aria-busy="true">
+              <div className="linkedin-sync-modal export-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="export-overlay-spinner" aria-hidden="true" />
+                <h3 style={{ marginTop: '1rem' }}>Export du dossier en cours</h3>
+                <p className="profile-subtitle" style={{ marginTop: 0 }}>Génération du PDF et des fichiers…</p>
+              </div>
+            </div>
+          )}
+
           {cvEditPanelOpen && lastAdaptedCv && (
             <CvEditPanel cv={lastAdaptedCv} onSave={handleSaveCvEdits} onClose={() => setCvEditPanelOpen(false)} />
           )}
@@ -1814,7 +1981,7 @@ export default function App() {
             <p className="page-subtitle">Ton CV de base. Modifications enregistrées automatiquement.</p>
           </header>
           <div className="page-content">
-            <ProfileView onSaveSuccess={handleProfileSaveSuccess} session={session} refreshKey={profileRefreshKey} usage={usage} onUpgradeClick={handleUpgradeClick} templatesList={templatesList} />
+            <ProfileView onSaveSuccess={handleProfileSaveSuccess} session={session} refreshKey={profileRefreshKey} usage={usage} onUpgradeClick={handleUpgradeClick} templatesList={templatesList} templateId={templateId} templateOptions={templateOptions} onTemplateIdChange={setTemplateId} onTemplateOptionsChange={setTemplateOptions} />
           </div>
         </div>
 
@@ -1827,34 +1994,23 @@ export default function App() {
             <section className="support-usecases">
               <h2 className="support-section-title">Use cases classiques</h2>
               <div className="support-usecase-grid">
-                <div className="support-usecase-card">
-                  <div className="support-usecase-icon-wrap">
-                    <HiDocumentText className="support-usecase-icon" aria-hidden />
-                  </div>
-                  <h3 className="support-usecase-title">Adapter mon CV à une offre</h3>
-                  <p className="support-usecase-desc">Colle l&apos;annonce dans « Adapter un CV », envoie. L&apos;IA adapte ton CV. Tu peux affiner par message ou modifier le texte à la main.</p>
-                </div>
-                <div className="support-usecase-card">
-                  <div className="support-usecase-icon-wrap">
-                    <HiArrowDownTray className="support-usecase-icon" aria-hidden />
-                  </div>
-                  <h3 className="support-usecase-title">Exporter en PDF</h3>
-                  <p className="support-usecase-desc">Après adaptation, utilise « Télécharger le PDF » dans la zone d&apos;export. Tu peux renseigner entreprise et intitulé pour le nom du fichier.</p>
-                </div>
-                <div className="support-usecase-card">
-                  <div className="support-usecase-icon-wrap">
-                    <HiClipboardDocumentList className="support-usecase-icon" aria-hidden />
-                  </div>
-                  <h3 className="support-usecase-title">Suivre mes candidatures</h3>
-                  <p className="support-usecase-desc">Les candidatures sont dans « Mes candidatures ». Glisse les cartes pour changer le statut (à postuler, envoyée, entretien, refus…).</p>
-                </div>
-                <div className="support-usecase-card">
-                  <div className="support-usecase-icon-wrap">
-                    <HiPencilSquare className="support-usecase-icon" aria-hidden />
-                  </div>
-                  <h3 className="support-usecase-title">Modifier le texte du CV</h3>
-                  <p className="support-usecase-desc">En vue « Modifié », clique sur n&apos;importe quel texte dans l&apos;aperçu pour l&apos;éditer directement. Les changements sont pris en compte à la sortie du champ.</p>
-                </div>
+                {SUPPORT_TOPICS.map((topic) => {
+                  const Icon = topic.icon;
+                  return (
+                    <button
+                      key={topic.id}
+                      type="button"
+                      className="support-usecase-card support-usecase-card--clickable"
+                      onClick={() => navigate(topic.route, { state: { supportHighlight: { route: topic.route, selector: topic.selector, title: topic.bubbleTitle, content: topic.bubbleContent, position: topic.position, ...(topic.openTemplateOptions && { openTemplateOptions: true }) } } })}
+                    >
+                      <div className="support-usecase-icon-wrap">
+                        <Icon className="support-usecase-icon" aria-hidden />
+                      </div>
+                      <h3 className="support-usecase-title">{topic.title}</h3>
+                      <p className="support-usecase-desc">{topic.description}</p>
+                    </button>
+                  );
+                })}
               </div>
             </section>
             <section className="support-conv">
@@ -1955,7 +2111,7 @@ export default function App() {
                     <li><span className="pro-check"><HiCheck size={14} strokeWidth={2.5} /></span>Lettre de motivation ciblée (à venir)</li>
                   </ul>
                   <div className="linkedin-sync-actions" style={{ marginTop: '1rem', flexDirection: 'column', gap: '0.5rem' }}>
-                    <button type="button" className="btn btn-secondary" onClick={() => { setProModalVisible(false); handleManageSubscription(); }} disabled={checkoutLoading}>
+                    <button type="button" className="btn btn-secondary" onClick={() => { setProModalVisible(false); handleManageSubscriptionClick(); }} disabled={checkoutLoading}>
                       {checkoutLoading ? 'Redirection…' : 'Gérer mon abonnement / Annuler'}
                     </button>
                     <button type="button" className="btn btn-ghost" onClick={() => setProModalVisible(false)}>
@@ -2002,6 +2158,41 @@ export default function App() {
           </div>
         )}
 
+        {signOutConfirmOpen && (
+          <div className="application-detail-overlay linkedin-sync-overlay" onClick={() => setSignOutConfirmOpen(false)} role="dialog" aria-modal="true" aria-labelledby="signout-confirm-title">
+            <div className="linkedin-sync-modal" onClick={(e) => e.stopPropagation()}>
+              <h3 id="signout-confirm-title">Déconnexion</h3>
+              <p className="profile-subtitle" style={{ marginTop: 0 }}>Tu es sûr de vouloir te déconnecter ?</p>
+              <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
+                <button type="button" className="btn btn-primary" onClick={handleSignOut}>Oui, me déconnecter</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setSignOutConfirmOpen(false)}>Annuler</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {manageSubscriptionModalOpen && (
+          <div className="application-detail-overlay linkedin-sync-overlay" onClick={() => setManageSubscriptionModalOpen(false)} role="dialog" aria-modal="true" aria-labelledby="manage-sub-title">
+            <div className="linkedin-sync-modal" onClick={(e) => e.stopPropagation()}>
+              <h3 id="manage-sub-title">Gérer mon abonnement</h3>
+              <p className="profile-subtitle" style={{ marginTop: 0 }}>Tu seras redirigé vers le portail de gestion. Si tu envisages d&apos;annuler, peux-tu nous dire pourquoi ? (optionnel)</p>
+              <label className="input-label" style={{ display: 'block', marginTop: '0.75rem' }}>Raison</label>
+              <select className="input-field" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} style={{ width: '100%', marginTop: '0.25rem' }}>
+                <option value="">— Choisir —</option>
+                <option value="trop_cher">Trop cher</option>
+                <option value="pas_utile">Pas utile pour moi</option>
+                <option value="autre">Autre</option>
+              </select>
+              <label className="input-label" style={{ display: 'block', marginTop: '0.75rem' }}>Commentaire (optionnel)</label>
+              <textarea className="input-field" value={cancelReasonText} onChange={(e) => setCancelReasonText(e.target.value)} placeholder="Ton avis nous aide à nous améliorer…" rows={2} style={{ width: '100%', marginTop: '0.25rem', resize: 'vertical' }} />
+              <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
+                <button type="button" className="btn btn-primary" onClick={handleManageSubscriptionConfirm} disabled={checkoutLoading}>{checkoutLoading ? 'Redirection…' : 'Accéder au portail'}</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setManageSubscriptionModalOpen(false)}>Annuler</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {statutModalType === 'interview' && (
           <div className="application-detail-overlay linkedin-sync-overlay" onClick={() => { setStatutModalType(null); setStatutModalAppId(null); setStatutModalApp(null); }} role="dialog" aria-modal="true">
             <div className="linkedin-sync-modal quali-modal" onClick={(e) => e.stopPropagation()}>
@@ -2034,6 +2225,16 @@ export default function App() {
 
         {session && !needsOnboarding && isCvView && (
           <GuidedTour key={`tour-${tourRestartKey}`} steps={TOUR_STEPS} tourKey="main" />
+        )}
+
+        {session && location.state?.supportHighlight && (pathname === location.state.supportHighlight.route || pathname.startsWith(location.state.supportHighlight.route + '/')) && (
+          <SupportHighlight
+            selector={location.state.supportHighlight.selector}
+            title={location.state.supportHighlight.title}
+            content={location.state.supportHighlight.content}
+            position={location.state.supportHighlight.position}
+            onClose={() => navigate(pathname, { replace: true, state: {} })}
+          />
         )}
 
         {atsDisclaimerVisible && (

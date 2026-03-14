@@ -75,6 +75,8 @@ def export_dossier(
     entreprise: str,
     description_fiche: str,
     output_base: str | None = None,
+    template_id: str | None = None,
+    template_options: dict | None = None,
 ) -> dict:
     """
     Crée le dossier 'Entreprise - Poste' dans output_base (ou CV_BOT_EXPORT_BASE si non fourni), y place :
@@ -92,7 +94,7 @@ def export_dossier(
 
     # 1) CV
     from generator import generer_pdf
-    cv_path = generer_pdf(cv, offre, output_dir=str(folder_path))
+    cv_path = generer_pdf(cv, offre, output_dir=str(folder_path), template_id=template_id, template_options=template_options)
     files_created.append(Path(cv_path).name)
 
     # 2) Fiche de poste
@@ -136,6 +138,8 @@ def export_dossier_as_zip(
     entreprise: str,
     description_fiche: str,
     lettre_corps: str | None = None,
+    template_id: str | None = None,
+    template_options: dict | None = None,
 ) -> tuple[bytes, str, list[str], str]:
     """
     Génère les 3 PDFs en mémoire et les renvoie dans un ZIP.
@@ -151,7 +155,7 @@ def export_dossier_as_zip(
 
     # 1) CV
     from generator import generer_pdf_bytes
-    cv_bytes, cv_filename = generer_pdf_bytes(cv, offre)
+    cv_bytes, cv_filename = generer_pdf_bytes(cv, offre, template_id=template_id, template_options=template_options)
     files_created.append(cv_filename)
 
     # 2) Fiche de poste

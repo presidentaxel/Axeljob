@@ -72,15 +72,19 @@ function CollapsibleSection({ title, defaultOpen = true, required, children }) {
   );
 }
 
-export default function ProfileView({ onSaveSuccess, session, refreshKey, usage, onUpgradeClick, templatesList }) {
+export default function ProfileView({ onSaveSuccess, session, refreshKey, usage, onUpgradeClick, templatesList, templateId: templateIdProp, templateOptions: templateOptionsProp, onTemplateIdChange, onTemplateOptionsChange }) {
   const [cv, setCv] = useState(defaultCv());
-  const [templateId, setTemplateId] = useState(() => localStorage.getItem('cv_template_id') || 'classic');
-  const [templateOptions, setTemplateOptions] = useState(() => {
+  const [localTemplateId, setLocalTemplateId] = useState(() => localStorage.getItem('cv_template_id') || 'classic');
+  const [localTemplateOptions, setLocalTemplateOptions] = useState(() => {
     try {
       const stored = localStorage.getItem('cv_template_options');
       return stored ? JSON.parse(stored) : {};
     } catch { return {}; }
   });
+  const templateId = templateIdProp ?? localTemplateId;
+  const setTemplateId = onTemplateIdChange ?? ((id) => { setLocalTemplateId(id); localStorage.setItem('cv_template_id', id); });
+  const templateOptions = templateOptionsProp ?? localTemplateOptions;
+  const setTemplateOptions = onTemplateOptionsChange ?? ((opts) => { setLocalTemplateOptions(opts); localStorage.setItem('cv_template_options', JSON.stringify(opts)); });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -96,6 +100,12 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
   const [livePreviewHtml, setLivePreviewHtml] = useState('');
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
+  const [importMergeParsed, setImportMergeParsed] = useState(null);
+  const [importMergeOpen, setImportMergeOpen] = useState(false);
+  const [importMergeChoices, setImportMergeChoices] = useState({});
+  const [importStepIndex, setImportStepIndex] = useState(0);
+  const importStepTimerRef = useRef(null);
+  const importFinalisationTimerRef = useRef(null);
   const [changeEmailOpen, setChangeEmailOpen] = useState(false);
   const [changeEmailNew, setChangeEmailNew] = useState('');
   const [changeEmailPassword, setChangeEmailPassword] = useState('');
@@ -130,7 +140,10 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
     apiGet('/api/cv?profile=1')
       .then((data) => {
         skipNextAutoSaveRef.current = true;
-        setCv({ ...defaultCv(), ...data });
+        const merged = { ...defaultCv(), ...data };
+        setCv(merged);
+        if (data?.template_id != null && onTemplateIdChange) onTemplateIdChange(data.template_id);
+        if (data?.template_options != null && typeof data.template_options === 'object' && onTemplateOptionsChange) onTemplateOptionsChange(data.template_options);
       })
       .catch(() => setCv(defaultCv()))
       .finally(() => setLoading(false));
@@ -152,6 +165,23 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
 
   // Auto-trigger LinkedIn sync/photo after OAuth redirect
   const linkedinAutoTriggeredRef = useRef(false);
+
+  // Une seule zone de scroll (profile-preview-pane) : l’iframe s’adapte à la hauteur du contenu
+  const resizeProfilePreviewIframe = useCallback((iframe) => {
+    if (!iframe) return;
+    try {
+      const doc = iframe.contentDocument;
+      if (!doc?.documentElement) return;
+      const height = Math.max(
+        doc.documentElement.scrollHeight,
+        doc.documentElement.offsetHeight,
+        doc.body?.scrollHeight ?? 0,
+        doc.body?.offsetHeight ?? 0
+      );
+      if (height > 0) iframe.style.height = `${height}px`;
+    } catch (_) { /* ignore */ }
+  }, []);
+
   useEffect(() => {
     if (!session?.provider_token || loading || linkedinAutoTriggeredRef.current) return;
     const syncPending = localStorage.getItem(LINKEDIN_SYNC_KEY);
@@ -174,7 +204,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
     setError('');
     setSaving(true);
     try {
-      await apiPut('/api/cv', cv);
+      await apiPut('/api/cv', { ...cv, template_id: templateId, template_options: templateOptions });
       setMessage('Sauvegardé');
       setTimeout(() => setMessage(''), 2000);
       onSaveSuccess?.();
@@ -183,7 +213,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
     } finally {
       setSaving(false);
     }
-  }, [cv]);
+  }, [cv, templateId, templateOptions]);
 
   useEffect(() => {
     if (loading) return;
@@ -196,11 +226,13 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
   }, [cv, loading]);
 
   useEffect(() => {
+    if (onTemplateIdChange) return;
     localStorage.setItem('cv_template_id', templateId);
-  }, [templateId]);
+  }, [templateId, onTemplateIdChange]);
   useEffect(() => {
+    if (onTemplateOptionsChange) return;
     localStorage.setItem('cv_template_options', JSON.stringify(templateOptions));
-  }, [templateOptions]);
+  }, [templateOptions, onTemplateOptionsChange]);
 
   // Aperçu CV en temps réel (debounced) - avec template et options pour que les réglages s'appliquent avant Gemini
   const templateKey = templateId + '|' + JSON.stringify(templateOptions);
@@ -368,7 +400,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
     setMessage('');
     setSaving(true);
     try {
-      await apiPut('/api/cv', cv);
+      await apiPut('/api/cv', { ...cv, template_id: templateId, template_options: templateOptions });
       setMessage('CV enregistré.');
       onSaveSuccess?.();
     } catch (e) {
@@ -381,9 +413,10 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
   const initiateLinkedInOAuth = async (pendingKey) => {
     if (!supabase) return;
     localStorage.setItem(pendingKey, '1');
-    const { error: linkErr } = await supabase.auth.linkIdentity({
+    const redirectTo = window.location.origin + '/app/profil';
+    const { error: linkErr } = await supabase.auth.signInWithOAuth({
       provider: 'linkedin_oidc',
-      options: { redirectTo: window.location.origin + '/app/profil' },
+      options: { redirectTo },
     });
     if (linkErr) {
       localStorage.removeItem(pendingKey);
@@ -516,26 +549,130 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
     }
   };
 
+  const IMPORT_SCALAR_KEYS = [
+    { key: 'prenom', label: 'Prénom' },
+    { key: 'nom', label: 'Nom' },
+    { key: 'email', label: 'Email' },
+    { key: 'telephone', label: 'Téléphone' },
+    { key: 'linkedin', label: 'LinkedIn' },
+    { key: 'ville', label: 'Ville' },
+    { key: 'titre_professionnel', label: 'Titre professionnel' },
+    { key: 'resume', label: 'Résumé / Accroche' },
+    { key: 'photo_url', label: 'Photo (URL)' },
+  ];
+  const IMPORT_SECTION_KEYS = [
+    { key: 'experiences', label: 'Expériences' },
+    { key: 'formations', label: 'Formations' },
+    { key: 'certifications', label: 'Certifications' },
+    { key: 'competences', label: 'Compétences' },
+    { key: 'projets', label: 'Projets' },
+  ];
+
+  const IMPORT_STEPS = [
+    'Lecture du document',
+    'Extraction du texte',
+    'Identification des sections',
+    'Analyse des expériences et formations',
+    'Structuration des données',
+    'Finalisation',
+  ];
+  const IMPORT_STEP_DURATION_MS = 1400;
+  const IMPORT_PHASE_DURATION_MS = 7000;
+
   const handleImportCv = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setImportLoading(true);
+    setImportStepIndex(0);
     setError('');
+    if (importStepTimerRef.current) clearInterval(importStepTimerRef.current);
+    if (importFinalisationTimerRef.current) clearTimeout(importFinalisationTimerRef.current);
+    importStepTimerRef.current = setInterval(() => {
+      setImportStepIndex((i) => {
+        if (i >= 4) {
+          if (importStepTimerRef.current) clearInterval(importStepTimerRef.current);
+          return 5;
+        }
+        return i + 1;
+      });
+    }, IMPORT_STEP_DURATION_MS);
+    importFinalisationTimerRef.current = setTimeout(() => {
+      setImportStepIndex(5);
+      if (importStepTimerRef.current) clearInterval(importStepTimerRef.current);
+    }, IMPORT_PHASE_DURATION_MS);
     try {
       const result = await apiPostFile('/api/cv/import', file);
       const parsed = result?.cv || result;
       if (parsed && typeof parsed === 'object') {
-        skipNextAutoSaveRef.current = true;
-        setCv((prev) => ({ ...defaultCv(), ...prev, ...parsed }));
-        setMessage('CV importé - vérifie et complète les champs ci-dessous.');
-        setTimeout(() => setMessage(''), 5000);
+        const choices = {};
+        IMPORT_SCALAR_KEYS.forEach(({ key }) => {
+          const importedVal = parsed[key];
+          if (importedVal === undefined || importedVal === null || String(importedVal).trim() === '') return;
+          const currentVal = (cv[key] ?? '').toString().trim();
+          const importedStr = String(importedVal).trim();
+          if (currentVal === importedStr) return;
+          choices[key] = currentVal === '' ? 'add' : 'keep';
+        });
+        IMPORT_SECTION_KEYS.forEach(({ key }) => {
+          const imported = parsed[key];
+          const hasImported = Array.isArray(imported) ? imported.length > 0 : (imported && typeof imported === 'object' && (Object.keys(imported).length > 0 || (imported.techniques || imported.logiciels || imported.langues || imported.autres)));
+          if (!hasImported) return;
+          const current = cv[key];
+          try {
+            if (JSON.stringify(imported) === JSON.stringify(current)) return;
+          } catch (_) {}
+          const hasCurrent = Array.isArray(current) ? current.some((e) => (e && (e.poste || e.entreprise || e.diplome || e.nom || (e.bullet_points && e.bullet_points.some(Boolean))))) : (current && typeof current === 'object' && ((current.techniques || []).some(Boolean) || (current.logiciels || []).some(Boolean)));
+          choices[key] = hasCurrent ? 'keep' : 'replace';
+        });
+        if (Object.keys(choices).length === 0) {
+          skipNextAutoSaveRef.current = true;
+          setCv((prev) => ({ ...defaultCv(), ...prev, ...parsed }));
+          setMessage('CV importé - vérifie et complète les champs ci-dessous.');
+          setTimeout(() => setMessage(''), 5000);
+        } else {
+          setImportMergeParsed(parsed);
+          setImportMergeChoices(choices);
+          setImportMergeOpen(true);
+        }
       }
     } catch (err) {
       setError(err.message || 'Erreur lors de l\'import.');
     } finally {
       setImportLoading(false);
+      if (importStepTimerRef.current) clearInterval(importStepTimerRef.current);
+      if (importFinalisationTimerRef.current) clearTimeout(importFinalisationTimerRef.current);
       if (importFileRef.current) importFileRef.current.value = '';
     }
+  };
+
+  const applyImportMerge = async () => {
+    if (!importMergeParsed) return;
+    const next = { ...defaultCv(), ...cv };
+    IMPORT_SCALAR_KEYS.forEach(({ key }) => {
+      const choice = importMergeChoices[key];
+      if (choice === 'add' || choice === 'replace') next[key] = importMergeParsed[key] ?? next[key];
+    });
+    IMPORT_SECTION_KEYS.forEach(({ key }) => {
+      if (importMergeChoices[key] === 'replace' && importMergeParsed[key] !== undefined) {
+        next[key] = Array.isArray(importMergeParsed[key]) ? [...importMergeParsed[key]] : (typeof importMergeParsed[key] === 'object' && importMergeParsed[key] !== null ? { ...importMergeParsed[key] } : importMergeParsed[key]);
+      }
+    });
+    setCv(next);
+    setImportMergeOpen(false);
+    setImportMergeParsed(null);
+    setImportMergeChoices({});
+    setSaving(true);
+    setError('');
+    try {
+      await apiPut('/api/cv', next);
+      setMessage('CV importé et enregistré.');
+      onSaveSuccess?.();
+    } catch (e) {
+      setError(e.message || 'Erreur lors de l\'enregistrement.');
+    } finally {
+      setSaving(false);
+    }
+    setTimeout(() => setMessage(''), 5000);
   };
 
   if (loading) return <div className="profile-loading">Chargement du profil…</div>;
@@ -560,6 +697,31 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
           </button>
         </div>
       </div>
+
+      {importLoading && (
+        <div className="import-cv-loading-overlay" role="status" aria-live="polite">
+          <div className="import-cv-loading-card">
+            <div className="import-cv-loading-spinner" aria-hidden="true" />
+            <p className="import-cv-loading-title">Analyse de ton CV en cours</p>
+            <ul className="import-cv-loading-steps" aria-live="polite">
+              {IMPORT_STEPS.map((label, i) => (
+                <li key={i} className={`import-cv-loading-step ${i < importStepIndex ? 'import-cv-loading-step--done' : i === importStepIndex ? 'import-cv-loading-step--current' : ''}`}>
+                  <span className="import-cv-loading-step-icon">
+                    {i < importStepIndex ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    ) : i === importStepIndex ? (
+                      <span className="import-cv-loading-step-spinner" aria-hidden="true" />
+                    ) : (
+                      <span className="import-cv-loading-step-dot" aria-hidden="true" />
+                    )}
+                  </span>
+                  <span className="import-cv-loading-step-label">{label}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {message && <div className="profile-toast profile-toast--success" role="status">{message}</div>}
       {error && <div className="profile-toast profile-toast--error" role="alert">{error}</div>}
@@ -959,7 +1121,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
         />
         <div className="profile-preview-wrap profile-preview-a4">
           {livePreviewHtml ? (
-            <iframe title="Aperçu CV en direct" srcDoc={livePreviewHtml} className="profile-preview-iframe" />
+            <iframe title="Aperçu CV en direct" srcDoc={livePreviewHtml} className="profile-preview-iframe" onLoad={(e) => resizeProfilePreviewIframe(e.target)} />
           ) : (
             <p className="profile-preview-empty">Modifiez le formulaire pour voir l&apos;aperçu.</p>
           )}
@@ -1003,6 +1165,82 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                 <button type="button" className="btn btn-secondary linkedin-sync-close" onClick={() => setLinkedinModalOpen(false)}>Fermer</button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {importMergeOpen && importMergeParsed && (
+        <div className="linkedin-sync-overlay" onClick={() => { setImportMergeOpen(false); setImportMergeParsed(null); }} role="dialog" aria-modal="true" aria-labelledby="import-merge-title">
+          <div className="linkedin-sync-modal import-merge-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 id="import-merge-title">Importer le CV – choisir les champs</h3>
+            <p className="linkedin-sync-intro">Pour chaque champ : case vide → ajouter les infos de l’import ? Case déjà remplie → remplacer par l’import ?</p>
+            <ul className="linkedin-sync-changes">
+              {IMPORT_SCALAR_KEYS.filter(({ key }) => importMergeParsed[key] !== undefined && String(importMergeParsed[key] ?? '').trim() !== '').map(({ key, label }) => {
+                const currentVal = (cv[key] ?? '').toString().trim();
+                const isEmpty = currentVal === '';
+                const choice = importMergeChoices[key];
+                return (
+                  <li key={key} className="linkedin-sync-change import-merge-row">
+                    <span className="change-label">{label}</span>
+                    <div className="change-values">
+                      {isEmpty ? (
+                        <>
+                          <div className="change-new"><strong>Import :</strong> {(importMergeParsed[key] ?? '').toString().slice(0, 80)}{(String(importMergeParsed[key] ?? '').length > 80 ? '…' : '')}</div>
+                          <label className="import-merge-choice">
+                            <input type="radio" checked={choice === 'add'} onChange={() => setImportMergeChoices((p) => ({ ...p, [key]: 'add' }))} />
+                            Ajouter
+                          </label>
+                          <label className="import-merge-choice">
+                            <input type="radio" checked={choice === 'skip'} onChange={() => setImportMergeChoices((p) => ({ ...p, [key]: 'skip' }))} />
+                            Ne pas ajouter
+                          </label>
+                        </>
+                      ) : (
+                        <>
+                          <div className="change-current"><strong>Actuel :</strong> {currentVal.slice(0, 60)}{(currentVal.length > 60 ? '…' : '')}</div>
+                          <div className="change-new"><strong>Import :</strong> {(importMergeParsed[key] ?? '').toString().slice(0, 60)}{(String(importMergeParsed[key] ?? '').length > 60 ? '…' : '')}</div>
+                          <label className="import-merge-choice">
+                            <input type="radio" checked={choice === 'replace'} onChange={() => setImportMergeChoices((p) => ({ ...p, [key]: 'replace' }))} />
+                            Remplacer
+                          </label>
+                          <label className="import-merge-choice">
+                            <input type="radio" checked={choice === 'keep'} onChange={() => setImportMergeChoices((p) => ({ ...p, [key]: 'keep' }))} />
+                            Garder l’actuel
+                          </label>
+                        </>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+              {IMPORT_SECTION_KEYS.filter(({ key }) => {
+                const v = importMergeParsed[key];
+                return Array.isArray(v) ? v.length > 0 : (v && typeof v === 'object' && (Object.keys(v).length > 0 || (v.techniques || v.logiciels || v.langues || v.autres)));
+              }).map(({ key, label }) => {
+                const choice = importMergeChoices[key];
+                return (
+                  <li key={key} className="linkedin-sync-change import-merge-row">
+                    <span className="change-label">{label}</span>
+                    <div className="change-values">
+                      <label className="import-merge-choice">
+                        <input type="radio" checked={choice === 'replace'} onChange={() => setImportMergeChoices((p) => ({ ...p, [key]: 'replace' }))} />
+                        Remplacer par l’import
+                      </label>
+                      <label className="import-merge-choice">
+                        <input type="radio" checked={choice === 'keep'} onChange={() => setImportMergeChoices((p) => ({ ...p, [key]: 'keep' }))} />
+                        Garder l’actuel
+                      </label>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="linkedin-sync-actions">
+              <button type="button" className="btn btn-primary" onClick={applyImportMerge}>
+                Appliquer les choix
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => { setImportMergeOpen(false); setImportMergeParsed(null); }}>Annuler</button>
+            </div>
           </div>
         </div>
       )}

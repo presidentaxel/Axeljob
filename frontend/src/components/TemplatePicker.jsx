@@ -127,12 +127,14 @@ function OptionsPopover({ options, templateOptions, onChangeOptions, onClose }) 
   );
 }
 
-export default function TemplatePicker({ templates: templatesProp, templateId, templateOptions, onChangeTemplate, onChangeOptions, userPlan, onUpgradeClick }) {
+export default function TemplatePicker({ templates: templatesProp, templateId, templateOptions, onChangeTemplate, onChangeOptions, userPlan, onUpgradeClick, openOptionsFromSupport }) {
   const [templatesLocal, setTemplatesLocal] = useState([]);
   const [showOptions, setShowOptions] = useState(false);
   const useProp = templatesProp !== undefined;
   const templates = useProp && Array.isArray(templatesProp) ? templatesProp : templatesLocal;
   const loading = useProp ? templates.length === 0 : templatesLocal.length === 0;
+  const currentMeta = templates.find(t => t.id === templateId) || templates[0] || {};
+  const options = currentMeta.options || [];
 
   useEffect(() => {
     if (useProp) return;
@@ -141,10 +143,11 @@ export default function TemplatePicker({ templates: templatesProp, templateId, t
       .catch(() => setTemplatesLocal([]));
   }, [useProp]);
 
-  if (loading && templates.length === 0) return null;
+  useEffect(() => {
+    if (openOptionsFromSupport && options.length > 0) setShowOptions(true);
+  }, [openOptionsFromSupport, options.length]);
 
-  const currentMeta = templates.find(t => t.id === templateId) || templates[0] || {};
-  const options = currentMeta.options || [];
+  if (loading && templates.length === 0) return null;
 
   const freeTemplates = templates.filter(t => !t.premium);
   const premiumTemplates = templates.filter(t => t.premium);

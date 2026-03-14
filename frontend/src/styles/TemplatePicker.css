@@ -51,6 +51,7 @@
 
 .tpl-chip-label {
   white-space: nowrap;
+  font-family: var(--cv-font-heading, var(--font-titles, 'Plus Jakarta Sans')), Arial, sans-serif;
 }
 
 .tpl-chip--locked {

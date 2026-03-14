@@ -23,7 +23,7 @@ export default function GuidedTour({ steps, onComplete, tourKey = 'main' }) {
     const rect = el.getBoundingClientRect();
     const pad = 6;
     setSpotlightRect({
-      top: rect.top - pad + window.scrollY,
+      top: rect.top - pad,
       left: rect.left - pad,
       width: rect.width + pad * 2,
       height: rect.height + pad * 2,

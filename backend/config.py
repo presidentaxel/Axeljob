@@ -26,6 +26,11 @@ FRONTEND_URL = _env("CV_BOT_FRONTEND_URL") or _env("VITE_APP_URL")
 
 METRICS_AUTH_TOKEN = _env("METRICS_AUTH_TOKEN")
 
+# Budget Gemini par compte (€) — dépassement = blocage soft (pas affiché à l'utilisateur)
+GEMINI_BUDGET_EUR = float(os.environ.get("GEMINI_BUDGET_EUR", "10"))
+# Taux USD/EUR pour convertir le budget en coût API (USD)
+GEMINI_USD_PER_EUR = float(os.environ.get("GEMINI_USD_PER_EUR", "1.08"))
+
 if os.name == "nt":
     dll_dirs = _env("WEASYPRINT_DLL_DIRECTORIES")
     if dll_dirs:

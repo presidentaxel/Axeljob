@@ -87,7 +87,7 @@ cv-bot/
 |--------|-------------|
 | Frontend | React 19, Vite 7, react-router-dom 7, Supabase Auth |
 | Backend | FastAPI 0.128, uvicorn, Jinja2 |
-| IA | Google Gemini (gemini-2.5-flash / gemini-2.0-flash) |
+| IA | Google Gemini (gemini-2.5-flash-lite / gemini-2.0-flash) |
 | PDF | WeasyPrint 68 |
 | Base de donnees | Supabase (PostgreSQL) ou fallback fichiers JSON |
 | Stockage fichiers | Supabase Storage (buckets prives, signed URLs) |

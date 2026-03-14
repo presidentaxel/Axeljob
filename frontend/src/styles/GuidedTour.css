@@ -1,14 +1,15 @@
 .guided-tour-overlay {
   position: fixed;
   inset: 0;
-  z-index: 9998;
+  z-index: 10050;
   background: rgba(0, 0, 0, 0.55);
   transition: opacity 0.3s;
+  pointer-events: auto;
 }
 
 .guided-tour-spotlight {
-  position: absolute;
-  z-index: 9999;
+  position: fixed;
+  z-index: 10051;
   border-radius: 8px;
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
   background: transparent;
@@ -18,7 +19,7 @@
 
 .guided-tour-tooltip {
   position: fixed;
-  z-index: 10000;
+  z-index: 10052;
   width: 320px;
   max-width: calc(100vw - 24px);
   background: #fff;

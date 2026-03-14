@@ -63,6 +63,7 @@ function getContentDensity(cv) {
   const score = expCount * 3 + bulletCount + formCount + projCount;
   if (score <= 6) return 'sparse';
   if (score <= 10) return 'medium';
+  if (score > 15) return 'dense';
   return 'full';
 }
 

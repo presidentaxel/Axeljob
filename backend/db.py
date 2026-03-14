@@ -4,7 +4,14 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional
 
-from backend.config import BASE_DIR, USE_SUPABASE, SUPABASE_URL, SUPABASE_SERVICE_KEY
+from backend.config import (
+    BASE_DIR,
+    USE_SUPABASE,
+    SUPABASE_URL,
+    SUPABASE_SERVICE_KEY,
+    GEMINI_BUDGET_EUR,
+    GEMINI_USD_PER_EUR,
+)
 
 CV_BASE_PATH = BASE_DIR / "cv_base.json"
 ADAPTATIONS_DIR = BASE_DIR / "adaptations"
@@ -572,3 +579,99 @@ def update_adaptation(adaptation_id: str, updates: dict, user_id: Optional[str] 
             current[key] = (updates[key] or "").strip() if isinstance(updates[key], str) else updates[key]
     save_adaptation(adaptation_id, current, user_id)
     return current
+
+
+# --- Usage Gemini (tokens par requête + par compte, limite ~10 €) ---
+# Tarifs Standard (USD / million tokens) : entrée 0.10, sortie 0.40
+GEMINI_COST_INPUT_PER_M = 0.10
+GEMINI_COST_OUTPUT_PER_M = 0.40
+
+
+def _gemini_cost_usd(input_tokens: int, output_tokens: int) -> float:
+    return (input_tokens * GEMINI_COST_INPUT_PER_M / 1_000_000) + (
+        output_tokens * GEMINI_COST_OUTPUT_PER_M / 1_000_000
+    )
+
+
+def record_gemini_usage(
+    user_id: Optional[str],
+    operation: str,
+    input_tokens: int,
+    output_tokens: int,
+) -> float:
+    """Enregistre l'usage Gemini pour une requête (table log) et met à jour le total par compte.
+    Retourne le coût USD de cette requête. Sans Supabase : no-op, retourne 0."""
+    if not input_tokens and not output_tokens:
+        return 0.0
+    uid = (user_id or "default").strip() or "default"
+    cost_usd = _gemini_cost_usd(input_tokens, output_tokens)
+    sb = _get_supabase()
+    if not sb:
+        return cost_usd
+    try:
+        sb.table("gemini_usage_log").insert(
+            {
+                "user_id": uid,
+                "operation": (operation or "unknown")[:64],
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cost_usd": round(cost_usd, 6),
+            }
+        ).execute()
+    except Exception:
+        pass
+    try:
+        r = (
+            sb.table("gemini_usage")
+            .select("total_input_tokens, total_output_tokens")
+            .eq("user_id", uid)
+            .limit(1)
+            .execute()
+        )
+        prev_input = prev_output = 0
+        if r.data and len(r.data) > 0:
+            prev_input = int(r.data[0].get("total_input_tokens") or 0)
+            prev_output = int(r.data[0].get("total_output_tokens") or 0)
+        sb.table("gemini_usage").upsert(
+            {
+                "user_id": uid,
+                "total_input_tokens": prev_input + input_tokens,
+                "total_output_tokens": prev_output + output_tokens,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            },
+            on_conflict="user_id",
+        ).execute()
+    except Exception:
+        pass
+    return cost_usd
+
+
+def get_gemini_usage(user_id: Optional[str]) -> tuple[int, int, float]:
+    """Retourne (total_input_tokens, total_output_tokens, total_cost_usd) pour le compte."""
+    uid = (user_id or "default").strip() or "default"
+    sb = _get_supabase()
+    if not sb:
+        return 0, 0, 0.0
+    try:
+        r = (
+            sb.table("gemini_usage")
+            .select("total_input_tokens, total_output_tokens")
+            .eq("user_id", uid)
+            .limit(1)
+            .execute()
+        )
+        if r.data and len(r.data) > 0:
+            row = r.data[0]
+            ti = int(row.get("total_input_tokens") or 0)
+            to = int(row.get("total_output_tokens") or 0)
+            return ti, to, _gemini_cost_usd(ti, to)
+    except Exception:
+        pass
+    return 0, 0, 0.0
+
+
+def check_gemini_budget(user_id: Optional[str]) -> tuple[bool, float, float]:
+    """Vérifie si le compte est sous la limite (€). Retourne (allowed, used_usd, limit_usd)."""
+    limit_usd = GEMINI_BUDGET_EUR * GEMINI_USD_PER_EUR
+    _, _, used_usd = get_gemini_usage(user_id)
+    return (used_usd < limit_usd, used_usd, limit_usd)

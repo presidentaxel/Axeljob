@@ -77,13 +77,16 @@ def _nom_fichier_pdf(cv: dict, offre: dict) -> str:
     return f"{prenom_ok}_{nom_ok}_{poste_ok}_{entreprise_ok}.pdf"
 
 
-def generer_pdf(cv_adapte: dict, offre: dict, output_dir: str = ".") -> str:
+def generer_pdf(cv_adapte: dict, offre: dict, output_dir: str = ".", template_id: str | None = None, template_options: dict | None = None) -> str:
     """
     Charge template.html, injecte cv_adapte, compile en PDF avec WeasyPrint.
     Même logique que generer_pdf_bytes : si la version compacte tient sur 1 page, on ajoute une 7e exp et un 2e projet.
     Retourne le chemin absolu du fichier PDF généré.
     """
-    pdf_bytes, nom_pdf = generer_pdf_bytes(cv_adapte, offre, base_dir=Path(__file__).resolve().parent)
+    pdf_bytes, nom_pdf = generer_pdf_bytes(
+        cv_adapte, offre, base_dir=Path(__file__).resolve().parent,
+        template_id=template_id, template_options=template_options,
+    )
     out = Path(output_dir).resolve()
     out.mkdir(parents=True, exist_ok=True)
     path_pdf = out / nom_pdf
@@ -98,7 +101,19 @@ def _build_cv_display(cv_adapte: dict, html_module, n_experiences: int = 6, n_pr
         if not (exp.get("poste") or exp.get("entreprise") or any((exp.get("bullet_points") or []))):
             continue
         bullets = (exp.get("bullet_points") or [])[:2]
-        experiences_for_display.append({**exp, "bullet_points": [{"text": b, "html": html_module.escape(b)} for b in bullets]})
+        escape = html_module.escape
+        exp_display = {
+            **exp,
+            "bullet_points": [{"text": b, "html": escape(b)} for b in bullets],
+            "poste_display": escape((exp.get("poste") or "").strip()),
+            "entreprise_display": escape((exp.get("entreprise") or "").strip()),
+            "date_debut_display": escape((exp.get("date_debut") or "").strip()),
+            "date_fin_display": escape((exp.get("date_fin") or "").strip()),
+            "lieu_display": escape((exp.get("lieu") or "").strip()),
+            "secteur_display": escape((exp.get("secteur") or "").strip()),
+            "clients_display": escape((exp.get("clients") or "").strip()),
+        }
+        experiences_for_display.append(exp_display)
 
     formations_all = cv_adapte.get("formations") or []
     formations_for_display = [
@@ -134,7 +149,18 @@ def _build_cv_display(cv_adapte: dict, html_module, n_experiences: int = 6, n_pr
     }
 
 
-def _render_pdf_bytes_from_ctx(cv_ctx: dict, template_dir: Path, css, css_vars_style: str = "") -> bytes:
+def _content_scale_css(content_score: int) -> str:
+    """Retourne du CSS pour adapter la taille de police à la quantité de contenu (aligné avec la preview)."""
+    if content_score <= 6:
+        return "<style>body{font-size:11pt;line-height:1.55}.resume-text{font-size:10.5pt;line-height:1.6}.bullet{font-size:10.5pt;line-height:1.5}.sidebar-item{font-size:9.5pt;line-height:1.4}.section-title{font-size:10.5pt}.exp-poste{font-size:11pt}</style>"
+    if content_score <= 10:
+        return "<style>body{font-size:10pt;line-height:1.5}.resume-text{font-size:10pt;line-height:1.55}.bullet{font-size:9.5pt;line-height:1.45}.sidebar-item{font-size:9pt;line-height:1.35}</style>"
+    if content_score > 15:
+        return "<style>body{font-size:9pt;line-height:1.45}.resume-text{font-size:9pt;line-height:1.5}.bullet{font-size:8.5pt;line-height:1.4}.sidebar-item{font-size:8pt;line-height:1.3}.section-title{font-size:9.5pt}.exp-poste{font-size:9.5pt}</style>"
+    return ""
+
+
+def _render_pdf_bytes_from_ctx(cv_ctx: dict, template_dir: Path, css, css_vars_style: str = "", scale_css: str = "") -> bytes:
     """Génère les bytes PDF à partir d’un contexte CV déjà prêt (photo, display, etc.)."""
     from weasyprint import HTML
     env = Environment(
@@ -143,8 +169,9 @@ def _render_pdf_bytes_from_ctx(cv_ctx: dict, template_dir: Path, css, css_vars_s
     )
     template = env.get_template("template.html")
     html_str = template.render(**cv_ctx)
-    if css_vars_style:
-        html_str = html_str.replace("</head>", css_vars_style + "</head>", 1)
+    inject = (css_vars_style or "") + (scale_css or "")
+    if inject:
+        html_str = html_str.replace("</head>", inject + "</head>", 1)
     html_doc = HTML(string=html_str, base_url=str(template_dir))
     buffer = __import__("io").BytesIO()
     html_doc.write_pdf(buffer, stylesheets=[css])
@@ -194,20 +221,31 @@ def generer_pdf_bytes(cv_adapte: dict, offre: dict, base_dir: str | Path | None 
     cv_adapte["titre_professionnel_display"] = html_module.escape(_strip_h_f(cv_adapte.get("titre_professionnel") or ""))
     cv_adapte["resume_display"] = html_module.escape(cv_adapte.get("resume") or "")
     cv_adapte["for_preview"] = False
+    show_mots_cles_ats = resolved_opts.get("show_mots_cles_ats", True)
     css_vars = options_to_css_vars(resolved_opts)
     css = CSS(filename=tmpl_dir / "template.css")
 
     # Version compacte : 6 exp, 1 projet
     display_compact = _build_cv_display(cv_adapte, html_module, n_experiences=6, n_projets=1)
-    ctx_compact = {**cv_adapte, **display_compact}
-    pdf_compact = _render_pdf_bytes_from_ctx(ctx_compact, tmpl_dir, css, css_vars)
+    ctx_compact = {**cv_adapte, **display_compact, "show_mots_cles_ats": show_mots_cles_ats}
+    exp_count = len(display_compact["experiences_for_display"])
+    bullet_count = sum(len(e.get("bullet_points") or []) for e in display_compact["experiences_for_display"])
+    form_count = len(display_compact.get("formations_for_display") or [])
+    proj_count = len(display_compact.get("projets_for_display") or [])
+    content_score = exp_count * 3 + bullet_count + form_count + proj_count
+    scale_css = _content_scale_css(content_score)
+    pdf_compact = _render_pdf_bytes_from_ctx(ctx_compact, tmpl_dir, css, css_vars, scale_css=scale_css)
     n_pages = _pdf_page_count(pdf_compact)
 
     # S’il reste de la place (1 page), tenter d’ajouter une 7e exp et un 2e projet
     if n_pages == 1:
         display_optional = _build_cv_display(cv_adapte, html_module, n_experiences=7, n_projets=2)
-        ctx_optional = {**cv_adapte, **display_optional}
-        pdf_optional = _render_pdf_bytes_from_ctx(ctx_optional, tmpl_dir, css, css_vars)
+        ctx_optional = {**cv_adapte, **display_optional, "show_mots_cles_ats": show_mots_cles_ats}
+        exp_count_o = len(display_optional["experiences_for_display"])
+        bullet_count_o = sum(len(e.get("bullet_points") or []) for e in display_optional["experiences_for_display"])
+        content_score_o = exp_count_o * 3 + bullet_count_o + len(display_optional.get("formations_for_display") or []) + len(display_optional.get("projets_for_display") or [])
+        scale_css_o = _content_scale_css(content_score_o)
+        pdf_optional = _render_pdf_bytes_from_ctx(ctx_optional, tmpl_dir, css, css_vars, scale_css=scale_css_o)
         if _pdf_page_count(pdf_optional) == 1:
             pdf_compact = pdf_optional
 

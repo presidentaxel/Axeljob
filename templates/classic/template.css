@@ -188,8 +188,10 @@
     margin: 0;
     color: white;
     line-height: 1.2;
-    white-space: nowrap;
-    flex-shrink: 0;
+    white-space: normal;
+    flex-shrink: 1;
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
 
   .header-titre-sep {
@@ -198,11 +200,17 @@
     margin: 0 4px;
   }
 
-  .header-titre-inline {
+  /* Titre professionnel : retour à la ligne au-delà de 90 caractères (CV classique) */
+  .header-titre-inline,
+  .header-titre-inline.cv-changed {
     font-family: var(--cv-font-heading);
     font-size: 10pt;
     font-weight: 600;
     opacity: 0.95;
+    max-width: 90ch;
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
 
   .resume-text {

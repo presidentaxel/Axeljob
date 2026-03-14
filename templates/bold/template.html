@@ -13,11 +13,11 @@
   <article class="cv">
     <header class="cv-header">
       <div class="header-top-row">
+        {% if photo_url %}
         <div class="header-photo">
-          {% if photo_url %}
           <img src="{{ photo_url }}" alt="">
-          {% endif %}
         </div>
+        {% endif %}
         <h1 class="header-nom">{{ prenom }} {{ nom }}{% if titre_professionnel_display %}<span class="header-titre-sep"> - </span><span class="header-titre-inline">{{ titre_professionnel_display|safe }}</span>{% endif %}</h1>
       </div>
       {% if resume_display %}

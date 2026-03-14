@@ -33,6 +33,14 @@ export default defineConfig({
   plugins: [react(), cssNonBlockingPlugin()],
   build: {
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        // Nom fixe pour l'entrée : les pages statiques (public/*.html) chargent ce fichier en prod
+        entryFileNames: 'assets/main.js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]',
+      },
+    },
   },
   server: {
     proxy: {

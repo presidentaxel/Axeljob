@@ -1136,6 +1136,18 @@ def api_cv_preview(request: Request):
         cv = load_cv_base(user_id)
         if user_id and cv.get("__example__"):
             return HTMLResponse(_render_empty_preview_html())
+        # Photo Supabase : URL signée fraîche (comme GET /api/cv) pour que la preview charge toujours
+        if USE_SUPABASE and user_id:
+            photo_url = (cv.get("photo_url") or "").strip()
+            is_supabase_photo = "supabase.co/storage" in photo_url and "/object/sign" in photo_url
+            if not photo_url or is_supabase_photo:
+                try:
+                    from backend.db import get_cv_photo_public_url_for_user
+                    url = get_cv_photo_public_url_for_user(user_id)
+                    if url:
+                        cv = {**cv, "photo_url": url}
+                except Exception:
+                    pass
         html = _render_cv_html(cv, for_preview=True, template_id=template_id, template_options=template_options)
         return HTMLResponse(html)
     except FileNotFoundError as e:
@@ -1147,8 +1159,21 @@ def api_render_html(request: Request, body: RenderHtmlBody):
     REQUEST_COUNT.labels(method="POST", endpoint="/api/render-html").inc()
     user_id = _get_user_id(request)
     _check_premium_template(user_id, body.template_id)
+    cv = body.cv or {}
+    # Photo Supabase : URL signée fraîche pour que la preview (iframe) charge toujours
+    if USE_SUPABASE and user_id:
+        photo_url = (cv.get("photo_url") or "").strip()
+        is_supabase_photo = "supabase.co/storage" in photo_url and "/object/sign" in photo_url
+        if not photo_url or is_supabase_photo:
+            try:
+                from backend.db import get_cv_photo_public_url_for_user
+                url = get_cv_photo_public_url_for_user(user_id)
+                if url:
+                    cv = {**cv, "photo_url": url}
+            except Exception:
+                pass
     html = _render_cv_html(
-        body.cv,
+        cv,
         base_cv=body.base_cv,
         highlight_changes=body.highlight_changes,
         for_preview=True,

@@ -341,6 +341,8 @@ export default function App() {
   const [annonce, setAnnonce] = useState('');
   const [lastAdaptedCv, setLastAdaptedCv] = useState(null);
   const [lastBaseCv, setLastBaseCv] = useState(null);
+  /** URL photo fraîche (GET /api/cv) pour la preview CV, évite URL signée expirée */
+  const [freshPreviewPhotoUrl, setFreshPreviewPhotoUrl] = useState(undefined);
   const [lastAdaptationId, setLastAdaptationId] = useState(null);
   const [previewVariant, setPreviewVariant] = useState('modified');
   const [originalPreviewHtml, setOriginalPreviewHtml] = useState('');
@@ -668,10 +670,13 @@ export default function App() {
   useEffect(() => {
     if (!session) return;
     if (view !== 'cv') return;
-    // Précharger le CV de base pour le diff (surlignage vert) après une adaptation
-    if (!lastBaseCv) {
-      apiGet('/api/cv').then((cv) => { if (cv) setLastBaseCv(cv); }).catch(() => {});
-    }
+    // Toujours récupérer le CV (photo URL fraîche pour la preview)
+    apiGet('/api/cv').then((cv) => {
+      if (cv) {
+        setLastBaseCv(cv);
+        setFreshPreviewPhotoUrl(cv.photo_url ?? null);
+      }
+    }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps -- on veut la valeur courante de lastAdaptedCv au retour sur l’onglet CV, pas une re-exécution à chaque changement de référence
     if (lastAdaptedCv) {
       apiPost('/api/render-html', { cv: lastAdaptedCv, highlight_changes: false, ...templateParams })
@@ -1537,7 +1542,10 @@ export default function App() {
                 <div className="preview-a4-sheet">
                 {previewVariant === 'modified' && lastAdaptedCv ? (
                   <CvEditablePreview
-                    cv={lastAdaptedCv}
+                    cv={{
+                      ...lastAdaptedCv,
+                      photo_url: freshPreviewPhotoUrl !== undefined ? freshPreviewPhotoUrl : lastAdaptedCv.photo_url,
+                    }}
                     baseCv={lastBaseCv}
                     templateId={templateId}
                     templateOptions={templateOptions}

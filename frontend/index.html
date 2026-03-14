@@ -110,7 +110,15 @@
     <style>.js-enabled #root .static-crawlable{display:none!important}</style>
   </head>
   <body>
-    <script>document.documentElement.classList.add('js-enabled');</script>
+    <script>
+      document.documentElement.classList.add('js-enabled');
+      var p = window.location.pathname;
+      if (p.indexOf('/app') === 0 || p === '/login') {
+        var s = document.createElement('style');
+        s.textContent = '#root .static-crawlable{display:none!important}';
+        document.documentElement.appendChild(s);
+      }
+    </script>
     <div id="root">
       <!-- Contenu statique pour crawlers (sans JS) — remplacé par l'app au chargement -->
       <div class="static-crawlable" style="max-width:720px;margin:0 auto;padding:2rem 1.5rem;font-family:'Plus Jakarta Sans',sans-serif;">
@@ -126,6 +134,15 @@
         <p><a href="/login" style="display:inline-block;padding:0.75rem 1.5rem;background:#4f46e5;color:#fff;font-weight:600;text-decoration:none;border-radius:12px;">Essayer gratuitement</a></p>
       </div>
     </div>
+    <script>
+      (function(){
+        var p = window.location.pathname;
+        if (p.indexOf('/app') === 0 || p === '/login') {
+          var root = document.getElementById('root');
+          if (root) root.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:\'Plus Jakarta Sans\',sans-serif;color:#64748b;">Chargement…</div>';
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

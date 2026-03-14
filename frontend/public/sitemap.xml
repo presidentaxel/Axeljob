@@ -16,6 +16,16 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://job.axelproject.fr/faq</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://job.axelproject.fr/cv-adapte-chaque-offre</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://job.axelproject.fr/modeles-cv</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>

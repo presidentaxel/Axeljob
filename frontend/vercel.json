@@ -1,4 +1,19 @@
 {
+  "headers": [
+    { "source": "/", "headers": [{ "key": "Content-Type", "value": "text/html; charset=UTF-8" }] },
+    { "source": "/index.html", "headers": [{ "key": "Content-Type", "value": "text/html; charset=UTF-8" }] },
+    { "source": "/ats", "headers": [{ "key": "Content-Type", "value": "text/html; charset=UTF-8" }] },
+    { "source": "/faq", "headers": [{ "key": "Content-Type", "value": "text/html; charset=UTF-8" }] },
+    { "source": "/guide-cv", "headers": [{ "key": "Content-Type", "value": "text/html; charset=UTF-8" }] },
+    { "source": "/modeles-cv", "headers": [{ "key": "Content-Type", "value": "text/html; charset=UTF-8" }] },
+    { "source": "/erreurs-cv", "headers": [{ "key": "Content-Type", "value": "text/html; charset=UTF-8" }] },
+    { "source": "/cv-par-metier", "headers": [{ "key": "Content-Type", "value": "text/html; charset=UTF-8" }] },
+    { "source": "/cv-adapte-chaque-offre", "headers": [{ "key": "Content-Type", "value": "text/html; charset=UTF-8" }] },
+    { "source": "/login", "headers": [{ "key": "Content-Type", "value": "text/html; charset=UTF-8" }] },
+    { "source": "/mentions-legales", "headers": [{ "key": "Content-Type", "value": "text/html; charset=UTF-8" }] },
+    { "source": "/confidentialite", "headers": [{ "key": "Content-Type", "value": "text/html; charset=UTF-8" }] },
+    { "source": "/cgu", "headers": [{ "key": "Content-Type", "value": "text/html; charset=UTF-8" }] }
+  ],
   "rewrites": [
     { "source": "/", "destination": "/home.html" },
     { "source": "/ats", "destination": "/ats.html" },

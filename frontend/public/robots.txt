@@ -4,3 +4,6 @@ Disallow: /app/
 Disallow: /api/
 
 Sitemap: https://job.axelproject.fr/sitemap.xml
+
+# Contenu pour crawlers IA (citabilité)
+# llms.txt: https://job.axelproject.fr/llms.txt

@@ -3,7 +3,7 @@ import './ContentPages.css';
 
 /**
  * Page FAQ GEO : une question = une section avec réponse directe dès la première phrase.
- * Alignée sur les requêtes cibles (clusters 1–4) pour citabilité par les IA.
+ * Alignée sur les requêtes cibles (clusters 1-4) pour citabilité par les IA.
  */
 const FAQ_ITEMS = [
   {

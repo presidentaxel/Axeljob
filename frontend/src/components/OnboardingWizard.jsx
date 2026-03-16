@@ -42,7 +42,7 @@ export default function OnboardingWizard({ session, onComplete }) {
       const { error: err } = await supabase.auth.signInWithOAuth({
         provider: 'linkedin_oidc',
         options: {
-          redirectTo: window.location.origin + '/app?onboarding=linkedin',
+          redirectTo: window.location.origin + '/login?onboarding=linkedin',
         },
       });
       if (err) throw err;

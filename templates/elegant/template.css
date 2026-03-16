@@ -116,7 +116,7 @@ body {
 .exp-dates { font-size: 8.5pt; color: var(--cv-accent-color); white-space: nowrap; flex-shrink: 0; }
 .exp-poste { font-size: 9pt; color: #718096; margin: 1px 0 3px 0; font-style: italic; }
 .bullet { margin: 0; padding-left: 10px; font-size: 8.5pt; line-height: 1.4; color: #2d3748; position: relative; }
-.bullet::before { content: '–'; position: absolute; left: 0; color: var(--cv-accent-color); }
+.bullet::before { content: '-'; position: absolute; left: 0; color: var(--cv-accent-color); }
 .exp-clients { font-style: italic; font-size: 8pt; color: #a0aec0; margin: 3px 0 0 0; }
 
 /* Formation */

@@ -29,7 +29,7 @@ AxeL Job est une application web full-stack qui permet de maintenir un CV de bas
 | Adaptation IA | Colle une offre, l'IA adapte ton CV en temps reel avec score ATS |
 | Chat d'affinage | Affine le resultat par messages : "mets plus en valeur mon experience React" |
 | Edition directe | Clique sur n'importe quel texte du CV pour l'editer dans l'apercu |
-| 3 templates | Classic, Modern, Minimal avec personnalisation couleurs |
+| Templates CV | Classic, Modern, Minimal + templates personnalisés (Supabase, accès par user_id) |
 | Import CV | Import PDF/Word existant, l'IA le structure automatiquement |
 | Suivi candidatures | Kanban avec statuts, questionnaires refus/entretien, export CSV |
 | Export dossier | ZIP ou dossier local avec CV + lettre + fiche de poste |
@@ -50,6 +50,8 @@ cv-bot/
 │   ├── template_registry.py # Registry des templates CV
 │   ├── Dockerfile           # Image Docker backend
 │   ├── requirements.txt     # Dependances pinnees
+│   ├── scripts/             # Scripts utilitaires
+│   │   └── cv_pdf_to_template.py  # Import PDF → template (couleurs extraites, insere en __pending__)
 │   └── supabase_*.sql       # Schema + migrations Supabase
 │
 ├── frontend/                # SPA React 19 + Vite 7
@@ -183,6 +185,7 @@ Executer dans Supabase Dashboard > SQL Editor :
 | `supabase_migration_user_plans_paywall_disabled.sql` | Colonne `paywall_disabled` |
 | `supabase_migration_storage_cv_photos.sql` | Bucket Storage `cv_photos` |
 | `supabase_migration_storage_application_docs.sql` | Bucket Storage `application_docs` |
+| `supabase_migration_cv_templates.sql` | Table `cv_templates` (templates perso HTML/CSS, owner + allowed_user_ids) |
 | `supabase_migration_rls_service_role_only.sql` | RLS : politiques limitées au rôle `service_role` (corrige le linter) |
 
 ---
@@ -207,6 +210,27 @@ Executer dans Supabase Dashboard > SQL Editor :
 | `python main.py --description-file fiche.txt -o ./cvs` | Idem avec un fichier |
 | `python main.py --pdf-only -o .` | Generer un PDF sans adaptation IA |
 | `python preview.py` | Generer `preview.html` pour previsualiser le template |
+| **`python -m backend.scripts.cv_pdf_to_template`** | **Ouvre l'explorateur de fichiers → tu choisis un PDF → le script extrait les couleurs, genere un template HTML/CSS et l'insere dans Supabase en `__pending__` (personne ne le voit ; un humain assigne ensuite `owner_user_id` et `allowed_user_ids` dans la table `cv_templates`).** |
+| `python -m backend.scripts.cv_pdf_to_template "chemin/vers/CV.pdf"` | Idem en passant le chemin du PDF en argument |
+| `python -m backend.scripts.cv_pdf_to_template "CV.pdf" --name "Mon template"` | Avec nom et description optionnels |
+
+### Import d'un PDF en template (une commande, design reproduit par l'IA)
+
+Depuis la racine `cv-bot`, lance :
+
+```bash
+python -m backend.scripts.cv_pdf_to_template
+```
+
+L'explorateur de fichiers s'ouvre : tu choisis ton CV (PDF). Le script :
+
+1. **Si `GEMINI_API_KEY` est définie** : envoie la première page du PDF à Gemini, qui génère un template HTML/CSS qui **reproduit le design** (mise en page, couleurs, polices) pour un vrai effet « copier-coller » visuel. Les variables Jinja2 (prénom, nom, expériences, etc.) sont injectées pour que le CV généré par l'app utilise ce design.
+2. **Sinon ou en cas d'échec IA** : extraction des couleurs dominantes + template « classic » avec ces couleurs.
+3. Insertion dans Supabase (`cv_templates`) avec `owner_user_id = '__pending__'` et `allowed_user_ids = []`.
+
+Option **`--no-ai`** : ne pas appeler l'IA, uniquement couleurs + template classic.
+
+Aucun utilisateur ne voit le template tant qu'un humain n'a pas fait la liaison dans Supabase (Table Editor → `cv_templates` : mettre `owner_user_id` et/ou `allowed_user_ids` sur la ligne concernée).
 
 ---
 
@@ -270,7 +294,10 @@ En mode development, la doc interactive est accessible sur :
 | GET | `/api/applications` | Lister les candidatures |
 | POST | `/api/applications` | Creer une candidature manuelle |
 | PATCH | `/api/applications/:id` | Mettre a jour statut/infos |
-| GET | `/api/templates` | Lister les templates disponibles |
+| GET | `/api/templates` | Lister les templates (fichiers + perso Supabase pour l'utilisateur connecté) |
+| POST | `/api/templates/custom` | Créer un template personnalisé (HTML/CSS, `allowed_user_ids`) |
+| PATCH | `/api/templates/custom/:id` | Modifier un template (owner uniquement) |
+| DELETE | `/api/templates/custom/:id` | Supprimer un template (owner uniquement) |
 | GET | `/health` | Health check |
 | GET | `/metrics` | Metriques Prometheus (protege) |
 

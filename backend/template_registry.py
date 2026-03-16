@@ -35,19 +35,35 @@ def reload():
     _load_all()
 
 
-def list_templates() -> list[dict]:
-    """Retourne la liste des templates (sans _dir)."""
+def list_templates(user_id: str | None = None) -> list[dict]:
+    """Retourne la liste des templates (fichiers + personnalisés Supabase si user_id fourni). Sans _dir / _custom internals."""
     all_t = _load_all()
     out = []
     for tid, meta in all_t.items():
         out.append({k: v for k, v in meta.items() if not k.startswith("_")})
+    if user_id:
+        try:
+            from backend.db import list_custom_templates_for_user
+            custom = list_custom_templates_for_user(user_id)
+            for c in custom:
+                out.append({k: v for k, v in c.items() if not k.startswith("_")})
+        except Exception:
+            pass
     return out
 
 
 def get_template(template_id: str | None = None) -> dict:
-    """Retourne le meta + _dir du template. Fallback sur classic."""
-    all_t = _load_all()
+    """Retourne le meta + _dir (ou _html_content/_css_content pour custom) du template. Fallback sur classic."""
     tid = (template_id or "").strip() or DEFAULT_TEMPLATE_ID
+    try:
+        from backend.db import get_custom_template_by_id, CUSTOM_TEMPLATE_ID_PREFIX
+        if tid.startswith(CUSTOM_TEMPLATE_ID_PREFIX):
+            custom = get_custom_template_by_id(tid)
+            if custom:
+                return custom
+    except Exception:
+        pass
+    all_t = _load_all()
     return all_t.get(tid) or all_t.get(DEFAULT_TEMPLATE_ID) or next(iter(all_t.values()), {})
 
 

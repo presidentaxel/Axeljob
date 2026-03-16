@@ -24,7 +24,7 @@ Règles strictes :
 - Ton professionnel mais authentique, direct et accessible
 - 3 paragraphes maximum : accroche + adéquation CV/poste + motivation/disponibilité
 - Retourner UNIQUEMENT le corps de la lettre (pas de formule d'appel ni de signature)
-- Format : texte brut uniquement, paragraphes séparés par une ligne vide (double saut de ligne). Aucun formatage : pas d'astérisques (**), pas de gras ni markdown. Ne jamais utiliser de tirets longs (– ou -) : utiliser uniquement le tiret simple (-).
+- Format : texte brut uniquement, paragraphes séparés par une ligne vide (double saut de ligne). Aucun formatage : pas d'astérisques (**), pas de gras ni markdown. Ne jamais utiliser de tirets longs (- ou -) : utiliser uniquement le tiret simple (-).
 
 Ton et formulation - à respecter absolument :
 - Bannir les tournures pompeuses, guindées ou "haute société" : par exemple "suscite mon plus vif intérêt", "je me permets de", "au vu de", "je nourris l'ambition de", "c'est avec un vif enthousiasme que", "je serais ravi de", "je demeure à votre disposition"

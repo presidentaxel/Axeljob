@@ -1,70 +1,20 @@
-import { useState, useEffect, useRef } from 'react';
-import { HiLockClosed } from 'react-icons/hi2';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { apiGet } from '../api';
+import TemplateModal, { FAVORITES_STORAGE_KEY } from './TemplateModal';
 
-const PREVIEW_THUMBNAILS = {
-  classic:   { bg: '#1e2a3a', sidebar: '#f4f4f2', accent: '#1e2a3a', layout: 'right-sidebar' },
-  modern:    { bg: '#2d3748', sidebar: '#2d3748', accent: '#3182ce', layout: 'left-sidebar' },
-  minimal:   { bg: '#ffffff', sidebar: null,      accent: '#111827', layout: 'single' },
-  executive: { bg: '#0f172a', sidebar: '#f8f6f0', accent: '#b8860b', layout: 'right-sidebar' },
-  elegant:   { bg: '#ffffff', sidebar: null,      accent: '#4a5568', layout: 'single-centered' },
-  creative:  { bg: '#6366f1', sidebar: '#6366f1', accent: '#f59e0b', layout: 'left-sidebar' },
-  bold:      { bg: '#1e293b', sidebar: '#f1f5f9', accent: '#dc2626', layout: 'right-sidebar' },
-};
-
-function MiniPreview({ templateId, isActive }) {
-  const t = PREVIEW_THUMBNAILS[templateId] || PREVIEW_THUMBNAILS.classic;
-  return (
-    <div className={`tpl-mini${isActive ? ' tpl-mini--active' : ''}`}>
-      {t.layout === 'right-sidebar' && (
-        <div className="tpl-mini-inner">
-          <div className="tpl-mini-hdr" style={{ background: t.bg }} />
-          <div className="tpl-mini-cols">
-            <div className="tpl-mini-main">
-              <div className="tpl-mini-ln" style={{ background: t.accent, width: '65%', height: 2.5 }} />
-              <div className="tpl-mini-ln" style={{ width: '88%' }} />
-              <div className="tpl-mini-ln" style={{ width: '75%' }} />
-            </div>
-            <div className="tpl-mini-side" style={{ background: t.sidebar }} />
-          </div>
-        </div>
-      )}
-      {t.layout === 'left-sidebar' && (
-        <div className="tpl-mini-inner">
-          <div className="tpl-mini-cols" style={{ height: '100%' }}>
-            <div className="tpl-mini-side tpl-mini-side--left" style={{ background: t.sidebar }} />
-            <div className="tpl-mini-main">
-              <div className="tpl-mini-ln" style={{ background: t.accent, width: '55%', height: 2.5 }} />
-              <div className="tpl-mini-ln" style={{ width: '88%' }} />
-              <div className="tpl-mini-ln" style={{ width: '72%' }} />
-            </div>
-          </div>
-        </div>
-      )}
-      {t.layout === 'single' && (
-        <div className="tpl-mini-inner" style={{ borderTop: `2px solid ${t.accent}` }}>
-          <div className="tpl-mini-main" style={{ padding: '3px 4px' }}>
-            <div className="tpl-mini-ln" style={{ background: t.accent, width: '45%', height: 3 }} />
-            <div className="tpl-mini-ln" style={{ width: '92%' }} />
-            <div className="tpl-mini-ln" style={{ width: '80%' }} />
-          </div>
-        </div>
-      )}
-      {t.layout === 'single-centered' && (
-        <div className="tpl-mini-inner" style={{ borderBottom: `1px solid ${t.accent}` }}>
-          <div className="tpl-mini-main" style={{ padding: '3px 4px', textAlign: 'center' }}>
-            <div className="tpl-mini-ln" style={{ background: t.accent, width: '40%', height: 3, margin: '0 auto 2px' }} />
-            <div className="tpl-mini-ln" style={{ width: '70%', margin: '0 auto 1px' }} />
-            <div className="tpl-mini-ln" style={{ width: '85%', margin: '0 auto' }} />
-          </div>
-        </div>
-      )}
-    </div>
-  );
+function getDefaultOptions(options) {
+  const defaults = {};
+  (options || []).forEach((opt) => {
+    if (opt.key !== undefined) defaults[opt.key] = opt.default;
+  });
+  defaults.show_photo = true;
+  defaults.show_mots_cles_ats = true;
+  return defaults;
 }
 
 function OptionsPopover({ options, templateOptions, onChangeOptions, onClose }) {
   const ref = useRef(null);
+  const defaultOptions = getDefaultOptions(options);
 
   useEffect(() => {
     const handler = (e) => {
@@ -75,6 +25,10 @@ function OptionsPopover({ options, templateOptions, onChangeOptions, onClose }) 
   }, [onClose]);
 
   const COLOR_PRESETS = ['#1e2a3a', '#2d3748', '#3182ce', '#6366f1', '#059669', '#dc2626', '#7c3aed', '#111827', '#b8860b', '#f59e0b'];
+
+  const handleReset = () => {
+    onChangeOptions(defaultOptions);
+  };
 
   return (
     <div className="tpl-popover" ref={ref}>
@@ -123,13 +77,37 @@ function OptionsPopover({ options, templateOptions, onChangeOptions, onClose }) 
           </div>
         </div>
       ))}
+      <div className="tpl-popover-reset">
+        <button type="button" className="tpl-popover-reset-btn" onClick={handleReset}>
+          Réglages d’origine
+        </button>
+      </div>
     </div>
   );
 }
 
-export default function TemplatePicker({ templates: templatesProp, templateId, templateOptions, onChangeTemplate, onChangeOptions, userPlan, onUpgradeClick, openOptionsFromSupport }) {
+function loadFavorites() {
+  try {
+    const raw = localStorage.getItem(FAVORITES_STORAGE_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveFavorites(ids) {
+  try {
+    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(ids));
+  } catch (_) {}
+}
+
+export default function TemplatePicker({ templates: templatesProp, templateId, templateOptions, onChangeTemplate, onChangeOptions, userPlan, onUpgradeClick, openOptionsFromSupport, openModalToTab, onOpenFromUrlConsumed }) {
   const [templatesLocal, setTemplatesLocal] = useState([]);
   const [showOptions, setShowOptions] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [initialTab, setInitialTab] = useState(null);
+  const [favoriteIds, setFavoriteIds] = useState(loadFavorites);
   const useProp = templatesProp !== undefined;
   const templates = useProp && Array.isArray(templatesProp) ? templatesProp : templatesLocal;
   const loading = useProp ? templates.length === 0 : templatesLocal.length === 0;
@@ -147,50 +125,45 @@ export default function TemplatePicker({ templates: templatesProp, templateId, t
     if (openOptionsFromSupport && options.length > 0) setShowOptions(true);
   }, [openOptionsFromSupport, options.length]);
 
+  const openedFromUrlRef = useRef(false);
+  useEffect(() => {
+    if (openModalToTab !== 'mine' || openedFromUrlRef.current || modalOpen) return;
+    openedFromUrlRef.current = true;
+    setInitialTab('mine');
+    setModalOpen(true);
+    onOpenFromUrlConsumed?.();
+  }, [openModalToTab, modalOpen, onOpenFromUrlConsumed]);
+
+  const toggleFavorite = useCallback((id) => {
+    setFavoriteIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      saveFavorites(next);
+      return next;
+    });
+  }, []);
+
   if (loading && templates.length === 0) return null;
-
-  const freeTemplates = templates.filter(t => !t.premium);
-  const premiumTemplates = templates.filter(t => t.premium);
-
-  const handleTemplateClick = (t) => {
-    if (t.premium && userPlan !== 'pro') {
-      if (onUpgradeClick) onUpgradeClick();
-      return;
-    }
-    onChangeTemplate(t.id);
-  };
 
   return (
     <div className="tpl-bar">
       <div className="tpl-bar-left">
-        {freeTemplates.map(t => (
-          <button
-            key={t.id}
-            className={`tpl-chip${templateId === t.id ? ' tpl-chip--active' : ''}`}
-            onClick={() => handleTemplateClick(t)}
-            title={t.description}
-          >
-            <MiniPreview templateId={t.id} isActive={templateId === t.id} />
-            <span className="tpl-chip-label">{t.name}</span>
-          </button>
-        ))}
-        {premiumTemplates.length > 0 && (
-          <>
-            <span className="tpl-separator" />
-            {premiumTemplates.map(t => (
-              <button
-                key={t.id}
-                className={`tpl-chip${templateId === t.id ? ' tpl-chip--active' : ''}${userPlan !== 'pro' ? ' tpl-chip--locked' : ''}`}
-                onClick={() => handleTemplateClick(t)}
-                title={t.description}
-              >
-                <MiniPreview templateId={t.id} isActive={templateId === t.id} />
-                <span className="tpl-chip-label">{t.name}</span>
-                {userPlan !== 'pro' && <HiLockClosed className="tpl-lock" size={12} aria-hidden />}
-              </button>
-            ))}
-          </>
-        )}
+        <button
+          type="button"
+          className="tpl-btn-open-modal"
+          onClick={() => setModalOpen(true)}
+          title="Choisir un template"
+        >
+          <span className="tpl-btn-open-modal-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <line x1="3" y1="9" x2="21" y2="9"/>
+              <line x1="9" y1="21" x2="9" y2="9"/>
+            </svg>
+          </span>
+          <span className="tpl-btn-open-modal-label">Template</span>
+          <span className="tpl-btn-open-modal-current">{currentMeta.name || templateId}</span>
+          <svg className="tpl-btn-open-modal-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
       </div>
       {options.length > 0 && (
         <div className="tpl-bar-right">
@@ -213,6 +186,18 @@ export default function TemplatePicker({ templates: templatesProp, templateId, t
           )}
         </div>
       )}
+      <TemplateModal
+        open={modalOpen}
+        onClose={() => { setModalOpen(false); setInitialTab(null); }}
+        templates={templates}
+        templateId={templateId}
+        onChangeTemplate={onChangeTemplate}
+        userPlan={userPlan}
+        onUpgradeClick={onUpgradeClick}
+        favoriteIds={favoriteIds}
+        onToggleFavorite={toggleFavorite}
+        initialTab={initialTab}
+      />
     </div>
   );
 }

@@ -46,9 +46,9 @@
         <div class="experience-item" itemscope itemtype="https://schema.org/JobPosition">
           <div class="exp-header">
             <span class="exp-entreprise"><span class="ats-label">Organisation : </span><span itemprop="worksFor" itemscope itemtype="https://schema.org/Organization"><span itemprop="name">{{ exp.entreprise_display|safe }}</span></span></span>
-            <span class="exp-dates">{% if exp.date_debut or exp.date_fin %}{{ exp.date_debut_display|safe }} – {{ exp.date_fin_display|safe }}{% endif %}{% if exp.lieu %}{% if exp.date_debut or exp.date_fin %} · {% endif %}{{ exp.lieu_display|safe }}{% endif %}</span>
+            <span class="exp-dates">{% if exp.date_debut or exp.date_fin %}{{ exp.date_debut_display|safe }} - {{ exp.date_fin_display|safe }}{% endif %}{% if exp.lieu %}{% if exp.date_debut or exp.date_fin %} · {% endif %}{{ exp.lieu_display|safe }}{% endif %}</span>
           </div>
-          <p class="exp-poste"><span class="ats-label">Fonction : </span><span itemprop="name">{{ exp.poste_display|safe }}{% if exp.secteur %} – {{ exp.secteur_display|safe }}{% endif %}</span></p>
+          <p class="exp-poste"><span class="ats-label">Fonction : </span><span itemprop="name">{{ exp.poste_display|safe }}{% if exp.secteur %} - {{ exp.secteur_display|safe }}{% endif %}</span></p>
           {% for bullet in exp.bullet_points %}
           <p class="bullet">{{ bullet.html|safe }}</p>
           {% endfor %}
@@ -66,7 +66,7 @@
         {% for form in formations_for_display %}
         <div class="formation-item">
           <div class="formation-header">
-            <span class="formation-diplome">{{ form.etablissement }}{% if form.etablissement and form.diplome %} – {% endif %}{{ form.diplome }}</span>
+            <span class="formation-diplome">{{ form.etablissement }}{% if form.etablissement and form.diplome %} - {% endif %}{{ form.diplome }}</span>
             {% if form.date %}<span class="formation-date">{{ form.date }}</span>{% endif %}
           </div>
           {% if form.mention %}<p class="formation-mention">{{ form.mention }}</p>{% endif %}
@@ -95,7 +95,7 @@
       <section class="cv-section">
         <h2 class="section-title">Certifications</h2>
         {% for c in certifications_for_display %}
-        <p class="cert-item">{% if c.nom %}{{ c.nom }}{% endif %}{% if c.organisme %}{% if c.nom %} – {% endif %}{{ c.organisme }}{% endif %}{% if c.date %}{% if c.nom or c.organisme %} · {% endif %}{{ c.date }}{% endif %}</p>
+        <p class="cert-item">{% if c.nom %}{{ c.nom }}{% endif %}{% if c.organisme %}{% if c.nom %} - {% endif %}{{ c.organisme }}{% endif %}{% if c.date %}{% if c.nom or c.organisme %} · {% endif %}{{ c.date }}{% endif %}</p>
         {% endfor %}
       </section>
       {% endif %}

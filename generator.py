@@ -159,6 +159,15 @@ def _content_scale_css(content_score: int) -> str:
         return "<style>body{font-size:9pt;line-height:1.45}.resume-text{font-size:9pt;line-height:1.5}.bullet{font-size:8.5pt;line-height:1.4}.sidebar-item{font-size:8pt;line-height:1.3}.section-title{font-size:9.5pt}.exp-poste{font-size:9.5pt}</style>"
     return ""
 
+# Pour que l'export PDF affiche tout le contenu (comme la preview), on autorise la hauteur fluide
+# au lieu de forcer 297mm + overflow hidden qui rogne le contenu.
+PDF_EXPORT_LAYOUT_CSS = (
+    "<style>"
+    ".cv{height:auto!important;min-height:auto!important;max-height:none!important;overflow:visible!important}"
+    ".cv-body,.cv-header,.cv-sidebar{overflow:visible!important;min-height:0}"
+    "</style>"
+)
+
 
 def _render_pdf_bytes_from_ctx(cv_ctx: dict, template_dir: Path, css, css_vars_style: str = "", scale_css: str = "") -> bytes:
     """Génère les bytes PDF à partir d’un contexte CV déjà prêt (photo, display, etc.)."""
@@ -169,12 +178,50 @@ def _render_pdf_bytes_from_ctx(cv_ctx: dict, template_dir: Path, css, css_vars_s
     )
     template = env.get_template("template.html")
     html_str = template.render(**cv_ctx)
-    inject = (css_vars_style or "") + (scale_css or "")
+    inject = PDF_EXPORT_LAYOUT_CSS + (css_vars_style or "") + (scale_css or "")
     if inject:
         html_str = html_str.replace("</head>", inject + "</head>", 1)
     html_doc = HTML(string=html_str, base_url=str(template_dir))
     buffer = __import__("io").BytesIO()
     html_doc.write_pdf(buffer, stylesheets=[css])
+    return buffer.getvalue()
+
+
+def _render_pdf_bytes_from_custom_ctx(
+    cv_ctx: dict,
+    tmpl_meta: dict,
+    base_dir: Path,
+    css_vars_style: str = "",
+    scale_css: str = "",
+) -> bytes:
+    """Génère les bytes PDF pour un template personnalisé (HTML/CSS en base)."""
+    from weasyprint import HTML
+    html_content = tmpl_meta.get("_html_content") or ""
+    custom_css = (tmpl_meta.get("_css_content") or "").strip()
+    env = Environment(autoescape=select_autoescape(("html", "xml")))
+    html_str = env.from_string(html_content).render(**cv_ctx)
+    style_block = f"<style>{custom_css}</style>" if custom_css else ""
+    if style_block:
+        html_str = re.sub(
+            r"<link\s[^>]*href\s*=\s*['\"]?template\.css['\"]?[^>]*>",
+            style_block,
+            html_str,
+            count=0,
+            flags=re.IGNORECASE,
+        )
+        if style_block not in html_str:
+            if "</head>" in html_str:
+                html_str = html_str.replace("</head>", style_block + "\n</head>", 1)
+            elif "<body" in html_str:
+                html_str = re.sub(r"(<body[^>]*>)", r"\1" + style_block, html_str, count=1)
+            else:
+                html_str = style_block + html_str
+    inject = PDF_EXPORT_LAYOUT_CSS + (css_vars_style or "") + (scale_css or "")
+    if inject:
+        html_str = html_str.replace("</head>", inject + "</head>", 1)
+    html_doc = HTML(string=html_str, base_url=str(base_dir))
+    buffer = __import__("io").BytesIO()
+    html_doc.write_pdf(buffer)
     return buffer.getvalue()
 
 
@@ -185,6 +232,19 @@ def _pdf_page_count(pdf_bytes: bytes) -> int:
         return len(PdfReader(__import__("io").BytesIO(pdf_bytes)).pages)
     except Exception:
         return 1
+
+
+def generer_pdf_bytes_from_html(html_str: str, base_dir: Path, cv: dict, offre: dict) -> tuple[bytes, str]:
+    """
+    Génère le PDF à partir du HTML déjà rendu (même HTML que la preview iframe).
+    Garantit que l'export PDF est identique à l'aperçu.
+    """
+    from weasyprint import HTML
+    base_dir = Path(base_dir).resolve()
+    html_doc = HTML(string=html_str, base_url=str(base_dir))
+    buffer = __import__("io").BytesIO()
+    html_doc.write_pdf(buffer)
+    return buffer.getvalue(), _nom_fichier_pdf(cv, offre)
 
 
 def generer_pdf_bytes(cv_adapte: dict, offre: dict, base_dir: str | Path | None = None, template_id: str | None = None, template_options: dict | None = None) -> tuple[bytes, str]:
@@ -203,8 +263,10 @@ def generer_pdf_bytes(cv_adapte: dict, offre: dict, base_dir: str | Path | None 
 
     base_dir = Path(base_dir).resolve() if base_dir else Path(__file__).resolve().parent
 
-    from backend.template_registry import get_template_dir, resolve_options, options_to_css_vars
-    tmpl_dir = get_template_dir(template_id)
+    from backend.template_registry import get_template, get_template_dir, resolve_options, options_to_css_vars
+    tmpl_meta = get_template(template_id)
+    is_custom = tmpl_meta.get("_custom")
+    tmpl_dir = None if is_custom else get_template_dir(template_id)
     resolved_opts = resolve_options(template_id, template_options)
     show_photo = resolved_opts.get("show_photo", True)
 
@@ -223,7 +285,6 @@ def generer_pdf_bytes(cv_adapte: dict, offre: dict, base_dir: str | Path | None 
     cv_adapte["for_preview"] = False
     show_mots_cles_ats = resolved_opts.get("show_mots_cles_ats", True)
     css_vars = options_to_css_vars(resolved_opts)
-    css = CSS(filename=tmpl_dir / "template.css")
 
     # Version compacte : 6 exp, 1 projet
     display_compact = _build_cv_display(cv_adapte, html_module, n_experiences=6, n_projets=1)
@@ -234,8 +295,17 @@ def generer_pdf_bytes(cv_adapte: dict, offre: dict, base_dir: str | Path | None 
     proj_count = len(display_compact.get("projets_for_display") or [])
     content_score = exp_count * 3 + bullet_count + form_count + proj_count
     scale_css = _content_scale_css(content_score)
-    pdf_compact = _render_pdf_bytes_from_ctx(ctx_compact, tmpl_dir, css, css_vars, scale_css=scale_css)
-    n_pages = _pdf_page_count(pdf_compact)
+
+    if is_custom:
+        pdf_compact = _render_pdf_bytes_from_custom_ctx(
+            ctx_compact, tmpl_meta, base_dir,
+            css_vars_style=css_vars, scale_css=scale_css,
+        )
+        n_pages = _pdf_page_count(pdf_compact)
+    else:
+        css = CSS(filename=tmpl_dir / "template.css")
+        pdf_compact = _render_pdf_bytes_from_ctx(ctx_compact, tmpl_dir, css, css_vars, scale_css=scale_css)
+        n_pages = _pdf_page_count(pdf_compact)
 
     # S’il reste de la place (1 page), tenter d’ajouter une 7e exp et un 2e projet
     if n_pages == 1:
@@ -245,7 +315,13 @@ def generer_pdf_bytes(cv_adapte: dict, offre: dict, base_dir: str | Path | None 
         bullet_count_o = sum(len(e.get("bullet_points") or []) for e in display_optional["experiences_for_display"])
         content_score_o = exp_count_o * 3 + bullet_count_o + len(display_optional.get("formations_for_display") or []) + len(display_optional.get("projets_for_display") or [])
         scale_css_o = _content_scale_css(content_score_o)
-        pdf_optional = _render_pdf_bytes_from_ctx(ctx_optional, tmpl_dir, css, css_vars, scale_css=scale_css_o)
+        if is_custom:
+            pdf_optional = _render_pdf_bytes_from_custom_ctx(
+                ctx_optional, tmpl_meta, base_dir,
+                css_vars_style=css_vars, scale_css=scale_css_o,
+            )
+        else:
+            pdf_optional = _render_pdf_bytes_from_ctx(ctx_optional, tmpl_dir, css, css_vars, scale_css=scale_css_o)
         if _pdf_page_count(pdf_optional) == 1:
             pdf_compact = pdf_optional
 

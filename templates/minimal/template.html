@@ -47,7 +47,7 @@
         <div class="experience-item" itemscope itemtype="https://schema.org/JobPosition">
           <div class="exp-header">
             <span class="exp-left"><span class="exp-entreprise"><span class="ats-label">Organisation : </span><span itemprop="worksFor" itemscope itemtype="https://schema.org/Organization"><span itemprop="name">{{ exp.entreprise_display|safe }}</span></span></span>{% if exp.poste %} - <span class="exp-poste-inline"><span class="ats-label">Fonction : </span><span itemprop="name">{{ exp.poste_display|safe }}</span></span>{% endif %}</span>
-            <span class="exp-dates">{% if exp.date_debut or exp.date_fin %}{{ exp.date_debut_display|safe }} – {{ exp.date_fin_display|safe }}{% endif %}</span>
+            <span class="exp-dates">{% if exp.date_debut or exp.date_fin %}{{ exp.date_debut_display|safe }} - {{ exp.date_fin_display|safe }}{% endif %}</span>
           </div>
           {% for bullet in exp.bullet_points %}
           <p class="bullet">- {{ bullet.html|safe }}</p>
@@ -66,7 +66,7 @@
         {% for form in formations_for_display %}
         <div class="formation-item">
           <div class="formation-header">
-            <span class="formation-diplome">{{ form.etablissement }}{% if form.etablissement and form.diplome %} – {% endif %}{{ form.diplome }}</span>
+            <span class="formation-diplome">{{ form.etablissement }}{% if form.etablissement and form.diplome %} - {% endif %}{{ form.diplome }}</span>
             {% if form.date %}<span class="formation-date">{{ form.date }}</span>{% endif %}
           </div>
           {% if form.mention %}
@@ -98,7 +98,7 @@
       <section class="section">
         <h2 class="section-title">Certifications</h2>
         {% for c in certifications_for_display %}
-        <p class="cert-item">{% if c.nom %}{{ c.nom }}{% endif %}{% if c.organisme %}{% if c.nom %} – {% endif %}{{ c.organisme }}{% endif %}{% if c.date %}{% if c.nom or c.organisme %} · {% endif %}{{ c.date }}{% endif %}</p>
+        <p class="cert-item">{% if c.nom %}{{ c.nom }}{% endif %}{% if c.organisme %}{% if c.nom %} - {% endif %}{{ c.organisme }}{% endif %}{% if c.date %}{% if c.nom or c.organisme %} · {% endif %}{{ c.date }}{% endif %}</p>
         {% endfor %}
       </section>
       {% endif %}

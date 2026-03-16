@@ -33,7 +33,7 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
     if (!applicationDetail || detailTab !== 'cv') return;
     const fullCv = applicationDetail.full_cv;
     if (!fullCv) return;
-    apiPost('/api/render-html', { cv: fullCv })
+    apiPost('/api/render-html', { cv: fullCv, selection_a4: applicationDetail.selection_a4 || undefined })
       .then((html) => setDetailCvHtml(html))
       .catch(() => setDetailCvHtml('<p>Erreur chargement aperçu CV.</p>'));
   }, [applicationDetail, detailTab]);
@@ -161,6 +161,8 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
             <div className="detail-pane detail-cv">
               {applicationDetail.full_cv ? (
                 detailCvHtml ? <iframe title="Aperçu CV" srcDoc={detailCvHtml} className="detail-iframe" /> : <p>Chargement de l&apos;aperçu CV…</p>
+              ) : applicationDetail.pdf_cv_url ? (
+                <iframe title="Aperçu CV (PDF)" src={applicationDetail.pdf_cv_url} className="detail-iframe" />
               ) : (
                 <p>Aucun CV enregistré pour cette candidature.</p>
               )}
@@ -170,17 +172,26 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
             <div className="detail-pane detail-lettre">
               {detailLetterLoading && <p>Génération de la lettre…</p>}
               {!detailLetterLoading && detailLetterHtml && <div className="letter-html" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(detailLetterHtml) }} />}
-              {!detailLetterLoading && !detailLetterHtml && (
+              {!detailLetterLoading && !detailLetterHtml && applicationDetail.pdf_lettre_url && (
+                <iframe title="Aperçu lettre (PDF)" src={applicationDetail.pdf_lettre_url} className="detail-iframe" />
+              )}
+              {!detailLetterLoading && !detailLetterHtml && !applicationDetail.pdf_lettre_url && (
                 <div className="detail-lettre-empty">
                   <p>Aucune lettre pour cette candidature.</p>
-                  <button type="button" className="btn btn-primary" onClick={handleGenerateLetter}>Générer la lettre</button>
+                  <button type="button" className="btn btn-primary" onClick={handleGenerateLetter} disabled={!applicationDetail.full_cv}>Générer la lettre</button>
                 </div>
               )}
             </div>
           )}
           {detailTab === 'fiche' && (
             <div className="detail-pane detail-fiche">
-              <pre className="fiche-text">{(applicationDetail.description_full || '').trim() || 'Aucune fiche enregistrée.'}</pre>
+              {applicationDetail.pdf_fiche_url ? (
+                <iframe title="Aperçu fiche de poste (PDF)" src={applicationDetail.pdf_fiche_url} className="detail-iframe" />
+              ) : (applicationDetail.description_full || '').trim() ? (
+                <pre className="fiche-text">{(applicationDetail.description_full || '').trim()}</pre>
+              ) : (
+                <p>Aucune fiche enregistrée.</p>
+              )}
             </div>
           )}
         </div>

@@ -182,7 +182,7 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
                     </span>
                     <span className="exp-dates">
                       <span data-cv-field={`experiences.${oi}.date_debut`} suppressContentEditableWarning contentEditable="true">{exp.date_debut || ''}</span>
-                      {' – '}
+                      {' - '}
                       <span data-cv-field={`experiences.${oi}.date_fin`} suppressContentEditableWarning contentEditable="true">{exp.date_fin || ''}</span>
                     </span>
                   </div>
@@ -203,7 +203,7 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
               return (
                 <div key={form.id || i} className="formation-item">
                   <div className="formation-header">
-                    <span className="formation-diplome"><span data-cv-field={`formations.${oi}.etablissement`} suppressContentEditableWarning contentEditable="true">{form.etablissement || ''}</span> – <span data-cv-field={`formations.${oi}.diplome`} suppressContentEditableWarning contentEditable="true">{form.diplome || ''}</span></span>
+                    <span className="formation-diplome"><span data-cv-field={`formations.${oi}.etablissement`} suppressContentEditableWarning contentEditable="true">{form.etablissement || ''}</span> - <span data-cv-field={`formations.${oi}.diplome`} suppressContentEditableWarning contentEditable="true">{form.diplome || ''}</span></span>
                     <span className="formation-date"><span data-cv-field={`formations.${oi}.date`} suppressContentEditableWarning contentEditable="true">{form.date || ''}</span></span>
                   </div>
                   {form.mention ? <p className="formation-mention"><span data-cv-field={`formations.${oi}.mention`} suppressContentEditableWarning contentEditable="true">{form.mention || ''}</span></p> : null}
@@ -231,7 +231,7 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
               return (
                 <p key={cert.id || i} className="cert-item">
                   <span data-cv-field={`certifications.${oi}.nom`} suppressContentEditableWarning contentEditable="true">{cert.nom || ''}</span>
-                  {' – '}<span data-cv-field={`certifications.${oi}.organisme`} suppressContentEditableWarning contentEditable="true">{cert.organisme || ''}</span>
+                  {' - '}<span data-cv-field={`certifications.${oi}.organisme`} suppressContentEditableWarning contentEditable="true">{cert.organisme || ''}</span>
                   {' · '}<span data-cv-field={`certifications.${oi}.date`} suppressContentEditableWarning contentEditable="true">{cert.date || ''}</span>
                 </p>
               );
@@ -327,7 +327,7 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
               return (
                 <p key={cert.id || i} className="sidebar-item">
                   <span data-cv-field={`certifications.${oi}.nom`} suppressContentEditableWarning contentEditable="true">{cert.nom || ''}</span>
-                  {' – '}<span data-cv-field={`certifications.${oi}.organisme`} suppressContentEditableWarning contentEditable="true">{cert.organisme || ''}</span>
+                  {' - '}<span data-cv-field={`certifications.${oi}.organisme`} suppressContentEditableWarning contentEditable="true">{cert.organisme || ''}</span>
                   {' · '}<span data-cv-field={`certifications.${oi}.date`} suppressContentEditableWarning contentEditable="true">{cert.date || ''}</span>
                 </p>
               );
@@ -627,7 +627,7 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
                   return (
                     <p key={cert.id || i} className="sidebar-item">
                       <span data-cv-field={`certifications.${origIndex}.nom`} suppressContentEditableWarning contentEditable="true">{cert.nom || ''}</span>
-                      {' – '}
+                      {' - '}
                       <span data-cv-field={`certifications.${origIndex}.organisme`} suppressContentEditableWarning contentEditable="true">{cert.organisme || ''}</span>
                       {' · '}
                       <span data-cv-field={`certifications.${origIndex}.date`} suppressContentEditableWarning contentEditable="true">{cert.date || ''}</span>

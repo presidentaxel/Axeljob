@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, lazy, Suspense } from 'react';
+import { useState, useRef, useEffect, useMemo, lazy, Suspense } from 'react';
 import DOMPurify from 'dompurify';
 import { useLocation, useNavigate, NavLink } from 'react-router-dom';
 import {
@@ -332,6 +332,163 @@ const SUPPORT_TOPICS = [
   },
 ];
 
+function SupportTicketSection() {
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [ticketEmail, setTicketEmail] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const data = await apiPost('/api/support-ticket', { subject: subject.trim(), message: message.trim() });
+      setSuccess(true);
+      setTicketEmail(data.email || '');
+      setSubject('');
+      setMessage('');
+    } catch (err) {
+      setError(err?.message || 'Envoi impossible.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendAnother = () => {
+    setSuccess(false);
+    setTicketEmail('');
+  };
+
+  return (
+    <section className="support-conv">
+      <h2 className="support-section-title">
+        <HiChatBubbleLeftRight className="support-conv-title-icon" aria-hidden />
+        Ouvrir un ticket
+      </h2>
+      <div className="support-conv-card">
+        {success ? (
+          <>
+            <p className="support-ticket-success">
+              Ticket envoyé. Tu recevras une réponse par email à <strong>{ticketEmail}</strong>.
+            </p>
+            <button type="button" className="btn btn-secondary support-ticket-another" onClick={sendAnother}>
+              Envoyer un autre ticket
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="support-conv-placeholder-text">
+              Décris ton problème ou ta question. Nous te répondrons par email à l&apos;adresse de ton compte.
+            </p>
+            <form onSubmit={handleSubmit} className="support-ticket-form">
+              <input
+                type="text"
+                className="support-ticket-subject"
+                placeholder="Sujet du ticket"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                maxLength={200}
+                required
+              />
+              <textarea
+                className="support-ticket-message"
+                placeholder="Ton message…"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                rows={5}
+                maxLength={8000}
+                required
+              />
+              {error && <p className="support-ticket-error">{error}</p>}
+              <button type="submit" className="btn btn-primary support-ticket-submit" disabled={loading}>
+                {loading ? 'Envoi…' : 'Envoyer le ticket'}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function SupportReplySection() {
+  const [toEmail, setToEmail] = useState('');
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await apiPost('/api/support-reply', { to_email: toEmail.trim(), message: message.trim() });
+      setSuccess(true);
+      setToEmail('');
+      setMessage('');
+    } catch (err) {
+      setError(err?.message || 'Envoi impossible.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendAnother = () => { setSuccess(false); };
+
+  return (
+    <section className="support-conv support-reply-section">
+      <h2 className="support-section-title" id="support-reply-title">
+        Répondre à un utilisateur
+      </h2>
+      <div className="support-conv-card">
+        {success ? (
+          <>
+            <p className="support-ticket-success">Réponse envoyée. L&apos;utilisateur la recevra par email (template AxeL Job).</p>
+            <button type="button" className="btn btn-secondary support-ticket-another" onClick={sendAnother}>
+              Envoyer une autre réponse
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="support-conv-placeholder-text">
+              Envoie une réponse depuis l&apos;app : elle partira via Resend avec un email formaté (plus d&apos;icône « non vérifié » si le domaine Resend est configuré).
+            </p>
+            <form onSubmit={handleSubmit} className="support-ticket-form">
+              <label className="support-reply-label">Email du destinataire</label>
+              <input
+                type="email"
+                className="support-ticket-subject"
+                placeholder="utilisateur@exemple.fr"
+                value={toEmail}
+                onChange={(e) => setToEmail(e.target.value)}
+                required
+              />
+              <label className="support-reply-label">Ta réponse</label>
+              <textarea
+                className="support-ticket-message"
+                placeholder="Écris ta réponse…"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                rows={5}
+                maxLength={8000}
+                required
+              />
+              {error && <p className="support-ticket-error">{error}</p>}
+              <button type="submit" className="btn btn-primary support-ticket-submit" disabled={loading}>
+                {loading ? 'Envoi…' : 'Envoyer la réponse'}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -344,6 +501,7 @@ export default function App() {
   /** URL photo fraîche (GET /api/cv) pour la preview CV, évite URL signée expirée */
   const [freshPreviewPhotoUrl, setFreshPreviewPhotoUrl] = useState(undefined);
   const [lastAdaptationId, setLastAdaptationId] = useState(null);
+  const [lastSelectionA4, setLastSelectionA4] = useState(null);
   const [previewVariant, setPreviewVariant] = useState('modified');
   const [originalPreviewHtml, setOriginalPreviewHtml] = useState('');
   const [modifiedPreviewHtml, setModifiedPreviewHtml] = useState('');
@@ -358,6 +516,8 @@ export default function App() {
   const [exportDossierPath, setExportDossierPath] = useState('');
   const [applications, setApplications] = useState([]);
   const [showArchived, setShowArchived] = useState(false);
+  const [applicationSearchQuery, setApplicationSearchQuery] = useState('');
+  const [applicationSearchDebounced, setApplicationSearchDebounced] = useState('');
   /* sidebar removed - now using topbar layout */
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(!!supabase);
@@ -455,13 +615,13 @@ export default function App() {
     if (pathname.startsWith('/app')) document.title = "AxeL Job - Adapter ton CV à l'offre";
   }, [pathname]);
 
-  // Liste des templates : fetch uniquement en app (pas sur la landing) pour alléger le chemin critique
+  // Liste des templates : fetch en app (avec token si session pour avoir les templates perso dans « Mes templates »)
   useEffect(() => {
     if (!pathname.startsWith('/app')) return;
     apiGet('/api/templates')
       .then((data) => setTemplatesList(Array.isArray(data) ? data : []))
       .catch(() => setTemplatesList([]));
-  }, [pathname]);
+  }, [pathname, session]);
 
   // Persist template choice (localStorage + base de données)
   useEffect(() => {
@@ -487,7 +647,7 @@ export default function App() {
   useEffect(() => {
     if (!session) return;
     if (lastAdaptedCv) {
-      apiPost('/api/render-html', { cv: lastAdaptedCv, base_cv: lastBaseCv || undefined, highlight_changes: wantHighlight, template_id: templateId, template_options: templateOptions })
+      apiPost('/api/render-html', { cv: lastAdaptedCv, base_cv: lastBaseCv || undefined, highlight_changes: wantHighlight, template_id: templateId, template_options: templateOptions, selection_a4: lastSelectionA4 || undefined })
         .then((html) => { if (iframeRef.current) iframeRef.current.srcdoc = html; setModifiedPreviewHtml(html); })
         .catch(() => {});
     } else {
@@ -561,7 +721,7 @@ export default function App() {
     if (session && view) trackEvent('page_view', { view });
   }, [session, view]);
 
-  // Détecter erreur magic link (lien expiré) sur /login : seulement après que l'auth ait eu le temps de traiter le hash (évite "expiré" au premier clic)
+  // Détecter erreur lien expiré (ex. réinitialisation mot de passe) sur /login
   useEffect(() => {
     if (pathname !== '/login') {
       setLoginOtpExpired(false);
@@ -592,15 +752,30 @@ export default function App() {
           navigate('/app/cv', { replace: true });
           setTimeout(() => handleUpgradeClick(), 500);
         } else {
-          navigate('/app', { replace: true });
+          const nextPath = params.get('next');
+          const safeNext = nextPath && nextPath.startsWith('/app/') && !nextPath.includes('//') ? nextPath : null;
+          if (safeNext) {
+            navigate(safeNext, { replace: true });
+          } else if (params.get('onboarding') === 'linkedin') {
+            navigate('/app?onboarding=linkedin', { replace: true });
+          } else {
+            navigate('/app', { replace: true });
+          }
         }
       } else if (pathname === '/app' || pathname === '/app/') {
-        navigate('/app/cv', { replace: true });
+        const search = location.search || '';
+        navigate('/app/cv' + search, { replace: true });
       }
     } else {
-      if (pathname.startsWith('/app')) navigate('/', { replace: true });
+      if (pathname.startsWith('/app')) {
+        const hash = typeof window !== 'undefined' ? (window.location.hash || '') : '';
+        const search = typeof window !== 'undefined' ? (window.location.search || '') : '';
+        const hasOAuthCallback = /(access_token|refresh_token)=/.test(hash) || /[?&]code=/.test(search);
+        if (hasOAuthCallback) return;
+        navigate('/', { replace: true });
+      }
     }
-  }, [session, pathname, authLoading, navigate]);
+  }, [session, pathname, authLoading, navigate, location.search]);
 
   const setPreviewHtml = (html) => {
     if (!iframeRef.current) return;
@@ -679,7 +854,7 @@ export default function App() {
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps -- on veut la valeur courante de lastAdaptedCv au retour sur l’onglet CV, pas une re-exécution à chaque changement de référence
     if (lastAdaptedCv) {
-      apiPost('/api/render-html', { cv: lastAdaptedCv, highlight_changes: false, ...templateParams })
+      apiPost('/api/render-html', { cv: lastAdaptedCv, highlight_changes: false, selection_a4: lastSelectionA4 || undefined, ...templateParams })
         .then((html) => { setPreviewHtml(html); setModifiedPreviewHtml(html); })
         .catch(() => loadInitialPreview());
     } else {
@@ -874,6 +1049,7 @@ export default function App() {
         });
         setLastAdaptedCv(data.cv);
         setLastAdaptationId(data.adaptation_id || null);
+        setLastSelectionA4(data.selection_a4 || null);
         setRapport(data.rapport || {});
         setRapportBefore(data.rapport_before || null);
         setExportBlockVisible(true);
@@ -890,6 +1066,7 @@ export default function App() {
           cv: data.cv,
           base_cv: baseCv ?? lastBaseCv ?? undefined,
           highlight_changes: true,
+          selection_a4: data.selection_a4 || undefined,
           ...templateParams,
         });
         setPreviewHtml(html);
@@ -901,7 +1078,8 @@ export default function App() {
       } else {
         const data = await apiPost('/api/adapt-refine', { cv: lastAdaptedCv, instruction: text });
         setLastAdaptedCv(data.cv);
-        const html = await apiPost('/api/render-html', { cv: data.cv, highlight_changes: false, ...templateParams });
+        setLastSelectionA4(null);
+        const html = await apiPost('/api/render-html', { cv: data.cv, highlight_changes: false, selection_a4: undefined, ...templateParams });
         setPreviewHtml(html);
         setModifiedPreviewHtml(html);
         setChatMessages((prev) => [...prev, { role: 'assistant', content: 'Modifications appliquées. Tu peux continuer à affiner ou télécharger le CV.' }]);
@@ -921,7 +1099,7 @@ export default function App() {
   const handleSaveCvEdits = (editedCv) => {
     if (!editedCv) return;
     setLastAdaptedCv(editedCv);
-    apiPost('/api/render-html', { cv: editedCv, highlight_changes: false, ...templateParams })
+    apiPost('/api/render-html', { cv: editedCv, highlight_changes: false, selection_a4: lastSelectionA4 || undefined, ...templateParams })
       .then((html) => {
         setPreviewHtml(html);
         setModifiedPreviewHtml(html);
@@ -1015,6 +1193,7 @@ export default function App() {
       const blob = await apiPostBlob('/api/pdf', {
         cv: lastAdaptedCv,
         titre: posteNom || undefined,
+        selection_a4: lastSelectionA4 || undefined,
         ...templateParams,
       });
       const a = document.createElement('a');
@@ -1243,6 +1422,37 @@ export default function App() {
   const handleProfileSaveSuccess = () => {
     if (!lastAdaptedCv) loadInitialPreview();
   };
+
+  useEffect(() => {
+    const trimmed = applicationSearchQuery.trim();
+    if (trimmed === '') {
+      setApplicationSearchDebounced('');
+      return;
+    }
+    const t = setTimeout(() => setApplicationSearchDebounced(trimmed), 200);
+    return () => clearTimeout(t);
+  }, [applicationSearchQuery]);
+
+  const filteredApplications = useMemo(() => {
+    const q = applicationSearchDebounced.toLowerCase();
+    if (!q) return applications;
+    return applications.filter((app) => {
+      const poste = ((app.poste || app.poste_offre || '') + ' ').toLowerCase();
+      const entreprise = ((app.entreprise || '') + ' ').toLowerCase();
+      const source = ((app.source_offre || '') + ' ').toLowerCase();
+      const date = ((app.date || '') + ' ').toLowerCase();
+      return poste.includes(q) || entreprise.includes(q) || source.includes(q) || date.includes(q);
+    });
+  }, [applications, applicationSearchDebounced]);
+
+  const filteredNonArchivedCount = useMemo(
+    () => filteredApplications.filter((a) => !a.archived).length,
+    [filteredApplications],
+  );
+  const filteredArchived = useMemo(
+    () => filteredApplications.filter((a) => a.archived),
+    [filteredApplications],
+  );
 
   const applicationStats = (() => {
     const now = new Date();
@@ -1493,6 +1703,8 @@ export default function App() {
                   userPlan={usage?.plan}
                   onUpgradeClick={handleUpgradeClick}
                   openOptionsFromSupport={location.state?.supportHighlight?.openTemplateOptions}
+                  openModalToTab={new URLSearchParams(location.search || '').get('open') === 'template-perso' ? 'mine' : null}
+                  onOpenFromUrlConsumed={() => navigate(location.pathname, { replace: true })}
                 />
               </div>
               {lastAdaptedCv && adaptRating === null && (
@@ -1540,7 +1752,7 @@ export default function App() {
               )}
               <div className="preview-wrap" ref={previewWrapRef}>
                 <div className="preview-a4-sheet">
-                {previewVariant === 'modified' && lastAdaptedCv ? (
+                {previewVariant === 'modified' && lastAdaptedCv && !(templateId || '').startsWith('custom_') ? (
                   <CvEditablePreview
                     cv={{
                       ...lastAdaptedCv,
@@ -1730,9 +1942,24 @@ export default function App() {
               <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
               Afficher les archivées
             </label>
+            <div className="applications-search-wrap">
+              <input
+                type="search"
+                className="applications-search"
+                placeholder="Rechercher par poste, entreprise, source, date…"
+                value={applicationSearchQuery}
+                onChange={(e) => setApplicationSearchQuery(e.target.value)}
+                aria-label="Filtrer les candidatures"
+              />
+              {applicationSearchDebounced && (
+                <span className="applications-search-count">
+                  {filteredNonArchivedCount} résultat{filteredNonArchivedCount !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
             <div className="kanban-board">
               {KANBAN_COLUMNS.map((col) => {
-                const columnApps = applications.filter((app) => {
+                const columnApps = filteredApplications.filter((app) => {
                   if (app.archived) return false;
                   const s = app.statut in STATUT_LABELS ? app.statut : 'candidature_envoyee';
                   return s === col.id;
@@ -1815,11 +2042,17 @@ export default function App() {
                 </button>
               </div>
             )}
-            {showArchived && applications.filter((a) => a.archived).length > 0 && (
+            {applicationSearchDebounced && filteredNonArchivedCount === 0 && applications.filter((a) => !a.archived).length > 0 && (
+              <div className="applications-empty-state applications-search-empty">
+                <p>Aucun résultat pour « {applicationSearchDebounced} ».</p>
+                <button type="button" className="btn btn-secondary" onClick={() => setApplicationSearchQuery('')}>Effacer la recherche</button>
+              </div>
+            )}
+            {showArchived && filteredArchived.length > 0 && (
               <div className="kanban-archived">
                 <h3 className="kanban-archived-title">Archivées</h3>
                 <div className="applications-list kanban-archived-list">
-                  {applications.filter((a) => a.archived).map((app) => {
+                  {filteredArchived.map((app) => {
                     const titre = app.poste || app.poste_offre || 'Sans intitulé';
                     const statutVal = app.statut in STATUT_LABELS ? app.statut : 'candidature_envoyee';
                     return (
@@ -1985,6 +2218,7 @@ export default function App() {
                     const data = await apiPost('/api/adapt', { description: fiche, titre: pos || undefined, entreprise: ent || undefined });
                     setLastAdaptedCv(data.cv);
                     setLastAdaptationId(data.adaptation_id || null);
+                    setLastSelectionA4(data.selection_a4 || null);
                     setRapport(data.rapport || {});
                     setRapportBefore(data.rapport_before || null);
                     setExportBlockVisible(true);
@@ -1994,7 +2228,7 @@ export default function App() {
                     let baseCv = null;
                     try { baseCv = await apiGet('/api/cv'); } catch {}
                     if (baseCv) setLastBaseCv(baseCv);
-                    const html = await apiPost('/api/render-html', { cv: data.cv, base_cv: baseCv ?? lastBaseCv ?? undefined, highlight_changes: true, ...templateParams });
+                    const html = await apiPost('/api/render-html', { cv: data.cv, base_cv: baseCv ?? lastBaseCv ?? undefined, highlight_changes: true, selection_a4: data.selection_a4 || undefined, ...templateParams });
                     setPreviewHtml(html);
                     setModifiedPreviewHtml(html);
                     const summary = data.rapport?.score_global != null
@@ -2033,7 +2267,7 @@ export default function App() {
         <div id="viewSupport" className={`view-panel app-page view-support ${view === 'support' ? 'active' : ''}`} style={{ display: view === 'support' ? 'flex' : 'none' }}>
           <div className="support-hero">
             <h1 className="support-hero-title">Support</h1>
-            <p className="support-hero-subtitle">On t&apos;aide à tirer le meilleur de AxeL Job. Sujets fréquents ci-dessous, conversation à venir.</p>
+            <p className="support-hero-subtitle">On t&apos;aide à tirer le meilleur de AxeL Job. Sujets fréquents ci-dessous, ou ouvre un ticket pour une réponse par email.</p>
           </div>
           <div className="page-content support-page-content">
             <section className="support-usecases">
@@ -2058,21 +2292,8 @@ export default function App() {
                 })}
               </div>
             </section>
-            <section className="support-conv">
-              <h2 className="support-section-title">
-                <HiChatBubbleLeftRight className="support-conv-title-icon" aria-hidden />
-                Conversation avec le support
-              </h2>
-              <div className="support-conv-card">
-                <p className="support-conv-placeholder-text">Le système de conversation sera relié prochainement. En attendant, consulte les sujets ci-dessus ou contacte-nous par email.</p>
-                <div className="support-conv-input-bar">
-                  <input type="text" className="cv-chat-input" placeholder="Écris ton message… (bientôt connecté)" disabled />
-                  <button type="button" className="cv-chat-input-send" disabled title="Bientôt disponible" aria-label="Envoyer">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
-                  </button>
-                </div>
-              </div>
-            </section>
+            <SupportTicketSection />
+            {usage?.is_support && <SupportReplySection />}
           </div>
         </div>
 
@@ -2089,7 +2310,7 @@ export default function App() {
             <div className="linkedin-sync-modal quali-modal" onClick={(e) => e.stopPropagation()}>
               <h3>Raison du refus (optionnel)</h3>
               <p className="profile-subtitle" style={{ marginTop: 0 }}>Pour ton mémoire / analyse : indique si tu connais la raison du refus.</p>
-              {statutModalApp && <p style={{ fontSize: '0.9rem', color: 'var(--muted)' }}>{statutModalApp.entreprise} – {statutModalApp.poste}</p>}
+              {statutModalApp && <p style={{ fontSize: '0.9rem', color: 'var(--muted)' }}>{statutModalApp.entreprise} - {statutModalApp.poste}</p>}
               <label className="input-label">Type de raison</label>
               <select className="input-field" value={refusRaisonType} onChange={(e) => setRefusRaisonType(e.target.value)}>
                 <option value="">- Choisir -</option>
@@ -2241,9 +2462,9 @@ export default function App() {
         {statutModalType === 'interview' && (
           <div className="application-detail-overlay linkedin-sync-overlay" onClick={() => { setStatutModalType(null); setStatutModalAppId(null); setStatutModalApp(null); }} role="dialog" aria-modal="true">
             <div className="linkedin-sync-modal quali-modal" onClick={(e) => e.stopPropagation()}>
-              <h3>Entretien – quelques infos (optionnel)</h3>
+              <h3>Entretien - quelques infos (optionnel)</h3>
               <p className="profile-subtitle" style={{ marginTop: 0 }}>Pour ton mémoire : type d’entretien et ressenti.</p>
-              {statutModalApp && <p style={{ fontSize: '0.9rem', color: 'var(--muted)' }}>{statutModalApp.entreprise} – {statutModalApp.poste}</p>}
+              {statutModalApp && <p style={{ fontSize: '0.9rem', color: 'var(--muted)' }}>{statutModalApp.entreprise} - {statutModalApp.poste}</p>}
               <label className="input-label">Type d’entretien</label>
               <select className="input-field" value={interviewType} onChange={(e) => setInterviewType(e.target.value)}>
                 <option value="">- Choisir -</option>

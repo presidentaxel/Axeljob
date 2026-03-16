@@ -296,3 +296,391 @@
 .tpl-toggle--on .tpl-toggle-knob {
   transform: translateX(14px);
 }
+
+.tpl-popover-reset {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.tpl-popover-reset-btn {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.tpl-popover-reset-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* --- Bouton Template (ouvre la modale) --- */
+.tpl-btn-open-modal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 6px 8px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.tpl-btn-open-modal:hover {
+  background: var(--bg-secondary);
+  border-color: var(--accent);
+}
+
+.tpl-btn-open-modal-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.tpl-btn-open-modal-label {
+  color: var(--text-secondary);
+}
+
+.tpl-btn-open-modal-current {
+  color: var(--accent);
+  font-weight: 600;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tpl-btn-open-modal-chevron {
+  flex-shrink: 0;
+  color: var(--text-muted, #94a3b8);
+  transition: transform 0.2s;
+}
+
+.tpl-btn-open-modal:hover .tpl-btn-open-modal-chevron {
+  transform: translateY(1px);
+}
+
+/* --- Modale templates --- */
+.tpl-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: tpl-modal-fadeIn 0.15s ease-out;
+}
+
+@keyframes tpl-modal-fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tpl-modal {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 10px);
+  box-shadow: var(--shadow-lg);
+  max-width: 520px;
+  width: 100%;
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  animation: tpl-modal-slideIn 0.2s ease-out;
+}
+
+@keyframes tpl-modal-slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.tpl-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.tpl-modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tpl-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.tpl-modal-close:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.tpl-modal-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.tpl-modal-tab {
+  padding: 10px 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tpl-modal-tab:hover {
+  color: var(--text-primary);
+}
+
+.tpl-modal-tab--active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tpl-modal-body {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.tpl-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.tpl-modal-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  text-align: center;
+}
+
+.tpl-modal-card:hover:not(.tpl-modal-card--locked):not(.tpl-modal-card--custom-disabled) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.tpl-modal-card--active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.tpl-modal-card--locked {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.tpl-modal-card-preview {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.tpl-modal-card-lock {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted, #64748b);
+}
+
+.tpl-modal-card-name {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.tpl-modal-card-fav {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--text-muted, #94a3b8);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.tpl-modal-card-fav:hover {
+  color: var(--accent);
+  background: var(--bg-secondary);
+}
+
+.tpl-modal-card-fav svg {
+  flex-shrink: 0;
+}
+
+.tpl-modal-card:has(.tpl-modal-card-fav) .tpl-modal-card-preview {
+  padding-right: 22px;
+}
+
+/* Mes templates: liste + carte custom désactivée */
+.tpl-modal-mine {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tpl-modal-mine-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tpl-modal-mine-section-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tpl-modal-mine-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 8px 0;
+}
+
+.tpl-modal-custom-wrap {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.tpl-modal-card--custom-disabled {
+  cursor: default;
+  opacity: 0.9;
+  pointer-events: none;
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+.tpl-modal-card--custom {
+  max-width: 280px;
+  margin: 0 auto;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.tpl-modal-card-custom-resend {
+  margin: 8px 0 12px;
+  font-size: 11px;
+  color: var(--text-muted, #64748b);
+  line-height: 1.35;
+}
+
+.tpl-modal-card-custom-btn {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.tpl-modal-card-custom-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--error, #dc2626);
+}
+
+.tpl-modal-card-custom-icon {
+  color: var(--text-muted, #94a3b8);
+  margin-bottom: 4px;
+}
+
+.tpl-modal-card-custom-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tpl-modal-card-custom-price {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.tpl-modal-card-custom-desc {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.tpl-modal-card-custom-badge {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+}

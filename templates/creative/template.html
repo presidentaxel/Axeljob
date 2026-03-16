@@ -63,7 +63,7 @@
       <div class="sidebar-section">
         <h2 class="sidebar-section-title">CERTIFICATIONS</h2>
         {% for c in certifications_for_display %}
-        <p class="sidebar-item">{% if c.nom %}{{ c.nom }}{% endif %}{% if c.organisme %}{% if c.nom %} – {% endif %}{{ c.organisme }}{% endif %}{% if c.date %}{% if c.nom or c.organisme %} · {% endif %}{{ c.date }}{% endif %}</p>
+        <p class="sidebar-item">{% if c.nom %}{{ c.nom }}{% endif %}{% if c.organisme %}{% if c.nom %} - {% endif %}{{ c.organisme }}{% endif %}{% if c.date %}{% if c.nom or c.organisme %} · {% endif %}{{ c.date }}{% endif %}</p>
         {% endfor %}
       </div>
       {% endif %}

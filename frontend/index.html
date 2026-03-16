@@ -107,7 +107,63 @@
       ]
     }
     </script>
-    <link rel="stylesheet" href="/landing-static.css" />
+    <!-- Critical CSS for LCP (hero + header) — évite les requêtes bloquantes -->
+    <style>
+:root{--bg:#fff;--bg-page:#f8fafc;--border:#e2e8f0;--text:#0f172a;--text-secondary:#334155;--muted:#64748b;--accent:#4f46e5;--accent-hover:#4338ca;--accent-light:#eef2ff;--accent-subtle:rgba(79,70,229,.06);--shadow:0 1px 3px rgba(15,23,42,.06),0 1px 2px rgba(15,23,42,.04);--shadow-lg:0 10px 15px -3px rgba(15,23,42,.08),0 4px 6px rgba(15,23,42,.04);--radius:12px;--radius-sm:8px}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg-page);color:var(--text);min-height:100vh}
+.btn{font-family:'Plus Jakarta Sans',sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;padding:.6rem 1.2rem;font-size:.875rem;font-weight:600;border:none;border-radius:8px;cursor:pointer;transition:all .15s ease;letter-spacing:-.01em;line-height:1.4;white-space:nowrap;text-decoration:none}
+a.btn{text-decoration:none}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 1px 2px rgba(79,70,229,.3)}
+.btn-primary:hover{background:var(--accent-hover);box-shadow:0 2px 6px rgba(79,70,229,.35)}
+.btn-secondary{background:var(--bg);color:var(--text-secondary);border:1.5px solid var(--border);box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.btn-secondary:hover{background:var(--bg-page);border-color:var(--accent);color:var(--accent)}
+.landing{min-height:100vh;width:100%;background:var(--bg);color:var(--text)}
+.landing-container{width:100%;max-width:1120px;margin:0 auto;padding-left:1.5rem;padding-right:1.5rem}
+@media (min-width:1024px){.landing-container{padding-left:2rem;padding-right:2rem}}
+.landing-header{position:sticky;top:0;z-index:50;width:100%;background:rgba(255,255,255,.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+.landing-header-inner{display:flex;align-items:center;gap:.75rem;min-height:3.25rem}
+.landing-logo{width:32px;height:32px;border-radius:8px;object-fit:contain}
+.landing-brand{font-weight:700;font-size:1.1rem;color:var(--text);letter-spacing:-.03em}
+.landing-nav{margin-left:auto;display:flex;align-items:center;gap:1.5rem}
+.landing-nav a{color:var(--muted);text-decoration:none;font-size:.875rem;font-weight:500;transition:color .15s}
+.landing-nav a.btn{background:var(--accent);color:#fff;box-shadow:0 1px 2px rgba(79,70,229,.3)}
+.landing-nav a:hover{color:var(--text)}
+.landing-cta-nav{padding:.45rem 1rem;font-size:.875rem}
+@media (max-width:767px){.landing-nav{display:none}}
+.landing-mobile-cta.btn{display:none;margin-left:auto;padding:.4rem .9rem;font-size:.8rem}
+@media (max-width:767px){.landing-mobile-cta.btn{display:inline-flex}}
+.landing-hero{width:100%;padding:5rem 0 4rem}
+.landing-hero-inner{display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center}
+@media (max-width:900px){.landing-hero-inner{grid-template-columns:1fr;gap:2.5rem}.landing-hero{padding:3rem 0 2.5rem}}
+.landing-hero-title{margin:0 0 1rem;font-size:clamp(1.75rem,3.5vw,2.75rem);font-weight:800;line-height:1.15;letter-spacing:-.035em;color:var(--text)}
+.landing-hero-subtitle{margin:0 0 1.75rem;font-size:1.05rem;line-height:1.6;color:var(--muted)}
+.landing-cta-hero{padding:.75rem 1.5rem;font-size:.95rem;font-weight:600;border-radius:var(--radius-sm);box-shadow:0 2px 8px rgba(79,70,229,.3);transition:all .2s}
+.landing-cta-hero:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(79,70,229,.35)}
+.landing-hero-ctas{display:flex;flex-direction:column;align-items:flex-start;gap:.5rem}
+.landing-hero-hint{font-size:.8rem;color:var(--muted)}
+.landing-hero-visual{background:var(--bg);border:1px solid var(--border);border-radius:16px;min-height:280px;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-lg);overflow:hidden}
+.landing-hero-mockup{width:100%;border-radius:16px;overflow:hidden}
+.mockup-toolbar{background:#18181b;padding:.55rem .85rem;display:flex;align-items:center;gap:.35rem}
+.mockup-dot{width:9px;height:9px;border-radius:50%;background:#3f3f46}
+.mockup-dot:first-child{background:#ef4444}.mockup-dot:nth-child(2){background:#eab308}.mockup-dot:nth-child(3){background:#22c55e}
+.mockup-title{margin-left:.6rem;color:#a1a1aa;font-size:.7rem;font-weight:500}
+.mockup-body{display:grid;grid-template-columns:1fr 1fr;background:var(--bg-page);min-height:200px}
+.mockup-chat{padding:.85rem;display:flex;flex-direction:column;gap:.5rem;border-right:1px solid var(--border)}
+.mockup-msg{padding:.5rem .75rem;border-radius:8px;font-size:.7rem;line-height:1.5;max-width:92%}
+.mockup-msg--user{background:var(--accent);color:#fff;align-self:flex-end}
+.mockup-msg--ai{background:var(--bg);color:var(--text);border:1px solid var(--border);align-self:flex-start}
+.mockup-ai-icon{margin-right:.2rem}
+.mockup-preview{padding:1rem .85rem;display:flex;flex-direction:column;gap:.4rem}
+.mockup-cv-header{height:14px;width:55%;background:var(--accent);border-radius:3px;opacity:.6;margin-bottom:.25rem}
+.mockup-cv-line{height:6px;width:100%;background:var(--border);border-radius:2px}
+.mockup-cv-line--short{width:60%}.mockup-cv-line--highlight{background:#86efac}
+@media (max-width:600px){.mockup-body{grid-template-columns:1fr}.mockup-chat{border-right:none;border-bottom:1px solid var(--border)}}
+    </style>
+    <!-- Feuille complète en async pour ne pas bloquer le rendu (recommandation Lighthouse) -->
+    <link rel="preload" href="/landing-static.css" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+    <script>(function(){setTimeout(function(){var l=document.querySelector('link[href=\'/landing-static.css\']');if(l&&l.rel==='preload')l.rel='stylesheet';},150);})();</script>
+    <noscript><link rel="stylesheet" href="/landing-static.css" /></noscript>
     <style>.js-enabled #root .static-crawlable{display:none!important}</style>
     <script>window.__APP_CSS__ = "__APP_CSS_FILENAME__";</script>
   </head>
@@ -307,6 +363,8 @@
             <div class="landing-footer-inner">
               <p>© 2025 AxeL Job - Ton CV sur-mesure pour chaque annonce.</p>
               <nav class="landing-footer-links">
+                <a href="mailto:louis.vedovato@axelproject.fr?subject=Support%20AxeL%20Job">Support</a>
+                <a href="/app?open=template-perso">Template personnalisé</a>
                 <a href="/ats">CV et ATS</a>
                 <a href="/faq">FAQ</a>
                 <a href="/modeles-cv">Modèles de CV</a>

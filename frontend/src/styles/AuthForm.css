@@ -213,3 +213,34 @@
   margin-top: 0.75rem;
 }
 .reauth-actions .btn { flex: 1; }
+
+/* Popup "Vous aviez déjà un compte" */
+.auth-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.auth-popup {
+  background: var(--bg, #fff);
+  border-radius: var(--radius, 8px);
+  padding: 1.25rem;
+  min-width: 280px;
+  max-width: 90vw;
+  box-shadow: var(--shadow-lg, 0 10px 25px rgba(0,0,0,0.15));
+}
+.auth-popup-title {
+  font-size: 1.1rem;
+  margin: 0 0 0.5rem;
+}
+.auth-popup-message {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 0 0 1rem;
+}
+.auth-popup-ok {
+  width: 100%;
+}

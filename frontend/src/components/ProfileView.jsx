@@ -417,7 +417,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
   const initiateLinkedInOAuth = async (pendingKey) => {
     if (!supabase) return;
     localStorage.setItem(pendingKey, '1');
-    const redirectTo = window.location.origin + '/app/profil';
+    const redirectTo = window.location.origin + '/login?next=/app/profil';
     const { error: linkErr } = await supabase.auth.signInWithOAuth({
       provider: 'linkedin_oidc',
       options: { redirectTo },
@@ -795,6 +795,142 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
         <label className="profile-full">Résumé / Accroche <textarea value={cv.resume || ''} onChange={(e) => update('resume', e.target.value)} rows={3} placeholder="Quelques lignes pour te présenter" /></label>
       </CollapsibleSection>
 
+      <CollapsibleSection title="Expériences professionnelles" defaultOpen={true}>
+        <div className="profile-section-head">
+          <button type="button" className="btn btn-add" onClick={addExp}>+ Ajouter une expérience</button>
+        </div>
+        {(cv.experiences || []).map((exp, i) => (
+          <div key={exp.id} className="profile-card">
+            <div className="profile-card-head">
+              <span>Expérience {i + 1}</span>
+              <button type="button" className="btn btn-remove" onClick={() => removeExp(i)} title="Supprimer">×</button>
+            </div>
+            <div className="profile-grid">
+              <label>Poste <input type="text" value={exp.poste || ''} onChange={(e) => updateExp(i, 'poste', e.target.value)} /></label>
+              <label>Organisation <input type="text" value={exp.entreprise || ''} onChange={(e) => updateExp(i, 'entreprise', e.target.value)} placeholder="Entreprise, association, administration…" /></label>
+              <label>Secteur <input type="text" value={exp.secteur || ''} onChange={(e) => updateExp(i, 'secteur', e.target.value)} /></label>
+              <label>Date début <input type="text" value={exp.date_debut || ''} onChange={(e) => updateExp(i, 'date_debut', e.target.value)} placeholder="ex. 2022, 01/2024" title="Année ou mois (vide = pas affiché sur le CV)" /></label>
+              <label>Date fin <input type="text" value={exp.date_fin || ''} onChange={(e) => updateExp(i, 'date_fin', e.target.value)} placeholder="ex. Aujourd'hui, 08/2024" title="Année, mois ou Aujourd'hui (vide = pas affiché)" /></label>
+              <label>Lieu <input type="text" value={exp.lieu || ''} onChange={(e) => updateExp(i, 'lieu', e.target.value)} /></label>
+            </div>
+            <label className="profile-full">Contexte <input type="text" value={exp.contexte || ''} onChange={(e) => updateExp(i, 'contexte', e.target.value)} /></label>
+            <div className="profile-bullets">
+              <div className="profile-bullets-head">
+                <span>Bullet points</span>
+                <button type="button" className="btn btn-add" onClick={() => addExpBullet(i)}>+ Ajouter un point</button>
+              </div>
+              {(exp.bullet_points || ['', '']).map((b, j) => (
+                <div key={j} className="profile-bullet-row">
+                  <textarea value={b} onChange={(e) => updateExpBullet(i, j, e.target.value)} rows={2} placeholder={`Point ${j + 1}`} />
+                  <button type="button" className="btn btn-remove" onClick={() => removeExpBullet(i, j)} title="Supprimer ce point">×</button>
+                </div>
+              ))}
+            </div>
+            <label className="profile-full">Clients <input type="text" value={exp.clients || ''} onChange={(e) => updateExp(i, 'clients', e.target.value)} placeholder="ex. L'Oréal, Charal, Herta (vide = pas affiché sur le CV)" title="Liste de clients ou types de clients (vide = pas affiché)" /></label>
+          </div>
+        ))}
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Formations" defaultOpen={true}>
+        <div className="profile-section-head">
+          <button type="button" className="btn btn-add" onClick={addFormation}>+ Ajouter</button>
+        </div>
+        {(cv.formations || []).map((form, i) => (
+          <div key={form.id} className="profile-card">
+            <div className="profile-card-head">
+              <span>Formation {i + 1}</span>
+              <button type="button" className="btn btn-remove" onClick={() => removeFormation(i)}>×</button>
+            </div>
+            <div className="profile-grid">
+              <label>Diplôme <input type="text" value={form.diplome || ''} onChange={(e) => updateFormation(i, 'diplome', e.target.value)} /></label>
+              <label>Établissement <input type="text" value={form.etablissement || ''} onChange={(e) => updateFormation(i, 'etablissement', e.target.value)} /></label>
+              <label>Date <input type="text" value={form.date || ''} onChange={(e) => updateFormation(i, 'date', e.target.value)} placeholder="ex. 2024, 06/2023" title="Année ou mois (vide = pas affiché sur le CV)" /></label>
+              <label className="profile-full">Description <textarea className="profile-mention-field" value={form.mention || ''} onChange={(e) => updateFormation(i, 'mention', e.target.value)} rows={4} placeholder="ex. Mention Bien, Félicitations du jury" /></label>
+            </div>
+          </div>
+        ))}
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Certifications" defaultOpen={false}>
+        <p className="profile-subtitle" style={{ marginTop: 0, marginBottom: '0.75rem' }}>Tu pourras les ajouter au CV plus tard.</p>
+        <div className="profile-section-head">
+          <button type="button" className="btn btn-add" onClick={addCertification}>+ Ajouter</button>
+        </div>
+        {(cv.certifications || []).map((cert, i) => (
+          <div key={cert.id} className="profile-card">
+            <div className="profile-card-head">
+              <span>Certification {i + 1}</span>
+              <button type="button" className="btn btn-remove" onClick={() => removeCertification(i)}>×</button>
+            </div>
+            <div className="profile-grid">
+              <label>Intitulé <input type="text" value={cert.nom || ''} onChange={(e) => updateCertification(i, 'nom', e.target.value)} placeholder="ex. PMP, AWS Solutions Architect" /></label>
+              <label>Organisme <input type="text" value={cert.organisme || ''} onChange={(e) => updateCertification(i, 'organisme', e.target.value)} placeholder="ex. PMI, Amazon" /></label>
+              <label>Date <input type="text" value={cert.date || ''} onChange={(e) => updateCertification(i, 'date', e.target.value)} placeholder="ex. 2024, 06/2023" /></label>
+            </div>
+          </div>
+        ))}
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Projets" defaultOpen={false}>
+        <div className="profile-section-head">
+          <button type="button" className="btn btn-add" onClick={addProjet}>+ Ajouter</button>
+        </div>
+        {(cv.projets || []).map((proj, i) => (
+          <div key={proj.id} className="profile-card">
+            <div className="profile-card-head">
+              <span>Projet {i + 1}</span>
+              <button type="button" className="btn btn-remove" onClick={() => removeProjet(i)}>×</button>
+            </div>
+            <label>Nom <input type="text" value={proj.nom || ''} onChange={(e) => updateProjet(i, 'nom', e.target.value)} /></label>
+            <label className="profile-full">Description <textarea value={proj.description || ''} onChange={(e) => updateProjet(i, 'description', e.target.value)} rows={2} /></label>
+          </div>
+        ))}
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Compétences, langues & autres" defaultOpen={false}>
+        <div className="profile-card">
+          <h3 className="sidebar-category">Compétences techniques</h3>
+          {(comp.techniques || []).map((item, i) => (
+            <div key={i} className="profile-comp-row">
+              <input type="text" value={typeof item === 'string' ? item : ''} onChange={(e) => updateCompList('techniques', i, e.target.value)} placeholder="ex. Python, Gestion de projet" />
+              <button type="button" className="btn btn-remove" onClick={() => removeCompList('techniques', i)} title="Supprimer">×</button>
+            </div>
+          ))}
+          <button type="button" className="btn btn-add" onClick={() => addCompList('techniques', '')}>+ Ajouter</button>
+        </div>
+        <div className="profile-card">
+          <h3 className="sidebar-category">Logiciels & outils</h3>
+          {(comp.logiciels || []).map((item, i) => (
+            <div key={i} className="profile-comp-row">
+              <input type="text" value={typeof item === 'string' ? item : ''} onChange={(e) => updateCompList('logiciels', i, e.target.value)} placeholder="ex. Excel, React, Git" />
+              <button type="button" className="btn btn-remove" onClick={() => removeCompList('logiciels', i)} title="Supprimer">×</button>
+            </div>
+          ))}
+          <button type="button" className="btn btn-add" onClick={() => addCompList('logiciels', '')}>+ Ajouter</button>
+        </div>
+        <div className="profile-card">
+          <h3 className="sidebar-category">Langues</h3>
+          {(comp.langues || []).map((l, i) => (
+            <div key={i} className="profile-langue-row">
+              <input type="text" value={l?.langue || ''} onChange={(e) => updateCompList('langues', i, { ...l, langue: e.target.value })} placeholder="Langue" />
+              <input type="text" value={l?.niveau || ''} onChange={(e) => updateCompList('langues', i, { ...l, niveau: e.target.value })} placeholder="ex. Natif, Courant (C1)" />
+              <button type="button" className="btn btn-remove" onClick={() => removeCompList('langues', i)} title="Supprimer">×</button>
+            </div>
+          ))}
+          <button type="button" className="btn btn-add" onClick={() => addCompList('langues', { langue: '', niveau: '' })}>+ Ajouter</button>
+        </div>
+        <div className="profile-card">
+          <h3 className="sidebar-category">Autres</h3>
+          {(comp.autres || []).map((item, i) => (
+            <div key={i} className="profile-comp-row">
+              <input type="text" value={typeof item === 'string' ? item : ''} onChange={(e) => updateCompList('autres', i, e.target.value)} placeholder="ex. Permis B, Piano" />
+              <button type="button" className="btn btn-remove" onClick={() => removeCompList('autres', i)} title="Supprimer">×</button>
+            </div>
+          ))}
+          <button type="button" className="btn btn-add" onClick={() => addCompList('autres', '')}>+ Ajouter</button>
+        </div>
+      </CollapsibleSection>
+
       <CollapsibleSection title="Compte et sécurité" defaultOpen={false}>
         <p className="profile-section-desc">Gère l&apos;email de connexion et la sécurité de ton compte.</p>
         <button type="button" className="btn btn-secondary" onClick={() => { setChangeEmailOpen(true); setChangeEmailNew(''); setChangeEmailPassword(''); setChangeEmailError(''); }}>
@@ -976,142 +1112,6 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
         )}
       </CollapsibleSection>
 
-      <CollapsibleSection title="Expériences professionnelles" defaultOpen={true}>
-        <div className="profile-section-head">
-          <button type="button" className="btn btn-add" onClick={addExp}>+ Ajouter une expérience</button>
-        </div>
-        {(cv.experiences || []).map((exp, i) => (
-          <div key={exp.id} className="profile-card">
-            <div className="profile-card-head">
-              <span>Expérience {i + 1}</span>
-              <button type="button" className="btn btn-remove" onClick={() => removeExp(i)} title="Supprimer">×</button>
-            </div>
-            <div className="profile-grid">
-              <label>Poste <input type="text" value={exp.poste || ''} onChange={(e) => updateExp(i, 'poste', e.target.value)} /></label>
-              <label>Organisation <input type="text" value={exp.entreprise || ''} onChange={(e) => updateExp(i, 'entreprise', e.target.value)} placeholder="Entreprise, association, administration…" /></label>
-              <label>Secteur <input type="text" value={exp.secteur || ''} onChange={(e) => updateExp(i, 'secteur', e.target.value)} /></label>
-              <label>Date début <input type="text" value={exp.date_debut || ''} onChange={(e) => updateExp(i, 'date_debut', e.target.value)} placeholder="ex. 2022, 01/2024" title="Année ou mois (vide = pas affiché sur le CV)" /></label>
-              <label>Date fin <input type="text" value={exp.date_fin || ''} onChange={(e) => updateExp(i, 'date_fin', e.target.value)} placeholder="ex. Aujourd'hui, 08/2024" title="Année, mois ou Aujourd'hui (vide = pas affiché)" /></label>
-              <label>Lieu <input type="text" value={exp.lieu || ''} onChange={(e) => updateExp(i, 'lieu', e.target.value)} /></label>
-            </div>
-            <label className="profile-full">Contexte <input type="text" value={exp.contexte || ''} onChange={(e) => updateExp(i, 'contexte', e.target.value)} /></label>
-            <div className="profile-bullets">
-              <div className="profile-bullets-head">
-                <span>Bullet points</span>
-                <button type="button" className="btn btn-add" onClick={() => addExpBullet(i)}>+ Ajouter un point</button>
-              </div>
-              {(exp.bullet_points || ['', '']).map((b, j) => (
-                <div key={j} className="profile-bullet-row">
-                  <textarea value={b} onChange={(e) => updateExpBullet(i, j, e.target.value)} rows={2} placeholder={`Point ${j + 1}`} />
-                  <button type="button" className="btn btn-remove" onClick={() => removeExpBullet(i, j)} title="Supprimer ce point">×</button>
-                </div>
-              ))}
-            </div>
-            <label className="profile-full">Clients <input type="text" value={exp.clients || ''} onChange={(e) => updateExp(i, 'clients', e.target.value)} placeholder="ex. L'Oréal, Charal, Herta (vide = pas affiché sur le CV)" title="Liste de clients ou types de clients (vide = pas affiché)" /></label>
-          </div>
-        ))}
-      </CollapsibleSection>
-
-      <CollapsibleSection title="Formations" defaultOpen={true}>
-        <div className="profile-section-head">
-          <button type="button" className="btn btn-add" onClick={addFormation}>+ Ajouter</button>
-        </div>
-        {(cv.formations || []).map((form, i) => (
-          <div key={form.id} className="profile-card">
-            <div className="profile-card-head">
-              <span>Formation {i + 1}</span>
-              <button type="button" className="btn btn-remove" onClick={() => removeFormation(i)}>×</button>
-            </div>
-            <div className="profile-grid">
-              <label>Diplôme <input type="text" value={form.diplome || ''} onChange={(e) => updateFormation(i, 'diplome', e.target.value)} /></label>
-              <label>Établissement <input type="text" value={form.etablissement || ''} onChange={(e) => updateFormation(i, 'etablissement', e.target.value)} /></label>
-              <label>Date <input type="text" value={form.date || ''} onChange={(e) => updateFormation(i, 'date', e.target.value)} placeholder="ex. 2024, 06/2023" title="Année ou mois (vide = pas affiché sur le CV)" /></label>
-              <label className="profile-full">Description <textarea className="profile-mention-field" value={form.mention || ''} onChange={(e) => updateFormation(i, 'mention', e.target.value)} rows={4} placeholder="ex. Mention Bien, Félicitations du jury" /></label>
-            </div>
-          </div>
-        ))}
-      </CollapsibleSection>
-
-      <CollapsibleSection title="Certifications" defaultOpen={false}>
-        <p className="profile-subtitle" style={{ marginTop: 0, marginBottom: '0.75rem' }}>Tu pourras les ajouter au CV plus tard.</p>
-        <div className="profile-section-head">
-          <button type="button" className="btn btn-add" onClick={addCertification}>+ Ajouter</button>
-        </div>
-        {(cv.certifications || []).map((cert, i) => (
-          <div key={cert.id} className="profile-card">
-            <div className="profile-card-head">
-              <span>Certification {i + 1}</span>
-              <button type="button" className="btn btn-remove" onClick={() => removeCertification(i)}>×</button>
-            </div>
-            <div className="profile-grid">
-              <label>Intitulé <input type="text" value={cert.nom || ''} onChange={(e) => updateCertification(i, 'nom', e.target.value)} placeholder="ex. PMP, AWS Solutions Architect" /></label>
-              <label>Organisme <input type="text" value={cert.organisme || ''} onChange={(e) => updateCertification(i, 'organisme', e.target.value)} placeholder="ex. PMI, Amazon" /></label>
-              <label>Date <input type="text" value={cert.date || ''} onChange={(e) => updateCertification(i, 'date', e.target.value)} placeholder="ex. 2024, 06/2023" /></label>
-            </div>
-          </div>
-        ))}
-      </CollapsibleSection>
-
-      <CollapsibleSection title="Projets" defaultOpen={false}>
-        <div className="profile-section-head">
-          <button type="button" className="btn btn-add" onClick={addProjet}>+ Ajouter</button>
-        </div>
-        {(cv.projets || []).map((proj, i) => (
-          <div key={proj.id} className="profile-card">
-            <div className="profile-card-head">
-              <span>Projet {i + 1}</span>
-              <button type="button" className="btn btn-remove" onClick={() => removeProjet(i)}>×</button>
-            </div>
-            <label>Nom <input type="text" value={proj.nom || ''} onChange={(e) => updateProjet(i, 'nom', e.target.value)} /></label>
-            <label className="profile-full">Description <textarea value={proj.description || ''} onChange={(e) => updateProjet(i, 'description', e.target.value)} rows={2} /></label>
-          </div>
-        ))}
-      </CollapsibleSection>
-
-      <CollapsibleSection title="Compétences, langues & autres" defaultOpen={false}>
-        <div className="profile-card">
-          <h3 className="sidebar-category">Compétences techniques</h3>
-          {(comp.techniques || []).map((item, i) => (
-            <div key={i} className="profile-comp-row">
-              <input type="text" value={typeof item === 'string' ? item : ''} onChange={(e) => updateCompList('techniques', i, e.target.value)} placeholder="ex. Python, Gestion de projet" />
-              <button type="button" className="btn btn-remove" onClick={() => removeCompList('techniques', i)} title="Supprimer">×</button>
-            </div>
-          ))}
-          <button type="button" className="btn btn-add" onClick={() => addCompList('techniques', '')}>+ Ajouter</button>
-        </div>
-        <div className="profile-card">
-          <h3 className="sidebar-category">Logiciels & outils</h3>
-          {(comp.logiciels || []).map((item, i) => (
-            <div key={i} className="profile-comp-row">
-              <input type="text" value={typeof item === 'string' ? item : ''} onChange={(e) => updateCompList('logiciels', i, e.target.value)} placeholder="ex. Excel, React, Git" />
-              <button type="button" className="btn btn-remove" onClick={() => removeCompList('logiciels', i)} title="Supprimer">×</button>
-            </div>
-          ))}
-          <button type="button" className="btn btn-add" onClick={() => addCompList('logiciels', '')}>+ Ajouter</button>
-        </div>
-        <div className="profile-card">
-          <h3 className="sidebar-category">Langues</h3>
-          {(comp.langues || []).map((l, i) => (
-            <div key={i} className="profile-langue-row">
-              <input type="text" value={l?.langue || ''} onChange={(e) => updateCompList('langues', i, { ...l, langue: e.target.value })} placeholder="Langue" />
-              <input type="text" value={l?.niveau || ''} onChange={(e) => updateCompList('langues', i, { ...l, niveau: e.target.value })} placeholder="ex. Natif, Courant (C1)" />
-              <button type="button" className="btn btn-remove" onClick={() => removeCompList('langues', i)} title="Supprimer">×</button>
-            </div>
-          ))}
-          <button type="button" className="btn btn-add" onClick={() => addCompList('langues', { langue: '', niveau: '' })}>+ Ajouter</button>
-        </div>
-        <div className="profile-card">
-          <h3 className="sidebar-category">Autres</h3>
-          {(comp.autres || []).map((item, i) => (
-            <div key={i} className="profile-comp-row">
-              <input type="text" value={typeof item === 'string' ? item : ''} onChange={(e) => updateCompList('autres', i, e.target.value)} placeholder="ex. Permis B, Piano" />
-              <button type="button" className="btn btn-remove" onClick={() => removeCompList('autres', i)} title="Supprimer">×</button>
-            </div>
-          ))}
-          <button type="button" className="btn btn-add" onClick={() => addCompList('autres', '')}>+ Ajouter</button>
-        </div>
-      </CollapsibleSection>
-
       <div className="profile-footer">
         <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
           {saving ? 'Enregistrement…' : 'Enregistrer le CV'}
@@ -1183,7 +1183,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
       {importMergeOpen && importMergeParsed && (
         <div className="linkedin-sync-overlay" onClick={() => { setImportMergeOpen(false); setImportMergeParsed(null); }} role="dialog" aria-modal="true" aria-labelledby="import-merge-title">
           <div className="linkedin-sync-modal import-merge-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 id="import-merge-title">Importer le CV – choisir les champs</h3>
+            <h3 id="import-merge-title">Importer le CV - choisir les champs</h3>
             <p className="linkedin-sync-intro">Pour chaque champ : case vide → ajouter les infos de l’import ? Case déjà remplie → remplacer par l’import ?</p>
             <ul className="linkedin-sync-changes">
               {IMPORT_SCALAR_KEYS.filter(({ key }) => importMergeParsed[key] !== undefined && String(importMergeParsed[key] ?? '').trim() !== '').map(({ key, label }) => {

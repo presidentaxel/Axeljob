@@ -290,7 +290,20 @@ Dans Supabase Dashboard > **SQL Editor**, execute dans l'ordre :
 -- backend/supabase_migration_user_plans_paywall_disabled.sql
 -- backend/supabase_migration_storage_cv_photos.sql
 -- backend/supabase_migration_storage_application_docs.sql
+-- backend/supabase_migration_cv_templates.sql  (templates CV personnalisés : HTML/CSS + accès par user_id)
 ```
+
+**Import automatique d’un PDF en template (bot)**  
+Depuis la racine du projet (`cv-bot`) :
+
+```bash
+python -m backend.scripts.cv_pdf_to_template "chemin/vers/CV.pdf"
+python -m backend.scripts.cv_pdf_to_template "CV.pdf" --name "Mon template" --description "Importé pour X"
+```
+
+Le script : (1) extrait les couleurs dominantes du PDF, (2) génère un template HTML/CSS (structure « classic ») avec ces couleurs, (3) l’insère dans `cv_templates` avec `owner_user_id = '__pending__'` et `allowed_user_ids = []`. **Aucun utilisateur ne voit le template** tant qu’un humain n’a pas fait la liaison dans Supabase : mettre à jour la ligne pour définir `owner_user_id` (créateur) et/ou `allowed_user_ids` (liste d’user IDs autorisés).
+
+Pour la colonne `allowed_user_ids` dans Supabase Studio (type `text[]`) : saisir un **tableau JSON**, par ex. `["7b4f43ee-9f5f-4f1a-a6b0-46449b2f6603"]`, et non l'UUID seul (sinon erreur « Please enter a valid JSON »).
 
 ### 4.3 Configurer l'auth
 
@@ -301,14 +314,13 @@ Dans Supabase Dashboard > Authentication > Providers :
 
 Dans **Authentication > Email** (ou Providers > Email), tu peux activer selon tes besoins :
 - **Confirm sign up** : demander aux utilisateurs de confirmer leur email apres inscription
-- **Magic link** : connexion par lien envoye par email (deja utilise dans l’app)
 - **Reset password** : reinitialisation du mot de passe par email (deja utilise)
 - **Secure email change** : verification de la nouvelle adresse lors d’un changement d’email
 - **Reauthentication** : l’app demande le mot de passe avant les actions sensibles (changement d’email, etc.)
 - **MFA (TOTP)** : dans Authentication > MFA, tu peux activer « TOTP (App Authenticator) » en **Enabled** pour que les utilisateurs puissent l’activer **en option** depuis Profil > Compte et sécurité. Ce n’est pas obligatoire : seuls ceux qui l’activent devront saisir le code à la connexion.
 - **Protection mots de passe compromis** : dans Authentication > Settings (ou Providers > Email), active « Leaked password protection » pour que Supabase vérifie les mots de passe contre HaveIBeenPwned et refuse les mots de passe connus comme compromis.
 
-**Limite d’emails (rate limit)** : avec le SMTP intégré Supabase, tu as environ **4 emails/heure** (magic link, reset password, etc.). Si tu vois « Email rate limit exceeded » après quelques essais :
+**Limite d’emails (rate limit)** : avec le SMTP intégré Supabase, tu as environ **4 emails/heure** (reset password, confirmation inscription, etc.). Si tu vois « Email rate limit exceeded » après quelques essais :
 - En dev : attends ~1 h ou utilise une autre adresse email pour tester.
 - En prod : configure un **SMTP personnalisé** : Dashboard > **Project Settings > Authentication > SMTP**. Ajoute un fournisseur (SendGrid, Resend, Mailgun, etc.) pour lever cette limite et gérer tes propres quotas.
 
@@ -531,6 +543,8 @@ STRIPE_PRICE_ID_PRO_MONTHLY=price_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
+Pour le **template personnalisé** (paiement unique 5 € puis email Resend) : crée un Price one-time dans Stripe, ajoute `STRIPE_PRICE_ID_TEMPLATE_PERSO=price_...`, `RESEND_API_KEY` (clé API Resend) et `RESEND_FROM_EMAIL` (ex. `AxeL Job <contact@tondomaine.com>`). Le même webhook `checkout.session.completed` gère abo Pro et template perso (metadata `type=template_perso`).
+
 Puis rebuild et relance :
 
 ```bash
@@ -655,6 +669,40 @@ tar czf /root/cv-bot-logs-$(date +%Y%m%d).tar.gz logs/
   ```
 - [ ] **Supabase RLS** : verifier que Row Level Security est active sur toutes les tables
 - [ ] **Stripe webhook** : tester avec `stripe listen --forward-to localhost:8000/api/stripe-webhook`
+
+### 11.1 Référencement et crawlers (403 depuis les data centers)
+
+Si ton site est derrière **Cloudflare** (ou un WAF qui bloque les IP de data centers), tu peux voir en local ton site alors que les crawlers (Google, Bing, Claude, ChatGPT, etc.) reçoivent **403 Forbidden** avec `x-deny-reason: host_not_allowed` (serveur Envoy). Les crawlers IA et les bots de référencement sont hébergés dans des data centers, donc ils sont bloqués.
+
+**Objectif** : garder la protection anti-abuse tout en autorisant les crawlers légitimes (référencement + citabilité par les IA).
+
+#### Solution Cloudflare
+
+1. Va dans **Cloudflare Dashboard** → ton domaine → **Security** → **WAF** → **Custom rules** (ou **Configuration rules** selon ton plan).
+2. Crée une règle qui **autorise** les requêtes dont le User-Agent correspond aux crawlers connus, **avant** (ou en priorité sur) la règle qui bloque les data centers.
+
+**Exemple de règle Custom (WAF)** :
+
+- **Nom** : `Allow known crawlers`
+- **Expression** (à adapter selon ta règle existante) :
+  ```txt
+  (http.user_agent contains "Googlebot") or
+  (http.user_agent contains "Bingbot") or
+  (http.user_agent contains "Claude-Web") or
+  (http.user_agent contains "GPTBot") or
+  (http.user_agent contains "anthropic-ai") or
+  (http.user_agent contains "Cohere-ai") or
+  (http.user_agent contains "PerplexityBot") or
+  (http.user_agent contains "Bytespider") or
+  (http.user_agent contains "Slurp")
+  ```
+- **Action** : **Skip** → coche les actions à ignorer pour cette requête (ex. **All remaining custom rules**, ou la règle « block data center » si tu peux la cibler).
+
+Ainsi, les requêtes avec ces User-Agents ne seront pas bloquées même si elles viennent d’un data center.
+
+**Où trouver le blocage** : Si tu as activé **Bot Fight Mode**, **Under Attack Mode** ou une règle du type « block requests from known data centers / bad ASN », c’est là que les 403 sont générés. La règle ci-dessus doit s’appliquer **avant** ce bloc (ordre des règles ou « Skip » sur les bonnes actions).
+
+**Vérification** : depuis une machine en data center (ou un outil type « fetch as bot »), une requête avec par exemple `User-Agent: Claude-Web/1.0` ne doit plus recevoir 403.
 
 ---
 

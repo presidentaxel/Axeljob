@@ -89,7 +89,7 @@ def cmd_adapt(description: str, output_dir: str, titre: str = "", entreprise: st
     rapport = cv_enrichi.get("rapport", {})
 
     print("\n" + "─" * 60)
-    print(f"Fiche de poste : {offre.get('titre', '') or '(sans intitulé)'} – {offre.get('entreprise', '')}".strip(" –"))
+    print(f"Fiche de poste : {offre.get('titre', '') or '(sans intitulé)'} - {offre.get('entreprise', '')}".strip(" -"))
     print(f"Score de pertinence : {rapport.get('score_global', 0)}/10")
     print(f"Zones à adapter : {', '.join(rapport.get('zones_a_adapter', [])) or 'aucune'}")
     m = rapport.get("mots_cles_manquants", [])

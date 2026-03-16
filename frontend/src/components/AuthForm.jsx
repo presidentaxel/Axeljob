@@ -29,9 +29,9 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
   const [linkedInLoading, setLinkedInLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [resetMode, setResetMode] = useState(false);
-  const [magicLinkMode, setMagicLinkMode] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [showAlreadyHadAccountPopup, setShowAlreadyHadAccountPopup] = useState(false);
 
   const handleGoogle = async () => {
     setError('');
@@ -40,7 +40,7 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
       const { error: err } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: typeof window !== 'undefined' ? window.location.origin + window.location.pathname : undefined,
+          redirectTo: typeof window !== 'undefined' ? window.location.origin + '/login' : undefined,
         },
       });
       if (err) throw err;
@@ -57,43 +57,13 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
       const { error: err } = await supabase.auth.signInWithOAuth({
         provider: 'linkedin_oidc',
         options: {
-          redirectTo: typeof window !== 'undefined' ? window.location.origin + window.location.pathname : undefined,
+          redirectTo: typeof window !== 'undefined' ? window.location.origin + '/login' : undefined,
         },
       });
       if (err) throw err;
     } catch (err) {
       setError(err.message || 'Connexion LinkedIn impossible.');
       setLinkedInLoading(false);
-    }
-  };
-
-  const handleMagicLink = async (e) => {
-    e.preventDefault();
-    setError('');
-    setMessage('');
-    if (!email.trim()) {
-      setError('Entre ton email pour recevoir le lien de connexion.');
-      return;
-    }
-    setLoading(true);
-    try {
-      const { error: err } = await supabase.auth.signInWithOtp({
-        email: email.trim(),
-        options: {
-          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin + '/login' : undefined,
-        },
-      });
-      if (err) throw err;
-      setMessage('Un lien de connexion a été envoyé à ta boîte mail. Clique dessus pour te connecter.');
-    } catch (err) {
-      const msg = err?.message || '';
-      if (msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('rate_limit') || err?.status === 429) {
-        setError('Trop de demandes d\'email envoyées (limite Supabase). Réessaie dans environ 1 heure, ou utilise une autre adresse email. Pour en envoyer plus, configure un SMTP personnalisé dans le tableau de bord Supabase (Authentication → SMTP).');
-      } else {
-        setError(msg || 'Impossible d\'envoyer le lien.');
-      }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -128,7 +98,6 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
     e.preventDefault();
     setError('');
     setMessage('');
-    if (magicLinkMode) return handleMagicLink(e);
     if (resetMode) return handleResetPassword(e);
     if (!email.trim() || !password) {
       setError('Email et mot de passe requis.');
@@ -137,7 +106,21 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
     setLoading(true);
     try {
       if (isSignUp) {
-        const { error: err } = await supabase.auth.signUp({ email: email.trim(), password });
+        const { data, error: err } = await supabase.auth.signUp({ email: email.trim(), password });
+        const alreadyRegistered =
+          (err && (err.message || '').toLowerCase().includes('already registered')) ||
+          (!err && data?.user && (!data.user.identities || data.user.identities.length === 0));
+        if (alreadyRegistered) {
+          const { error: signInErr } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+          if (!signInErr) {
+            setShowAlreadyHadAccountPopup(true);
+          } else {
+            setIsSignUp(false);
+            setError('Vous avez déjà un compte mais le mot de passe saisi est incorrect.');
+          }
+          setLoading(false);
+          return;
+        }
         if (err) throw err;
         setMessage('Compte créé. Un email de confirmation a été envoyé - clique sur le lien pour activer ton compte.');
       } else {
@@ -170,6 +153,18 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
   }
 
   return (
+    <>
+      {showAlreadyHadAccountPopup && (
+        <div className="auth-popup-overlay" role="dialog" aria-modal="true" aria-labelledby="auth-popup-title">
+          <div className="auth-popup">
+            <h2 id="auth-popup-title" className="auth-popup-title">Vous aviez déjà un compte</h2>
+            <p className="auth-popup-message">Nous vous avons connecté(e).</p>
+            <button type="button" className="btn btn-primary auth-popup-ok" onClick={() => { setShowAlreadyHadAccountPopup(false); onSuccess?.(); }}>
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     <form className="auth-form" onSubmit={handleSubmit}>
       <button
         type="button"
@@ -198,7 +193,7 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
         className="auth-input"
         autoComplete="email"
       />
-      {!resetMode && !magicLinkMode && (
+      {!resetMode && (
         <input
           type="password"
           placeholder="Mot de passe"
@@ -211,21 +206,17 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
       {error && <div className="auth-error">{error}</div>}
       {message && <div className="auth-message">{message}</div>}
       <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
-        {loading ? '…' : magicLinkMode ? 'Envoyer le lien de connexion' : resetMode ? 'Envoyer le lien' : isSignUp ? 'Créer un compte' : 'Se connecter'}
+        {loading ? '…' : resetMode ? 'Envoyer le lien' : isSignUp ? 'Créer un compte' : 'Se connecter'}
       </button>
-      {!resetMode && !magicLinkMode && (
+      {!resetMode && (
         <button type="button" className="auth-toggle" onClick={() => { setResetMode(true); setError(''); setMessage(''); }}>
           Mot de passe oublié ?
         </button>
       )}
-      {!resetMode && (
-        <button type="button" className="auth-toggle" onClick={() => { setMagicLinkMode((v) => !v); setResetMode(false); setError(''); setMessage(''); }}>
-          {magicLinkMode ? 'Se connecter avec mot de passe' : '← Lien magique par email'}
-        </button>
-      )}
-      <button type="button" className="auth-toggle" onClick={() => { setIsSignUp((v) => !v); setResetMode(false); setMagicLinkMode(false); setError(''); setMessage(''); }}>
+      <button type="button" className="auth-toggle" onClick={() => { setIsSignUp((v) => !v); setResetMode(false); setError(''); setMessage(''); }}>
         {resetMode ? '← Retour à la connexion' : isSignUp ? 'Déjà un compte ? Se connecter' : 'Pas de compte ? Créer un compte'}
       </button>
     </form>
+    </>
   );
 }

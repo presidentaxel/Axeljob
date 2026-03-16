@@ -530,6 +530,73 @@ body {
   flex: 1;
 }
 
+/* Formulaire ticket support */
+.support-ticket-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+.support-ticket-subject {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  background: var(--bg-page);
+}
+.support-ticket-subject:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(99, 102, 246, 0.2);
+}
+.support-ticket-message {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 120px;
+  background: var(--bg-page);
+}
+.support-ticket-message:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(99, 102, 246, 0.2);
+}
+.support-ticket-success {
+  margin: 0 0 1rem 0;
+  font-size: 0.9375rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+.support-ticket-error {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--error, #dc2626);
+}
+.support-ticket-submit {
+  align-self: flex-start;
+}
+.support-ticket-another {
+  margin-top: 0.25rem;
+}
+
+.support-reply-section {
+  margin-top: 2rem;
+}
+.support-reply-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
 /* Layout: topbar already sticky, app-main fills remaining height */
 
 /* Free plan upgrade banner */
@@ -1050,7 +1117,7 @@ body {
   border-radius: var(--radius-sm) var(--radius-sm) var(--radius-sm) 4px;
 }
 
-/* Bloc étapes d’adaptation (stepper visuel) – contraste renforcé */
+/* Bloc étapes d’adaptation (stepper visuel) - contraste renforcé */
 .cv-adapt-steps-wrap {
   min-width: 260px;
   background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
@@ -1446,6 +1513,13 @@ body {
   color: var(--muted);
 }
 
+.preview-custom-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: center;
+}
+
 .side-pane {
   display: flex;
   flex-direction: column;
@@ -1838,7 +1912,8 @@ textarea::placeholder {
 }
 
 .view-candidatures .applications-full .applications-stats,
-.view-candidatures .applications-full .applications-toggle {
+.view-candidatures .applications-full .applications-toggle,
+.view-candidatures .applications-full .applications-search-wrap {
   flex-shrink: 0;
 }
 
@@ -2241,6 +2316,50 @@ textarea::placeholder {
   color: var(--accent);
 }
 
+.applications-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.applications-search {
+  flex: 1;
+  min-width: 200px;
+  max-width: 360px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9375rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.applications-search::placeholder {
+  color: var(--muted);
+}
+
+.applications-search:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 99, 102, 241), 0.2);
+}
+
+.applications-search-count {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.applications-search-empty {
+  padding: 1.5rem;
+}
+
+.applications-search-empty p {
+  margin: 0 0 0.75rem 0;
+  color: var(--muted);
+}
+
 .applications-empty {
   color: var(--muted);
   font-size: 0.8125rem;
@@ -2485,7 +2604,7 @@ textarea::placeholder {
   font-size: 0.9375rem;
 }
 
-.detail-cv .detail-iframe {
+.detail-pane .detail-iframe {
   width: 100%;
   height: 70vh;
   min-height: 360px;

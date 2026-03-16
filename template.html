@@ -120,7 +120,7 @@
       <section class="section-sidebar" id="certifications">
         <h3 class="sidebar-category">Certifications</h3>
         {% for c in certifications_for_display %}
-        <p class="sidebar-item">{% if c.nom %}{{ c.nom }}{% endif %}{% if c.organisme %}{% if c.nom %} – {% endif %}{{ c.organisme }}{% endif %}{% if c.date %}{% if c.nom or c.organisme %} · {% endif %}{{ c.date }}{% endif %}</p>
+        <p class="sidebar-item">{% if c.nom %}{{ c.nom }}{% endif %}{% if c.organisme %}{% if c.nom %} - {% endif %}{{ c.organisme }}{% endif %}{% if c.date %}{% if c.nom or c.organisme %} · {% endif %}{{ c.date }}{% endif %}</p>
         {% endfor %}
       </section>
       {% endif %}

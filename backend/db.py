@@ -185,22 +185,40 @@ def load_cv_base(user_id: Optional[str] = None) -> dict:
         except Exception:
             pass
         # Supabase configuré : on ne lit jamais cv_base.json (données exclusivement Supabase)
+        # Pour un utilisateur connecté (row_id != "default"), ne jamais retourner le CV d'exemple :
+        # un PATCH/autre save pourrait le persister et écraser le profil (bug "Marie Dupont").
         if row_id != "default":
-            return get_example_cv()
+            return {}
         raise FileNotFoundError("Aucun CV. Connecte-toi puis complète ton profil (onglet Profil).")
     # Pas de Supabase : fallback fichier uniquement pour default
     if row_id == "default" and CV_BASE_PATH.exists():
         with open(CV_BASE_PATH, encoding="utf-8") as f:
             return json.load(f)
     if row_id != "default":
-        return get_example_cv()
+        return {}
     raise FileNotFoundError("cv_base.json introuvable. Lance d'abord : python main.py --setup ou complète ton profil.")
+
+
+def _is_example_cv_data(data: dict) -> bool:
+    """Détecte si les données correspondent au CV d'exemple (Marie Dupont). Évite de persister l'exemple comme profil utilisateur."""
+    if not data:
+        return False
+    prenom = (data.get("prenom") or "").strip()
+    nom = (data.get("nom") or "").strip()
+    titre = (data.get("titre_professionnel") or "").strip()
+    return (
+        prenom == "Marie"
+        and nom == "Dupont"
+        and titre == "Chef de projet digital"
+    )
 
 
 def save_cv_base(data: dict, user_id: Optional[str] = None) -> None:
     """Sauvegarde le CV de base dans Supabase ou dans cv_base.json (si default et pas Supabase)."""
     data = {k: v for k, v in data.items() if k != "__example__"}
     row_id = _cv_row_id(user_id)
+    if row_id != "default" and _is_example_cv_data(data):
+        raise ValueError("Refusing to save example CV as user profile. Please complete your own profile in the Profile tab.")
     sb = _get_supabase()
     if sb:
         try:
@@ -676,3 +694,258 @@ def check_gemini_budget(user_id: Optional[str]) -> tuple[bool, float, float]:
     limit_usd = GEMINI_BUDGET_EUR * GEMINI_USD_PER_EUR
     _, _, used_usd = get_gemini_usage(user_id)
     return (used_usd < limit_usd, used_usd, limit_usd)
+
+
+# --- Templates CV personnalisés (Supabase cv_templates) ---
+CUSTOM_TEMPLATE_ID_PREFIX = "custom_"
+PENDING_OWNER_ID = "__pending__"  # Templates importés par le bot : invisibles tant qu'un humain n'assigne pas owner / allowed_user_ids
+
+
+def _norm_uid(u: str | None) -> str:
+    """Normalise un user_id pour comparaison (casse, espaces)."""
+    return (u or "").strip().lower()
+
+
+def _normalize_allowed_ids(allowed: any) -> list[str]:
+    """Retourne une liste d'IDs normalisés (lower, strip). Gère list, string JSON, ou valeur bizarre."""
+    if allowed is None:
+        return []
+    if isinstance(allowed, list):
+        return [_norm_uid(str(x)) for x in allowed]
+    if isinstance(allowed, str):
+        s = allowed.strip()
+        if not s:
+            return []
+        if s.startswith("["):
+            try:
+                import json
+                parsed = json.loads(s)
+                return [_norm_uid(str(x)) for x in (parsed if isinstance(parsed, list) else [])]
+            except Exception:
+                return [_norm_uid(s)] if s else []
+        return [_norm_uid(s)]
+    return [_norm_uid(str(x)) for x in (allowed if isinstance(allowed, (list, tuple)) else [])]
+
+
+def list_custom_templates_for_user(user_id: Optional[str]) -> list[dict]:
+    """Liste les templates personnalisés accessibles par l'utilisateur (owner ou dans allowed_user_ids). Exclut les templates __pending__."""
+    uid = _norm_uid(user_id)
+    if not uid:
+        return []
+    sb = _get_supabase()
+    if not sb:
+        return []
+    try:
+        r = sb.table("cv_templates").select("id, name, description, options, owner_user_id, allowed_user_ids").execute()
+        out = []
+        for row in (r.data or []):
+            owner = (row.get("owner_user_id") or "").strip()
+            if owner == PENDING_OWNER_ID:
+                continue
+            if _norm_uid(owner) == uid:
+                out.append(_custom_template_meta(row, is_owner=True))
+                continue
+            allowed_norm = _normalize_allowed_ids(row.get("allowed_user_ids"))
+            if uid in allowed_norm:
+                out.append(_custom_template_meta(row, is_owner=False))
+        return out
+    except Exception:
+        return []
+
+
+def _custom_template_meta(row: dict, is_owner: bool = False) -> dict:
+    """Construit le meta d'un template custom pour list_templates / get_template (sans html/css)."""
+    return {
+        "id": row.get("id") or "",
+        "name": row.get("name") or "Template perso",
+        "description": row.get("description") or "",
+        "options": row.get("options") or [],
+        "tags": ["custom", "perso"],
+        "premium": False,
+        "_custom": True,
+        "_owner": is_owner,
+    }
+
+
+def get_custom_template_by_id(template_id: str) -> dict | None:
+    """Charge un template personnalisé par id (HTML + CSS). Utilisé par le rendu backend (pas de check user)."""
+    if not (template_id or "").strip().startswith(CUSTOM_TEMPLATE_ID_PREFIX):
+        return None
+    sb = _get_supabase()
+    if not sb:
+        return None
+    try:
+        r = sb.table("cv_templates").select("*").eq("id", template_id.strip()).limit(1).execute()
+        if not r.data or len(r.data) == 0:
+            return None
+        row = r.data[0]
+        meta = _custom_template_meta(row)
+        meta["_dir"] = None
+        meta["_html_content"] = row.get("html_content") or ""
+        meta["_css_content"] = row.get("css_content") or ""
+        return meta
+    except Exception:
+        return None
+
+
+def can_user_use_custom_template(template_id: str, user_id: Optional[str]) -> bool:
+    """Vérifie si l'utilisateur peut utiliser ce template (owner ou dans allowed_user_ids). Comparaison insensible à la casse (UUID)."""
+    uid = _norm_uid(user_id)
+    if not uid or not (template_id or "").strip().startswith(CUSTOM_TEMPLATE_ID_PREFIX):
+        return False
+    sb = _get_supabase()
+    if not sb:
+        return False
+    try:
+        r = sb.table("cv_templates").select("owner_user_id, allowed_user_ids").eq("id", template_id.strip()).limit(1).execute()
+        if not r.data or len(r.data) == 0:
+            return False
+        row = r.data[0]
+        owner = (row.get("owner_user_id") or "").strip()
+        if _norm_uid(owner) == uid:
+            return True
+        allowed_norm = _normalize_allowed_ids(row.get("allowed_user_ids"))
+        return uid in allowed_norm
+    except Exception:
+        return False
+
+
+def create_custom_template(
+    owner_user_id: str,
+    name: str,
+    html_content: str,
+    description: str = "",
+    css_content: str | None = None,
+    options: list | None = None,
+    allowed_user_ids: list | None = None,
+) -> dict:
+    """Crée un template personnalisé. Retourne le meta (id, name, ...) du template créé."""
+    import uuid
+    tid = CUSTOM_TEMPLATE_ID_PREFIX + str(uuid.uuid4())
+    sb = _get_supabase()
+    if not sb:
+        raise RuntimeError("Supabase non configuré.")
+    payload = {
+        "id": tid,
+        "name": (name or "Template perso").strip() or "Template perso",
+        "description": (description or "").strip(),
+        "html_content": html_content or "",
+        "css_content": (css_content or "").strip() or None,
+        "options": options if options is not None else [],
+        "owner_user_id": (owner_user_id or "").strip(),
+        "allowed_user_ids": list(allowed_user_ids) if allowed_user_ids is not None else [],
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    sb.table("cv_templates").insert(payload).execute()
+    row = {**payload, "allowed_user_ids": payload["allowed_user_ids"]}
+    return _custom_template_meta(row, is_owner=True)
+
+
+def create_pending_custom_template(
+    name: str,
+    html_content: str,
+    description: str = "",
+    css_content: str | None = None,
+    options: list | None = None,
+) -> dict:
+    """Insère un template personnalisé en attente d'affectation (owner_user_id=__pending__, allowed_user_ids=[]).
+    Aucun utilisateur ne le voit ; un humain devra mettre à jour owner_user_id et/ou allowed_user_ids dans Supabase."""
+    import uuid
+    tid = CUSTOM_TEMPLATE_ID_PREFIX + str(uuid.uuid4())
+    sb = _get_supabase()
+    if not sb:
+        raise RuntimeError("Supabase non configuré.")
+    payload = {
+        "id": tid,
+        "name": (name or "Template importé").strip() or "Template importé",
+        "description": (description or "").strip(),
+        "html_content": html_content or "",
+        "css_content": (css_content or "").strip() or None,
+        "options": options if options is not None else [],
+        "owner_user_id": PENDING_OWNER_ID,
+        "allowed_user_ids": [],
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    sb.table("cv_templates").insert(payload).execute()
+    return {"id": tid, "name": payload["name"], "description": payload["description"]}
+
+
+def update_custom_template_content(template_id: str, html_content: str, css_content: str | None = None) -> bool:
+    """Met à jour uniquement html_content et css_content d'un template (par id, sans vérifier le owner).
+    Utilisé par le script d'import pour remplacer le contenu par une nouvelle génération IA."""
+    tid = (template_id or "").strip()
+    if not tid.startswith(CUSTOM_TEMPLATE_ID_PREFIX):
+        return False
+    sb = _get_supabase()
+    if not sb:
+        raise RuntimeError("Supabase non configuré.")
+    try:
+        updates = {
+            "html_content": html_content or "",
+            "css_content": (css_content or "").strip() or None,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        sb.table("cv_templates").update(updates).eq("id", tid).execute()
+        return True
+    except Exception:
+        return False
+
+
+def update_custom_template(
+    template_id: str,
+    owner_user_id: str,
+    name: str | None = None,
+    description: str | None = None,
+    html_content: str | None = None,
+    css_content: str | None = None,
+    options: list | None = None,
+    allowed_user_ids: list | None = None,
+) -> dict | None:
+    """Met à jour un template personnalisé (réservé au owner). Retourne le meta ou None si pas trouvé / pas owner."""
+    tid = (template_id or "").strip()
+    if not tid.startswith(CUSTOM_TEMPLATE_ID_PREFIX):
+        return None
+    uid = (owner_user_id or "").strip()
+    sb = _get_supabase()
+    if not sb:
+        raise RuntimeError("Supabase non configuré.")
+    try:
+        r = sb.table("cv_templates").select("*").eq("id", tid).eq("owner_user_id", uid).limit(1).execute()
+        if not r.data or len(r.data) == 0:
+            return None
+        updates = {"updated_at": datetime.now(timezone.utc).isoformat()}
+        if name is not None:
+            updates["name"] = (name or "Template perso").strip() or "Template perso"
+        if description is not None:
+            updates["description"] = (description or "").strip()
+        if html_content is not None:
+            updates["html_content"] = html_content
+        if css_content is not None:
+            updates["css_content"] = (css_content or "").strip() or None
+        if options is not None:
+            updates["options"] = options
+        if allowed_user_ids is not None:
+            updates["allowed_user_ids"] = list(allowed_user_ids)
+        sb.table("cv_templates").update(updates).eq("id", tid).eq("owner_user_id", uid).execute()
+        r2 = sb.table("cv_templates").select("id, name, description, options, owner_user_id, allowed_user_ids").eq("id", tid).limit(1).execute()
+        if r2.data and len(r2.data) > 0:
+            return _custom_template_meta(r2.data[0], is_owner=True)
+        return None
+    except Exception:
+        return None
+
+
+def delete_custom_template(template_id: str, owner_user_id: str) -> bool:
+    """Supprime un template personnalisé (réservé au owner). Retourne True si supprimé."""
+    tid = (template_id or "").strip()
+    if not tid.startswith(CUSTOM_TEMPLATE_ID_PREFIX):
+        return False
+    uid = (owner_user_id or "").strip()
+    sb = _get_supabase()
+    if not sb:
+        raise RuntimeError("Supabase non configuré.")
+    try:
+        r = sb.table("cv_templates").delete().eq("id", tid).eq("owner_user_id", uid).execute()
+        return bool(r.data)
+    except Exception:
+        return False

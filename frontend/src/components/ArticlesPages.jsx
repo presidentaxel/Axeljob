@@ -111,7 +111,7 @@ const ARTICLES = {
               <li><strong>Une seule colonne</strong> ou deux colonnes simples (pas de tableaux complexes)</li>
               <li><strong>Des titres en texte</strong> (pas en image) : Expérience, Formation, Compétences, Langues</li>
               <li><strong>Des listes à puces</strong> pour les missions et réalisations</li>
-              <li><strong>Des polices standards</strong> (Arial, Helvetica, Open Sans) et une taille lisible (10–12 pt)</li>
+              <li><strong>Des polices standards</strong> (Arial, Helvetica, Open Sans) et une taille lisible (10-12 pt)</li>
             </ul>
             <p>AxeL Job te propose des templates pensés pour l&apos;ATS. Tu renseignes ton profil une fois, puis l&apos;IA adapte le contenu à chaque offre tout en gardant un rendu propre et professionnel.</p>
           </>
@@ -140,7 +140,7 @@ const ARTICLES = {
           <ul>
             <li><strong>Tableaux ou mises en page complexes</strong> : beaucoup d&apos;ATS les lisent mal. Privilégie une structure simple.</li>
             <li><strong>Titres ou texte en image</strong> : le contenu des images n&apos;est pas lu par les logiciels. Tout doit être en texte sélectionnable.</li>
-            <li><strong>Polices fantaisistes ou trop petites</strong> : reste sur du classique (10–12 pt).</li>
+            <li><strong>Polices fantaisistes ou trop petites</strong> : reste sur du classique (10-12 pt).</li>
           </ul>
         ),
       },

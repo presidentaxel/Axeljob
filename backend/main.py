@@ -43,8 +43,13 @@ from backend.config import (
     USE_SUPABASE,
     STRIPE_SECRET_KEY,
     STRIPE_PRICE_ID_PRO_MONTHLY,
+    STRIPE_PRICE_ID_TEMPLATE_PERSO,
     STRIPE_WEBHOOK_SECRET,
     FRONTEND_URL,
+    RESEND_API_KEY,
+    RESEND_FROM_EMAIL,
+    SUPPORT_EMAIL,
+    SUPPORT_ADMIN_EMAILS,
     IS_PRODUCTION,
     METRICS_AUTH_TOKEN,
 )
@@ -183,6 +188,7 @@ class RenderHtmlBody(BaseModel):
     highlight_changes: bool = False
     template_id: str | None = None
     template_options: dict | None = None
+    selection_a4: dict | None = None
 
 class PdfBody(BaseModel):
     cv: dict
@@ -190,6 +196,7 @@ class PdfBody(BaseModel):
     entreprise: str = ""
     template_id: str | None = None
     template_options: dict | None = None
+    selection_a4: dict | None = None
 
 class ExportDossierBody(BaseModel):
     cv: dict
@@ -289,14 +296,21 @@ def _diff_highlight_html(base: str, current: str) -> str:
     return "\n".join(out_lines)
 
 
-def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bool = False, for_preview: bool = False, template_id: str | None = None, template_options: dict | None = None) -> str:
+def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bool = False, for_preview: bool = False, template_id: str | None = None, template_options: dict | None = None, selection_a4: dict | None = None) -> str:
     from jinja2 import Environment, FileSystemLoader, select_autoescape
     from photo_assets import ensure_compressed_photo, get_photo_url_for_cv
     from adapter import _strip_h_f
     from backend.template_registry import get_template, get_template_dir, resolve_options, options_to_css_vars
 
-    tmpl_dir = get_template_dir(template_id)
+    if selection_a4:
+        try:
+            from cv_select_a4 import apply_selection_to_cv
+            cv = apply_selection_to_cv(cv, selection_a4)
+        except Exception:
+            pass
+
     tmpl_meta = get_template(template_id)
+    tmpl_dir = get_template_dir(template_id) if not tmpl_meta.get("_custom") else None
     resolved_opts = resolve_options(template_id, template_options)
     show_photo = resolved_opts.get("show_photo", True)
 
@@ -324,8 +338,14 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
         ctx["titre_professionnel_display"] = html_module.escape(titre_cv)
         ctx["resume_display"] = html_module.escape((cv.get("resume") or "").strip())
 
+    use_selection = bool(selection_a4)
+    max_exp = 20 if use_selection else 6
+    max_bullets = 3 if use_selection else 2
+    max_form = 10 if use_selection else 5
+    max_proj = 10 if use_selection else 5
+
     by_id = {e.get("id"): e for e in (base.get("experiences") or []) if e.get("id")}
-    experiences_raw = (cv.get("experiences") or [])[:6]
+    experiences_raw = (cv.get("experiences") or [])[:max_exp]
     experiences_with_content = [
         exp for exp in experiences_raw
         if (exp.get("poste") or exp.get("entreprise") or any((exp.get("bullet_points") or [])))
@@ -342,7 +362,7 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
                 return _diff_highlight_html(b_val, c_val)
             return html_module.escape(c_val)
 
-        bullets_raw = (exp.get("bullet_points") or [])[:2]
+        bullets_raw = (exp.get("bullet_points") or [])[:max_bullets]
         base_bullets = base_exp.get("bullet_points") or []
         bullets_with_hl = []
         for j, b in enumerate(bullets_raw):
@@ -367,7 +387,7 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
 
     formations_all = cv.get("formations") or []
     ctx["formations_for_display"] = [
-        f for f in formations_all[:5]
+        f for f in formations_all[:max_form]
         if (f.get("diplome") or f.get("etablissement") or f.get("date") or f.get("mention"))
     ]
 
@@ -379,7 +399,7 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
 
     projs_all = cv.get("projets") or []
     ctx["projets_for_display"] = [
-        p for p in projs_all[:5]
+        p for p in projs_all[:max_proj]
         if (p.get("nom") or p.get("description"))
     ]
 
@@ -392,23 +412,57 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
 
     ctx["show_mots_cles_ats"] = resolved_opts.get("show_mots_cles_ats", True)
 
-    env = Environment(
-        loader=FileSystemLoader(str(tmpl_dir)),
-        autoescape=select_autoescape(("html", "xml")),
-    )
-    template = env.get_template("template.html")
-    html_str = template.render(**ctx)
-
     actual_tid = tmpl_meta.get("id") or "classic"
-    css_path = tmpl_dir / "template.css"
-    if css_path.is_file():
-        css_content = css_path.read_text(encoding="utf-8")
-        html_str = html_str.replace(
-            '<link rel="stylesheet" href="template.css">',
-            f"<style>{css_content}</style>",
-        )
+    if tmpl_meta.get("_custom"):
+        env = Environment(autoescape=select_autoescape(("html", "xml")))
+        html_str = env.from_string(tmpl_meta.get("_html_content") or "").render(**ctx)
+        custom_css = (tmpl_meta.get("_css_content") or "").strip()
+        if custom_css:
+            # Toujours inliner le CSS pour les templates perso (iframe srcdoc ne charge pas les liens externes correctement)
+            import re as _re_css
+            style_block = f"<style>{custom_css}</style>"
+            # 1) Remplacer tout link pointant vers template.css (regex souple : espaces, guillemets, ordre des attributs)
+            html_str = _re_css.sub(
+                r'<link\s[^>]*href\s*=\s*["\']?template\.css["\']?[^>]*>',
+                style_block,
+                html_str,
+                count=0,
+                flags=_re_css.IGNORECASE,
+            )
+            # 2) Si le CSS n'est toujours pas dans le document, l'injecter (plusieurs replis pour HTML IA variable)
+            if style_block not in html_str:
+                if "</head>" in html_str:
+                    html_str = html_str.replace("</head>", style_block + "\n</head>", 1)
+                elif "<body" in html_str:
+                    import re as _re_body
+                    html_str = _re_body.sub(r"(<body[^>]*>)", r"\1" + style_block, html_str, count=1)
+                else:
+                    html_str = style_block + html_str
+        else:
+            html_str = html_str.replace('href="template.css"', f'href="/api/templates/{actual_tid}/template.css"')
     else:
-        html_str = html_str.replace('href="template.css"', f'href="/api/templates/{actual_tid}/template.css"')
+        env = Environment(
+            loader=FileSystemLoader(str(tmpl_dir)),
+            autoescape=select_autoescape(("html", "xml")),
+        )
+        template = env.get_template("template.html")
+        html_str = template.render(**ctx)
+        css_path = tmpl_dir / "template.css"
+        if css_path.is_file():
+            css_content = css_path.read_text(encoding="utf-8")
+            style_block = f"<style>{css_content}</style>"
+            import re as _re_link
+            html_str = _re_link.sub(
+                r'<link\s[^>]*href\s*=\s*["\']?template\.css["\']?[^>]*>',
+                style_block,
+                html_str,
+                count=0,
+                flags=_re_link.IGNORECASE,
+            )
+            if style_block not in html_str:
+                html_str = html_str.replace('<link rel="stylesheet" href="template.css">', style_block, 1)
+        else:
+            html_str = html_str.replace('href="template.css"', f'href="/api/templates/{actual_tid}/template.css"')
     if 'src="assets/' in html_str:
         html_str = html_str.replace('src="assets/', 'src="/api/assets/')
 
@@ -454,6 +508,7 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
         )
         preview_responsive = (
             "<style>"
+            "html,body{margin:0!important;padding:0!important;}html{overflow-x:hidden!important;}body.cv-preview{overflow-x:hidden!important;}"
             ".cv-preview .cv{width:210mm!important;max-width:100%!important;min-height:auto!important;height:auto!important;max-height:none!important;overflow-x:hidden!important;overflow-y:visible!important}"
             ".cv-preview body{overflow-x:hidden}"
             ".cv-preview .resume-text{white-space:pre-line}"
@@ -533,6 +588,32 @@ def _require_user_id(request: Request) -> str:
     if USE_SUPABASE and user_id is None:
         raise HTTPException(status_code=401, detail="Authentification requise. Connecte-toi pour continuer.")
     return user_id or "default"
+
+
+def _get_user_email_from_jwt(request: Request) -> str | None:
+    """Extrait l'email du JWT Supabase. Retourne None si pas de token ou pas d'email."""
+    auth = request.headers.get("Authorization") or ""
+    if not auth.startswith("Bearer "):
+        return None
+    token = auth[7:].strip()
+    if not token or not SUPABASE_JWT_SECRET:
+        return None
+    try:
+        import jwt
+        header = jwt.get_unverified_header(token)
+        alg = header.get("alg", "HS256")
+        if alg == "HS256":
+            payload = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"], audience="authenticated")
+        else:
+            from jwt import PyJWKClient
+            jwks_url = f"{SUPABASE_URL.rstrip('/')}/auth/v1/.well-known/jwks.json"
+            if not hasattr(_get_user_email_from_jwt, "_jwks_client"):
+                _get_user_email_from_jwt._jwks_client = PyJWKClient(jwks_url, cache_keys=True)
+            signing_key = _get_user_email_from_jwt._jwks_client.get_signing_key_from_jwt(token)
+            payload = jwt.decode(token, signing_key.key, algorithms=[alg], audience="authenticated")
+        return (payload.get("email") or "").strip() or None
+    except Exception:
+        return None
 
 
 def _fetch_linkedin_profile(access_token: str) -> dict:
@@ -727,12 +808,18 @@ def api_cv_patch(request: Request, body: dict):
     patch = {k: v for k, v in body.items() if k in allowed}
     if not patch:
         return {"ok": True}
+    if patch.get("template_id") is not None:
+        _check_premium_template(user_id, patch["template_id"])
+        _check_custom_template_access(user_id, patch["template_id"])
     try:
         cv = load_cv_base(user_id)
     except FileNotFoundError:
         cv = {}
     cv = {**cv, **patch}
-    save_cv_base(cv, user_id)
+    try:
+        save_cv_base(cv, user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return {"ok": True}
 
 
@@ -750,6 +837,8 @@ def api_cv_put(request: Request, body: dict):
         except Exception:
             event_log.log_event(event_log.EVENT_PROFILE_SAVED, user_id, {})
         return {"ok": True}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception(e)
         raise HTTPException(status_code=500, detail="Erreur interne. Réessaie ou contacte le support.")
@@ -1159,6 +1248,7 @@ def api_render_html(request: Request, body: RenderHtmlBody):
     REQUEST_COUNT.labels(method="POST", endpoint="/api/render-html").inc()
     user_id = _get_user_id(request)
     _check_premium_template(user_id, body.template_id)
+    _check_custom_template_access(user_id, body.template_id)
     cv = body.cv or {}
     # Photo Supabase : URL signée fraîche pour que la preview (iframe) charge toujours
     if USE_SUPABASE and user_id:
@@ -1179,6 +1269,7 @@ def api_render_html(request: Request, body: RenderHtmlBody):
         for_preview=True,
         template_id=body.template_id,
         template_options=body.template_options,
+        selection_a4=body.selection_a4,
     )
     return HTMLResponse(html)
 
@@ -1200,6 +1291,15 @@ def _check_premium_template(user_id: str | None, template_id: str | None):
     if plan == "pro" or get_paywall_disabled(uid):
         return
     raise HTTPException(status_code=402, detail="Ce template est réservé aux abonnés Pro.")
+
+
+def _check_custom_template_access(user_id: str | None, template_id: str | None):
+    """Raise 403 if template is custom and user is not allowed to use it."""
+    if not template_id or not (template_id or "").strip().startswith("custom_"):
+        return
+    from backend.db import can_user_use_custom_template
+    if not can_user_use_custom_template(template_id, user_id):
+        raise HTTPException(status_code=403, detail="Tu n'as pas accès à ce template personnalisé.")
 
 
 @app.post("/api/create-checkout-session")
@@ -1226,9 +1326,63 @@ def api_create_checkout_session(request: Request):
         raise HTTPException(status_code=500, detail="Erreur interne. Réessaie ou contacte le support.")
 
 
+@app.post("/api/create-checkout-session-template-perso")
+def api_create_checkout_session_template_perso(request: Request):
+    """Crée une session Stripe Checkout one-shot pour le template personnalisé (5 €). Puis envoi email Resend après paiement."""
+    if not STRIPE_SECRET_KEY:
+        raise HTTPException(status_code=503, detail="STRIPE_SECRET_KEY manquante dans .env (Dashboard Stripe > Clés API).")
+    if not STRIPE_PRICE_ID_TEMPLATE_PERSO:
+        raise HTTPException(status_code=503, detail="STRIPE_PRICE_ID_TEMPLATE_PERSO manquant dans .env (Price one-time 5 € dans Stripe).")
+    try:
+        import stripe
+        client = stripe.StripeClient(STRIPE_SECRET_KEY)
+        base = (FRONTEND_URL or "").rstrip("/")
+        user_id = _get_user_id(request)
+        session = client.checkout.sessions.create(params={
+            "mode": "payment",
+            "client_reference_id": user_id or "",
+            "line_items": [{"price": STRIPE_PRICE_ID_TEMPLATE_PERSO, "quantity": 1}],
+            "metadata": {"type": "template_perso"},
+            "success_url": f"{base}/app?success=template-perso",
+            "cancel_url": f"{base}/app?cancel=template-perso",
+        })
+        return {"url": session.url}
+    except Exception as e:
+        logger.exception(e)
+        raise HTTPException(status_code=500, detail="Erreur interne. Réessaie ou contacte le support.")
+
+
+def _send_template_perso_email(to_email: str) -> bool:
+    """Envoie l'email post-paiement template perso via Resend. Retourne True si envoyé."""
+    if not RESEND_API_KEY or not to_email:
+        return False
+    try:
+        import resend
+        resend.api_key = RESEND_API_KEY
+        html = (
+            "<p>Merci pour ton paiement pour le <strong>template personnalisé</strong>.</p>"
+            "<p>Pour recevoir ton template sur-mesure : envoie-nous ton design (PDF ou maquette) "
+            "en réponse à ce mail, ou à <a href=\"mailto:louis.vedovato@axelproject.fr\">louis.vedovato@axelproject.fr</a> "
+            "avec le sujet « Template perso - [ton nom] ». On l’adapte en code pour ton CV et on te l’envoie sous quelques jours.</p>"
+            "<p>À bientôt,<br>L’équipe AxeL Job</p>"
+        )
+        params = {
+            "from": RESEND_FROM_EMAIL,
+            "to": [to_email],
+            "subject": "Template personnalisé AxeL Job - prochaine étape",
+            "html": html,
+        }
+        resend.Emails.send(params)
+        logger.info("Template perso confirmation email sent to %s", to_email)
+        return True
+    except Exception as e:
+        logger.exception("Resend template perso email failed: %s", e)
+        return False
+
+
 @app.post("/api/stripe-webhook")
 async def api_stripe_webhook(request: Request):
-    """Webhook Stripe : checkout.session.completed → passer l'utilisateur en Pro."""
+    """Webhook Stripe : checkout.session.completed → Pro ou template perso (email Resend)."""
     if not STRIPE_SECRET_KEY or not STRIPE_WEBHOOK_SECRET:
         raise HTTPException(status_code=503, detail="Webhook non configuré.")
     payload = await request.body()
@@ -1245,10 +1399,17 @@ async def api_stripe_webhook(request: Request):
         raise
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
-        user_id = (session.get("client_reference_id") or "").strip()
-        if user_id:
-            set_user_plan(user_id, "pro")
-            logger.info("User %s set to pro after Stripe checkout", user_id)
+        metadata = session.get("metadata") or {}
+        if metadata.get("type") == "template_perso":
+            customer_details = session.get("customer_details") or {}
+            email = (customer_details.get("email") or session.get("customer_email") or "").strip()
+            if email:
+                _send_template_perso_email(email)
+        else:
+            user_id = (session.get("client_reference_id") or "").strip()
+            if user_id:
+                set_user_plan(user_id, "pro")
+                logger.info("User %s set to pro after Stripe checkout", user_id)
     return {"received": True}
 
 
@@ -1300,6 +1461,213 @@ def api_cancel_feedback(request: Request, body: CancelFeedbackBody):
     return {"ok": True}
 
 
+class SupportTicketBody(BaseModel):
+    subject: str
+    message: str
+
+
+def _send_support_ticket_email(to_support: str, user_email: str, subject: str, message: str) -> bool:
+    """Envoie un email au support avec le ticket (Reply-To: user_email pour répondre par mail)."""
+    if not RESEND_API_KEY or not to_support:
+        return False
+    try:
+        import resend
+        resend.api_key = RESEND_API_KEY
+        # Message avec retours à la ligne en <br> pour l'affichage HTML
+        message_html = html_module.escape(message).replace("\n", "<br>")
+        html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nouveau ticket support</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 15px; line-height: 1.5; color: #334155;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f1f5f9; padding: 24px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 560px; background-color:#ffffff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden;">
+          <tr>
+            <td style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); padding: 24px 28px; text-align: center;">
+              <span style="font-size: 13px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: rgba(255,255,255,0.9);">AxeL Job · Support</span>
+              <h1 style="margin: 8px 0 0 0; font-size: 20px; font-weight: 700; color: #ffffff;">Nouveau ticket</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 28px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 20px;">
+                <tr>
+                  <td style="padding: 12px 16px; background-color: #f8fafc; border-radius: 8px; border-left: 4px solid #6366f1;">
+                    <span style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b;">De</span>
+                    <div style="font-size: 15px; font-weight: 500; color: #1e293b; margin-top: 2px;">{html_module.escape(user_email)}</div>
+                  </td>
+                </tr>
+              </table>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 20px;">
+                <tr>
+                  <td style="padding: 12px 16px; background-color: #f8fafc; border-radius: 8px; border-left: 4px solid #6366f1;">
+                    <span style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b;">Sujet</span>
+                    <div style="font-size: 15px; font-weight: 500; color: #1e293b; margin-top: 2px;">{html_module.escape(subject)}</div>
+                  </td>
+                </tr>
+              </table>
+              <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; margin-bottom: 8px;">Message</div>
+              <div style="padding: 16px; background-color: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; color: #334155; font-size: 14px; line-height: 1.6;">{message_html}</div>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top: 24px;">
+                <tr>
+                  <td style="padding: 16px; background-color: #eef2ff; border-radius: 8px; text-align: center;">
+                    <span style="font-size: 13px; color: #4f46e5;">Réponds à cet email pour envoyer ta réponse à l'utilisateur.</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 16px 28px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
+              <span style="font-size: 12px; color: #94a3b8;">AxeL Job — Ton CV sur-mesure pour chaque annonce</span>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+"""
+        params = {
+            "from": RESEND_FROM_EMAIL,
+            "to": [to_support.strip()],
+            "reply_to": user_email,
+            "subject": f"[Ticket] {subject[:80]}",
+            "html": html,
+        }
+        resend.Emails.send(params)
+        logger.info("Support ticket email sent to %s from %s", to_support, user_email)
+        return True
+    except Exception as e:
+        logger.exception("Resend support ticket email failed: %s", e)
+        return False
+
+
+@app.post("/api/support-ticket")
+def api_support_ticket(request: Request, body: SupportTicketBody):
+    """Ouvre un ticket support : envoie un email au support (Reply-To = user) pour que vous répondiez par mail."""
+    _require_user_id(request)
+    user_email = _get_user_email_from_jwt(request)
+    if not user_email:
+        raise HTTPException(status_code=400, detail="Impossible de récupérer ton email. Reconnecte-toi puis réessaie.")
+    subject = (body.subject or "").strip()
+    message = (body.message or "").strip()
+    if not subject:
+        raise HTTPException(status_code=400, detail="Indique un sujet pour ton ticket.")
+    if not message:
+        raise HTTPException(status_code=400, detail="Écris ton message.")
+    if len(subject) > 200:
+        raise HTTPException(status_code=400, detail="Sujet trop long.")
+    if len(message) > 8000:
+        raise HTTPException(status_code=400, detail="Message trop long.")
+    if not SUPPORT_EMAIL:
+        raise HTTPException(status_code=503, detail="Support non configuré (SUPPORT_EMAIL).")
+    if not _send_support_ticket_email(SUPPORT_EMAIL, user_email, subject, message):
+        raise HTTPException(status_code=503, detail="Envoi du ticket impossible. Réessaie ou contacte-nous par email.")
+    return {"ok": True, "email": user_email}
+
+
+def _is_support_admin(email: str | None) -> bool:
+    """True si l'email fait partie des admins support (réponses via l'app)."""
+    if not email:
+        return False
+    e = email.strip().lower()
+    if SUPPORT_ADMIN_EMAILS:
+        return e in SUPPORT_ADMIN_EMAILS
+    return bool(SUPPORT_EMAIL and e == SUPPORT_EMAIL.strip().lower())
+
+
+def _send_support_reply_email(to_email: str, message: str) -> bool:
+    """Envoie une réponse support à l'utilisateur (template HTML propre, via Resend)."""
+    if not RESEND_API_KEY or not to_email:
+        return False
+    try:
+        import resend
+        resend.api_key = RESEND_API_KEY
+        message_html = html_module.escape(message).replace("\n", "<br>")
+        html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Réponse support AxeL Job</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 15px; line-height: 1.5; color: #334155;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f1f5f9; padding: 24px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 560px; background-color:#ffffff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden;">
+          <tr>
+            <td style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); padding: 24px 28px; text-align: center;">
+              <span style="font-size: 13px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: rgba(255,255,255,0.9);">AxeL Job · Support</span>
+              <h1 style="margin: 8px 0 0 0; font-size: 20px; font-weight: 700; color: #ffffff;">Réponse à ton ticket</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 28px;">
+              <div style="padding: 20px; background-color: #f8fafc; border-radius: 8px; border-left: 4px solid #6366f1; color: #334155; font-size: 15px; line-height: 1.6;">{message_html}</div>
+              <p style="margin: 24px 0 0 0; font-size: 13px; color: #64748b;">Si tu as d'autres questions, rouvre un ticket depuis l'app (Support).</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 16px 28px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
+              <span style="font-size: 12px; color: #94a3b8;">AxeL Job — Ton CV sur-mesure pour chaque annonce</span>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+"""
+        params = {
+            "from": RESEND_FROM_EMAIL,
+            "to": [to_email.strip()],
+            "subject": "Réponse à ton ticket — AxeL Job",
+            "html": html,
+        }
+        resend.Emails.send(params)
+        logger.info("Support reply email sent to %s", to_email)
+        return True
+    except Exception as e:
+        logger.exception("Resend support reply email failed: %s", e)
+        return False
+
+
+class SupportReplyBody(BaseModel):
+    to_email: str
+    message: str
+
+
+@app.post("/api/support-reply")
+def api_support_reply(request: Request, body: SupportReplyBody):
+    """Envoie une réponse support à un utilisateur (template HTML). Réservé aux admins support (SUPPORT_ADMIN_EMAILS ou SUPPORT_EMAIL)."""
+    _require_user_id(request)
+    user_email = _get_user_email_from_jwt(request)
+    if not _is_support_admin(user_email):
+        raise HTTPException(status_code=403, detail="Accès réservé au support.")
+    to_email = (body.to_email or "").strip()
+    message = (body.message or "").strip()
+    if not to_email or "@" not in to_email:
+        raise HTTPException(status_code=400, detail="Adresse email du destinataire invalide.")
+    if not message:
+        raise HTTPException(status_code=400, detail="Écris ta réponse.")
+    if len(message) > 8000:
+        raise HTTPException(status_code=400, detail="Message trop long.")
+    if not _send_support_reply_email(to_email, message):
+        raise HTTPException(status_code=503, detail="Envoi impossible. Vérifie Resend.")
+    return {"ok": True}
+
+
 @app.get("/api/usage")
 def api_usage(request: Request):
     """Retourne les quotas (adaptations, candidatures) et le plan (free/pro)."""
@@ -1311,6 +1679,8 @@ def api_usage(request: Request):
     count = count_applications(uid)
     adaptations_limit = 999999 if (plan == "pro" or no_paywall) else FREE_ADAPTATIONS_LIMIT
     applications_limit = 999999 if (plan == "pro" or no_paywall) else FREE_APPLICATIONS_LIMIT
+    user_email = _get_user_email_from_jwt(request)
+    is_support = _is_support_admin(user_email)
     return {
         "plan": "pro" if no_paywall else plan,
         "paywall_disabled": no_paywall,
@@ -1318,6 +1688,7 @@ def api_usage(request: Request):
         "adaptations_limit": adaptations_limit,
         "applications_count": count,
         "applications_limit": applications_limit,
+        "is_support": is_support,
     }
 
 
@@ -1373,6 +1744,14 @@ def api_adapt(request: Request, body: AdaptBody):
         adaptation_id = _adaptation_id_from_description(description)
         poste_offre = (tweaks.get("poste_offre") or "").strip()
         entreprise_offre = (offre.get("entreprise") or "").strip()
+
+        selection_a4 = None
+        try:
+            from cv_select_a4 import select_cv_content_for_a4
+            selection_a4 = select_cv_content_for_a4(merged, offre, user_id=user_id)
+        except Exception:
+            pass
+
         save_adaptation(adaptation_id, {
             "resume": tweaks.get("resume"),
             "experiences": tweaks.get("experiences", []),
@@ -1384,6 +1763,7 @@ def api_adapt(request: Request, body: AdaptBody):
             "description_preview": description[:200] + "..." if len(description) > 200 else description,
             "description_full": description,
             "full_cv": merged,
+            "selection_a4": selection_a4,
             "statut": "candidature_envoyee",
             "archived": False,
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -1410,6 +1790,7 @@ def api_adapt(request: Request, body: AdaptBody):
             "rapport_before": rapport,
             "tweaks": tweaks,
             "adaptation_id": adaptation_id,
+            "selection_a4": selection_a4,
         }
 
 
@@ -1447,10 +1828,32 @@ def api_pdf(request: Request, body: PdfBody):
     user_id = _get_user_id(request)
     _check_rate_limit(user_id, 10)
     _check_premium_template(user_id, body.template_id)
+    _check_custom_template_access(user_id, body.template_id)
     offre = {"titre": body.titre, "entreprise": body.entreprise}
+    cv = body.cv or {}
+    if USE_SUPABASE and user_id:
+        photo_url = (cv.get("photo_url") or "").strip()
+        is_supabase_photo = "supabase.co/storage" in photo_url and "/object/sign" in photo_url
+        if not photo_url or is_supabase_photo:
+            try:
+                from backend.db import get_cv_photo_public_url_for_user
+                url = get_cv_photo_public_url_for_user(user_id)
+                if url:
+                    cv = {**cv, "photo_url": url}
+            except Exception:
+                pass
+    selection_a4 = body.selection_a4
     try:
-        from generator import generer_pdf_bytes
-        pdf_bytes, filename = generer_pdf_bytes(body.cv, offre, template_id=body.template_id, template_options=body.template_options)
+        # Même HTML que la preview iframe pour que l'export PDF soit identique à l'aperçu
+        html = _render_cv_html(
+            cv,
+            for_preview=True,
+            template_id=body.template_id,
+            template_options=body.template_options,
+            selection_a4=selection_a4,
+        )
+        from generator import generer_pdf_bytes_from_html
+        pdf_bytes, filename = generer_pdf_bytes_from_html(html, BASE_DIR, cv, offre)
     except Exception as e:
         logger.exception(e)
         raise HTTPException(status_code=500, detail="Erreur interne. Réessaie ou contacte le support.")
@@ -1777,7 +2180,7 @@ def api_application_generate_letter(request: Request, adaptation_id: str):
 
 @app.get("/api/applications/{adaptation_id}/download/cv")
 def api_application_download_cv(request: Request, adaptation_id: str):
-    """Télécharge le CV adapté en PDF."""
+    """Télécharge le CV adapté en PDF (utilise selection_a4 si présente pour tenir sur 1 page A4)."""
     if not _safe_adaptation_id(adaptation_id):
         raise HTTPException(status_code=400, detail="Id invalide")
     user_id = _get_user_id(request)
@@ -1789,8 +2192,16 @@ def api_application_download_cv(request: Request, adaptation_id: str):
         raise HTTPException(status_code=400, detail="CV adapté absent")
     poste = (payload.get("poste") or "").strip()
     entreprise = (payload.get("entreprise") or "").strip()
-    from generator import generer_pdf_bytes
-    pdf_bytes, filename = generer_pdf_bytes(full_cv, {"titre": poste, "entreprise": entreprise}, base_dir=BASE_DIR)
+    selection_a4 = payload.get("selection_a4")
+    html = _render_cv_html(
+        full_cv,
+        for_preview=False,
+        template_id=payload.get("template_id"),
+        template_options=payload.get("template_options"),
+        selection_a4=selection_a4,
+    )
+    from generator import generer_pdf_bytes_from_html
+    pdf_bytes, filename = generer_pdf_bytes_from_html(html, BASE_DIR, full_cv, {"titre": poste, "entreprise": entreprise})
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -1990,17 +2401,99 @@ def api_company_logo(company: str = ""):
 # --- Templates API ---
 
 @app.get("/api/templates")
-def api_templates_list():
-    """Liste tous les templates CV disponibles (id, nom, description, options, tags, premium)."""
+def api_templates_list(request: Request):
+    """Liste tous les templates CV disponibles (fichiers + templates perso Supabase si connecté)."""
     from backend.template_registry import list_templates
-    return list_templates()
+    user_id = _get_user_id(request)
+    return list_templates(user_id=user_id)
+
+
+# --- CRUD templates personnalisés (Supabase) ---
+
+class CustomTemplateCreateBody(BaseModel):
+    name: str = "Template perso"
+    description: str = ""
+    html_content: str = ""
+    css_content: str | None = None
+    options: list | None = None
+    allowed_user_ids: list[str] | None = None
+
+
+@app.post("/api/templates/custom")
+def api_create_custom_template(request: Request, body: CustomTemplateCreateBody):
+    """Crée un template personnalisé (HTML/CSS). Réservé aux utilisateurs connectés."""
+    from backend.db import create_custom_template
+    user_id = _require_user_id(request)
+    if not (body.html_content or "").strip():
+        raise HTTPException(status_code=400, detail="html_content requis.")
+    name = (body.name or "").strip() or "Template perso"
+    description = (body.description or "").strip()
+    css_content = (body.css_content or "").strip() or None
+    options = body.options if isinstance(body.options, list) else []
+    allowed_user_ids = [u for u in (body.allowed_user_ids or []) if isinstance(u, str)]
+    meta = create_custom_template(
+        owner_user_id=user_id,
+        name=name,
+        description=description,
+        html_content=body.html_content,
+        css_content=css_content,
+        options=options,
+        allowed_user_ids=allowed_user_ids,
+    )
+    return meta
+
+
+class CustomTemplateUpdateBody(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    html_content: str | None = None
+    css_content: str | None = None
+    options: list | None = None
+    allowed_user_ids: list[str] | None = None
+
+
+@app.patch("/api/templates/custom/{template_id:path}")
+def api_update_custom_template(request: Request, template_id: str, body: CustomTemplateUpdateBody):
+    """Met à jour un template personnalisé (owner uniquement)."""
+    from backend.db import update_custom_template
+    user_id = _require_user_id(request)
+    meta = update_custom_template(
+        template_id=template_id.strip(),
+        owner_user_id=user_id,
+        name=body.name,
+        description=body.description,
+        html_content=body.html_content,
+        css_content=body.css_content,
+        options=body.options,
+        allowed_user_ids=body.allowed_user_ids,
+    )
+    if meta is None:
+        raise HTTPException(status_code=404, detail="Template non trouvé ou tu n'en es pas le propriétaire.")
+    return meta
+
+
+@app.delete("/api/templates/custom/{template_id:path}")
+def api_delete_custom_template(request: Request, template_id: str):
+    """Supprime un template personnalisé (owner uniquement)."""
+    from backend.db import delete_custom_template
+    user_id = _require_user_id(request)
+    ok = delete_custom_template(template_id=template_id.strip(), owner_user_id=user_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Template non trouvé ou tu n'en es pas le propriétaire.")
+    return {"ok": True}
 
 
 # --- Fichiers statiques (template CSS, assets) pour le preview HTML ---
 
 @app.get("/api/templates/{template_id}/template.css")
 def serve_template_css_by_id(template_id: str):
-    """Sert le CSS d'un template spécifique."""
+    """Sert le CSS d'un template (fichier ou template perso Supabase)."""
+    from backend.db import get_custom_template_by_id, CUSTOM_TEMPLATE_ID_PREFIX
+    if (template_id or "").strip().startswith(CUSTOM_TEMPLATE_ID_PREFIX):
+        custom = get_custom_template_by_id(template_id)
+        if custom and (custom.get("_css_content") or "").strip():
+            return Response(custom["_css_content"], media_type="text/css")
+        return Response("", media_type="text/css")
     from backend.template_registry import get_template_dir
     path = get_template_dir(template_id) / "template.css"
     if not path.is_file():

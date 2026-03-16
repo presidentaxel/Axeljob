@@ -249,6 +249,8 @@ export default function LandingPage({ onCtaClick, onProClick }) {
           <div className="landing-footer-inner">
             <p>© {new Date().getFullYear()} AxeL Job - Ton CV sur-mesure pour chaque annonce.</p>
             <nav className="landing-footer-links">
+              <a href="mailto:louis.vedovato@axelproject.fr?subject=Support%20AxeL%20Job">Support</a>
+              <Link to="/app?open=template-perso">Template personnalisé</Link>
               <Link to="/ats">CV et ATS</Link>
               <Link to="/faq">FAQ</Link>
               <Link to="/modeles-cv">Modèles de CV</Link>

@@ -1906,7 +1906,8 @@ def api_pdf(request: Request, body: PdfBody):
         pdf_bytes, filename = generer_pdf_bytes_from_html(html, BASE_DIR, cv, offre)
     except Exception as e:
         logger.exception(e)
-        raise HTTPException(status_code=500, detail="Erreur interne. Réessaie ou contacte le support.")
+        err_msg = str(e).strip() or repr(e)
+        raise HTTPException(status_code=500, detail=f"Erreur PDF: {err_msg}")
     PDF_COUNT.inc()
     event_log.log_event(event_log.EVENT_PDF_GENERATED, user_id, {"titre": body.titre or "", "entreprise": body.entreprise or "", "template_id": body.template_id or "classic"})
     return Response(
@@ -1977,7 +1978,8 @@ def api_export_dossier_zip(request: Request, body: ExportDossierZipBody):
         )
     except Exception as e:
         logger.exception(e)
-        raise HTTPException(status_code=500, detail="Erreur interne. Réessaie ou contacte le support.")
+        err_msg = str(e).strip() or repr(e)
+        raise HTTPException(status_code=500, detail=f"Erreur export zip: {err_msg}")
 
 
 @app.get("/api/applications")

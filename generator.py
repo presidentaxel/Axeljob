@@ -189,12 +189,10 @@ PDF_EXPORT_PREVIEW_ALIGN_CSS = (
     ".cv-preview .cv-header *{color:inherit!important;}"
     ".cv-preview .cv-main{background-color:#fff!important;color:var(--cv-color-body,#1a1a1a)!important;}"
     ".cv-preview .cv-body,.cv-preview .cv-main,.cv-preview .cv-main *{color:var(--cv-color-body,#1a1a1a)!important;}"
-    /* Section expériences : forcer texte lisible (éviter blanc sur blanc en PDF) */
     ".cv-preview .section-experiences,.cv-preview .section-experiences *{color:var(--cv-color-body,#1a1a1a)!important;background-color:transparent!important;}"
     ".cv-preview .section-experiences{background-color:#fff!important;}"
     ".cv-preview .section-formation,.cv-preview .section-formation *,.cv-preview .section-projets,.cv-preview .section-projets *{color:var(--cv-color-body,#1a1a1a)!important;}"
     ".cv-preview .section-experiences .ats-label,.cv-preview .section-experiences .exp-entreprise,.cv-preview .section-experiences .exp-dates,.cv-preview .section-experiences .exp-poste,.cv-preview .section-experiences .bullet,.cv-preview .section-experiences .exp-clients{color:var(--cv-color-body,#1a1a1a)!important;}"
-    /* Sidebar : fond visible en PDF + espacement pour éviter chevauchements */
     ".cv-preview .cv-sidebar{min-width:200px!important;width:200px!important;background:#f4f4f2!important;background-color:var(--cv-sidebar-color,#f4f4f2)!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;break-inside:avoid!important;page-break-inside:avoid!important;}"
     ".cv-preview .section-sidebar + .section-sidebar{margin-top:10px!important;padding-top:10px!important;}"
     ".cv-preview .section-mots-cles-ats{margin-top:12px!important;padding-top:10px!important;}"

@@ -532,7 +532,8 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
         preview_responsive = (
             "<style>"
             "html,body{margin:0!important;padding:0!important;}html{overflow-x:hidden!important;}body.cv-preview{overflow-x:hidden!important;}"
-            ".cv-preview .cv{width:210mm!important;max-width:100%!important;min-height:auto!important;height:auto!important;max-height:none!important;overflow-x:hidden!important;overflow-y:visible!important}"
+            ".cv-preview .cv{width:210mm!important;max-width:100%!important;min-height:297mm!important;height:auto!important;max-height:none!important;overflow-x:hidden!important;overflow-y:visible!important}"
+            ".cv-preview .cv-body{min-height:0}"
             ".cv-preview body{overflow-x:hidden}"
             ".cv-preview .resume-text{white-space:pre-line}"
             ".cv-preview .cv>.cv-header,.cv-preview .cv>.cv-body{min-width:0}"

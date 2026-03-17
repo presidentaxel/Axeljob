@@ -159,13 +159,11 @@ def _content_scale_css(content_score: int) -> str:
         return "<style>body{font-size:9pt;line-height:1.45}.resume-text{font-size:9pt;line-height:1.5}.bullet{font-size:8.5pt;line-height:1.4}.sidebar-item{font-size:8pt;line-height:1.3}.section-title{font-size:9.5pt}.exp-poste{font-size:9.5pt}</style>"
     return ""
 
-# Pour que l'export PDF affiche tout le contenu (comme la preview), on autorise la hauteur fluide
-# tout en gardant une min-height pour que la grid (1fr) ne calcule pas 0 et que le contenu soit visible.
+# Minimal : garder la min-height pour que la grid .cv ne collapse pas (1fr ait de l'espace), sans toucher overflow.
 PDF_EXPORT_LAYOUT_CSS = (
     "<style>"
-    ".cv{height:auto!important;min-height:297mm!important;max-height:none!important;overflow:visible!important}"
-    ".cv-body,.cv-header,.cv-sidebar{overflow:visible!important;min-height:0}"
-    ".cv-body{min-height:250mm!important}"
+    ".cv-preview .cv{min-height:297mm!important;}"
+    ".cv-preview .cv-body{min-height:0!important;}"
     "</style>"
 )
 
@@ -178,40 +176,14 @@ PDF_EXPORT_CUSTOM_TEMPLATE_FIX = (
     "</style>"
 )
 
-# Export = même rendu que la preview. Correctif WeasyPrint : layout (min-height), couleurs via
-# variables CSS (settings) pour que l'export respecte les choix utilisateur.
-# Pas de couleurs en dur : header/sidebar/section/body utilisent var(--cv-*).
+# Export : uniquement @page + print-color-adjust pour WeasyPrint. Le template (couleurs, layout) reste maître.
 PDF_EXPORT_PREVIEW_ALIGN_CSS = (
     "<style>"
     "@page{size:A4;margin:0}"
-    "body.cv-preview{background:#fff!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}"
-    "body.cv-preview,.cv-preview .cv,.cv-preview .cv-body{color:#1a1a1a!important;}"
-    ".cv-preview .cv{min-height:297mm!important;}"
-    ".cv-preview .cv-body{min-height:250mm!important;}"
-    ".cv-preview .cv-header{background:var(--cv-header-color)!important;color:#fff!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}"
-    ".cv-preview .cv-header *{color:inherit!important;}"
-    ".cv-preview .cv-main{background-color:#fff!important;color:#1a1a1a!important;}"
-    ".cv-preview .cv-body,.cv-preview .cv-main,.cv-preview .cv-main *{color:#1a1a1a!important;}"
-    ".cv-preview .section-experiences,.cv-preview .section-experiences *{color:#1a1a1a!important;background-color:transparent!important;}"
-    ".cv-preview .section-experiences{background-color:#fff!important;}"
-    ".cv-preview .section-formation,.cv-preview .section-formation *,.cv-preview .section-projets,.cv-preview .section-projets *{color:#1a1a1a!important;}"
-    ".cv-preview .section-experiences .ats-label,.cv-preview .section-experiences .exp-entreprise,.cv-preview .section-experiences .exp-dates,.cv-preview .section-experiences .exp-poste,.cv-preview .section-experiences .bullet,.cv-preview .section-experiences .exp-clients{color:#1a1a1a!important;}"
-    ".cv-preview .cv-sidebar{min-width:200px!important;width:200px!important;background:#f4f4f2!important;background-color:var(--cv-sidebar-color,#f4f4f2)!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;break-inside:avoid!important;page-break-inside:avoid!important;}"
-    ".cv-preview .cv-sidebar,.cv-preview .cv-sidebar .section-sidebar,.cv-preview .cv-sidebar .sidebar-category,.cv-preview .cv-sidebar .sidebar-item{color:#1a1a1a!important;}"
-    ".cv-preview .section-sidebar + .section-sidebar{margin-top:10px!important;padding-top:10px!important;}"
-    ".cv-preview .section-mots-cles-ats{margin-top:12px!important;padding-top:10px!important;}"
-    ".cv-preview #competences-informatiques,.cv-preview #certifications,.cv-preview #langues,.cv-preview #autres{padding-top:10px!important;}"
-    ".cv-preview .section-title{color:var(--cv-color-section-title,var(--cv-accent-color,#1e2a3a))!important;border-bottom-color:var(--cv-color-section-title,var(--cv-accent-color,#1e2a3a))!important;}"
-    ".cv-preview .section-formation,.cv-preview .section-projets{background-color:#fff!important;}"
-    ".cv-preview .exp-entreprise,.cv-preview .exp-dates,.cv-preview .exp-poste,.cv-preview .bullet,.cv-preview .formation-diplome,.cv-preview .formation-date,.cv-preview .projet-nom,.cv-preview .projet-description{color:#1a1a1a!important;}"
-    ".cv-preview .exp-dates,.cv-preview .formation-date{color:var(--cv-color-section-title,var(--cv-accent-color,#1e2a3a))!important;}"
-    ".cv-preview .exp-poste,.cv-preview .bullet,.cv-preview .projet-description,.cv-preview .formation-mention{color:#333!important;}"
-    ".cv-preview .header-top-row{min-width:0!important;}"
-    ".cv-preview .header-titre-inline{overflow-wrap:break-word!important;white-space:normal!important;min-width:0!important;flex:1 1 auto!important;}"
+    "body.cv-preview,.cv-preview .cv-header,.cv-preview .cv-sidebar{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}"
     "@media print{"
     ".cv-preview .section-mots-cles-ats .mots-cles-ats-titre{display:none!important;}"
-    ".cv-preview .section-mots-cles-ats .mots-cles-ats-invisible{color:#f4f4f2!important;background:transparent!important;font-size:0!important;line-height:0!important;min-height:0!important;overflow:hidden!important;}"
-    ".cv-preview .cv-sidebar .section-mots-cles-ats .mots-cles-ats-invisible{color:#f4f4f2!important;}"
+    ".cv-preview .section-mots-cles-ats .mots-cles-ats-invisible,.cv-preview .cv-sidebar .section-mots-cles-ats .mots-cles-ats-invisible{color:#f4f4f2!important;font-size:0!important;line-height:0!important;overflow:hidden!important;}"
     "}"
     "</style>"
 )

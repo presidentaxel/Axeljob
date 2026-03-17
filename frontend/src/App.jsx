@@ -1836,6 +1836,7 @@ export default function App() {
                     showPhoto={templateOptions?.show_photo !== false}
                     showMotsClesAts={templateOptions?.show_mots_cles_ats !== false}
                     onPhotoSessionExpired={handlePhotoSessionExpired}
+                    previewHtmlWithInlineCss={modifiedPreviewHtml}
                     onChange={(updatedCv) => {
                       setLastAdaptedCv(updatedCv);
                       trackEvent('cv_manually_edited', { adaptation_id: lastAdaptationId });

@@ -93,14 +93,29 @@ function getContentDensity(cv) {
   return 'full';
 }
 
-export default function CvEditablePreview({ cv, baseCv, onChange, templateId = 'classic', templateOptions, showPhoto = true, showMotsClesAts = true, onPhotoSessionExpired }) {
+/** Extrait le contenu de toutes les balises <style> d'un HTML (celui renvoyé par render-html, avec CSS inliné). */
+function extractStylesFromHtml(html) {
+  if (!html || typeof html !== 'string') return '';
+  const re = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+  const parts = [];
+  let m;
+  while ((m = re.exec(html)) !== null) parts.push(m[1].trim());
+  return parts.filter(Boolean).join('\n');
+}
+
+export default function CvEditablePreview({ cv, baseCv, onChange, templateId = 'classic', templateOptions, showPhoto = true, showMotsClesAts = true, onPhotoSessionExpired, previewHtmlWithInlineCss }) {
   const containerRef = useRef(null);
   const [templateCss, setTemplateCss] = useState('');
   const cssVarOverrides = optionsToCssVars(templateOptions);
   const contentDensity = getContentDensity(cv);
 
-  // Charger le CSS du template en inline pour éviter les problèmes en prod (lien externe non appliqué, CORS, etc.)
+  // Priorité 1 : CSS extrait du HTML de preview (render-html) pour éviter 404 en prod sur /api/templates/.../template.css
+  const cssFromHtml = extractStylesFromHtml(previewHtmlWithInlineCss);
+  const effectiveCss = (cssFromHtml && cssFromHtml.length > 0) ? cssFromHtml : templateCss;
+
+  // Fallback : charger le CSS par API (peut 404 en prod si la route n'est pas exposée)
   useEffect(() => {
+    if (cssFromHtml && cssFromHtml.length > 0) return;
     let cancelled = false;
     setTemplateCss('');
     const tid = (templateId || 'classic').trim();
@@ -108,7 +123,7 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
       .then((css) => { if (!cancelled && typeof css === 'string') setTemplateCss(css); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [templateId]);
+  }, [templateId, cssFromHtml]);
 
   const handleBlur = useCallback(() => {
     if (!containerRef.current || !onChange) return;
@@ -471,7 +486,7 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
       onBlur={handleBlur}
     >
       {rootVarsStyle ? <style dangerouslySetInnerHTML={{ __html: rootVarsStyle }} /> : null}
-      {templateCss ? <style dangerouslySetInnerHTML={{ __html: templateCss }} /> : <link rel="stylesheet" href={apiUrl(`/api/templates/${templateId}/template.css`)} />}
+      {effectiveCss ? <style dangerouslySetInnerHTML={{ __html: effectiveCss }} /> : null}
       {(templateId === 'minimal') && renderMinimal()}
       {(templateId === 'modern') && renderModern()}
       {(templateId !== 'minimal' && templateId !== 'modern') && (

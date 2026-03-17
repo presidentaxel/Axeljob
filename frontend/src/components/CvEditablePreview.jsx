@@ -1,6 +1,6 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { HiPhone, HiEnvelope, HiLink } from 'react-icons/hi2';
-import { apiUrl } from '../api';
+import { apiUrl, apiGet } from '../api';
 import './CvEditablePreview.css';
 
 /** Met à jour une propriété dans un objet par chemin "a.b.0.c" */
@@ -95,8 +95,20 @@ function getContentDensity(cv) {
 
 export default function CvEditablePreview({ cv, baseCv, onChange, templateId = 'classic', templateOptions, showPhoto = true, showMotsClesAts = true, onPhotoSessionExpired }) {
   const containerRef = useRef(null);
+  const [templateCss, setTemplateCss] = useState('');
   const cssVarOverrides = optionsToCssVars(templateOptions);
   const contentDensity = getContentDensity(cv);
+
+  // Charger le CSS du template en inline pour éviter les problèmes en prod (lien externe non appliqué, CORS, etc.)
+  useEffect(() => {
+    let cancelled = false;
+    setTemplateCss('');
+    const tid = (templateId || 'classic').trim();
+    apiGet(`/api/templates/${tid}/template.css`)
+      .then((css) => { if (!cancelled && typeof css === 'string') setTemplateCss(css); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [templateId]);
 
   const handleBlur = useCallback(() => {
     if (!containerRef.current || !onChange) return;
@@ -459,7 +471,7 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
       onBlur={handleBlur}
     >
       {rootVarsStyle ? <style dangerouslySetInnerHTML={{ __html: rootVarsStyle }} /> : null}
-      <link rel="stylesheet" href={apiUrl(`/api/templates/${templateId}/template.css`)} />
+      {templateCss ? <style dangerouslySetInnerHTML={{ __html: templateCss }} /> : <link rel="stylesheet" href={apiUrl(`/api/templates/${templateId}/template.css`)} />}
       {(templateId === 'minimal') && renderMinimal()}
       {(templateId === 'modern') && renderModern()}
       {(templateId !== 'minimal' && templateId !== 'modern') && (

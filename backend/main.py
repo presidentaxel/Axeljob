@@ -1889,10 +1889,10 @@ def api_pdf(request: Request, body: PdfBody):
             template_options=body.template_options,
             selection_a4=selection_a4,
         )
-        from generator import generer_pdf_bytes_from_html, PDF_EXPORT_PREVIEW_ALIGN_CSS
-        # Injecter le correctif pour WeasyPrint (sidebar fixe, mots-clés visibles au print) sans changer le rendu visuel.
-        if PDF_EXPORT_PREVIEW_ALIGN_CSS and "</head>" in html:
-            html = html.replace("</head>", PDF_EXPORT_PREVIEW_ALIGN_CSS + "</head>", 1)
+        from generator import generer_pdf_bytes_from_html, PDF_EXPORT_PREVIEW_ALIGN_CSS, PDF_EXPORT_LAYOUT_CSS
+        # Layout (hauteur fluide, pas de collapse) + couleurs/sidebar pour que l'export = preview.
+        if "</head>" in html:
+            html = html.replace("</head>", PDF_EXPORT_LAYOUT_CSS + PDF_EXPORT_PREVIEW_ALIGN_CSS + "</head>", 1)
         # Templates personnalisés : supprimer marges de page WeasyPrint (2cm par défaut) et marges .cv.
         if body.template_id and str(body.template_id).strip().startswith("custom_") and "</head>" in html:
             custom_pdf_fix = (

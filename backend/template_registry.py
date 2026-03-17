@@ -126,7 +126,7 @@ _TYPO_CSS_VAR_MAP = {
 }
 
 def options_to_css_vars(options: dict) -> str:
-    """Generates an inline <style> block that overrides :root CSS variables (couleurs, police, tailles typo)."""
+    """Génère un bloc <style> :root qui override les variables du template (couleurs, police, tailles). Injecté après le CSS du template pour que les réglages utilisateur priment."""
     parts = []
     for key, css_var in (
         ("header_color", "--cv-header-color"),

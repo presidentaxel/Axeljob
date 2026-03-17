@@ -160,10 +160,12 @@ def _content_scale_css(content_score: int) -> str:
     return ""
 
 # Minimal : garder la min-height pour que la grid .cv ne collapse pas (1fr ait de l'espace), sans toucher overflow.
+# Sidebar en position absolute : limiter à la hauteur d'une page pour éviter qu'elle descende sur les pages suivantes (Classic, Impact, Executive).
 PDF_EXPORT_LAYOUT_CSS = (
     "<style>"
     ".cv-preview .cv{min-height:297mm!important;}"
     ".cv-preview .cv-body{min-height:0!important;}"
+    ".cv-preview .cv-sidebar{max-height:250mm!important;}"
     "</style>"
 )
 
@@ -176,14 +178,15 @@ PDF_EXPORT_CUSTOM_TEMPLATE_FIX = (
     "</style>"
 )
 
-# Export : uniquement @page + print-color-adjust pour WeasyPrint. Le template (couleurs, layout) reste maître.
+# Export : uniquement @page + print-color-adjust pour WeasyPrint. Le template (couleurs, layout, options) reste maître.
+# La section mots-clés ATS n'est dans le HTML que si show_mots_cles_ats est True (voir _render_cv_html) ; ces règles ne s'appliquent que lorsqu'elle existe.
 PDF_EXPORT_PREVIEW_ALIGN_CSS = (
     "<style>"
     "@page{size:A4;margin:0}"
     "body.cv-preview,.cv-preview .cv-header,.cv-preview .cv-sidebar{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}"
     "@media print{"
     ".cv-preview .section-mots-cles-ats .mots-cles-ats-titre{display:none!important;}"
-    ".cv-preview .section-mots-cles-ats .mots-cles-ats-invisible,.cv-preview .cv-sidebar .section-mots-cles-ats .mots-cles-ats-invisible{color:#f4f4f2!important;font-size:0!important;line-height:0!important;overflow:hidden!important;}"
+    ".cv-preview .section-mots-cles-ats .mots-cles-ats-invisible,.cv-preview .cv-sidebar .section-mots-cles-ats .mots-cles-ats-invisible{color:var(--cv-sidebar-color,#f4f4f2)!important;font-size:0!important;line-height:0!important;overflow:hidden!important;}"
     "}"
     "</style>"
 )

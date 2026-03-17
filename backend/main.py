@@ -411,6 +411,7 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
         if (l.get("langue") if isinstance(l, dict) else None) or (l.get("niveau") if isinstance(l, dict) else None)
     ]
 
+    # Mots-clés ATS : la section n'est rendue que si show_mots_cles_ats est True (template : {% if show_mots_cles_ats and mots_cles_cache %})
     ctx["show_mots_cles_ats"] = resolved_opts.get("show_mots_cles_ats", True)
 
     actual_tid = tmpl_meta.get("id") or "classic"
@@ -471,6 +472,7 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
     if base:
         html_str = html_str.replace("<head>", f'<head><base href="{base}/">', 1)
 
+    # Options template (couleurs, tailles, police, photo, show_mots_cles_ats) : :root en override du template de base
     css_vars_style = options_to_css_vars(resolved_opts)
     if css_vars_style:
         html_str = html_str.replace("</head>", css_vars_style + "</head>", 1)

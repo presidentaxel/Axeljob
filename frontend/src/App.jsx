@@ -1824,7 +1824,7 @@ export default function App() {
               )}
               <div className="preview-wrap" ref={previewWrapRef}>
                 <div className="preview-a4-sheet">
-                {previewVariant === 'modified' && lastAdaptedCv && !(templateId || '').startsWith('custom_') ? (
+                {previewVariant === 'modified' && lastAdaptedCv && !(templateId || '').startsWith('custom_') && ['classic', 'minimal', 'modern'].includes((templateId || '').trim()) ? (
                   <CvEditablePreview
                     cv={{
                       ...lastAdaptedCv,

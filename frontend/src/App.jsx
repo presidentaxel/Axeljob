@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, lazy, Suspense } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import DOMPurify from 'dompurify';
 import { useLocation, useNavigate, NavLink } from 'react-router-dom';
 import {
@@ -18,18 +18,46 @@ import CompanyLogo from './components/CompanyLogo';
 import { STORAGE_EXPORT_DIR, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
 import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiCheck, HiSwatch } from 'react-icons/hi2';
 
-const ProfileView = lazy(() => import('./components/ProfileView'));
-const LandingPage = lazy(() => import('./components/LandingPage'));
-const LegalPages = lazy(() => import('./components/LegalPages'));
-const AtsPage = lazy(() => import('./components/AtsPage'));
-const ArticlesPages = lazy(() => import('./components/ArticlesPages'));
-const FaqPage = lazy(() => import('./components/FaqPage'));
-const OnboardingWizard = lazy(() => import('./components/OnboardingWizard'));
-const CvEditablePreview = lazy(() => import('./components/CvEditablePreview'));
-const ApplicationDetailModal = lazy(() => import('./components/ApplicationDetailModal'));
-const TemplatePicker = lazy(() => import('./components/TemplatePicker'));
-const GuidedTour = lazy(() => import('./components/GuidedTour'));
-const SupportHighlight = lazy(() => import('./components/SupportHighlight'));
+/** Erreur de chargement d'un chunk (ex. 404 après un nouveau déploiement). */
+function isChunkLoadError(err) {
+  const msg = err?.message || '';
+  return (
+    msg.includes('Failed to fetch dynamically imported module') ||
+    msg.includes('Importing a module script failed') ||
+    msg.includes('Loading chunk') ||
+    msg.includes('Loading CSS chunk') ||
+    (err?.name === 'TypeError' && msg.includes('fetch'))
+  );
+}
+
+/** lazy() avec repli : en cas de 404 sur un chunk (nouveau déploiement), recharge la page une fois. */
+function lazyWithChunkReload(importFn) {
+  return lazy(() =>
+    importFn().catch((err) => {
+      if (isChunkLoadError(err) && typeof window !== 'undefined') {
+        const key = 'chunkErrorReload';
+        if (!sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, '1');
+          window.location.reload();
+        }
+      }
+      throw err;
+    })
+  );
+}
+
+const ProfileView = lazyWithChunkReload(() => import('./components/ProfileView'));
+const LandingPage = lazyWithChunkReload(() => import('./components/LandingPage'));
+const LegalPages = lazyWithChunkReload(() => import('./components/LegalPages'));
+const AtsPage = lazyWithChunkReload(() => import('./components/AtsPage'));
+const ArticlesPages = lazyWithChunkReload(() => import('./components/ArticlesPages'));
+const FaqPage = lazyWithChunkReload(() => import('./components/FaqPage'));
+const OnboardingWizard = lazyWithChunkReload(() => import('./components/OnboardingWizard'));
+const CvEditablePreview = lazyWithChunkReload(() => import('./components/CvEditablePreview'));
+const ApplicationDetailModal = lazyWithChunkReload(() => import('./components/ApplicationDetailModal'));
+const TemplatePicker = lazyWithChunkReload(() => import('./components/TemplatePicker'));
+const GuidedTour = lazyWithChunkReload(() => import('./components/GuidedTour'));
+const SupportHighlight = lazyWithChunkReload(() => import('./components/SupportHighlight'));
 import './App.css';
 import './styles/TemplatePicker.css';
 import './styles/GuidedTour.css';
@@ -553,6 +581,9 @@ export default function App() {
   const [usage, setUsage] = useState(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [adaptStepIndex, setAdaptStepIndex] = useState(0);
+  /** true quand l’API a répondu ; on n’affiche le résultat qu’une fois l’animation à la dernière étape */
+  const [apiAdaptDone, setApiAdaptDone] = useState(false);
+  const pendingAdaptResultRef = useRef(null);
   const [kanbanDraggedId, setKanbanDraggedId] = useState(null);
   const [kanbanDragOverColumn, setKanbanDragOverColumn] = useState(null);
   const [atsDisclaimerVisible, setAtsDisclaimerVisible] = useState(false);
@@ -640,15 +671,15 @@ export default function App() {
   }, [session, templateId, templateOptions]);
 
   const templateParams = { template_id: templateId, template_options: templateOptions };
-
-  // Re-render preview when template/options change (avec surlignage si on a base + adapté)
   const templateKey = templateId + '|' + JSON.stringify(templateOptions);
+
+  // Garder HTML original/modifié pour l'iframe et CvEditablePreview
   const wantHighlight = !!(lastBaseCv && lastAdaptedCv);
   useEffect(() => {
     if (!session) return;
     if (lastAdaptedCv) {
       apiPost('/api/render-html', { cv: lastAdaptedCv, base_cv: lastBaseCv || undefined, highlight_changes: wantHighlight, template_id: templateId, template_options: templateOptions, selection_a4: lastSelectionA4 || undefined })
-        .then((html) => { if (iframeRef.current) iframeRef.current.srcdoc = html; setModifiedPreviewHtml(html); })
+        .then((html) => { setModifiedPreviewHtml(html); })
         .catch(() => {});
     } else {
       loadInitialPreview();
@@ -696,7 +727,7 @@ export default function App() {
       .catch(() => {});
   }, [session, authLoading, recoveryMode, mfaChallengeChecked]);
 
-  // Check if profile is empty → show onboarding + display name (prénom + nom)
+  // Check if profile is empty → show onboarding + display name (prénom + nom) ; sync template_id / template_options depuis l’API pour persistance entre sessions
   useEffect(() => {
     if (!session || authLoading) return;
     setUserDisplayName(session.user?.email?.split('@')[0] || 'Compte');
@@ -710,6 +741,8 @@ export default function App() {
         if (prenom || nom) {
           setUserDisplayName([prenom, nom].filter(Boolean).join(' '));
         }
+        if (data?.template_id !== undefined && (data.template_id || '').trim()) setTemplateId((data.template_id || '').trim() || 'classic');
+        if (data?.template_options !== undefined && typeof data.template_options === 'object') setTemplateOptions(data.template_options || {});
       })
       .catch(() => {
         setNeedsOnboarding(true);
@@ -925,6 +958,8 @@ export default function App() {
   useEffect(() => {
     if (!adapting) {
       setAdaptStepIndex(0);
+      setApiAdaptDone(false);
+      pendingAdaptResultRef.current = null;
       return;
     }
     const id = setInterval(() => {
@@ -932,6 +967,29 @@ export default function App() {
     }, 3800);
     return () => clearInterval(id);
   }, [adapting]);
+
+  // Quand l’API a fini et l’animation est sur « Finalisation », on applique le résultat et on arrête
+  useEffect(() => {
+    if (!apiAdaptDone || adaptStepIndex !== adaptSteps.length - 1 || !adapting) return;
+    const pending = pendingAdaptResultRef.current;
+    if (pending) {
+      if (pending.cv) setLastAdaptedCv(pending.cv);
+      if (pending.adaptation_id != null) setLastAdaptationId(pending.adaptation_id);
+      if (pending.selection_a4 !== undefined) setLastSelectionA4(pending.selection_a4);
+      if (pending.rapport !== undefined) setRapport(pending.rapport);
+      if (pending.rapportBefore !== undefined) setRapportBefore(pending.rapportBefore);
+      if (pending.exportBlockVisible) setExportBlockVisible(true);
+      setPreviewVariant('modified');
+      if (pending.previewHtml) setPreviewHtml(pending.previewHtml);
+      if (pending.modifiedPreviewHtml) setModifiedPreviewHtml(pending.modifiedPreviewHtml);
+      setChatMessages((prev) => [...prev, { role: 'assistant', content: pending.summary }]);
+      if (pending.baseCv != null) setLastBaseCv(pending.baseCv);
+      loadApplications();
+      loadUsage();
+      pendingAdaptResultRef.current = null;
+    }
+    setAdapting(false);
+  }, [apiAdaptDone, adaptStepIndex, adapting]);
 
   // Scroll vers la réponse / animation quand on lance un prompt
   useEffect(() => {
@@ -1047,21 +1105,10 @@ export default function App() {
           titre: posteNom || undefined,
           entreprise: entrepriseNom || undefined,
         });
-        setLastAdaptedCv(data.cv);
-        setLastAdaptationId(data.adaptation_id || null);
-        setLastSelectionA4(data.selection_a4 || null);
-        setRapport(data.rapport || {});
-        setRapportBefore(data.rapport_before || null);
-        setExportBlockVisible(true);
-        setSourceOffreValue('');
-        setPreviewVariant('modified');
-        loadApplications();
-        loadUsage();
         let baseCv = null;
         try {
           baseCv = await apiGet('/api/cv');
         } catch {}
-        if (baseCv) setLastBaseCv(baseCv);
         const html = await apiPost('/api/render-html', {
           cv: data.cv,
           base_cv: baseCv ?? lastBaseCv ?? undefined,
@@ -1069,29 +1116,49 @@ export default function App() {
           selection_a4: data.selection_a4 || undefined,
           ...templateParams,
         });
-        setPreviewHtml(html);
-        setModifiedPreviewHtml(html);
         const summary = data.rapport?.score_global != null
           ? `CV adapté (score ATS : ${data.rapport.score_global}/100). Tu peux affiner en envoyant un autre message ou modifier le texte avant téléchargement.`
           : 'CV adapté à l\'offre. Envoie un message pour affiner ou clique sur « Modifier le CV » pour éditer le texte.';
-        setChatMessages((prev) => [...prev, { role: 'assistant', content: summary }]);
+        setSourceOffreValue('');
+        pendingAdaptResultRef.current = {
+          cv: data.cv,
+          adaptation_id: data.adaptation_id || null,
+          selection_a4: data.selection_a4 || null,
+          rapport: data.rapport || {},
+          rapportBefore: data.rapport_before || null,
+          exportBlockVisible: true,
+          previewHtml: html,
+          modifiedPreviewHtml: html,
+          summary,
+          baseCv: baseCv ?? lastBaseCv ?? undefined,
+        };
+        setApiAdaptDone(true);
       } else {
         const data = await apiPost('/api/adapt-refine', { cv: lastAdaptedCv, instruction: text });
-        setLastAdaptedCv(data.cv);
-        setLastSelectionA4(null);
         const html = await apiPost('/api/render-html', { cv: data.cv, highlight_changes: false, selection_a4: undefined, ...templateParams });
-        setPreviewHtml(html);
-        setModifiedPreviewHtml(html);
-        setChatMessages((prev) => [...prev, { role: 'assistant', content: 'Modifications appliquées. Tu peux continuer à affiner ou télécharger le CV.' }]);
+        pendingAdaptResultRef.current = {
+          cv: data.cv,
+          adaptation_id: lastAdaptationId,
+          selection_a4: null,
+          rapport,
+          rapportBefore: null,
+          exportBlockVisible: exportBlockVisible,
+          previewHtml: html,
+          modifiedPreviewHtml: html,
+          summary: 'Modifications appliquées. Tu peux continuer à affiner ou télécharger le CV.',
+          baseCv: lastBaseCv ?? undefined,
+        };
+        setApiAdaptDone(true);
       }
     } catch (e) {
+      setApiAdaptDone(false);
+      pendingAdaptResultRef.current = null;
       if (e.status === 402 || (e.message && e.message.includes('épuisé'))) {
         setUpgradeModalVisible(true);
       } else {
         setError(e.message || "Erreur.");
       }
       setChatMessages((prev) => [...prev, { role: 'assistant', content: 'Désolé, une erreur s\'est produite. ' + (e.message || '') }]);
-    } finally {
       setAdapting(false);
     }
   };
@@ -1100,10 +1167,7 @@ export default function App() {
     if (!editedCv) return;
     setLastAdaptedCv(editedCv);
     apiPost('/api/render-html', { cv: editedCv, highlight_changes: false, selection_a4: lastSelectionA4 || undefined, ...templateParams })
-      .then((html) => {
-        setPreviewHtml(html);
-        setModifiedPreviewHtml(html);
-      })
+      .then((html) => { setPreviewHtml(html); setModifiedPreviewHtml(html); })
       .catch(() => {});
     setCvEditPanelOpen(false);
   };
@@ -1157,36 +1221,6 @@ export default function App() {
     setPreviewVariant(v);
   };
 
-  // Quand on switch sur "original", charger/afficher le HTML de base dans l'iframe
-  useEffect(() => {
-    if (!isCvView || previewVariant !== 'original') return;
-    const apply = () => {
-      if (!iframeRef.current) return;
-      if (originalPreviewHtml) {
-        iframeRef.current.srcdoc = originalPreviewHtml;
-        return;
-      }
-      if (lastBaseCv) {
-        apiPost('/api/render-html', { cv: lastBaseCv, ...templateParams })
-          .then((html) => {
-            setOriginalPreviewHtml(html);
-            if (iframeRef.current) iframeRef.current.srcdoc = html;
-          })
-          .catch(() => {});
-      }
-    };
-    const t = setTimeout(apply, 0);
-    return () => clearTimeout(t);
-  }, [previewVariant, isCvView, originalPreviewHtml, lastBaseCv]);
-
-  // Quand on revient sur "modified" avec un template non-classic, afficher le modified HTML
-  useEffect(() => {
-    if (!isCvView || previewVariant !== 'modified' || templateId === 'classic') return;
-    if (modifiedPreviewHtml && iframeRef.current) {
-      iframeRef.current.srcdoc = modifiedPreviewHtml;
-    }
-  }, [previewVariant, templateId, modifiedPreviewHtml, isCvView]);
-
   const doDownloadPdf = async () => {
     if (!lastAdaptedCv) return;
     try {
@@ -1225,6 +1259,32 @@ export default function App() {
       doDownloadPdf();
     }
   };
+
+  // Quand on switch sur "original", afficher le HTML de base dans l'iframe
+  useEffect(() => {
+    if (!isCvView || previewVariant !== 'original') return;
+    if (!iframeRef.current) return;
+    if (originalPreviewHtml) {
+      iframeRef.current.srcdoc = originalPreviewHtml;
+      return;
+    }
+    if (lastBaseCv) {
+      apiPost('/api/render-html', { cv: lastBaseCv, ...templateParams })
+        .then((html) => {
+          setOriginalPreviewHtml(html);
+          if (iframeRef.current) iframeRef.current.srcdoc = html;
+        })
+        .catch(() => {});
+    }
+  }, [previewVariant, isCvView, originalPreviewHtml, lastBaseCv]);
+
+  // Quand on switch sur "modified", afficher le HTML modifié dans l'iframe
+  useEffect(() => {
+    if (!isCvView || previewVariant !== 'modified') return;
+    if (modifiedPreviewHtml && iframeRef.current) {
+      iframeRef.current.srcdoc = modifiedPreviewHtml;
+    }
+  }, [previewVariant, isCvView, modifiedPreviewHtml]);
 
   const handleExportDossier = async () => {
     if (!lastAdaptedCv) return;
@@ -1744,7 +1804,7 @@ export default function App() {
               {lastBaseCv && lastAdaptedCv && (
                 <div className="preview-variant-row">
                   <div className="preview-variant-toggle-wrap">
-                  <button type="button" className={`preview-variant-toggle-btn${previewVariant === 'original' ? ' active' : ''}`} onClick={() => onPreviewVariantChange('original')}>Original</button>
+                    <button type="button" className={`preview-variant-toggle-btn${previewVariant === 'original' ? ' active' : ''}`} onClick={() => onPreviewVariantChange('original')}>Original</button>
                     <button type="button" className={`preview-variant-toggle-btn${previewVariant === 'modified' ? ' active' : ''}`} onClick={() => onPreviewVariantChange('modified')}>Modifié</button>
                   </div>
                   <span className="preview-editable-hint-inline">Clique sur le texte pour modifier.</span>
@@ -1768,7 +1828,7 @@ export default function App() {
                       setLastAdaptedCv(updatedCv);
                       trackEvent('cv_manually_edited', { adaptation_id: lastAdaptationId });
                       apiPost('/api/render-html', { cv: updatedCv, highlight_changes: false, ...templateParams })
-                        .then((html) => { setModifiedPreviewHtml(html); })
+                        .then((html) => { setPreviewHtml(html); setModifiedPreviewHtml(html); })
                         .catch(() => {});
                     }}
                   />

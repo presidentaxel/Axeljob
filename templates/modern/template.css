@@ -9,6 +9,15 @@
   --cv-sidebar-color: #2d3748;
   --cv-accent-color: #3182ce;
   --cv-font-heading: 'Inter', Arial, sans-serif;
+  --cv-fs-name: 13pt;
+  --cv-fs-title: 8.5pt;
+  --cv-fs-section: 9.5pt;
+  --cv-fs-body: 9pt;
+  --cv-fs-bullet: 8.5pt;
+  --cv-fs-sidebar-title: 8pt;
+  --cv-fs-sidebar-item: 8pt;
+  --cv-color-body: #1a1a1a;
+  --cv-color-section-title: #3182ce;
 }
 
 @page {
@@ -50,17 +59,18 @@ body {
 }
 
 .sidebar-photo {
-  width: 80px;
-  height: 80px;
+  width: var(--cv-photo-size, 80px);
+  height: var(--cv-photo-size, 80px);
   margin: 0 auto 10px;
 }
 
 .sidebar-photo img {
-  width: 80px;
-  height: 80px;
+  width: var(--cv-photo-size, 80px);
+  height: var(--cv-photo-size, 80px);
   border-radius: 50%;
   border: 3px solid rgba(255,255,255,0.3);
   object-fit: cover;
+  object-position: center;
   display: block;
 }
 
@@ -73,14 +83,14 @@ body {
 
 .sidebar-nom {
   font-family: var(--cv-font-heading);
-  font-size: 13pt;
+  font-size: var(--cv-fs-name, 13pt);
   font-weight: 700;
   margin: 0;
   line-height: 1.2;
 }
 
 .sidebar-titre {
-  font-size: 8.5pt;
+  font-size: var(--cv-fs-title, 8.5pt);
   font-weight: 400;
   opacity: 0.85;
   margin: 4px 0 0;
@@ -97,17 +107,17 @@ body {
 
 .sidebar-section-title {
   font-family: var(--cv-font-heading);
-  font-size: 8pt;
+  font-size: var(--cv-fs-sidebar-title, 8pt);
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: var(--cv-accent-color);
+  color: var(--cv-color-section-title, var(--cv-accent-color));
   border-bottom: 1px solid rgba(255,255,255,0.15);
   padding-bottom: 2px;
   margin: 0 0 6px 0;
 }
 
 .sidebar-item {
-  font-size: 8pt;
+  font-size: var(--cv-fs-sidebar-item, 8pt);
   line-height: 1.35;
   margin: 0 0 2px 0;
   opacity: 0.92;
@@ -125,9 +135,9 @@ body {
 
 .main-section-title {
   font-family: var(--cv-font-heading);
-  font-size: 9.5pt;
+  font-size: var(--cv-fs-section, 9.5pt);
   font-weight: 700;
-  color: var(--cv-accent-color);
+  color: var(--cv-color-section-title, var(--cv-accent-color));
   border-bottom: 2px solid var(--cv-accent-color);
   padding-bottom: 2px;
   margin: 0 0 6px 0;
@@ -135,10 +145,10 @@ body {
 }
 
 .resume-text {
-  font-size: 9pt;
+  font-size: var(--cv-fs-body, 9pt);
   font-style: italic;
   line-height: 1.4;
-  color: #444;
+  color: var(--cv-color-body, #444);
   margin: 0;
   text-align: justify;
 }
@@ -168,7 +178,7 @@ body {
 
 .exp-entreprise {
   font-weight: bold;
-  color: #1a1a1a;
+  color: var(--cv-color-body, #1a1a1a);
 }
 
 .exp-dates {
@@ -179,7 +189,7 @@ body {
 }
 
 .exp-poste {
-  font-size: 8.5pt;
+  font-size: var(--cv-fs-body, 8.5pt);
   color: #555;
   margin: 0 0 3px 0;
 }
@@ -199,8 +209,8 @@ body {
 .experience-item .bullet {
   margin: 0;
   padding-left: 0;
-  color: #1a1a1a;
-  font-size: 8.5pt;
+  color: var(--cv-color-body, #1a1a1a);
+  font-size: var(--cv-fs-bullet, 8.5pt);
   line-height: 1.35;
 }
 
@@ -226,7 +236,7 @@ body {
   gap: 8px;
 }
 
-.formation-diplome { font-weight: bold; color: #1a1a1a; }
+.formation-diplome { font-weight: bold; color: var(--cv-color-body, #1a1a1a); }
 .formation-date { font-weight: bold; white-space: nowrap; font-size: 8.5pt; }
 .formation-mention { font-style: italic; color: #555; margin: 0; font-size: 8.5pt; }
 
@@ -253,8 +263,8 @@ body:not(.cv-preview) .cv-sidebar {
 }
 body:not(.cv-preview) .sidebar-photo,
 body:not(.cv-preview) .sidebar-photo img {
-  width: 60px;
-  height: 60px;
+  width: var(--cv-photo-size, 60px);
+  height: var(--cv-photo-size, 60px);
 }
 body:not(.cv-preview) .sidebar-nom { font-size: 11pt; }
 body:not(.cv-preview) .cv-main { padding: 10px 14px; }

@@ -1,11 +1,45 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { apiGet, apiPut, apiPost, apiPostFile, apiUrl } from '../api';
+import Cropper from 'react-easy-crop';
+import { apiGet, apiPut, apiPost, apiPostFile, apiPostBlob, apiUrl } from '../api';
 import { supabase } from '../lib/supabase';
 import { defaultCv, newExpId, newFormId, newCertId, newProjId } from '../data/cvDefault';
 import TemplatePicker from './TemplatePicker';
 import ReauthModal from './ReauthModal';
 import '../styles/ProfileView.css';
 import '../styles/TemplatePicker.css';
+
+/** Retourne un Blob JPEG recadré à partir de l’image et de la zone en pixels (pour react-easy-crop). */
+function getCroppedImg(imageSrc, pixelCrop) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener('load', () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = pixelCrop.width;
+        canvas.height = pixelCrop.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas non disponible'));
+          return;
+        }
+        ctx.drawImage(
+          image,
+          pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height,
+          0, 0, pixelCrop.width, pixelCrop.height
+        );
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Échec de l’export'));
+        }, 'image/jpeg', 0.9);
+      } catch (e) {
+        reject(e);
+      }
+    });
+    image.addEventListener('error', () => reject(new Error('Image non chargée')));
+    if (imageSrc.startsWith('http')) image.setAttribute('crossOrigin', 'anonymous');
+    image.src = imageSrc;
+  });
+}
 
 const LINKEDIN_SYNC_KEY = 'linkedin_sync_pending';
 const LINKEDIN_PHOTO_KEY = 'linkedin_photo_pending';
@@ -101,8 +135,15 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
   const [selectedChangeIds, setSelectedChangeIds] = useState(new Set());
   const [importPhotoLoading, setImportPhotoLoading] = useState(false);
   const [uploadPhotoLoading, setUploadPhotoLoading] = useState(false);
-  const [livePreviewHtml, setLivePreviewHtml] = useState('');
+  const [profilePreviewPdfUrl, setProfilePreviewPdfUrl] = useState(null);
+  const [profilePreviewPdfLoading, setProfilePreviewPdfLoading] = useState(false);
+  const profilePreviewPdfUrlRef = useRef(null);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
   const [importMergeParsed, setImportMergeParsed] = useState(null);
   const [importMergeOpen, setImportMergeOpen] = useState(false);
@@ -238,22 +279,49 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
     localStorage.setItem('cv_template_options', JSON.stringify(templateOptions));
   }, [templateOptions, onTemplateOptionsChange]);
 
-  // Aperçu CV en temps réel (debounced) - avec template et options pour que les réglages s'appliquent avant Gemini
+  // Aperçu = PDF (même rendu que l'export), mis à jour quand cv / template change
   const templateKey = templateId + '|' + JSON.stringify(templateOptions);
   useEffect(() => {
     if (loading) return;
-    const t = setTimeout(() => {
-      apiPost('/api/render-html', {
-        cv,
-        highlight_changes: false,
-        template_id: templateId,
-        template_options: templateOptions,
-      })
-        .then((html) => setLivePreviewHtml(html))
-        .catch(() => setLivePreviewHtml(''));
+    let cancelled = false;
+    setProfilePreviewPdfLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const blob = await apiPostBlob('/api/pdf', {
+          cv,
+          titre: '',
+          entreprise: '',
+          template_id: templateId,
+          template_options: templateOptions,
+        });
+        if (cancelled) return;
+        if (profilePreviewPdfUrlRef.current) {
+          URL.revokeObjectURL(profilePreviewPdfUrlRef.current);
+          profilePreviewPdfUrlRef.current = null;
+        }
+        const url = URL.createObjectURL(blob);
+        profilePreviewPdfUrlRef.current = url;
+        setProfilePreviewPdfUrl(url);
+      } catch {
+        if (!cancelled) setProfilePreviewPdfUrl(null);
+      } finally {
+        if (!cancelled) setProfilePreviewPdfLoading(false);
+      }
     }, LIVE_PREVIEW_DEBOUNCE_MS);
-    return () => clearTimeout(t);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
   }, [cv, loading, templateKey]);
+
+  useEffect(() => {
+    return () => {
+      if (profilePreviewPdfUrlRef.current) {
+        URL.revokeObjectURL(profilePreviewPdfUrlRef.current);
+        profilePreviewPdfUrlRef.current = null;
+      }
+    };
+  }, []);
 
   const update = (path, value) => {
     if (path.includes('.')) {
@@ -495,7 +563,11 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
     });
   };
 
-  const handleUploadPhoto = async (e) => {
+  const onCropComplete = useCallback((_croppedArea, pixels) => {
+    setCroppedAreaPixels(pixels);
+  }, []);
+
+  const openCropModal = (e) => {
     const file = e?.target?.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
@@ -503,19 +575,39 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
       return;
     }
     setError('');
-    setMessage('');
+    setCropImageSrc(URL.createObjectURL(file));
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+    setCropModalOpen(true);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const closeCropModal = useCallback(() => {
+    if (cropImageSrc) URL.revokeObjectURL(cropImageSrc);
+    setCropModalOpen(false);
+    setCropImageSrc(null);
+    setCroppedAreaPixels(null);
+  }, [cropImageSrc]);
+
+  const handleConfirmCrop = async () => {
+    if (!cropImageSrc || !croppedAreaPixels) return;
     setUploadPhotoLoading(true);
+    setError('');
     try {
+      const blob = await getCroppedImg(cropImageSrc, croppedAreaPixels);
+      const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
       const data = await apiPostFile('/api/cv/upload-photo', file);
       const photoUrl = (data.photo_url || '').trim();
       if (photoUrl) update('photo_url', photoUrl);
       setMessage('Photo importée (sauvegarde automatique).');
       onSaveSuccess?.();
+      closeCropModal();
+      setPhotoModalOpen(false);
     } catch (err) {
       setError(err.message || 'Impossible d\'importer la photo.');
     } finally {
       setUploadPhotoLoading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -668,7 +760,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
     setSaving(true);
     setError('');
     try {
-      await apiPut('/api/cv', next);
+      await apiPut('/api/cv', { ...next, template_id: templateId, template_options: templateOptions });
       setMessage('CV importé et enregistré.');
       onSaveSuccess?.();
     } catch (e) {
@@ -692,9 +784,6 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
           <button type="button" className="btn btn-import-cv" onClick={() => importFileRef.current?.click()} disabled={importLoading}>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             {importLoading ? 'Import…' : 'Importer un CV'}
-          </button>
-          <button type="button" className="btn btn-linkedin-sync" onClick={handleFetchLinkedIn} disabled={linkedinLoading}>
-            {linkedinLoading ? 'Récupération…' : 'Mettre à jour depuis LinkedIn'}
           </button>
           <button type="button" className="btn btn-primary profile-save-btn" onClick={handleSave} disabled={saving}>
             {saving ? 'Enregistrement…' : 'Enregistrer le CV'}
@@ -770,7 +859,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/gif"
                 className="profile-photo-file-input"
-                onChange={(e) => { handleUploadPhoto(e); if (e?.target?.files?.[0]) setPhotoModalOpen(false); }}
+                onChange={(e) => { openCropModal(e); }}
                 aria-label="Choisir une image"
               />
               <button type="button" className="btn btn-secondary profile-photo-modal-btn" onClick={() => { fileInputRef.current?.click(); }} disabled={uploadPhotoLoading}>
@@ -780,6 +869,45 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                 {importPhotoLoading ? 'Import…' : 'Importer la photo LinkedIn'}
               </button>
               <button type="button" className="btn btn-tertiary profile-photo-modal-close" onClick={() => setPhotoModalOpen(false)}>Fermer</button>
+            </div>
+          </div>
+        )}
+        {cropModalOpen && cropImageSrc && (
+          <div className="profile-crop-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="crop-modal-title">
+            <div className="profile-crop-modal" onClick={(e) => e.stopPropagation()}>
+              <h3 id="crop-modal-title">Cadrer la photo pour le CV</h3>
+              <p className="profile-crop-modal-hint">Déplace et zoome l’image pour choisir le cadrage (affichage en cercle sur le CV).</p>
+              <div className="profile-crop-container">
+                <Cropper
+                  image={cropImageSrc}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={1}
+                  cropShape="round"
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={onCropComplete}
+                />
+              </div>
+              <div className="profile-crop-zoom-row">
+                <span className="profile-crop-zoom-label">Zoom</span>
+                <input
+                  type="range"
+                  min={1}
+                  max={3}
+                  step={0.1}
+                  value={zoom}
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  className="profile-crop-zoom-slider"
+                  aria-label="Zoom"
+                />
+              </div>
+              <div className="profile-crop-modal-actions">
+                <button type="button" className="btn btn-tertiary" onClick={closeCropModal}>Annuler</button>
+                <button type="button" className="btn btn-primary" onClick={handleConfirmCrop} disabled={uploadPhotoLoading || !croppedAreaPixels}>
+                  {uploadPhotoLoading ? 'Import…' : 'Valider le cadrage'}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1131,10 +1259,14 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
           onUpgradeClick={onUpgradeClick}
         />
         <div className="profile-preview-wrap profile-preview-a4">
-          {livePreviewHtml ? (
-            <iframe title="Aperçu CV en direct" srcDoc={livePreviewHtml} className="profile-preview-iframe" onLoad={(e) => resizeProfilePreviewIframe(e.target)} />
-          ) : (
+          {profilePreviewPdfLoading && (
+            <p className="profile-preview-empty">Génération de l&apos;aperçu PDF…</p>
+          )}
+          {!profilePreviewPdfLoading && !profilePreviewPdfUrl && (
             <p className="profile-preview-empty">Modifiez le formulaire pour voir l&apos;aperçu.</p>
+          )}
+          {!profilePreviewPdfLoading && profilePreviewPdfUrl && (
+            <iframe title="Aperçu PDF du CV" src={`${profilePreviewPdfUrl}#toolbar=0&navpanes=0`} className="profile-preview-iframe profile-preview-iframe--pdf" />
           )}
         </div>
       </div>

@@ -9,7 +9,7 @@ from pathlib import Path
 ASSETS_DIR = "assets"
 PHOTO_CV_NAME = "photo_cv.jpg"
 PHOTO_NAMES = ("photo.jpg", "photo.jpeg", "photo.png", "photo.webp")
-MAX_SIZE = 200  # max width/height en px pour le CV (affichage ~80px, 200 suffit pour qualité)
+MAX_SIZE = 400  # max width/height en px pour le CV (affichage jusqu'à ~160px + rétina : 400 évite la pixelisation)
 JPEG_QUALITY = 85
 
 

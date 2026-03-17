@@ -9,6 +9,15 @@
   --cv-sidebar-color: #f8f6f0;
   --cv-accent-color: #b8860b;
   --cv-font-heading: Georgia, 'Times New Roman', serif;
+  --cv-fs-name: 18pt;
+  --cv-fs-title: 10.5pt;
+  --cv-fs-section: 10pt;
+  --cv-fs-body: 9.5pt;
+  --cv-fs-bullet: 9pt;
+  --cv-fs-sidebar-title: 9pt;
+  --cv-fs-sidebar-item: 8.5pt;
+  --cv-color-body: #1a1a1a;
+  --cv-color-section-title: #0f172a;
 }
 
 @page { size: A4; margin: 0; }
@@ -50,18 +59,19 @@ body {
   gap: 16px;
 }
 
-.header-photo { width: 60px; height: 60px; flex-shrink: 0; }
+.header-photo { width: var(--cv-photo-size, 60px); height: var(--cv-photo-size, 60px); flex-shrink: 0; }
 .header-photo img {
-  width: 60px; height: 60px;
+  width: var(--cv-photo-size, 60px); height: var(--cv-photo-size, 60px);
   border-radius: 50%;
   border: 2.5px solid var(--cv-accent-color);
   object-fit: cover;
+  object-position: center;
   display: block;
 }
 
 .header-nom {
   font-family: var(--cv-font-heading);
-  font-size: 18pt;
+  font-size: var(--cv-fs-name, 18pt);
   font-weight: 700;
   margin: 0;
   color: #fff;
@@ -72,14 +82,14 @@ body {
 .header-titre-sep { font-weight: 400; opacity: 0.5; margin: 0 6px; }
 .header-titre-inline {
   font-family: var(--cv-font-heading);
-  font-size: 10.5pt;
+  font-size: var(--cv-fs-title, 10.5pt);
   font-weight: 400;
   font-style: italic;
   opacity: 0.9;
 }
 
 .resume-text {
-  font-size: 9pt;
+  font-size: var(--cv-fs-body, 9pt);
   font-style: italic;
   text-align: justify;
   margin: 8px 0 0 0;
@@ -105,15 +115,16 @@ body {
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  background: #fff;
+  background-color: #fff;
+  color: var(--cv-color-body, #1a1a1a);
 }
 
 /* Section titles */
 .section-title {
   font-family: var(--cv-font-heading);
-  font-size: 10pt;
+  font-size: var(--cv-fs-section, 10pt);
   font-weight: 700;
-  color: var(--cv-accent-color);
+  color: var(--cv-color-section-title, var(--cv-accent-color));
   border-bottom: 1.5px solid var(--cv-accent-color);
   padding-bottom: 2px;
   margin: 0 0 6px 0;
@@ -130,7 +141,7 @@ body {
 .exp-entreprise { font-weight: 700; color: #1a1a1a; }
 .exp-dates { font-weight: 600; white-space: nowrap; flex-shrink: 0; color: var(--cv-accent-color); font-size: 8.5pt; }
 .exp-poste { font-size: 9pt; color: #555; margin: 0 0 3px 0; font-style: italic; }
-.experience-item .bullet { margin: 0; font-size: 8.5pt; line-height: 1.4; color: #333; }
+.experience-item .bullet { margin: 0; font-size: var(--cv-fs-bullet, 8.5pt); line-height: 1.4; color: var(--cv-color-body, #333); }
 .exp-clients { font-style: italic; font-size: 8pt; color: #777; margin: 4px 0 0 0; padding-top: 3px; border-top: 1px solid #eee; }
 
 /* Formation */
@@ -152,11 +163,12 @@ body {
   position: absolute;
   right: 0; top: 0; bottom: 0;
   width: 200px;
-  background: var(--cv-sidebar-color);
+  background-color: var(--cv-sidebar-color, #f8f6f0);
+  color: #1a1a1a;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-left: 1.5px solid var(--cv-accent-color);
+  border-left: 1.5px solid var(--cv-accent-color, #b8860b);
 }
 
 .section-sidebar { padding: 10px 12px 4px; }
@@ -179,7 +191,7 @@ body.cv-preview .mots-cles-ats-invisible { color: #000; font-size: 7pt; }
 
 /* PDF compact */
 body:not(.cv-preview) .cv-header { padding: 12px 16px 10px; }
-body:not(.cv-preview) .header-photo, body:not(.cv-preview) .header-photo img { width: 48px; height: 48px; }
+body:not(.cv-preview) .header-photo, body:not(.cv-preview) .header-photo img { width: var(--cv-photo-size, 48px); height: var(--cv-photo-size, 48px); }
 body:not(.cv-preview) .header-nom { font-size: 15pt; }
 body:not(.cv-preview) .cv-sidebar { width: 190px; }
 body:not(.cv-preview) .cv-main { margin-right: 190px; }

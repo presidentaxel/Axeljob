@@ -45,6 +45,17 @@ function isSupabaseSignedPhotoUrl(url) {
 
 const COLOR_RE = /^#[0-9a-fA-F]{3,8}$/;
 const CSS_VAR_MAP = { header_color: '--cv-header-color', sidebar_color: '--cv-sidebar-color', accent_color: '--cv-accent-color' };
+const TYPO_CSS_VAR_MAP = {
+  font_size_name: '--cv-fs-name',
+  font_size_title: '--cv-fs-title',
+  font_size_section: '--cv-fs-section',
+  font_size_body: '--cv-fs-body',
+  font_size_bullet: '--cv-fs-bullet',
+  font_size_sidebar_title: '--cv-fs-sidebar-title',
+  font_size_sidebar_item: '--cv-fs-sidebar-item',
+  color_body: '--cv-color-body',
+  color_section_title: '--cv-color-section-title',
+};
 const FONT_SAFE = { 'Plus Jakarta Sans': "'Plus Jakarta Sans', Arial, sans-serif", 'Inter': "'Inter', Arial, sans-serif", 'Georgia': "Georgia, 'Times New Roman', serif" };
 
 function optionsToCssVars(opts) {
@@ -55,6 +66,17 @@ function optionsToCssVars(opts) {
     if (v && typeof v === 'string' && COLOR_RE.test(v)) vars[cssVar] = v;
   }
   if (opts.font && FONT_SAFE[opts.font]) vars['--cv-font-heading'] = FONT_SAFE[opts.font];
+  for (const [key, cssVar] of Object.entries(TYPO_CSS_VAR_MAP)) {
+    const v = opts[key];
+    if (key.startsWith('font_size_') && v != null) {
+      const pt = typeof v === 'number' ? v : parseFloat(String(v).replace(',', '.'), 10);
+      if (!Number.isNaN(pt) && pt >= 6 && pt <= 24) vars[cssVar] = `${pt}pt`;
+    } else if (key.startsWith('color_') && v && typeof v === 'string' && COLOR_RE.test(v)) {
+      vars[cssVar] = v;
+    }
+  }
+  const photoPx = opts.photo_size != null ? (typeof opts.photo_size === 'number' ? opts.photo_size : parseFloat(String(opts.photo_size).replace(',', '.'), 10)) : NaN;
+  if (!Number.isNaN(photoPx) && photoPx >= 40 && photoPx <= 160) vars['--cv-photo-size'] = `${Math.round(photoPx)}px`;
   return vars;
 }
 
@@ -425,6 +447,9 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
     </article>
   );
 
+  const rootVarsStyle = Object.keys(cssVarOverrides).length
+    ? `:root { ${Object.entries(cssVarOverrides).map(([k, v]) => `${k}: ${v}`).join('; ')} }`
+    : '';
   return (
     <div
       ref={containerRef}
@@ -433,6 +458,7 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
       data-content-density={contentDensity}
       onBlur={handleBlur}
     >
+      {rootVarsStyle ? <style dangerouslySetInnerHTML={{ __html: rootVarsStyle }} /> : null}
       <link rel="stylesheet" href={apiUrl(`/api/templates/${templateId}/template.css`)} />
       {(templateId === 'minimal') && renderMinimal()}
       {(templateId === 'modern') && renderModern()}

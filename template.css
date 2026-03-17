@@ -113,8 +113,8 @@
   }
   body:not(.cv-preview) .header-photo,
   body:not(.cv-preview) .header-photo img {
-    width: 46px;
-    height: 46px;
+    width: var(--cv-photo-size, 46px);
+    height: var(--cv-photo-size, 46px);
   }
   body:not(.cv-preview) .header-nom {
     font-size: 14pt;
@@ -127,7 +127,9 @@
   }
   /* Éviter les coupures au milieu d’un bloc dans le PDF */
   body:not(.cv-preview) .experience-item,
-  body:not(.cv-preview) .formation-item,
+  body:not(.cv-preview) .formation-item {
+    break-inside: avoid;
+  }
 
   /* Corps : flux unique pour l'ATS (ordre DOM = main puis sidebar), positionnement visuel inchangé */
   .cv-body {
@@ -161,17 +163,18 @@
   }
 
   .header-photo {
-    width: 52px;
-    height: 52px;
+    width: var(--cv-photo-size, 52px);
+    height: var(--cv-photo-size, 52px);
     flex-shrink: 0;
   }
 
   .header-photo img {
-    width: 52px;
-    height: 52px;
+    width: var(--cv-photo-size, 52px);
+    height: var(--cv-photo-size, 52px);
     border-radius: 50%;
     border: 2px solid white;
     object-fit: cover;
+    object-position: center;
     display: block;
   }
 

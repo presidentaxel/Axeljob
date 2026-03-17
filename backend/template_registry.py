@@ -72,19 +72,33 @@ def get_template_dir(template_id: str | None = None) -> Path:
     return Path(meta.get("_dir") or TEMPLATES_DIR / DEFAULT_TEMPLATE_ID)
 
 
+# Options typo globales (tailles en pt, couleurs en hex, photo en px). Disponibles pour tous les templates (fichiers + Supabase).
+TYPO_OPTION_DEFAULTS = {
+    "font_size_name": 15,
+    "font_size_title": 10,
+    "font_size_section": 9.5,
+    "font_size_body": 9,
+    "font_size_bullet": 9,
+    "font_size_sidebar_title": 8,
+    "font_size_sidebar_item": 8,
+    "color_body": "#1a1a1a",
+    "color_section_title": "#1e2a3a",
+    "photo_size": 72,
+}
+
 def resolve_options(template_id: str | None, user_options: dict | None) -> dict:
-    """Merge user options with template defaults. Toujours inclure show_photo et show_mots_cles_ats pour tous les templates."""
+    """Merge user options with template defaults. Inclut show_photo, show_mots_cles_ats et options typo pour tous les templates."""
     meta = get_template(template_id)
-    defaults = {}
+    defaults = {**TYPO_OPTION_DEFAULTS}
     for opt in meta.get("options") or []:
         defaults[opt["key"]] = opt.get("default")
-    # Options globales (tous les templates, sans exception)
     defaults.setdefault("show_photo", True)
     defaults.setdefault("show_mots_cles_ats", True)
     final = {**defaults}
     if user_options:
+        allowed_extra = {"show_photo", "show_mots_cles_ats", "photo_size"} | set(TYPO_OPTION_DEFAULTS)
         for k, v in user_options.items():
-            if v is not None and (k in defaults or k in ("show_photo", "show_mots_cles_ats")):
+            if v is not None and (k in defaults or k in allowed_extra):
                 final[k] = v
     return final
 
@@ -98,21 +112,52 @@ _FONT_SAFE = {
     "Georgia": "Georgia, 'Times New Roman', serif",
 }
 
+# Clés typo → variable CSS (tailles en pt, couleurs en hex)
+_TYPO_CSS_VAR_MAP = {
+    "font_size_name": "--cv-fs-name",
+    "font_size_title": "--cv-fs-title",
+    "font_size_section": "--cv-fs-section",
+    "font_size_body": "--cv-fs-body",
+    "font_size_bullet": "--cv-fs-bullet",
+    "font_size_sidebar_title": "--cv-fs-sidebar-title",
+    "font_size_sidebar_item": "--cv-fs-sidebar-item",
+    "color_body": "--cv-color-body",
+    "color_section_title": "--cv-color-section-title",
+}
+
 def options_to_css_vars(options: dict) -> str:
-    """Generates an inline <style> block that overrides :root CSS variables."""
-    mapping = {
-        "header_color": "--cv-header-color",
-        "sidebar_color": "--cv-sidebar-color",
-        "accent_color": "--cv-accent-color",
-    }
+    """Generates an inline <style> block that overrides :root CSS variables (couleurs, police, tailles typo)."""
     parts = []
-    for key, css_var in mapping.items():
+    for key, css_var in (
+        ("header_color", "--cv-header-color"),
+        ("sidebar_color", "--cv-sidebar-color"),
+        ("accent_color", "--cv-accent-color"),
+    ):
         val = options.get(key)
         if val and isinstance(val, str) and _COLOR_RE.match(val):
             parts.append(f"  {css_var}: {val};")
     font = options.get("font")
     if font and isinstance(font, str) and font in _FONT_SAFE:
         parts.append(f"  --cv-font-heading: {_FONT_SAFE[font]};")
+    for key, css_var in _TYPO_CSS_VAR_MAP.items():
+        val = options.get(key)
+        if key.startswith("font_size_") and val is not None:
+            try:
+                pt = float(val) if isinstance(val, (int, float)) else float(str(val).strip().replace(",", "."))
+                if 6 <= pt <= 24:
+                    parts.append(f"  {css_var}: {pt}pt;")
+            except (TypeError, ValueError):
+                pass
+        elif key.startswith("color_") and val and isinstance(val, str) and _COLOR_RE.match(val):
+            parts.append(f"  {css_var}: {val};")
+    val = options.get("photo_size")
+    if val is not None:
+        try:
+            px = float(val) if isinstance(val, (int, float)) else float(str(val).strip().replace(",", "."))
+            if 40 <= px <= 160:
+                parts.append(f"  --cv-photo-size: {int(round(px))}px;")
+        except (TypeError, ValueError):
+            pass
     if not parts:
         return ""
     return "<style>:root {\n" + "\n".join(parts) + "\n}</style>"

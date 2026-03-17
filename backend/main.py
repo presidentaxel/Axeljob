@@ -296,7 +296,7 @@ def _diff_highlight_html(base: str, current: str) -> str:
     return "\n".join(out_lines)
 
 
-def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bool = False, for_preview: bool = False, template_id: str | None = None, template_options: dict | None = None, selection_a4: dict | None = None) -> str:
+def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bool = False, for_preview: bool = False, for_pdf: bool = False, template_id: str | None = None, template_options: dict | None = None, selection_a4: dict | None = None) -> str:
     from jinja2 import Environment, FileSystemLoader, select_autoescape
     from photo_assets import ensure_compressed_photo, get_photo_url_for_cv
     from adapter import _strip_h_f
@@ -338,11 +338,12 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
         ctx["titre_professionnel_display"] = html_module.escape(titre_cv)
         ctx["resume_display"] = html_module.escape((cv.get("resume") or "").strip())
 
+    # Objectif : toujours 1 page. Avec selection_a4 (adaptation) on affiche la sélection IA ; sinon limites strictes.
     use_selection = bool(selection_a4)
-    max_exp = 20 if use_selection else 6
+    max_exp = 20 if use_selection else 5
     max_bullets = 3 if use_selection else 2
-    max_form = 10 if use_selection else 5
-    max_proj = 10 if use_selection else 5
+    max_form = 10 if use_selection else 4
+    max_proj = 10 if use_selection else 2
 
     by_id = {e.get("id"): e for e in (base.get("experiences") or []) if e.get("id")}
     experiences_raw = (cv.get("experiences") or [])[:max_exp]
@@ -447,7 +448,7 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
         )
         template = env.get_template("template.html")
         html_str = template.render(**ctx)
-        css_path = tmpl_dir / "template.css"
+        css_path = Path(tmpl_dir).resolve() / "template.css"
         if css_path.is_file():
             css_content = css_path.read_text(encoding="utf-8")
             style_block = f"<style>{css_content}</style>"
@@ -474,22 +475,44 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
     if css_vars_style:
         html_str = html_str.replace("</head>", css_vars_style + "</head>", 1)
 
-    # Même échelle CSS pour original et modifié : on calcule à partir du CV de référence (base si présent)
-    _ref = base_cv if base_cv else cv
-    _exp_ref = [e for e in (_ref.get("experiences") or [])[:6] if (e.get("poste") or e.get("entreprise") or any((e.get("bullet_points") or [])))]
-    _bullet_ref = sum(len(e.get("bullet_points") or []) for e in _exp_ref)
-    _form_ref = len([f for f in (_ref.get("formations") or [])[:5] if (f.get("diplome") or f.get("etablissement") or f.get("date") or f.get("mention"))])
-    _proj_ref = len([p for p in (_ref.get("projets") or [])[:5] if (p.get("nom") or p.get("description"))])
-    content_score = len(_exp_ref) * 3 + _bullet_ref + _form_ref + _proj_ref
-    if content_score <= 6:
-        scale_css = "<style>body{font-size:11pt;line-height:1.55}.resume-text{font-size:10.5pt;line-height:1.6}.bullet{font-size:10.5pt;line-height:1.5}.sidebar-item{font-size:9.5pt;line-height:1.4}.section-title{font-size:10.5pt}.exp-poste{font-size:11pt}</style>"
-        html_str = html_str.replace("</head>", scale_css + "</head>", 1)
-    elif content_score <= 10:
-        scale_css = "<style>body{font-size:10pt;line-height:1.5}.resume-text{font-size:10pt;line-height:1.55}.bullet{font-size:9.5pt;line-height:1.45}.sidebar-item{font-size:9pt;line-height:1.35}</style>"
-        html_str = html_str.replace("</head>", scale_css + "</head>", 1)
-    elif content_score > 15:
-        scale_css = "<style>body{font-size:9pt;line-height:1.45}.resume-text{font-size:9pt;line-height:1.5}.bullet{font-size:8.5pt;line-height:1.4}.sidebar-item{font-size:8pt;line-height:1.3}.section-title{font-size:9.5pt}.exp-poste{font-size:9.5pt}</style>"
-        html_str = html_str.replace("</head>", scale_css + "</head>", 1)
+    # Templates personnalisés (Supabase) : forcer les variables typo sur les classes standard + sélecteurs alternatifs (left-column/right-column, main-header, timeline, etc.)
+    from backend.template_registry import TYPO_OPTION_DEFAULTS
+    if tmpl_meta.get("_custom") and css_vars_style:
+        typo_override = (
+            "<style>"
+            ".cv .header-nom,.cv .sidebar-nom,.cv .main-header h1{font-size:var(--cv-fs-name, 15pt) !important;color:var(--cv-header-color, #000) !important}"
+            ".cv .header-titre-inline,.cv .header-titre,.cv .sidebar-titre,.cv .main-header p{font-size:var(--cv-fs-title, 10pt) !important;color:var(--cv-color-body, #555) !important}"
+            ".cv .section-title,.cv .main-section-title,.cv .sidebar-section-title,.cv .sidebar-category,.cv h2,.cv .left-column h2,.cv .right-column h2{font-size:var(--cv-fs-section, 9.5pt) !important;color:var(--cv-color-section-title, var(--cv-accent-color, #1e2a3a)) !important}"
+            ".cv .resume-text,.cv .header-contact,.cv .cv-main,.cv .exp-poste,.cv .formation-diplome,.cv .right-column,.cv .profil p,.cv .timeline-content h3,.cv .timeline-content .company,.cv .timeline-content .date{font-size:var(--cv-fs-body, 9pt) !important;color:var(--cv-color-body, #1a1a1a) !important}"
+            ".cv .experience-item .bullet,.cv .bullet,.cv .timeline-content .bullets li{font-size:var(--cv-fs-bullet, 9pt) !important;color:var(--cv-color-body, #1a1a1a) !important}"
+            ".cv .sidebar-item,.cv .left-column ul li,.cv .contact ul li{font-size:var(--cv-fs-sidebar-item, 8pt) !important;color:var(--cv-color-body, #333) !important}"
+            ".cv .exp-entreprise,.cv .formation-diplome{color:var(--cv-color-body, #1a1a1a) !important}"
+            ".cv .left-column{background-color:var(--cv-sidebar-color, #f7f7f7) !important}"
+            "body,.cv{color:var(--cv-color-body, #1a1a1a) !important}"
+            # Photo : taille imposée par l'app pour les templates intégrés (.header-photo, .sidebar-photo). .photo-container est laissé aux templates personnalisés (pas de !important) pour éviter les conflits de centrage/fallback.
+            ".cv .header-photo,.cv .header-photo img,.cv .sidebar-photo,.cv .sidebar-photo img{width:var(--cv-photo-size,72px) !important;height:var(--cv-photo-size,72px) !important}"
+            "</style>"
+        )
+        html_str = html_str.replace("</head>", typo_override + "</head>", 1)
+
+    # Même échelle CSS pour original et modifié (sauf si l'utilisateur a des options typo : on respecte alors les :root déjà injectés)
+    _has_typo_opts = template_options is not None and any(k in (template_options or {}) for k in TYPO_OPTION_DEFAULTS)
+    if not _has_typo_opts:
+        _ref = base_cv if base_cv else cv
+        _exp_ref = [e for e in (_ref.get("experiences") or [])[:6] if (e.get("poste") or e.get("entreprise") or any((e.get("bullet_points") or [])))]
+        _bullet_ref = sum(len(e.get("bullet_points") or []) for e in _exp_ref)
+        _form_ref = len([f for f in (_ref.get("formations") or [])[:5] if (f.get("diplome") or f.get("etablissement") or f.get("date") or f.get("mention"))])
+        _proj_ref = len([p for p in (_ref.get("projets") or [])[:5] if (p.get("nom") or p.get("description"))])
+        content_score = len(_exp_ref) * 3 + _bullet_ref + _form_ref + _proj_ref
+        if content_score <= 6:
+            scale_css = "<style>body{font-size:11pt;line-height:1.55}.resume-text{font-size:10.5pt;line-height:1.6}.bullet{font-size:10.5pt;line-height:1.5}.sidebar-item{font-size:9.5pt;line-height:1.4}.section-title{font-size:10.5pt}.exp-poste{font-size:11pt}</style>"
+            html_str = html_str.replace("</head>", scale_css + "</head>", 1)
+        elif content_score <= 10:
+            scale_css = "<style>body{font-size:10pt;line-height:1.5}.resume-text{font-size:10pt;line-height:1.55}.bullet{font-size:9.5pt;line-height:1.45}.sidebar-item{font-size:9pt;line-height:1.35}</style>"
+            html_str = html_str.replace("</head>", scale_css + "</head>", 1)
+        elif content_score > 15:
+            scale_css = "<style>body{font-size:9pt;line-height:1.45}.resume-text{font-size:9pt;line-height:1.5}.bullet{font-size:8.5pt;line-height:1.4}.sidebar-item{font-size:8pt;line-height:1.3}.section-title{font-size:9.5pt}.exp-poste{font-size:9.5pt}</style>"
+            html_str = html_str.replace("</head>", scale_css + "</head>", 1)
 
     if highlight_changes and base_cv:
         highlight_styles = (
@@ -498,7 +521,7 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
             "@media print{.cv-changed,.cv-header .cv-changed,.cv-sidebar .cv-changed{background-color:transparent;color:inherit;padding:0}}</style>"
         )
         html_str = html_str.replace("</head>", highlight_styles + "</head>", 1)
-    if for_preview:
+    if for_preview and not for_pdf:
         scrollbar_style = (
             "html,body{scrollbar-width:thin;scrollbar-color:rgba(107,70,193,0.45) transparent}"
             "html::-webkit-scrollbar,body::-webkit-scrollbar{width:2px;height:2px}"
@@ -1389,8 +1412,7 @@ async def api_stripe_webhook(request: Request):
     sig = request.headers.get("stripe-signature", "")
     try:
         import stripe
-        client = stripe.StripeClient(STRIPE_SECRET_KEY)
-        event = client.webhooks.construct_event(payload, sig, STRIPE_WEBHOOK_SECRET)
+        event = stripe.Webhook.construct_event(payload, sig, STRIPE_WEBHOOK_SECRET)
     except ValueError:
         raise HTTPException(status_code=400, detail="Payload invalide.")
     except Exception as e:
@@ -1400,16 +1422,28 @@ async def api_stripe_webhook(request: Request):
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
         metadata = session.get("metadata") or {}
-        if metadata.get("type") == "template_perso":
-            customer_details = session.get("customer_details") or {}
-            email = (customer_details.get("email") or session.get("customer_email") or "").strip()
-            if email:
-                _send_template_perso_email(email)
-        else:
-            user_id = (session.get("client_reference_id") or "").strip()
-            if user_id:
-                set_user_plan(user_id, "pro")
-                logger.info("User %s set to pro after Stripe checkout", user_id)
+        try:
+            if metadata.get("type") == "template_perso":
+                customer_details = session.get("customer_details") or {}
+                email = (customer_details.get("email") or session.get("customer_email") or "").strip()
+                if email:
+                    _send_template_perso_email(email)
+            else:
+                user_id = (session.get("client_reference_id") or "").strip()
+                if user_id:
+                    customer_id = session.get("customer")
+                    sub_id = session.get("subscription")
+                    stripe_customer_id = customer_id if isinstance(customer_id, str) else (customer_id.id if customer_id else None)
+                    stripe_sub_id = sub_id if isinstance(sub_id, str) else (sub_id.id if sub_id else None)
+                    set_user_plan(user_id, "pro", stripe_customer_id=stripe_customer_id, stripe_subscription_id=stripe_sub_id)
+                    logger.info("User %s set to pro after Stripe checkout", user_id)
+        except Exception as e:
+            logger.exception(
+                "Stripe webhook checkout.session.completed failed: %s (event_id=%s)",
+                e,
+                event.get("id"),
+            )
+            raise
     return {"received": True}
 
 
@@ -1745,10 +1779,11 @@ def api_adapt(request: Request, body: AdaptBody):
         poste_offre = (tweaks.get("poste_offre") or "").strip()
         entreprise_offre = (offre.get("entreprise") or "").strip()
 
+        # Toujours sélectionner le contenu pour tenir sur 1 page A4 à l'adaptation (preview / export / PDF cohérents).
         selection_a4 = None
         try:
             from cv_select_a4 import select_cv_content_for_a4
-            selection_a4 = select_cv_content_for_a4(merged, offre, user_id=user_id)
+            selection_a4 = select_cv_content_for_a4(merged, offre, user_id=user_id, force=True)
         except Exception:
             pass
 
@@ -1844,15 +1879,30 @@ def api_pdf(request: Request, body: PdfBody):
                 pass
     selection_a4 = body.selection_a4
     try:
-        # Même HTML que la preview iframe pour que l'export PDF soit identique à l'aperçu
+        # Export PDF : for_preview=True (body.cv-preview) mais for_pdf=True pour ne pas injecter preview_responsive
+        # (qui casse le rendu WeasyPrint). Les couleurs sont forcées via PDF_EXPORT_PREVIEW_ALIGN_CSS.
         html = _render_cv_html(
             cv,
             for_preview=True,
+            for_pdf=True,
             template_id=body.template_id,
             template_options=body.template_options,
             selection_a4=selection_a4,
         )
-        from generator import generer_pdf_bytes_from_html
+        from generator import generer_pdf_bytes_from_html, PDF_EXPORT_PREVIEW_ALIGN_CSS
+        # Injecter le correctif pour WeasyPrint (sidebar fixe, mots-clés visibles au print) sans changer le rendu visuel.
+        if PDF_EXPORT_PREVIEW_ALIGN_CSS and "</head>" in html:
+            html = html.replace("</head>", PDF_EXPORT_PREVIEW_ALIGN_CSS + "</head>", 1)
+        # Templates personnalisés : supprimer marges de page WeasyPrint (2cm par défaut) et marges .cv.
+        if body.template_id and str(body.template_id).strip().startswith("custom_") and "</head>" in html:
+            custom_pdf_fix = (
+                "<style>"
+                "@page{margin:0}"
+                "body{background:#fff!important;margin:0!important;padding:0!important}"
+                ".cv{margin:0!important}"
+                "</style>"
+            )
+            html = html.replace("</head>", custom_pdf_fix + "</head>", 1)
         pdf_bytes, filename = generer_pdf_bytes_from_html(html, BASE_DIR, cv, offre)
     except Exception as e:
         logger.exception(e)

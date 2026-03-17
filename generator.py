@@ -160,11 +160,46 @@ def _content_scale_css(content_score: int) -> str:
     return ""
 
 # Pour que l'export PDF affiche tout le contenu (comme la preview), on autorise la hauteur fluide
-# au lieu de forcer 297mm + overflow hidden qui rogne le contenu.
+# tout en gardant une min-height pour que la grid (1fr) ne calcule pas 0 et que le contenu soit visible.
 PDF_EXPORT_LAYOUT_CSS = (
     "<style>"
-    ".cv{height:auto!important;min-height:auto!important;max-height:none!important;overflow:visible!important}"
+    ".cv{height:auto!important;min-height:297mm!important;max-height:none!important;overflow:visible!important}"
     ".cv-body,.cv-header,.cv-sidebar{overflow:visible!important;min-height:0}"
+    ".cv-body{min-height:250mm!important}"
+    "</style>"
+)
+
+# Templates personnalisés (Supabase) : supprimer marges (WeasyPrint 2cm par défaut + .cv) et fond gris.
+PDF_EXPORT_CUSTOM_TEMPLATE_FIX = (
+    "<style>"
+    "@page{margin:0}"
+    "body{background:#fff!important;margin:0!important;padding:0!important}"
+    ".cv{margin:0!important}"
+    "</style>"
+)
+
+# Export = même rendu que la preview. Correctif WeasyPrint : layout (min-height), couleurs via
+# variables CSS (settings) pour que l'export respecte les choix utilisateur.
+# Pas de couleurs en dur : header/sidebar/section/body utilisent var(--cv-*).
+PDF_EXPORT_PREVIEW_ALIGN_CSS = (
+    "<style>"
+    ".cv-preview .cv{min-height:297mm!important;}"
+    ".cv-preview .cv-body{min-height:250mm!important;}"
+    ".cv-preview .cv-header{background:var(--cv-header-color)!important;}"
+    ".cv-preview .cv-main{background-color:#fff!important;}"
+    ".cv-preview .cv-body,.cv-preview .cv-main,.cv-preview .cv-main *{color:var(--cv-color-body,#1a1a1a)!important;}"
+    ".cv-preview .cv-sidebar{min-width:200px!important;width:200px!important;background-color:var(--cv-sidebar-color,#f4f4f2)!important;break-inside:avoid!important;page-break-inside:avoid!important;}"
+    ".cv-preview .section-title{color:var(--cv-color-section-title,var(--cv-accent-color,#1e2a3a))!important;border-bottom-color:var(--cv-color-section-title,var(--cv-accent-color,#1e2a3a))!important;}"
+    ".cv-preview .section-experiences,.cv-preview .section-formation,.cv-preview .section-projets{background-color:#fff!important;}"
+    ".cv-preview .exp-entreprise,.cv-preview .exp-dates,.cv-preview .exp-poste,.cv-preview .bullet,.cv-preview .formation-diplome,.cv-preview .formation-date,.cv-preview .projet-nom,.cv-preview .projet-description{color:var(--cv-color-body,#1a1a1a)!important;}"
+    ".cv-preview .exp-dates,.cv-preview .formation-date{color:var(--cv-color-section-title,var(--cv-accent-color,#1e2a3a))!important;}"
+    ".cv-preview .exp-poste,.cv-preview .bullet,.cv-preview .projet-description,.cv-preview .formation-mention{color:var(--cv-color-body,#333)!important;}"
+    ".cv-preview .header-top-row{min-width:0!important;}"
+    ".cv-preview .header-titre-inline{overflow-wrap:break-word!important;white-space:normal!important;min-width:0!important;flex:1 1 auto!important;}"
+    "@media print{"
+    ".cv-preview .mots-cles-ats-invisible{color:#000!important;}"
+    ".cv-preview .section-mots-cles-ats .mots-cles-ats-titre{color:#000!important;display:block!important;}"
+    "}"
     "</style>"
 )
 
@@ -178,7 +213,7 @@ def _render_pdf_bytes_from_ctx(cv_ctx: dict, template_dir: Path, css, css_vars_s
     )
     template = env.get_template("template.html")
     html_str = template.render(**cv_ctx)
-    inject = PDF_EXPORT_LAYOUT_CSS + (css_vars_style or "") + (scale_css or "")
+    inject = PDF_EXPORT_LAYOUT_CSS + PDF_EXPORT_PREVIEW_ALIGN_CSS + (css_vars_style or "") + (scale_css or "")
     if inject:
         html_str = html_str.replace("</head>", inject + "</head>", 1)
     html_doc = HTML(string=html_str, base_url=str(template_dir))
@@ -216,7 +251,7 @@ def _render_pdf_bytes_from_custom_ctx(
                 html_str = re.sub(r"(<body[^>]*>)", r"\1" + style_block, html_str, count=1)
             else:
                 html_str = style_block + html_str
-    inject = PDF_EXPORT_LAYOUT_CSS + (css_vars_style or "") + (scale_css or "")
+    inject = PDF_EXPORT_CUSTOM_TEMPLATE_FIX + PDF_EXPORT_LAYOUT_CSS + PDF_EXPORT_PREVIEW_ALIGN_CSS + (css_vars_style or "") + (scale_css or "")
     if inject:
         html_str = html_str.replace("</head>", inject + "</head>", 1)
     html_doc = HTML(string=html_str, base_url=str(base_dir))
@@ -239,7 +274,17 @@ def generer_pdf_bytes_from_html(html_str: str, base_dir: Path, cv: dict, offre: 
     Génère le PDF à partir du HTML déjà rendu (même HTML que la preview iframe).
     Garantit que l'export PDF est identique à l'aperçu.
     """
+    import re
     from weasyprint import HTML
+    # Ne jamais laisser WeasyPrint charger template.css depuis base_dir (racine) :
+    # un template.css à la racine casserait le rendu (règle CSS invalide, layout différent).
+    # Le CSS doit déjà être inliné dans le HTML par _render_cv_html.
+    html_str = re.sub(
+        r'<link\s[^>]*href\s*=\s*["\']?(?:[^"\'>\s]*/)?template\.css["\']?[^>]*>\s*',
+        '',
+        html_str,
+        flags=re.IGNORECASE,
+    )
     base_dir = Path(base_dir).resolve()
     html_doc = HTML(string=html_str, base_url=str(base_dir))
     buffer = __import__("io").BytesIO()
@@ -282,7 +327,8 @@ def generer_pdf_bytes(cv_adapte: dict, offre: dict, base_dir: str | Path | None 
     import html as html_module
     cv_adapte["titre_professionnel_display"] = html_module.escape(_strip_h_f(cv_adapte.get("titre_professionnel") or ""))
     cv_adapte["resume_display"] = html_module.escape(cv_adapte.get("resume") or "")
-    cv_adapte["for_preview"] = False
+    # Export = même rendu que la preview (couleurs, tailles, mots-clés ATS visibles)
+    cv_adapte["for_preview"] = True
     show_mots_cles_ats = resolved_opts.get("show_mots_cles_ats", True)
     css_vars = options_to_css_vars(resolved_opts)
 

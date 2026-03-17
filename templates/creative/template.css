@@ -9,6 +9,15 @@
   --cv-sidebar-color: #6366f1;
   --cv-accent-color: #f59e0b;
   --cv-font-heading: 'Plus Jakarta Sans', Arial, sans-serif;
+  --cv-fs-name: 14pt;
+  --cv-fs-title: 9pt;
+  --cv-fs-section: 9.5pt;
+  --cv-fs-body: 9pt;
+  --cv-fs-bullet: 8.5pt;
+  --cv-fs-sidebar-title: 8.5pt;
+  --cv-fs-sidebar-item: 8pt;
+  --cv-color-body: #1a1a1a;
+  --cv-color-section-title: #f59e0b;
 }
 
 @page { size: A4; margin: 0; }
@@ -45,23 +54,24 @@ body {
 
 .sidebar-photo { padding: 20px 20px 10px; text-align: center; }
 .sidebar-photo img {
-  width: 80px; height: 80px;
+  width: var(--cv-photo-size, 80px); height: var(--cv-photo-size, 80px);
   border-radius: 50%;
   object-fit: cover;
+  object-position: center;
   border: 3px solid var(--cv-accent-color);
 }
 
 .sidebar-identity { padding: 0 16px 12px; text-align: center; }
 .sidebar-nom {
   font-family: var(--cv-font-heading);
-  font-size: 14pt;
+  font-size: var(--cv-fs-name, 14pt);
   font-weight: 700;
   margin: 0;
   color: #fff;
   line-height: 1.2;
 }
 .sidebar-titre {
-  font-size: 9pt;
+  font-size: var(--cv-fs-title, 9pt);
   font-weight: 400;
   opacity: 0.9;
   margin: 4px 0 0 0;
@@ -76,7 +86,7 @@ body {
 
 .sidebar-section-title {
   font-family: var(--cv-font-heading);
-  font-size: 8.5pt;
+  font-size: var(--cv-fs-sidebar-title, 8.5pt);
   font-weight: 700;
   color: var(--cv-accent-color);
   text-transform: uppercase;
@@ -89,7 +99,7 @@ body {
 }
 
 .sidebar-item {
-  font-size: 8pt;
+  font-size: var(--cv-fs-sidebar-item, 8pt);
   line-height: 1.5;
   margin: 0 0 2px 0;
   color: rgba(255,255,255,0.92);
@@ -113,9 +123,9 @@ body.cv-preview .mots-cles-ats-invisible { color: rgba(255,255,255,0.6); font-si
 
 .main-section-title {
   font-family: var(--cv-font-heading);
-  font-size: 10pt;
+  font-size: var(--cv-fs-section, 10pt);
   font-weight: 700;
-  color: var(--cv-sidebar-color);
+  color: var(--cv-color-section-title, var(--cv-sidebar-color));
   margin: 0 0 6px 0;
   padding-bottom: 3px;
   border-bottom: 2px solid var(--cv-accent-color);
@@ -158,7 +168,7 @@ body.cv-preview .mots-cles-ats-invisible { color: rgba(255,255,255,0.6); font-si
 .projet-description { font-size: 8.5pt; color: #666; margin: 0 0 4px 0; line-height: 1.4; }
 
 /* PDF compact */
-body:not(.cv-preview) .sidebar-photo img { width: 64px; height: 64px; }
+body:not(.cv-preview) .sidebar-photo img { width: var(--cv-photo-size, 64px); height: var(--cv-photo-size, 64px); }
 body:not(.cv-preview) .sidebar-nom { font-size: 12pt; }
 body:not(.cv-preview) .cv { grid-template-columns: 190px 1fr; }
 

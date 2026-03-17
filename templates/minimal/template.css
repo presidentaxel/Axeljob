@@ -8,6 +8,15 @@
   --cv-header-color: #ffffff;
   --cv-accent-color: #111827;
   --cv-font-heading: Georgia, 'Times New Roman', serif;
+  --cv-fs-name: 18pt;
+  --cv-fs-title: 10pt;
+  --cv-fs-section: 10.5pt;
+  --cv-fs-body: 9pt;
+  --cv-fs-bullet: 9pt;
+  --cv-fs-sidebar-title: 9pt;
+  --cv-fs-sidebar-item: 9pt;
+  --cv-color-body: #1a1a1a;
+  --cv-color-section-title: #111827;
 }
 
 @page {
@@ -47,16 +56,17 @@ body {
 }
 
 .header-photo {
-  width: 52px;
-  height: 52px;
+  width: var(--cv-photo-size, 52px);
+  height: var(--cv-photo-size, 52px);
   flex-shrink: 0;
 }
 
 .header-photo img {
-  width: 52px;
-  height: 52px;
+  width: var(--cv-photo-size, 52px);
+  height: var(--cv-photo-size, 52px);
   border-radius: 50%;
   object-fit: cover;
+  object-position: center;
   display: block;
 }
 
@@ -66,22 +76,22 @@ body {
 
 .header-nom {
   font-family: var(--cv-font-heading);
-  font-size: 18pt;
+  font-size: var(--cv-fs-name, 18pt);
   font-weight: 700;
   margin: 0;
-  color: var(--cv-accent-color);
+  color: var(--cv-color-section-title, var(--cv-accent-color));
   line-height: 1.15;
 }
 
 .header-titre {
-  font-size: 10pt;
+  font-size: var(--cv-fs-title, 10pt);
   color: #555;
   margin: 2px 0 0;
   font-weight: 400;
 }
 
 .header-contact {
-  font-size: 8.5pt;
+  font-size: var(--cv-fs-body, 8.5pt);
   color: #666;
   margin: 4px 0 0;
 }
@@ -99,9 +109,9 @@ body {
 
 .section-title {
   font-family: var(--cv-font-heading);
-  font-size: 10pt;
+  font-size: var(--cv-fs-section, 10pt);
   font-weight: 700;
-  color: var(--cv-accent-color);
+  color: var(--cv-color-section-title, var(--cv-accent-color));
   margin: 0 0 4px 0;
   padding-bottom: 2px;
   border-bottom: 1px solid #d1d5db;
@@ -109,10 +119,10 @@ body {
 }
 
 .resume-text {
-  font-size: 9pt;
+  font-size: var(--cv-fs-body, 9pt);
   font-style: italic;
   line-height: 1.45;
-  color: #444;
+  color: var(--cv-color-body, #444);
   margin: 0;
   text-align: justify;
 }
@@ -141,7 +151,7 @@ body {
 
 .exp-entreprise {
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--cv-color-body, #1a1a1a);
 }
 
 .exp-poste-inline {
@@ -160,8 +170,8 @@ body {
 .experience-item .bullet {
   margin: 0;
   padding-left: 0;
-  color: #1a1a1a;
-  font-size: 8.5pt;
+  color: var(--cv-color-body, #1a1a1a);
+  font-size: var(--cv-fs-bullet, 8.5pt);
   line-height: 1.35;
 }
 

@@ -8,6 +8,15 @@
   --cv-header-color: #ffffff;
   --cv-accent-color: #4a5568;
   --cv-font-heading: Georgia, 'Times New Roman', serif;
+  --cv-fs-name: 20pt;
+  --cv-fs-title: 10.5pt;
+  --cv-fs-section: 10pt;
+  --cv-fs-body: 9pt;
+  --cv-fs-bullet: 8.5pt;
+  --cv-fs-sidebar-title: 8pt;
+  --cv-fs-sidebar-item: 8.5pt;
+  --cv-color-body: #2d3748;
+  --cv-color-section-title: #4a5568;
 }
 
 @page { size: A4; margin: 0; }
@@ -40,26 +49,27 @@ body {
   border-bottom: 1px solid #e2e8f0;
 }
 
-.header-photo { margin: 0 auto 8px; width: 56px; height: 56px; }
+.header-photo { margin: 0 auto 8px; width: var(--cv-photo-size, 56px); height: var(--cv-photo-size, 56px); }
 .header-photo img {
-  width: 56px; height: 56px;
+  width: var(--cv-photo-size, 56px); height: var(--cv-photo-size, 56px);
   border-radius: 50%;
   object-fit: cover;
+  object-position: center;
   border: 2px solid var(--cv-accent-color);
 }
 
 .header-nom {
   font-family: var(--cv-font-heading);
-  font-size: 20pt;
+  font-size: var(--cv-fs-name, 20pt);
   font-weight: 700;
   margin: 0;
-  color: var(--cv-accent-color);
+  color: var(--cv-color-section-title, var(--cv-accent-color));
   letter-spacing: 0.04em;
 }
 
 .header-titre {
   font-family: var(--cv-font-heading);
-  font-size: 10.5pt;
+  font-size: var(--cv-fs-title, 10.5pt);
   font-weight: 400;
   font-style: italic;
   color: #718096;
@@ -89,9 +99,9 @@ body {
 
 .section-title {
   font-family: var(--cv-font-heading);
-  font-size: 10pt;
+  font-size: var(--cv-fs-section, 10pt);
   font-weight: 700;
-  color: var(--cv-accent-color);
+  color: var(--cv-color-section-title, var(--cv-accent-color));
   margin: 0 0 6px 0;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -115,7 +125,7 @@ body {
 .exp-entreprise { font-weight: 700; color: #1a202c; }
 .exp-dates { font-size: 8.5pt; color: var(--cv-accent-color); white-space: nowrap; flex-shrink: 0; }
 .exp-poste { font-size: 9pt; color: #718096; margin: 1px 0 3px 0; font-style: italic; }
-.bullet { margin: 0; padding-left: 10px; font-size: 8.5pt; line-height: 1.4; color: #2d3748; position: relative; }
+.bullet { margin: 0; padding-left: 10px; font-size: var(--cv-fs-bullet, 8.5pt); line-height: 1.4; color: var(--cv-color-body, #2d3748); position: relative; }
 .bullet::before { content: '-'; position: absolute; left: 0; color: var(--cv-accent-color); }
 .exp-clients { font-style: italic; font-size: 8pt; color: #a0aec0; margin: 3px 0 0 0; }
 
@@ -154,7 +164,7 @@ body.cv-preview .mots-cles-ats-invisible { color: #000; font-size: 7pt; }
 /* PDF compact */
 body:not(.cv-preview) .cv-header { padding: 14px 24px 10px; }
 body:not(.cv-preview) .header-nom { font-size: 16pt; }
-body:not(.cv-preview) .header-photo, body:not(.cv-preview) .header-photo img { width: 46px; height: 46px; }
+body:not(.cv-preview) .header-photo, body:not(.cv-preview) .header-photo img { width: var(--cv-photo-size, 46px); height: var(--cv-photo-size, 46px); }
 
 /* Preview */
 html.cv-preview, body.cv-preview { width: 100%; min-width: 210mm; }

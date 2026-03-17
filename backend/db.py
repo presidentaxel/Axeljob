@@ -214,11 +214,23 @@ def _is_example_cv_data(data: dict) -> bool:
 
 
 def save_cv_base(data: dict, user_id: Optional[str] = None) -> None:
-    """Sauvegarde le CV de base dans Supabase ou dans cv_base.json (si default et pas Supabase)."""
+    """Sauvegarde le CV de base dans Supabase ou dans cv_base.json (si default et pas Supabase).
+    Préserve template_id et template_options existants si absents du payload (évite de perdre
+    les réglages template Supabase lors d'une sauvegarde qui ne les envoie pas)."""
     data = {k: v for k, v in data.items() if k != "__example__"}
     row_id = _cv_row_id(user_id)
     if row_id != "default" and _is_example_cv_data(data):
         raise ValueError("Refusing to save example CV as user profile. Please complete your own profile in the Profile tab.")
+    # Ne jamais écraser template_id / template_options par défaut : conserver ceux déjà enregistrés si le payload ne les contient pas
+    if "template_id" not in data or "template_options" not in data:
+        try:
+            existing = load_cv_base(user_id)
+            if "template_id" not in data and existing.get("template_id") is not None:
+                data["template_id"] = existing["template_id"]
+            if "template_options" not in data and existing.get("template_options") is not None:
+                data["template_options"] = existing["template_options"]
+        except FileNotFoundError:
+            pass
     sb = _get_supabase()
     if sb:
         try:

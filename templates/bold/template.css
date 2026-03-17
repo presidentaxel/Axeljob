@@ -9,6 +9,15 @@
   --cv-sidebar-color: #f1f5f9;
   --cv-accent-color: #dc2626;
   --cv-font-heading: 'Plus Jakarta Sans', Arial, sans-serif;
+  --cv-fs-name: 20pt;
+  --cv-fs-title: 11pt;
+  --cv-fs-section: 10pt;
+  --cv-fs-body: 9pt;
+  --cv-fs-bullet: 8.5pt;
+  --cv-fs-sidebar-title: 9pt;
+  --cv-fs-sidebar-item: 8.5pt;
+  --cv-color-body: #1e293b;
+  --cv-color-section-title: #1e293b;
 }
 
 @page { size: A4; margin: 0; }
@@ -52,17 +61,18 @@ body {
 }
 
 .header-top-row { display: flex; align-items: center; gap: 16px; }
-.header-photo { width: 64px; height: 64px; flex-shrink: 0; }
+.header-photo { width: var(--cv-photo-size, 64px); height: var(--cv-photo-size, 64px); flex-shrink: 0; }
 .header-photo img {
-  width: 64px; height: 64px;
-  border-radius: 8px;
+  width: var(--cv-photo-size, 64px); height: var(--cv-photo-size, 64px);
+  border-radius: 50%;
   object-fit: cover;
+  object-position: center;
   border: 3px solid var(--cv-accent-color);
 }
 
 .header-nom {
   font-family: var(--cv-font-heading);
-  font-size: 20pt;
+  font-size: var(--cv-fs-name, 20pt);
   font-weight: 800;
   margin: 0;
   color: #fff;
@@ -73,13 +83,13 @@ body {
 .header-titre-sep { font-weight: 400; opacity: 0.4; margin: 0 6px; }
 .header-titre-inline {
   font-family: var(--cv-font-heading);
-  font-size: 11pt;
+  font-size: var(--cv-fs-title, 11pt);
   font-weight: 600;
   color: var(--cv-accent-color);
 }
 
 .resume-text {
-  font-size: 9pt;
+  font-size: var(--cv-fs-body, 9pt);
   text-align: justify;
   margin: 10px 0 0 0;
   color: rgba(255,255,255,0.88);
@@ -110,9 +120,9 @@ body {
 /* Section titles - bold line */
 .section-title {
   font-family: var(--cv-font-heading);
-  font-size: 10pt;
+  font-size: var(--cv-fs-section, 10pt);
   font-weight: 800;
-  color: var(--cv-header-color);
+  color: var(--cv-color-section-title, var(--cv-header-color));
   margin: 0 0 6px 0;
   padding: 3px 0 3px 8px;
   border-left: 4px solid var(--cv-accent-color);
@@ -129,7 +139,7 @@ body {
 .exp-entreprise { font-weight: 700; color: var(--cv-header-color); }
 .exp-dates { font-size: 8.5pt; font-weight: 700; color: var(--cv-accent-color); white-space: nowrap; flex-shrink: 0; }
 .exp-poste { font-size: 9pt; color: #64748b; margin: 1px 0 3px 0; font-weight: 600; }
-.experience-item .bullet { margin: 0; font-size: 8.5pt; line-height: 1.4; }
+.experience-item .bullet { margin: 0; font-size: var(--cv-fs-bullet, 8.5pt); line-height: 1.4; color: var(--cv-color-body, #1e293b); }
 .exp-clients { font-style: italic; font-size: 8pt; color: #94a3b8; margin: 3px 0 0 0; }
 
 /* Formation */
@@ -172,7 +182,7 @@ body {
   letter-spacing: 0.04em;
 }
 
-.sidebar-item { font-size: 8.5pt; color: #475569; line-height: 1.45; margin: 0 0 1px 0; }
+.sidebar-item { font-size: var(--cv-fs-sidebar-item, 8.5pt); color: var(--cv-color-body, #475569); line-height: 1.45; margin: 0 0 1px 0; }
 
 #competences-techniques > .section-title { margin-bottom: 8px; }
 #langues > .section-title, #autres > .section-title { margin-top: 12px; }
@@ -188,7 +198,7 @@ body.cv-preview .mots-cles-ats-invisible { color: #000; font-size: 7pt; }
 
 /* PDF compact */
 body:not(.cv-preview) .cv-header { padding: 14px 18px 12px; }
-body:not(.cv-preview) .header-photo, body:not(.cv-preview) .header-photo img { width: 50px; height: 50px; }
+body:not(.cv-preview) .header-photo, body:not(.cv-preview) .header-photo img { width: var(--cv-photo-size, 50px); height: var(--cv-photo-size, 50px); }
 body:not(.cv-preview) .header-nom { font-size: 16pt; }
 body:not(.cv-preview) .cv-sidebar { width: 190px; }
 body:not(.cv-preview) .cv-main { margin-right: 190px; }

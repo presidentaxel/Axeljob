@@ -1117,21 +1117,24 @@ body {
   border-radius: var(--radius-sm) var(--radius-sm) var(--radius-sm) 4px;
 }
 
-/* Bloc étapes d’adaptation (stepper visuel) - contraste renforcé */
+/* Bloc étapes d’adaptation (stepper visuel) - fond clair, texte sombre */
+.cv-chat-msg--assistant .cv-chat-msg-content.cv-adapt-steps-wrap {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: #334155;
+}
 .cv-adapt-steps-wrap {
   min-width: 260px;
-  background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   padding: 1rem 1.15rem;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
 }
 
 .cv-adapt-steps-title {
   margin: 0 0 0.75rem;
   font-size: 1rem;
   font-weight: 700;
-  color: #ffffff;
+  color: #0f172a;
   letter-spacing: 0.02em;
 }
 
@@ -1149,20 +1152,20 @@ body {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.8125rem;
-  color: #9ca3af;
+  color: #64748b;
   transition: color 0.2s ease;
 }
 
 .cv-adapt-step--done {
-  color: #86efac;
+  color: #047857;
 }
 
 .cv-adapt-step--done .cv-adapt-step-icon {
-  color: #86efac;
+  color: #047857;
 }
 
 .cv-adapt-step--current {
-  color: #ffffff;
+  color: #0f172a;
   font-weight: 600;
 }
 
@@ -1173,21 +1176,21 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #9ca3af;
+  color: #64748b;
 }
 
 .cv-adapt-step-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #6b7280;
+  background: #94a3b8;
 }
 
 .cv-adapt-step-spinner {
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.25);
-  border-top-color: #86efac;
+  border: 2px solid #e2e8f0;
+  border-top-color: #059669;
   border-radius: 50%;
   animation: cv-adapt-spin 0.7s linear infinite;
 }
@@ -1199,14 +1202,14 @@ body {
 .cv-adapt-progress-bar {
   margin-top: 0.75rem;
   height: 4px;
-  background: rgba(255, 255, 255, 0.12);
+  background: #e2e8f0;
   border-radius: 2px;
   overflow: hidden;
 }
 
 .cv-adapt-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #6ee7b7, #86efac);
+  background: linear-gradient(90deg, #059669, #10b981);
   border-radius: 2px;
   transition: width 0.35s ease-out;
 }
@@ -1461,42 +1464,83 @@ body {
   justify-content: center;
 }
 
-/* Feuille A4 (210mm x 297mm) : représentation fidèle de l'export PDF */
+/* Feuille A4 : largeur fixe, hauteur adaptée au contenu (plus courte si template compact) */
 .preview-a4-sheet {
   width: 210mm;
   max-width: 100%;
-  min-height: 297mm;
+  min-height: 0;
   flex-shrink: 0;
   background: #fff;
   border-radius: 2px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 25px rgba(0, 0, 0, 0.08);
 }
 
-/* Aligner la preview éditable sur la même taille que la feuille A4 (éviter conflit sparse/medium/dense) */
+/* Preview éditable : hauteur = contenu du CV (pas de bloc 297mm fixe) */
 .preview-a4-sheet .cv-editable-preview {
   width: 100%;
-  min-height: 297mm;
+  min-height: 0;
   box-sizing: border-box;
 }
 
-/* Conteneur CV : largeur 100 %, pas de dépassement horizontal (HTML preview responsive côté backend) */
+/* Conteneur iframe : hauteur adaptée au contenu (resizeIframeToContent) */
 .preview-iframe-wrap {
   width: 100%;
   max-width: 100%;
-  min-height: 297mm;
+  min-height: 0;
   background: #fff;
   border-radius: 2px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 25px rgba(0, 0, 0, 0.08);
 }
 
+.preview-one-page-hint {
+  margin: 0 0 8px 0;
+  padding: 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
 .preview-wrap .preview-iframe-wrap iframe {
   width: 100%;
-  min-height: 297mm;
+  min-height: 0;
   /* height fixé par JS (resizeIframeToContent) pour une seule zone de scroll */
   border: none;
   transition: opacity 0.15s ease;
   background: #fff;
   display: block;
+}
+
+/* Aperçu PDF = même rendu que le téléchargement */
+.preview-iframe-wrap--pdf {
+  position: relative;
+  min-height: 420px;
+}
+
+.preview-pdf-iframe {
+  width: 100%;
+  min-height: 297mm;
+  height: 85vh;
+  max-height: 900px;
+  border: none;
+  background: #fff;
+  display: block;
+}
+
+.preview-pdf-loading,
+.preview-pdf-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 297mm;
+  padding: 2rem;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  text-align: center;
+}
+
+.preview-pdf-empty {
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 2px;
 }
 
 .preview-editable-hint {
@@ -1511,6 +1555,24 @@ body {
   margin-left: 0.75rem;
   font-size: 0.75rem;
   color: var(--muted);
+}
+
+.preview-reset-view-btn {
+  margin-left: auto;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.preview-reset-view-btn:hover {
+  color: var(--text);
+  border-color: var(--muted);
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .preview-custom-hint {

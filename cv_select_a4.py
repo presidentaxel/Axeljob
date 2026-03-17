@@ -180,12 +180,15 @@ def select_cv_content_for_a4(
     cv: dict,
     offre: dict | None = None,
     user_id: str | None = None,
+    *,
+    force: bool = False,
 ) -> dict | None:
     """
     Appelle l'IA pour sélectionner les éléments du CV à afficher sur une page A4.
-    Retourne un dict de sélection (experience_ids, formation_indices, etc.) ou None en cas d'erreur / contenu déjà raisonnable.
+    Retourne un dict de sélection (experience_ids, formation_indices, etc.) ou None en cas d'erreur.
+    Si force=True (ex. au moment de l'adaptation à une offre), la sélection est toujours exécutée pour garantir 1 page.
     """
-    if _should_skip_selection(cv):
+    if not force and _should_skip_selection(cv):
         return None
 
     api_key = os.environ.get("GEMINI_API_KEY")

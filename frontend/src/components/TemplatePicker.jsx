@@ -2,8 +2,38 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { apiGet } from '../api';
 import TemplateModal, { FAVORITES_STORAGE_KEY } from './TemplateModal';
 
+const TYPO_DEFAULTS = {
+  font_size_name: 15,
+  font_size_title: 10,
+  font_size_section: 9.5,
+  font_size_body: 9,
+  font_size_bullet: 9,
+  font_size_sidebar_title: 8,
+  font_size_sidebar_item: 8,
+  color_body: '#1a1a1a',
+  color_section_title: '#1e2a3a',
+  photo_size: 72,
+};
+
+const TYPO_PRESETS = {
+  compact: { font_size_name: 14, font_size_title: 9.5, font_size_section: 9, font_size_body: 8.5, font_size_bullet: 8.5, font_size_sidebar_title: 7.5, font_size_sidebar_item: 7.5 },
+  default: TYPO_DEFAULTS,
+  readable: { font_size_name: 16, font_size_title: 11, font_size_section: 10.5, font_size_body: 10, font_size_bullet: 10, font_size_sidebar_title: 9, font_size_sidebar_item: 9 },
+};
+
+const TYPO_FIELDS = [
+  { key: 'font_size_name', label: 'Nom (en-tête)', min: 10, max: 24, step: 0.5, unit: 'pt' },
+  { key: 'font_size_title', label: 'Titre professionnel', min: 8, max: 16, step: 0.5, unit: 'pt' },
+  { key: 'font_size_section', label: 'Titres de section', min: 8, max: 14, step: 0.5, unit: 'pt' },
+  { key: 'font_size_body', label: 'Texte (corps)', min: 7, max: 13, step: 0.5, unit: 'pt' },
+  { key: 'font_size_bullet', label: 'Listes à puces', min: 7, max: 12, step: 0.5, unit: 'pt' },
+  { key: 'font_size_sidebar_title', label: 'Sidebar – titres', min: 6, max: 12, step: 0.5, unit: 'pt' },
+  { key: 'font_size_sidebar_item', label: 'Sidebar – texte', min: 6, max: 11, step: 0.5, unit: 'pt' },
+  { key: 'photo_size', label: 'Taille de la photo', min: 48, max: 140, step: 2, unit: 'px' },
+];
+
 function getDefaultOptions(options) {
-  const defaults = {};
+  const defaults = { ...TYPO_DEFAULTS };
   (options || []).forEach((opt) => {
     if (opt.key !== undefined) defaults[opt.key] = opt.default;
   });
@@ -14,6 +44,7 @@ function getDefaultOptions(options) {
 
 function OptionsPopover({ options, templateOptions, onChangeOptions, onClose }) {
   const ref = useRef(null);
+  const [typoOpen, setTypoOpen] = useState(false);
   const defaultOptions = getDefaultOptions(options);
 
   useEffect(() => {
@@ -30,8 +61,27 @@ function OptionsPopover({ options, templateOptions, onChangeOptions, onClose }) 
     onChangeOptions(defaultOptions);
   };
 
+  const applyTypoPreset = (presetKey) => {
+    const preset = TYPO_PRESETS[presetKey];
+    onChangeOptions({ ...templateOptions, ...preset });
+  };
+
+  const getTypoValue = (key) => {
+    const v = templateOptions?.[key];
+    if (v != null) return Number(v);
+    return TYPO_DEFAULTS[key] != null ? TYPO_DEFAULTS[key] : (key === 'photo_size' ? 72 : 9);
+  };
+
+  const setTypoValue = (key, value) => {
+    const n = parseFloat(value, 10);
+    if (!Number.isNaN(n)) onChangeOptions({ ...templateOptions, [key]: n });
+  };
+
+  const getColorValue = (key) => templateOptions?.[key] || TYPO_DEFAULTS[key] || '#1a1a1a';
+  const setColorValue = (key, value) => onChangeOptions({ ...templateOptions, [key]: value });
+
   return (
-    <div className="tpl-popover" ref={ref}>
+    <div className="tpl-popover tpl-popover--with-typo" ref={ref}>
       <div className="tpl-popover-arrow" />
       {options.map(opt => (
         <div key={opt.key} className="tpl-opt-row">
@@ -77,6 +127,74 @@ function OptionsPopover({ options, templateOptions, onChangeOptions, onClose }) 
           </div>
         </div>
       ))}
+
+      <div className="tpl-typo-section">
+        <div className="tpl-typo-section-title">Typo & couleurs</div>
+        <div className="tpl-typo-presets">
+          <button type="button" className="tpl-typo-preset-btn" onClick={() => applyTypoPreset('compact')} title="Texte plus compact">
+            Compact
+          </button>
+          <button type="button" className="tpl-typo-preset-btn tpl-typo-preset-btn--default" onClick={() => applyTypoPreset('default')} title="Tailles par défaut">
+            Défaut
+          </button>
+          <button type="button" className="tpl-typo-preset-btn" onClick={() => applyTypoPreset('readable')} title="Texte plus lisible">
+            Lisible
+          </button>
+        </div>
+        <button
+          type="button"
+          className="tpl-typo-toggle"
+          onClick={() => setTypoOpen(!typoOpen)}
+          aria-expanded={typoOpen}
+        >
+          {typoOpen ? 'Masquer le réglage fin' : 'Personnaliser par section'}
+          <span className={`tpl-typo-chevron ${typoOpen ? 'tpl-typo-chevron--open' : ''}`}>▼</span>
+        </button>
+        {typoOpen && (
+          <div className="tpl-typo-fields">
+            {TYPO_FIELDS.map(({ key, label, min, max, step, unit = 'pt' }) => (
+              <div key={key} className="tpl-typo-row">
+                <label className="tpl-typo-label">{label}</label>
+                <div className="tpl-typo-control">
+                  <input
+                    type="range"
+                    min={min}
+                    max={max}
+                    step={step}
+                    value={getTypoValue(key)}
+                    onChange={e => setTypoValue(key, e.target.value)}
+                    className="tpl-typo-range"
+                  />
+                  <span className="tpl-typo-value">{getTypoValue(key)} {unit}</span>
+                </div>
+              </div>
+            ))}
+            <div className="tpl-typo-row">
+              <span className="tpl-typo-label">Couleur du texte (corps)</span>
+              <label className="tpl-cinput-wrap tpl-typo-color-wrap">
+                <input
+                  type="color"
+                  value={getColorValue('color_body')}
+                  onChange={e => setColorValue('color_body', e.target.value)}
+                  className="tpl-cinput"
+                />
+              </label>
+            </div>
+            <div className="tpl-typo-row">
+              <span className="tpl-typo-label">Couleur des titres de section</span>
+              <label className="tpl-cinput-wrap tpl-typo-color-wrap">
+                <input
+                  type="color"
+                  value={getColorValue('color_section_title')}
+                  onChange={e => setColorValue('color_section_title', e.target.value)}
+                  className="tpl-cinput"
+                />
+              </label>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="tpl-popover-reset">
         <button type="button" className="tpl-popover-reset-btn" onClick={handleReset}>
           Réglages d’origine
@@ -165,27 +283,25 @@ export default function TemplatePicker({ templates: templatesProp, templateId, t
           <svg className="tpl-btn-open-modal-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
       </div>
-      {options.length > 0 && (
-        <div className="tpl-bar-right">
-          <button
-            className={`tpl-gear${showOptions ? ' tpl-gear--open' : ''}`}
-            onClick={() => setShowOptions(!showOptions)}
-            title="Personnaliser le template"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-            </svg>
-          </button>
-          {showOptions && (
-            <OptionsPopover
-              options={options}
-              templateOptions={templateOptions}
-              onChangeOptions={onChangeOptions}
-              onClose={() => setShowOptions(false)}
-            />
-          )}
-        </div>
-      )}
+      <div className="tpl-bar-right">
+        <button
+          className={`tpl-gear${showOptions ? ' tpl-gear--open' : ''}`}
+          onClick={() => setShowOptions(!showOptions)}
+          title="Personnaliser le template (couleurs, typo)"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+        {showOptions && (
+          <OptionsPopover
+            options={options}
+            templateOptions={templateOptions}
+            onChangeOptions={onChangeOptions}
+            onClose={() => setShowOptions(false)}
+          />
+        )}
+      </div>
       <TemplateModal
         open={modalOpen}
         onClose={() => { setModalOpen(false); setInitialTab(null); }}

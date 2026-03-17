@@ -117,6 +117,11 @@
   display: block;
 }
 
+.profile-preview-iframe--pdf {
+  height: 75vh;
+  max-height: 900px;
+}
+
 .profile-preview-empty {
   padding: 2rem;
   text-align: center;
@@ -536,6 +541,77 @@
 
 .profile-photo-modal-btn {
   width: 100%;
+}
+
+/* Crop modal (cadrage photo) */
+.profile-crop-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 210;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.profile-crop-modal {
+  background: var(--bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg, var(--shadow));
+  padding: 1.25rem;
+  max-width: 520px;
+  width: 100%;
+  max-height: 95vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.profile-crop-modal h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.profile-crop-modal-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.profile-crop-container {
+  position: relative;
+  width: 100%;
+  height: 320px;
+  background: var(--muted);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.profile-crop-zoom-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.profile-crop-zoom-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  min-width: 2.5rem;
+}
+
+.profile-crop-zoom-slider {
+  flex: 1;
+  height: 6px;
+  accent-color: var(--primary, #2563eb);
+}
+
+.profile-crop-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 0.25rem;
 }
 
 /* LinkedIn sync modal */

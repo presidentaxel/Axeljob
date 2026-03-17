@@ -46,6 +46,13 @@ function lazyWithChunkReload(importFn) {
   );
 }
 
+/** Réinitialise le flag de reload chunk après chargement réussi (pour permettre un nouveau reload si un déploiement ultérieur cause encore une 404). */
+function clearChunkErrorReloadKey() {
+  try {
+    sessionStorage.removeItem('chunkErrorReload');
+  } catch (_) {}
+}
+
 const ProfileView = lazyWithChunkReload(() => import('./components/ProfileView'));
 const LandingPage = lazyWithChunkReload(() => import('./components/LandingPage'));
 const LegalPages = lazyWithChunkReload(() => import('./components/LegalPages'));
@@ -645,6 +652,11 @@ export default function App() {
     }
     if (pathname.startsWith('/app')) document.title = "AxeL Job - Adapter ton CV à l'offre";
   }, [pathname]);
+
+  // Après chargement réussi, réinitialiser le flag de reload chunk (pour un futur déploiement)
+  useEffect(() => {
+    clearChunkErrorReloadKey();
+  }, []);
 
   // Liste des templates : fetch en app (avec token si session pour avoir les templates perso dans « Mes templates »)
   useEffect(() => {

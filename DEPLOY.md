@@ -599,6 +599,18 @@ git pull origin main
 docker compose build && docker compose up -d
 ```
 
+### Erreur 404 sur les chunks (SupportHighlight-xxx.js, "Failed to fetch dynamically imported module")
+
+Si des utilisateurs voient une erreur du type **404** sur un fichier `/assets/SupportHighlight-XXXXX.js` ou **"Failed to fetch dynamically imported module"**, c'est en general lie au cache navigateur apres un nouveau deploiement :
+
+1. **Cause** : Le navigateur a garde en cache l'ancien `main.js` qui reference d'anciens noms de chunks (avec d'anciens hash). Apres le deploy, ces fichiers n'existent plus sur le serveur.
+2. **Comportement de l'app** : L'app tente automatiquement **un rechargement** de la page en cas d'erreur de chunk (une seule fois par session). Apres ce rechargement, l'utilisateur recupere le nouvel `index.html` et les bons assets.
+3. **Cote deploiement** : S'assurer que **tout** le contenu de `frontend/dist/` est bien deploye (dont tous les fichiers dans `dist/assets/`). Avec Docker, le build frontend genere un nouveau `dist/` complet a chaque `docker compose build`.
+4. **Cote serveur** : Les requetes vers `/assets/*.js` doivent servir les vrais fichiers statiques (pas un fallback vers `index.html`). Avec nginx, les fichiers dans le repertoire des assets doivent etre servis correctement.
+5. **Cache** : Ne pas mettre en cache `index.html` longtemps (ou pas du tout) pour que les utilisateurs recuperent vite la nouvelle version. Les fichiers dans `/assets/` ont un hash dans le nom et peuvent etre caches longtemps.
+
+Si l'erreur persiste **apres** un rechargement manuel de la page, verifier sur le serveur que les fichiers `dist/assets/*.js` existent bien et que nginx (ou le serveur utilise) sert le repertoire des assets.
+
 ### Voir les logs
 
 ```bash

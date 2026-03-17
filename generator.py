@@ -197,8 +197,9 @@ PDF_EXPORT_PREVIEW_ALIGN_CSS = (
     ".cv-preview .header-top-row{min-width:0!important;}"
     ".cv-preview .header-titre-inline{overflow-wrap:break-word!important;white-space:normal!important;min-width:0!important;flex:1 1 auto!important;}"
     "@media print{"
-    ".cv-preview .mots-cles-ats-invisible{color:#000!important;}"
-    ".cv-preview .section-mots-cles-ats .mots-cles-ats-titre{color:#000!important;display:block!important;}"
+    ".cv-preview .section-mots-cles-ats .mots-cles-ats-titre{display:none!important;}"
+    ".cv-preview .section-mots-cles-ats .mots-cles-ats-invisible{color:#fff!important;}"
+    ".cv-preview .cv-sidebar .section-mots-cles-ats .mots-cles-ats-invisible{color:var(--cv-sidebar-color,#f4f4f2)!important;}"
     "}"
     "</style>"
 )

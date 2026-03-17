@@ -1879,26 +1879,19 @@ def api_pdf(request: Request, body: PdfBody):
                 pass
     selection_a4 = body.selection_a4
     try:
-        # Même HTML que l'aperçu du profil (for_pdf=False) : pas de surcharge CSS, export = ce qu'on voit.
+        # for_pdf=True : pas d'injection "preview_responsive" (overflow/height qui font disparaître tout sous WeasyPrint).
+        # On garde for_preview=True pour la classe .cv-preview et le template, puis on force layout + couleurs via le CSS d'export.
         html = _render_cv_html(
             cv,
             for_preview=True,
-            for_pdf=False,
+            for_pdf=True,
             template_id=body.template_id,
             template_options=body.template_options,
             selection_a4=selection_a4,
         )
-        from generator import generer_pdf_bytes_from_html
-        # Uniquement le strict minimum pour WeasyPrint : page A4, marges, et conserver les couleurs à l'impression.
-        weasyprint_only = (
-            "<style>"
-            "@page{size:A4;margin:0}"
-            "body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}"
-            ".cv-preview .cv-header,.cv-preview .cv-sidebar{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}"
-            "</style>"
-        )
+        from generator import generer_pdf_bytes_from_html, PDF_EXPORT_LAYOUT_CSS, PDF_EXPORT_PREVIEW_ALIGN_CSS
         if "</head>" in html:
-            html = html.replace("</head>", weasyprint_only + "</head>", 1)
+            html = html.replace("</head>", PDF_EXPORT_LAYOUT_CSS + PDF_EXPORT_PREVIEW_ALIGN_CSS + "</head>", 1)
         if body.template_id and str(body.template_id).strip().startswith("custom_") and "</head>" in html:
             custom_pdf_fix = (
                 "<style>@page{margin:0}body{background:#fff!important;margin:0!important;padding:0!important}.cv{margin:0!important}</style>"
@@ -1977,19 +1970,13 @@ def api_export_dossier_zip(request: Request, body: ExportDossierZipBody):
         html = _render_cv_html(
             cv,
             for_preview=True,
-            for_pdf=False,
+            for_pdf=True,
             template_id=body.template_id,
             template_options=body.template_options,
         )
-        weasyprint_only = (
-            "<style>"
-            "@page{size:A4;margin:0}"
-            "body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}"
-            ".cv-preview .cv-header,.cv-preview .cv-sidebar{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}"
-            "</style>"
-        )
+        from generator import PDF_EXPORT_LAYOUT_CSS, PDF_EXPORT_PREVIEW_ALIGN_CSS
         if "</head>" in html:
-            html = html.replace("</head>", weasyprint_only + "</head>", 1)
+            html = html.replace("</head>", PDF_EXPORT_LAYOUT_CSS + PDF_EXPORT_PREVIEW_ALIGN_CSS + "</head>", 1)
         if body.template_id and str(body.template_id).strip().startswith("custom_") and "</head>" in html:
             custom_pdf_fix = (
                 "<style>@page{margin:0}body{background:#fff!important;margin:0!important;padding:0!important}.cv{margin:0!important}</style>"

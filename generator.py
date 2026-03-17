@@ -183,6 +183,8 @@ PDF_EXPORT_CUSTOM_TEMPLATE_FIX = (
 # Pas de couleurs en dur : header/sidebar/section/body utilisent var(--cv-*).
 PDF_EXPORT_PREVIEW_ALIGN_CSS = (
     "<style>"
+    "@page{size:A4;margin:0}"
+    "body.cv-preview{background:#fff!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}"
     "body.cv-preview,.cv-preview .cv,.cv-preview .cv-body{color:#1a1a1a!important;}"
     ".cv-preview .cv{min-height:297mm!important;}"
     ".cv-preview .cv-body{min-height:250mm!important;}"

@@ -140,11 +140,14 @@ def export_dossier_as_zip(
     lettre_corps: str | None = None,
     template_id: str | None = None,
     template_options: dict | None = None,
+    cv_html: str | None = None,
+    base_dir: "str | Path | None" = None,
 ) -> tuple[bytes, str, list[str], str]:
     """
     Génère les 3 PDFs en mémoire et les renvoie dans un ZIP.
     Retourne (zip_bytes, nom_dossier, liste_noms_fichiers, lettre_corps_utilisé).
     Si lettre_corps est fourni, il est utilisé pour la lettre ; sinon on le génère.
+    Si cv_html est fourni (même HTML que l'aperçu profil), le CV PDF est généré à partir de celui-ci pour un rendu identique.
     """
     import zipfile
     from io import BytesIO
@@ -153,9 +156,13 @@ def export_dossier_as_zip(
     offre = {"titre": poste, "entreprise": entreprise}
     files_created = []
 
-    # 1) CV
-    from generator import generer_pdf_bytes
-    cv_bytes, cv_filename = generer_pdf_bytes(cv, offre, template_id=template_id, template_options=template_options)
+    # 1) CV : même HTML que le profil si fourni, sinon ancienne génération
+    if cv_html and base_dir is not None:
+        from generator import generer_pdf_bytes_from_html
+        cv_bytes, cv_filename = generer_pdf_bytes_from_html(cv_html, Path(base_dir).resolve(), cv, offre)
+    else:
+        from generator import generer_pdf_bytes
+        cv_bytes, cv_filename = generer_pdf_bytes(cv, offre, template_id=template_id, template_options=template_options)
     files_created.append(cv_filename)
 
     # 2) Fiche de poste

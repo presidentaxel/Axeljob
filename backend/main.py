@@ -1879,28 +1879,29 @@ def api_pdf(request: Request, body: PdfBody):
                 pass
     selection_a4 = body.selection_a4
     try:
-        # Export PDF : for_preview=True (body.cv-preview) mais for_pdf=True pour ne pas injecter preview_responsive
-        # (qui casse le rendu WeasyPrint). Les couleurs sont forcées via PDF_EXPORT_PREVIEW_ALIGN_CSS.
+        # Même HTML que l'aperçu du profil (for_pdf=False) : pas de surcharge CSS, export = ce qu'on voit.
         html = _render_cv_html(
             cv,
             for_preview=True,
-            for_pdf=True,
+            for_pdf=False,
             template_id=body.template_id,
             template_options=body.template_options,
             selection_a4=selection_a4,
         )
-        from generator import generer_pdf_bytes_from_html, PDF_EXPORT_PREVIEW_ALIGN_CSS, PDF_EXPORT_LAYOUT_CSS
-        # Layout (hauteur fluide, pas de collapse) + couleurs/sidebar pour que l'export = preview.
+        from generator import generer_pdf_bytes_from_html
+        # Uniquement le strict minimum pour WeasyPrint : page A4, marges, et conserver les couleurs à l'impression.
+        weasyprint_only = (
+            "<style>"
+            "@page{size:A4;margin:0}"
+            "body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}"
+            ".cv-preview .cv-header,.cv-preview .cv-sidebar{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}"
+            "</style>"
+        )
         if "</head>" in html:
-            html = html.replace("</head>", PDF_EXPORT_LAYOUT_CSS + PDF_EXPORT_PREVIEW_ALIGN_CSS + "</head>", 1)
-        # Templates personnalisés : supprimer marges de page WeasyPrint (2cm par défaut) et marges .cv.
+            html = html.replace("</head>", weasyprint_only + "</head>", 1)
         if body.template_id and str(body.template_id).strip().startswith("custom_") and "</head>" in html:
             custom_pdf_fix = (
-                "<style>"
-                "@page{margin:0}"
-                "body{background:#fff!important;margin:0!important;padding:0!important}"
-                ".cv{margin:0!important}"
-                "</style>"
+                "<style>@page{margin:0}body{background:#fff!important;margin:0!important;padding:0!important}.cv{margin:0!important}</style>"
             )
             html = html.replace("</head>", custom_pdf_fix + "</head>", 1)
         pdf_bytes, filename = generer_pdf_bytes_from_html(html, BASE_DIR, cv, offre)
@@ -1952,18 +1953,55 @@ def api_export_dossier_zip(request: Request, body: ExportDossierZipBody):
         raise HTTPException(status_code=400, detail="Indiquez l'intitulé du poste")
     user_id = _get_user_id(request)
     _check_rate_limit(user_id, 10)
+    _check_premium_template(user_id, body.template_id)
+    _check_custom_template_access(user_id, body.template_id)
     try:
         from export_package import export_dossier_as_zip
+        cv = body.cv or {}
+        if USE_SUPABASE and user_id:
+            photo_url = (cv.get("photo_url") or "").strip()
+            is_supabase_photo = "supabase.co/storage" in photo_url and "/object/sign" in photo_url
+            if not photo_url or is_supabase_photo:
+                try:
+                    from backend.db import get_cv_photo_public_url_for_user
+                    url = get_cv_photo_public_url_for_user(user_id)
+                    if url:
+                        cv = {**cv, "photo_url": url}
+                except Exception:
+                    pass
         lettre_corps_existant = None
         if body.adaptation_id and _safe_adaptation_id(body.adaptation_id):
             payload = get_adaptation(body.adaptation_id, user_id=user_id or "default")
             if payload:
                 lettre_corps_existant = payload.get("lettre_corps")
+        html = _render_cv_html(
+            cv,
+            for_preview=True,
+            for_pdf=False,
+            template_id=body.template_id,
+            template_options=body.template_options,
+        )
+        weasyprint_only = (
+            "<style>"
+            "@page{size:A4;margin:0}"
+            "body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}"
+            ".cv-preview .cv-header,.cv-preview .cv-sidebar{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}"
+            "</style>"
+        )
+        if "</head>" in html:
+            html = html.replace("</head>", weasyprint_only + "</head>", 1)
+        if body.template_id and str(body.template_id).strip().startswith("custom_") and "</head>" in html:
+            custom_pdf_fix = (
+                "<style>@page{margin:0}body{background:#fff!important;margin:0!important;padding:0!important}.cv{margin:0!important}</style>"
+            )
+            html = html.replace("</head>", custom_pdf_fix + "</head>", 1)
         zip_bytes, folder_name, files_created, lettre_corps = export_dossier_as_zip(
-            body.cv, body.titre, body.entreprise, body.description,
+            cv, body.titre, body.entreprise, body.description,
             lettre_corps=lettre_corps_existant,
             template_id=body.template_id,
             template_options=body.template_options,
+            cv_html=html,
+            base_dir=BASE_DIR,
         )
         if body.adaptation_id and _safe_adaptation_id(body.adaptation_id) and lettre_corps:
             payload = get_adaptation(body.adaptation_id, user_id=user_id or "default")

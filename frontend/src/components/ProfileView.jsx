@@ -135,9 +135,9 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
   const [selectedChangeIds, setSelectedChangeIds] = useState(new Set());
   const [importPhotoLoading, setImportPhotoLoading] = useState(false);
   const [uploadPhotoLoading, setUploadPhotoLoading] = useState(false);
-  const [profilePreviewPdfUrl, setProfilePreviewPdfUrl] = useState(null);
-  const [profilePreviewPdfLoading, setProfilePreviewPdfLoading] = useState(false);
-  const profilePreviewPdfUrlRef = useRef(null);
+  const [profilePreviewHtml, setProfilePreviewHtml] = useState('');
+  const [profilePreviewLoading, setProfilePreviewLoading] = useState(false);
+  const profilePreviewIframeRef = useRef(null);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [cropImageSrc, setCropImageSrc] = useState(null);
@@ -279,33 +279,25 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
     localStorage.setItem('cv_template_options', JSON.stringify(templateOptions));
   }, [templateOptions, onTemplateOptionsChange]);
 
-  // Aperçu = PDF (même rendu que l'export), mis à jour quand cv / template change
+  // Aperçu = même HTML que le rendu navigateur (render-html), pas le PDF, pour éviter les soucis WeasyPrint sur le profil
   const templateKey = templateId + '|' + JSON.stringify(templateOptions);
   useEffect(() => {
     if (loading) return;
     let cancelled = false;
-    setProfilePreviewPdfLoading(true);
+    setProfilePreviewLoading(true);
     const t = setTimeout(async () => {
       try {
-        const blob = await apiPostBlob('/api/pdf', {
+        const html = await apiPost('/api/render-html', {
           cv,
-          titre: '',
-          entreprise: '',
           template_id: templateId,
           template_options: templateOptions,
         });
         if (cancelled) return;
-        if (profilePreviewPdfUrlRef.current) {
-          URL.revokeObjectURL(profilePreviewPdfUrlRef.current);
-          profilePreviewPdfUrlRef.current = null;
-        }
-        const url = URL.createObjectURL(blob);
-        profilePreviewPdfUrlRef.current = url;
-        setProfilePreviewPdfUrl(url);
+        setProfilePreviewHtml(typeof html === 'string' ? html : '');
       } catch {
-        if (!cancelled) setProfilePreviewPdfUrl(null);
+        if (!cancelled) setProfilePreviewHtml('');
       } finally {
-        if (!cancelled) setProfilePreviewPdfLoading(false);
+        if (!cancelled) setProfilePreviewLoading(false);
       }
     }, LIVE_PREVIEW_DEBOUNCE_MS);
     return () => {
@@ -313,15 +305,6 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
       clearTimeout(t);
     };
   }, [cv, loading, templateKey]);
-
-  useEffect(() => {
-    return () => {
-      if (profilePreviewPdfUrlRef.current) {
-        URL.revokeObjectURL(profilePreviewPdfUrlRef.current);
-        profilePreviewPdfUrlRef.current = null;
-      }
-    };
-  }, []);
 
   const update = (path, value) => {
     if (path.includes('.')) {
@@ -1259,14 +1242,20 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
           onUpgradeClick={onUpgradeClick}
         />
         <div className="profile-preview-wrap profile-preview-a4">
-          {profilePreviewPdfLoading && (
-            <p className="profile-preview-empty">Génération de l&apos;aperçu PDF…</p>
+          {profilePreviewLoading && (
+            <p className="profile-preview-empty">Génération de l&apos;aperçu…</p>
           )}
-          {!profilePreviewPdfLoading && !profilePreviewPdfUrl && (
+          {!profilePreviewLoading && !profilePreviewHtml && (
             <p className="profile-preview-empty">Modifiez le formulaire pour voir l&apos;aperçu.</p>
           )}
-          {!profilePreviewPdfLoading && profilePreviewPdfUrl && (
-            <iframe title="Aperçu PDF du CV" src={`${profilePreviewPdfUrl}#toolbar=0&navpanes=0`} className="profile-preview-iframe profile-preview-iframe--pdf" />
+          {!profilePreviewLoading && profilePreviewHtml && (
+            <iframe
+              ref={(el) => { profilePreviewIframeRef.current = el; }}
+              title="Aperçu du CV"
+              srcDoc={profilePreviewHtml}
+              className="profile-preview-iframe"
+              onLoad={(e) => resizeProfilePreviewIframe(e.target)}
+            />
           )}
         </div>
       </div>

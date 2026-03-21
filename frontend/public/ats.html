@@ -7,11 +7,24 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet" />
-  <title>Qu'est-ce qu'un ATS ? Comment fonctionne un logiciel ATS | AxeL Job</title>
-  <meta name="description" content="Un ATS (Applicant Tracking System) est le logiciel qui trie les candidatures. Comprendre comment il fonctionne pour faire passer ton CV et décrocher plus d'entretiens." />
+  <title>ATS : qu'est-ce que c'est et comment ça fonctionne vraiment ? | AxeL Job</title>
+  <meta name="description" content="ATS : définition, statistiques recruteurs, rejet automatique vs humain, parsing PDF/DOCX, volume de candidatures. Comment faire passer ton CV." />
   <link rel="canonical" href="https://job.axelproject.fr/ats" />
-  <meta name="robots" content="index, follow" />
   <meta name="theme-color" content="#5b4cff" />
+  <link rel="sitemap" type="application/xml" title="Plan du site AxeL Job" href="/sitemap.xml" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="AxeL Job" />
+  <meta property="og:locale" content="fr_FR" />
+  <meta property="og:url" content="https://job.axelproject.fr/ats" />
+  <meta property="og:title" content="ATS : qu'est-ce que c'est et comment ça fonctionne vraiment ? | AxeL Job" />
+  <meta property="og:description" content="ATS : définition, statistiques recruteurs, rejet automatique vs humain, parsing PDF/DOCX, volume de candidatures. Comment faire passer ton CV." />
+  <meta property="og:image" content="https://job.axelproject.fr/og-image.png" />
+  <meta property="og:image:alt" content="AxeL Job - CV et ATS" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="ATS : qu'est-ce que c'est et comment ça fonctionne vraiment ? | AxeL Job" />
+  <meta name="twitter:description" content="ATS : définition, statistiques recruteurs, rejet automatique vs humain, parsing PDF/DOCX, volume de candidatures." />
+  <meta name="twitter:image" content="https://job.axelproject.fr/og-image.png" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <link rel="stylesheet" href="/static-pages.css" />
 </head>
 <body>
@@ -26,15 +39,16 @@
         <section class="content-hero">
           <div class="content-hero-inner">
             <h1>Qu'est-ce qu'un ATS ?</h1>
-            <p class="content-lead"><strong>ATS</strong> = Applicant Tracking System. C'est le logiciel qui trie les candidatures avant qu'un recruteur ne les lise. Comprendre comment il fonctionne, c'est mettre toutes les chances de ton côté.</p>
+            <p class="content-lead">Tu envoies ta candidature. Quelques minutes plus tard, tu reçois un refus automatique. Pas de retour, pas d'explication. La faute à l'ATS ? Pas forcément. Voici ce que les données disent vraiment.</p>
           </div>
         </section>
         <section class="content-section">
-          <div class="content-section-inner">
+          <div class="content-section-inner content-prose">
             <div class="content-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v2.5l-6 7v6l-4 2v-8l-6-7V4z"/></svg></div>
             <div class="content-section-body">
-              <h2>À quoi ça sert ?</h2>
-              <p>Quand tu postules (site carrière, LinkedIn, Indeed…), ton CV atterrit le plus souvent dans un ATS. Le système scanne ton CV, en extrait les infos (expériences, compétences, formation) et les compare aux critères du poste. Les candidats dont le profil colle le mieux aux mots-clés de l'annonce remontent en tête et ont plus de chances d'être contactés.</p>
+              <h2>L'ATS, c'est quoi ?</h2>
+              <p>Un ATS (Applicant Tracking System, ou logiciel de gestion des candidatures) est un outil utilisé par les entreprises pour traiter les candidatures à grande échelle. Il centralise les CV reçus, les organise, permet de les filtrer par mots-clés ou critères, et gère les communications avec les candidats.</p>
+              <p>Aujourd'hui, plus de 98&nbsp;% des entreprises du Fortune 500 utilisent un ATS, et 75&nbsp;% des recruteurs s'appuient sur ces outils pour gérer leurs candidatures (<a href="https://www.jobscan.co/blog/tailor-resume-job-description/" class="content-source" target="_blank" rel="noopener noreferrer">Jobscan</a>).</p>
               <div class="content-visual">
                 <svg viewBox="0 0 280 160" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <rect x="20" y="20" width="70" height="44" rx="8" fill="#4f46e5" fill-opacity="0.15" stroke="#4f46e5" stroke-width="2"/>
@@ -51,20 +65,44 @@
           </div>
         </section>
         <section class="content-section">
-          <div class="content-section-inner">
+          <div class="content-section-inner content-prose">
             <div class="content-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg></div>
             <div class="content-section-body">
-              <h2>Pourquoi c'est important pour toi ?</h2>
-              <p>Si ton CV n'est pas adapté au format et au vocabulaire attendus par l'ATS, il peut être mal lu ou rejeté alors même que tu corresponds au poste. Tableaux compliqués, titres en image, formulations qui ne reprennent pas les mots de l'offre = score en baisse. À l'inverse, un CV structuré, lisible et aligné sur les mots-clés de l'annonce passe mieux le filtre et augmente tes chances d'être vu par un humain.</p>
+              <h2>Ce que l'ATS fait vraiment (et ce qu'il ne fait pas)</h2>
+              <p>La croyance populaire veut que les ATS rejettent automatiquement 75&nbsp;% des CV avant qu'un humain ne les lise. C'est faux. Selon <a href="https://enhancv.com/blog/does-ats-reject-resumes/" class="content-source" target="_blank" rel="noopener noreferrer">Enhancv</a>, cette statistique remonte à une entreprise appelée Preptel, qui a fermé ses portes en 2013 sans jamais publier de méthodologie.</p>
+              <p>La réalité, documentée par une étude <a href="https://enhancv.com/blog/does-ats-reject-resumes/" class="content-source" target="_blank" rel="noopener noreferrer">Enhancv</a> menée sur 25 recruteurs en 2025&nbsp;: 100&nbsp;% utilisent des questions d'élimination binaires (autorisation de travail, certifications, localisation), mais seulement 8&nbsp;% configurent un rejet automatique basé sur le contenu du CV. Les 92&nbsp;% restants rejettent manuellement ou uniquement via ces questions d'élimination.</p>
+              <p>En clair&nbsp;: l'ATS classe et organise, les humains rejettent. Le vrai problème n'est pas un algorithme mystérieux — c'est le volume. Toujours selon <a href="https://enhancv.com/blog/does-ats-reject-resumes/" class="content-source" target="_blank" rel="noopener noreferrer">Enhancv</a>, un poste junior reçoit entre 400 et 600 candidatures, et certains postes en remote dépassent 1&nbsp;000 la première semaine.</p>
             </div>
           </div>
         </section>
         <section class="content-section">
-          <div class="content-section-inner">
+          <div class="content-section-inner content-prose">
+            <div class="content-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+            <div class="content-section-body">
+              <h2>Pourquoi certains CV passent mieux que d'autres</h2>
+              <p>Il y a deux vrais risques&nbsp;:</p>
+              <ol>
+                <li><strong>Les questions d'élimination.</strong> Si l'offre exige 5 ans d'expérience et que tu en as 2, tu es éliminé automatiquement — pas par un algorithme qui lit ton CV, mais parce que tu ne réponds pas au critère binaire posé.</li>
+                <li><strong>Le mauvais parsing.</strong> Selon une analyse <a href="https://www.edligo.net/job-search-tips/i-analyzed-1000-rejected-resumes-heres-what-ats-actually-sees-and-its-not-what-you-think/" class="content-source" target="_blank" rel="noopener noreferrer">EDLIGO</a> de 1&nbsp;000 CV rejetés, un fichier DOCX simple a un taux d'échec de parsing de seulement 4&nbsp;%, contre 18&nbsp;% pour un PDF. Les tableaux, zones de texte et mises en page multi-colonnes augmentent considérablement les risques d'erreur de lecture.</li>
+              </ol>
+            </div>
+          </div>
+        </section>
+        <section class="content-section">
+          <div class="content-section-inner content-prose">
+            <div class="content-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg></div>
+            <div class="content-section-body">
+              <h2>Ce que ça change pour toi</h2>
+              <p class="content-callout">L'objectif n'est pas de «&nbsp;tromper&nbsp;» l'ATS. C'est de lui rendre la tâche facile. Format simple, mots-clés alignés avec l'offre, sections bien nommées («&nbsp;Expérience&nbsp;», «&nbsp;Formation&nbsp;», «&nbsp;Compétences&nbsp;»)&nbsp;: c'est tout ce qu'il faut.</p>
+            </div>
+          </div>
+        </section>
+        <section class="content-section">
+          <div class="content-section-inner content-prose">
             <div class="content-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg></div>
             <div class="content-section-body">
               <h2>Comment AxeL Job t'aide ?</h2>
-              <p>AxeL Job utilise l'IA pour adapter ton CV à chaque offre : reformulation du résumé, mise en avant des expériences pertinentes, intégration des mots-clés de l'annonce de façon naturelle. Objectif : optimiser ton passage dans les ATS tout en gardant un CV honnête et lisible par les recruteurs.</p>
+              <p>AxeL Job utilise l'IA pour adapter ton CV à chaque offre&nbsp;: reformulation du résumé, mise en avant des expériences pertinentes, intégration des mots-clés de l'annonce de façon naturelle. Objectif&nbsp;: optimiser ton passage dans les ATS tout en gardant un CV honnête et lisible par les recruteurs.</p>
             </div>
           </div>
         </section>

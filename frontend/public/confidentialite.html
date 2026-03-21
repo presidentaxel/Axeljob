@@ -8,10 +8,23 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet" />
   <title>Politique de confidentialité | AxeL Job</title>
-  <meta name="description" content="Politique de confidentialité d'AxeL Job - Données collectées, finalités, droits RGPD." />
+  <meta name="description" content="Politique de confidentialité d'AxeL Job - RGPD, données collectées, finalités, sous-traitants, droits." />
   <link rel="canonical" href="https://job.axelproject.fr/confidentialite" />
-  <meta name="robots" content="index, follow" />
   <meta name="theme-color" content="#5b4cff" />
+  <link rel="sitemap" type="application/xml" title="Plan du site AxeL Job" href="/sitemap.xml" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="AxeL Job" />
+  <meta property="og:locale" content="fr_FR" />
+  <meta property="og:url" content="https://job.axelproject.fr/confidentialite" />
+  <meta property="og:title" content="Politique de confidentialité | AxeL Job" />
+  <meta property="og:description" content="Politique de confidentialité d'AxeL Job - RGPD, données collectées, finalités, sous-traitants, droits." />
+  <meta property="og:image" content="https://job.axelproject.fr/og-image.png" />
+  <meta property="og:image:alt" content="AxeL Job" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Politique de confidentialité | AxeL Job" />
+  <meta name="twitter:description" content="Politique de confidentialité d'AxeL Job - RGPD, données collectées, finalités, sous-traitants, droits." />
+  <meta name="twitter:image" content="https://job.axelproject.fr/og-image.png" />
+  <meta name="robots" content="noindex, follow" />
   <link rel="stylesheet" href="/static-pages.css" />
 </head>
 <body>
@@ -25,52 +38,133 @@
         </header>
         <main class="legal-container legal-content">
           <h1>Politique de confidentialité</h1>
-          <p><em>Dernière mise à jour : mars 2026</em></p>
+          <p>Conformément au RGPD (Règlement UE 2016/679) et à la loi « Informatique et Libertés ».</p>
+          <p><em>Dernière mise à jour : 21 mars 2026</em></p>
+
           <h2>1. Responsable du traitement</h2>
-          <p>Le responsable du traitement des données est <strong>Axel Project</strong>, joignable à <a href="mailto:louis.vedovato@axelproject.fr">louis.vedovato@axelproject.fr</a>.</p>
+          <ul>
+            <li><strong>Société :</strong> AXEL PROJECT (AXEL)</li>
+            <li><strong>Siège :</strong> 5 rue des Iris, 92160 Antony</li>
+            <li><strong>Contact :</strong> <a href="mailto:contact@axelproject.fr">contact@axelproject.fr</a></li>
+          </ul>
+          <p>Le service concerné est <strong>AxeL Job</strong>, accessible sur <a href="https://job.axelproject.fr">job.axelproject.fr</a>.</p>
+
           <h2>2. Données collectées</h2>
-          <p>Nous collectons les données suivantes :</p>
+          <h3>2.1 Données de compte</h3>
+          <p>Lors de votre inscription, nous collectons les informations suivantes :</p>
           <ul>
-            <li><strong>Données de compte :</strong> adresse e-mail, nom (optionnel), fournies lors de l'inscription via Supabase Auth.</li>
-            <li><strong>Données de profil / CV :</strong> informations professionnelles saisies ou importées (expériences, formations, compétences, coordonnées).</li>
-            <li><strong>Données de candidatures :</strong> offres d'emploi enregistrées, statuts, documents générés.</li>
-            <li><strong>Données de paiement :</strong> gérées exclusivement par Stripe. Nous ne stockons aucun numéro de carte bancaire.</li>
-            <li><strong>Données techniques :</strong> logs de connexion, adresse IP (pour la sécurité et le rate-limiting).</li>
+            <li>Adresse e-mail ;</li>
+            <li>Mot de passe (stocké sous forme hachée et chiffrée) ;</li>
+            <li>ou les informations transmises lors d'une connexion via Google ou LinkedIn (e-mail, identifiant).</li>
           </ul>
-          <h2>3. Finalités du traitement</h2>
+
+          <h3>2.2 Données liées à l'utilisation du service</h3>
+          <p>Dans le cadre de la personnalisation de votre CV, nous collectons et stockons :</p>
           <ul>
-            <li>Fournir le service de génération et d'adaptation de CV par IA.</li>
-            <li>Gérer votre compte utilisateur et vos abonnements.</li>
-            <li>Améliorer le service (métriques anonymisées).</li>
-            <li>Assurer la sécurité du service.</li>
+            <li>Le contenu de votre CV ;</li>
+            <li>Les offres d'emploi soumises ;</li>
+            <li>Les CV générés par le service.</li>
           </ul>
-          <h2>4. Base légale</h2>
-          <p>Le traitement est fondé sur l'exécution du contrat (fourniture du service) et le consentement de l'utilisateur lors de l'inscription.</p>
-          <h2>5. Partage des données</h2>
-          <p>Vos données personnelles ne sont jamais vendues. Elles peuvent être partagées avec :</p>
-          <ul>
-            <li><strong>Supabase</strong> (hébergement de la base de données et authentification)</li>
-            <li><strong>Stripe</strong> (traitement des paiements)</li>
-            <li><strong>Google Gemini</strong> (traitement IA - les données envoyées sont limitées au contenu du CV et de l'offre)</li>
-            <li><strong>DigitalOcean</strong> (hébergement du serveur)</li>
-          </ul>
+
+          <h3>2.3 Données de paiement</h3>
+          <p>Les données de paiement (coordonnées bancaires) sont collectées et gérées exclusivement par notre prestataire Stripe. Axel Project n'a accès à aucune donnée bancaire et ne les stocke jamais.</p>
+
+          <h2>3. Finalités et bases légales</h2>
+          <table class="legal-table" aria-label="Finalités et bases légales">
+            <thead>
+              <tr>
+                <th scope="col">Finalité</th>
+                <th scope="col">Base légale</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Création et gestion du compte utilisateur</td>
+                <td>Exécution du contrat</td>
+              </tr>
+              <tr>
+                <td>Fourniture du service de personnalisation de CV</td>
+                <td>Exécution du contrat</td>
+              </tr>
+              <tr>
+                <td>Gestion des paiements</td>
+                <td>Exécution du contrat</td>
+              </tr>
+              <tr>
+                <td>Amélioration du service via recherche statistique anonymisée</td>
+                <td>Intérêt légitime</td>
+              </tr>
+              <tr>
+                <td>Envoi de questionnaires dans le cadre d'une recherche académique</td>
+                <td>Intérêt légitime (opt-out disponible)</td>
+              </tr>
+              <tr>
+                <td>Réponse aux demandes de contact</td>
+                <td>Intérêt légitime</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h2>4. Recherche statistique anonymisée</h2>
+          <p>Axel Project utilise des données anonymisées issues de l'utilisation du service (structure de CV, type de contenu, résultats) à des fins de recherche statistique. Ces données sont rendues irréversiblement anonymes avant tout traitement et ne permettent pas d'identifier un utilisateur, directement ou indirectement. Elles ne constituent donc pas des données personnelles au sens du RGPD.</p>
+          <p>Dans ce cadre, Axel Project peut solliciter les utilisateurs par e-mail pour répondre à un questionnaire de recherche. Chaque envoi comporte un lien de désinscription permettant de s'opposer à tout nouveau contact à des fins de recherche.</p>
+
+          <h2>5. Sous-traitants et destinataires</h2>
+          <p>Vos données peuvent être transmises aux sous-traitants suivants, qui agissent sur instruction d'Axel Project :</p>
+          <table class="legal-table" aria-label="Sous-traitants">
+            <thead>
+              <tr>
+                <th scope="col">Prestataire</th>
+                <th scope="col">Rôle</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Supabase Inc. (États-Unis)</td>
+                <td>Hébergement de la base de données et stockage des CV</td>
+              </tr>
+              <tr>
+                <td>Stripe, Inc. (États-Unis)</td>
+                <td>Traitement sécurisé des paiements</td>
+              </tr>
+              <tr>
+                <td>Google LLC (États-Unis) - API Gemini</td>
+                <td>Génération de CV personnalisés par intelligence artificielle</td>
+              </tr>
+            </tbody>
+          </table>
+          <p>Ces sous-traitants sont établis hors de l'Union européenne. Les transferts de données sont encadrés par des garanties appropriées conformes au RGPD (clauses contractuelles types approuvées par la Commission européenne).</p>
+
           <h2>6. Durée de conservation</h2>
-          <p>Les données sont conservées tant que votre compte est actif. Après suppression du compte, les données sont effacées sous 30 jours. Les logs techniques sont conservés 12 mois maximum.</p>
-          <h2>7. Vos droits (RGPD)</h2>
-          <p>Conformément au Règlement Général sur la Protection des Données, vous disposez des droits suivants :</p>
           <ul>
-            <li>Droit d'accès à vos données</li>
-            <li>Droit de rectification</li>
-            <li>Droit à l'effacement (« droit à l'oubli »)</li>
-            <li>Droit à la portabilité</li>
-            <li>Droit d'opposition</li>
-            <li>Droit de retirer votre consentement</li>
+            <li><strong>Données de compte (e-mail, mot de passe) :</strong> durée du compte ; supprimées à la clôture du compte.</li>
+            <li><strong>CV et documents générés :</strong> durée du compte ; supprimés à la clôture du compte.</li>
+            <li><strong>Données de paiement :</strong> gérées par Stripe selon leurs propres conditions.</li>
+            <li><strong>Données anonymisées (recherche) :</strong> conservation indéfinie - non liée à la suppression du compte (non identifiantes).</li>
           </ul>
-          <p>Pour exercer ces droits, contactez-nous à <a href="mailto:louis.vedovato@axelproject.fr">louis.vedovato@axelproject.fr</a>. Nous répondons sous 30 jours.</p>
-          <h2>8. Sécurité</h2>
-          <p>Nous mettons en œuvre des mesures techniques et organisationnelles pour protéger vos données : chiffrement HTTPS, tokens JWT, mots de passe hashés, accès restreint aux bases de données (Row Level Security), rate-limiting.</p>
-          <h2>9. Réclamation</h2>
-          <p>Si vous estimez que le traitement de vos données n'est pas conforme, vous pouvez introduire une réclamation auprès de la CNIL (<a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer">www.cnil.fr</a>).</p>
+
+          <h2>7. Sécurité</h2>
+          <p>Axel Project met en œuvre des mesures techniques et organisationnelles appropriées pour assurer la sécurité de vos données : chiffrement des mots de passe, communications HTTPS, accès restreint aux données.</p>
+
+          <h2>8. Cookies</h2>
+          <p>Le site <strong>job.axelproject.fr</strong> utilise uniquement des cookies techniques strictement nécessaires au fonctionnement du service (gestion de session, authentification, paiement sécurisé). Ces cookies ne requièrent pas de consentement préalable conformément aux lignes directrices de la CNIL.</p>
+          <p>Aucun cookie publicitaire ni de traçage tiers n'est déposé sur votre terminal.</p>
+
+          <h2>9. Vos droits</h2>
+          <p>Conformément au RGPD, vous disposez des droits suivants sur vos données personnelles :</p>
+          <ul>
+            <li><strong>Droit d'accès :</strong> obtenir une copie de vos données ;</li>
+            <li><strong>Droit de rectification :</strong> corriger des données inexactes ou incomplètes ;</li>
+            <li><strong>Droit à l'effacement :</strong> demander la suppression de vos données (sous réserve des obligations légales) ;</li>
+            <li><strong>Droit à la portabilité :</strong> recevoir vos données dans un format structuré ;</li>
+            <li><strong>Droit d'opposition :</strong> vous opposer à certains traitements, notamment aux sollicitations dans le cadre de recherches ;</li>
+            <li><strong>Droit à la limitation :</strong> demander la limitation du traitement dans certains cas.</li>
+          </ul>
+          <p>Pour exercer vos droits : <a href="mailto:contact@axelproject.fr">contact@axelproject.fr</a></p>
+          <p>Vous pouvez également introduire une réclamation auprès de la CNIL : <a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer">www.cnil.fr</a></p>
+
+          <h2>10. Modifications</h2>
+          <p>Axel Project se réserve le droit de modifier la présente politique à tout moment. En cas de modification substantielle, les utilisateurs en seront informés par e-mail ou via une notification sur le site.</p>
         </main>
         <footer class="legal-footer">
           <div class="legal-container">

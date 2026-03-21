@@ -6,6 +6,9 @@ import { join } from 'path'
 /** Sur les pages publiques (/ats, /faq, etc.) servir le HTML statique au lieu de index.html (SPA). */
 const STATIC_ROUTES = ['/ats', '/faq', '/guide-cv', '/modeles-cv', '/erreurs-cv', '/cv-par-metier', '/cv-adapte-chaque-offre', '/mentions-legales', '/confidentialite', '/cgu']
 
+/** En dev, /login reste sur index.html (bundle + injection CSS). En preview, servir dist/login.html comme en prod. */
+const PREVIEW_STATIC_ROUTES = [...STATIC_ROUTES, '/login']
+
 function staticPagesPlugin() {
   return {
     name: 'static-pages',
@@ -16,6 +19,23 @@ function staticPagesPlugin() {
         if (!STATIC_ROUTES.includes(path)) return next()
         const file = path.slice(1) + '.html'
         const filePath = join(process.cwd(), 'public', file)
+        if (!existsSync(filePath)) return next()
+        try {
+          const html = readFileSync(filePath, 'utf-8')
+          res.setHeader('Content-Type', 'text/html; charset=utf-8')
+          res.end(html)
+        } catch (_) {
+          next()
+        }
+      })
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.method !== 'GET' || !req.url) return next()
+        const path = req.url.split('?')[0].replace(/%24/g, '$')
+        if (!PREVIEW_STATIC_ROUTES.includes(path)) return next()
+        const file = path === '/login' ? 'login.html' : `${path.slice(1)}.html`
+        const filePath = join(process.cwd(), 'dist', file)
         if (!existsSync(filePath)) return next()
         try {
           const html = readFileSync(filePath, 'utf-8')
@@ -77,6 +97,12 @@ export default defineConfig({
         entryFileNames: 'assets/main.js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash][extname]',
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('react-router')) return 'react-router'
+          if (id.includes('react-dom')) return 'react-dom'
+          if (id.includes('/react/')) return 'react-core'
+        },
       },
     },
   },

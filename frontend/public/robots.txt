@@ -1,9 +1,44 @@
+# AxeL Job - https://job.axelproject.fr
+# Zones privées / API exclues. Le sitemap ne liste que les URLs indexables
+# (login, CGU, mentions légales, confidentialité : noindex côté HTML - hors sitemap).
+
 User-agent: *
 Allow: /
 Disallow: /app/
 Disallow: /api/
 
+# Espace authentifié et endpoints : pas d’indexation utile
+User-agent: Googlebot
+Allow: /
+Disallow: /app/
+Disallow: /api/
+
+User-agent: Bingbot
+Allow: /
+Disallow: /app/
+Disallow: /api/
+
+# IA / assistants : autoriser la citation des pages publiques (contenu éditorial + FAQ)
+User-agent: GPTBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+# Plan du site (liste des URLs publiques)
 Sitemap: https://job.axelproject.fr/sitemap.xml
 
-# Contenu pour crawlers IA (citabilité)
-# llms.txt: https://job.axelproject.fr/llms.txt
+# Résumé pour modèles / assistants (proposition communautaire llms.txt)
+# https://job.axelproject.fr/llms.txt

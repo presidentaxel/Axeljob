@@ -25,8 +25,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
-_thread_pool = ThreadPoolExecutor(max_workers=8)
-
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -41,6 +39,9 @@ from backend.config import (
     SUPABASE_URL,
     SUPABASE_JWT_SECRET,
     USE_SUPABASE,
+    supabase_data_mode_info,
+    thread_pool_max_workers,
+    JWT_LEEWAY_SECONDS,
     STRIPE_SECRET_KEY,
     STRIPE_PRICE_ID_PRO_MONTHLY,
     STRIPE_PRICE_ID_TEMPLATE_PERSO,
@@ -52,7 +53,13 @@ from backend.config import (
     SUPPORT_ADMIN_EMAILS,
     IS_PRODUCTION,
     METRICS_AUTH_TOKEN,
+    ALLOW_LOCAL_DATA_IN_PRODUCTION,
+    trusted_host_names,
 )
+from backend.rate_limit import check_rate_limit, rate_limit_max_adapt
+
+_thread_pool = ThreadPoolExecutor(max_workers=thread_pool_max_workers())
+
 from backend.db import (
     load_cv_base,
     save_cv_base,
@@ -63,9 +70,13 @@ from backend.db import (
     upload_photo_to_storage,
     upload_application_doc,
     APPLICATION_DOC_TYPES,
+    download_application_doc_bytes,
+    hydrate_application_pdf_urls,
     count_applications,
     get_user_plan,
     get_paywall_disabled,
+    get_user_stripe_ids,
+    find_user_id_by_stripe_subscription_id,
     set_user_plan,
     invite_user_by_email as db_invite_user_by_email,
 )
@@ -106,7 +117,21 @@ app = FastAPI(
 @app.on_event("startup")
 def _set_thread_pool():
     import asyncio
+    if IS_PRODUCTION and not USE_SUPABASE and not ALLOW_LOCAL_DATA_IN_PRODUCTION:
+        msg = (
+            "Refus de démarrage : production sans Supabase. "
+            "Configurer SUPABASE_URL + SUPABASE_SERVICE_KEY ou ALLOW_LOCAL_DATA_IN_PRODUCTION=1 (fichiers locaux, non recommandé en prod)."
+        )
+        logger.critical(msg)
+        raise RuntimeError(msg)
     asyncio.get_event_loop().set_default_executor(_thread_pool)
+    mode = supabase_data_mode_info()
+    logger.info(
+        "Données Supabase: backend=%s thread_pool_workers=%s détails=%s",
+        mode.get("backend"),
+        thread_pool_max_workers(),
+        mode,
+    )
 
 # --- Middlewares ---
 app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -126,6 +151,10 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept", "Stripe-Signature"],
 )
+
+_trusted = trusted_host_names()
+if _trusted:
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=_trusted)
 
 # --- Request body size limit middleware ---
 _MAX_BODY_SIZE = 20 * 1024 * 1024  # 20 MB
@@ -148,34 +177,13 @@ ADAPT_COUNT = Counter("cv_bot_adaptations_total", "Total CV adaptations")
 PDF_COUNT = Counter("cv_bot_pdfs_generated_total", "Total PDFs generated")
 
 
-# --- Rate limiting (in-memory, per user) ---
-_rate_limit_buckets: dict[str, list[float]] = {}
-_RATE_LIMIT_WINDOW = 60
-_RATE_LIMIT_MAX_ADAPT = 5
-_RATE_LIMIT_MAX_DEFAULT = 30
-_RATE_LIMIT_MAX_KEYS = 5000
-
-
-def _check_rate_limit(user_id: str | None, max_requests: int = _RATE_LIMIT_MAX_DEFAULT) -> None:
-    key = (user_id or "anon").strip() or "anon"
-    now = _time.time()
-    if key not in _rate_limit_buckets:
-        if len(_rate_limit_buckets) >= _RATE_LIMIT_MAX_KEYS:
-            oldest_key = min(_rate_limit_buckets, key=lambda k: _rate_limit_buckets[k][-1] if _rate_limit_buckets[k] else 0)
-            del _rate_limit_buckets[oldest_key]
-        _rate_limit_buckets[key] = []
-    bucket = _rate_limit_buckets[key]
-    _rate_limit_buckets[key] = [t for t in bucket if now - t < _RATE_LIMIT_WINDOW]
-    if len(_rate_limit_buckets[key]) >= max_requests:
-        raise HTTPException(status_code=429, detail="Trop de requêtes. Réessaie dans quelques secondes.")
-    _rate_limit_buckets[key].append(now)
-
-
 # --- Modèles request body ---
 class AdaptBody(BaseModel):
     description: str = ""
     titre: str = ""  # intitulé du poste (améliore le score ATS si renseigné)
     entreprise: str = ""
+    template_id: str | None = None
+    template_options: dict | None = None
 
 
 class AdaptRefineBody(BaseModel):
@@ -206,6 +214,7 @@ class ExportDossierBody(BaseModel):
     dossier: str | None = None
     template_id: str | None = None
     template_options: dict | None = None
+    selection_a4: dict | None = None
 
 
 class ExportDossierZipBody(BaseModel):
@@ -216,6 +225,7 @@ class ExportDossierZipBody(BaseModel):
     adaptation_id: str | None = None
     template_id: str | None = None
     template_options: dict | None = None
+    selection_a4: dict | None = None
 
 class ApplicationCreateBody(BaseModel):
     """Création d'une candidature manuelle (hors app, sans CV adapté)."""
@@ -253,6 +263,101 @@ class ApplyLinkedInBody(BaseModel):
 
 
 STATUTS_CANDIDATURE = ("a_postuler", "candidature_envoyee", "reponse_recue", "interview", "refus", "offre")
+
+
+def _apply_user_photo_for_pdf(cv: dict, user_id: str | None) -> dict:
+    """URL photo signée fraîche pour WeasyPrint (même logique que /api/pdf)."""
+    if not USE_SUPABASE or not user_id:
+        return cv
+    photo_url = (cv.get("photo_url") or "").strip()
+    is_supabase_photo = "supabase.co/storage" in photo_url and "/object/sign" in photo_url
+    if not photo_url or is_supabase_photo:
+        try:
+            from backend.db import get_cv_photo_public_url_for_user
+            url = get_cv_photo_public_url_for_user(user_id)
+            if url:
+                return {**cv, "photo_url": url}
+        except Exception:
+            pass
+    return cv
+
+
+def _build_cv_pdf_for_application(payload: dict, user_id: str | None) -> tuple[bytes, str]:
+    full_cv = payload.get("full_cv")
+    if not full_cv:
+        raise ValueError("full_cv manquant")
+    full_cv = _apply_user_photo_for_pdf(dict(full_cv), user_id)
+    poste = (payload.get("poste") or "").strip()
+    entreprise = (payload.get("entreprise") or "").strip()
+    selection_a4 = payload.get("selection_a4")
+    template_id = payload.get("template_id")
+    template_options = payload.get("template_options")
+    html = _render_cv_html(
+        full_cv,
+        for_preview=True,
+        for_pdf=True,
+        template_id=template_id,
+        template_options=template_options,
+        selection_a4=selection_a4,
+    )
+    from generator import generer_pdf_bytes_from_html, PDF_EXPORT_LAYOUT_CSS, PDF_EXPORT_PREVIEW_ALIGN_CSS
+    if "</head>" in html:
+        html = html.replace("</head>", PDF_EXPORT_LAYOUT_CSS + PDF_EXPORT_PREVIEW_ALIGN_CSS + "</head>", 1)
+    if template_id and str(template_id).strip().startswith("custom_") and "</head>" in html:
+        custom_pdf_fix = (
+            "<style>@page{margin:0}body{background:#fff!important;margin:0!important;padding:0!important}.cv{margin:0!important}</style>"
+        )
+        html = html.replace("</head>", custom_pdf_fix + "</head>", 1)
+    return generer_pdf_bytes_from_html(html, BASE_DIR, full_cv, {"titre": poste, "entreprise": entreprise})
+
+
+def snapshot_application_pdfs_to_storage(
+    user_id: str | None,
+    adaptation_id: str,
+    payload: dict,
+    *,
+    do_cv: bool = False,
+    do_fiche: bool = False,
+    do_lettre: bool = False,
+) -> dict:
+    """
+    Génère et envoie les PDF dans Storage (upsert). Retourne les clés à fusionner dans le payload
+    (pdf_*_url + pdf_*_stored). Sans Supabase ou user_id, retourne {}.
+    """
+    uid = user_id or "default"
+    out: dict = {}
+    if not USE_SUPABASE or not user_id:
+        return out
+    try:
+        if do_cv and payload.get("full_cv"):
+            pdf_bytes, _fn = _build_cv_pdf_for_application(payload, user_id)
+            url = upload_application_doc(uid, adaptation_id, "cv", pdf_bytes)
+            out["pdf_cv_url"] = url
+            out["pdf_cv_stored"] = True
+        if do_fiche and (payload.get("description_full") or "").strip():
+            from export_package import generer_fiche_pdf_bytes
+            poste = (payload.get("poste") or "").strip()
+            entreprise = (payload.get("entreprise") or "").strip()
+            pdf_bytes, _fn = generer_fiche_pdf_bytes(
+                payload.get("description_full") or "", poste, entreprise, base_dir=BASE_DIR
+            )
+            url = upload_application_doc(uid, adaptation_id, "fiche", pdf_bytes)
+            out["pdf_fiche_url"] = url
+            out["pdf_fiche_stored"] = True
+        if do_lettre and payload.get("lettre_corps") and payload.get("full_cv"):
+            from letter_generator import generer_lettre_pdf_bytes_from_corps
+            full_cv = _apply_user_photo_for_pdf(dict(payload["full_cv"]), user_id)
+            poste = (payload.get("poste") or "").strip()
+            entreprise = (payload.get("entreprise") or "").strip()
+            pdf_bytes, _fn = generer_lettre_pdf_bytes_from_corps(
+                full_cv, payload["lettre_corps"], poste, entreprise, base_dir=BASE_DIR
+            )
+            url = upload_application_doc(uid, adaptation_id, "lettre", pdf_bytes)
+            out["pdf_lettre_url"] = url
+            out["pdf_lettre_stored"] = True
+    except Exception as e:
+        logger.warning("snapshot_application_pdfs_to_storage %s: %s", adaptation_id, e)
+    return out
 
 
 def _apply_tweaks(cv_base: dict, tweaks: dict) -> dict:
@@ -411,8 +516,9 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
         if (l.get("langue") if isinstance(l, dict) else None) or (l.get("niveau") if isinstance(l, dict) else None)
     ]
 
-    # Mots-clés ATS : la section n'est rendue que si show_mots_cles_ats est True (template : {% if show_mots_cles_ats and mots_cles_cache %})
+    # Mots-clés ATS : affichés si show_mots_cles_ats (template : {% if show_mots_cles_ats %} … {{ mots_cles_cache }})
     ctx["show_mots_cles_ats"] = resolved_opts.get("show_mots_cles_ats", True)
+    ctx["mots_cles_cache"] = (cv.get("mots_cles_cache") or "").strip()
 
     actual_tid = tmpl_meta.get("id") or "classic"
     if tmpl_meta.get("_custom"):
@@ -581,30 +687,70 @@ def _safe_adaptation_id(adaptation_id: str) -> bool:
     return all(c.isalnum() or c in "_-" for c in adaptation_id)
 
 
+def _decode_supabase_jwt(token: str) -> dict:
+    """
+    Vérifie et décode le access token Supabase (HS256 ou ES256 via JWKS).
+    leeway sur iat/exp : évite les rejets si l’horloge locale est en retard (ex. Windows sans sync NTP).
+    """
+    import jwt
+    from jwt import PyJWKClient
+
+    if not token:
+        raise ValueError("empty token")
+    header = jwt.get_unverified_header(token)
+    alg = header.get("alg", "HS256")
+    leeway = JWT_LEEWAY_SECONDS
+    if alg == "HS256":
+        if not SUPABASE_JWT_SECRET:
+            raise ValueError("SUPABASE_JWT_SECRET manquant pour JWT HS256")
+        return jwt.decode(
+            token,
+            SUPABASE_JWT_SECRET,
+            algorithms=["HS256"],
+            audience="authenticated",
+            leeway=leeway,
+        )
+    if not SUPABASE_URL:
+        raise ValueError("SUPABASE_URL manquant pour JWKS")
+    jwks_url = f"{SUPABASE_URL.rstrip('/')}/auth/v1/.well-known/jwks.json"
+    if not hasattr(_decode_supabase_jwt, "_jwks_client"):
+        _decode_supabase_jwt._jwks_client = PyJWKClient(jwks_url, cache_keys=True)
+    signing_key = _decode_supabase_jwt._jwks_client.get_signing_key_from_jwt(token)
+    return jwt.decode(
+        token,
+        signing_key.key,
+        algorithms=[alg],
+        audience="authenticated",
+        leeway=leeway,
+    )
+
+
+def _bearer_token_nonempty(request: Request) -> bool:
+    auth = request.headers.get("Authorization") or ""
+    return bool(auth.startswith("Bearer ") and auth[7:].strip())
+
+
 def _get_user_id(request: Request) -> str | None:
     """Extrait user_id du JWT Supabase (Authorization: Bearer <token>). Retourne None si pas de token ou invalide."""
     auth = request.headers.get("Authorization") or ""
     if not auth.startswith("Bearer "):
         return None
     token = auth[7:].strip()
-    if not token or not SUPABASE_JWT_SECRET:
+    if not token:
         return None
     try:
-        import jwt
-        header = jwt.get_unverified_header(token)
-        alg = header.get("alg", "HS256")
-        if alg == "HS256":
-            payload = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"], audience="authenticated")
-        else:
-            from jwt import PyJWKClient
-            jwks_url = f"{SUPABASE_URL.rstrip('/')}/auth/v1/.well-known/jwks.json"
-            if not hasattr(_get_user_id, "_jwks_client"):
-                _get_user_id._jwks_client = PyJWKClient(jwks_url, cache_keys=True)
-            signing_key = _get_user_id._jwks_client.get_signing_key_from_jwt(token)
-            payload = jwt.decode(token, signing_key.key, algorithms=[alg], audience="authenticated")
+        payload = _decode_supabase_jwt(token)
         return (payload.get("sub") or "").strip() or None
     except Exception as e:
-        logger.warning("JWT decode failed: %s (token prefix: %s…)", e, token[:20] if token else "empty")
+        hint = ""
+        if "not yet valid" in str(e).lower() or "iat" in str(e).lower():
+            hint = " (décalage horaire ? synchronise l’horloge ou augmente JWT_LEEWAY_SECONDS)"
+        logger.warning(
+            "JWT decode failed: %s%s (token prefix: %s…)",
+            e,
+            hint,
+            token[:20] if token else "empty",
+        )
         return None
 
 
@@ -622,21 +768,10 @@ def _get_user_email_from_jwt(request: Request) -> str | None:
     if not auth.startswith("Bearer "):
         return None
     token = auth[7:].strip()
-    if not token or not SUPABASE_JWT_SECRET:
+    if not token:
         return None
     try:
-        import jwt
-        header = jwt.get_unverified_header(token)
-        alg = header.get("alg", "HS256")
-        if alg == "HS256":
-            payload = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"], audience="authenticated")
-        else:
-            from jwt import PyJWKClient
-            jwks_url = f"{SUPABASE_URL.rstrip('/')}/auth/v1/.well-known/jwks.json"
-            if not hasattr(_get_user_email_from_jwt, "_jwks_client"):
-                _get_user_email_from_jwt._jwks_client = PyJWKClient(jwks_url, cache_keys=True)
-            signing_key = _get_user_email_from_jwt._jwks_client.get_signing_key_from_jwt(token)
-            payload = jwt.decode(token, signing_key.key, algorithms=[alg], audience="authenticated")
+        payload = _decode_supabase_jwt(token)
         return (payload.get("email") or "").strip() or None
     except Exception:
         return None
@@ -803,6 +938,11 @@ def api_cv(request: Request, profile: bool = False):
     afficher un formulaire vide (données Supabase = rien), pas le CV d'exemple."""
     REQUEST_COUNT.labels(method="GET", endpoint="/api/cv").inc()
     user_id = _get_user_id(request)
+    if USE_SUPABASE and user_id is None and _bearer_token_nonempty(request):
+        raise HTTPException(
+            status_code=401,
+            detail="Session invalide ou expirée (JWT). Reconnecte-toi ou vérifie l’heure de ton PC.",
+        )
     try:
         cv = load_cv_base(user_id)
         if profile and cv.get("__example__"):
@@ -898,7 +1038,7 @@ def api_cv_apply_linkedin(request: Request, body: ApplyLinkedInBody):
     """Applique les changements validés depuis LinkedIn (IA adapte les textes au style CV)."""
     REQUEST_COUNT.labels(method="POST", endpoint="/api/cv/apply-linkedin-updates").inc()
     user_id = _require_user_id(request)
-    _check_rate_limit(user_id, 10)
+    check_rate_limit(user_id, 10)
     if not body.changes:
         return {"ok": True}
     for c in body.changes:
@@ -1161,7 +1301,7 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
     """Importe un CV depuis un fichier PDF ou Word, parse via IA, retourne le CV structuré."""
     REQUEST_COUNT.labels(method="POST", endpoint="/api/cv/import").inc()
     _require_user_id(request)
-    _check_rate_limit(_get_user_id(request), _RATE_LIMIT_MAX_ADAPT)
+    check_rate_limit(_get_user_id(request), rate_limit_max_adapt())
     content_type = (file.content_type or "").strip().lower()
     file_bytes = file.file.read()
     if len(file_bytes) > 10 * 1024 * 1024:
@@ -1204,7 +1344,7 @@ def api_cv_import_text(request: Request, body: ImportTextBody):
     """Importe un CV depuis du texte brut (copier-coller), parse via IA, retourne le CV structuré."""
     REQUEST_COUNT.labels(method="POST", endpoint="/api/cv/import-text").inc()
     _require_user_id(request)
-    _check_rate_limit(_get_user_id(request), _RATE_LIMIT_MAX_ADAPT)
+    check_rate_limit(_get_user_id(request), rate_limit_max_adapt())
     text = (body.text or "").strip()
     if len(text) < 50:
         raise HTTPException(status_code=400, detail="Texte trop court. Colle le contenu complet de ton CV.")
@@ -1239,6 +1379,11 @@ def api_cv_preview(request: Request):
     """Aperçu du CV : exclusivement les données Supabase du compte connecté. Si aucun CV enregistré, message invitant à compléter le profil."""
     REQUEST_COUNT.labels(method="GET", endpoint="/api/cv/preview").inc()
     user_id = _get_user_id(request)
+    if USE_SUPABASE and user_id is None and _bearer_token_nonempty(request):
+        raise HTTPException(
+            status_code=401,
+            detail="Session invalide ou expirée (JWT). Reconnecte-toi ou vérifie l’heure de ton PC.",
+        )
     template_id = request.query_params.get("template_id")
     template_options_raw = request.query_params.get("template_options")
     template_options = None
@@ -1343,6 +1488,7 @@ def api_create_checkout_session(request: Request):
             "client_reference_id": user_id,
             "allow_promotion_codes": True,
             "line_items": [{"price": STRIPE_PRICE_ID_PRO_MONTHLY, "quantity": 1}],
+            "subscription_data": {"metadata": {"user_id": user_id}},
             "success_url": f"{base}/?success=pro",
             "cancel_url": f"{base}/?cancel=checkout",
         })
@@ -1388,7 +1534,7 @@ def _send_template_perso_email(to_email: str) -> bool:
         html = (
             "<p>Merci pour ton paiement pour le <strong>template personnalisé</strong>.</p>"
             "<p>Pour recevoir ton template sur-mesure : envoie-nous ton design (PDF ou maquette) "
-            "en réponse à ce mail, ou à <a href=\"mailto:louis.vedovato@axelproject.fr\">louis.vedovato@axelproject.fr</a> "
+            "en réponse à ce mail, ou à <a href=\"mailto:contact@axelproject.fr\">contact@axelproject.fr</a> "
             "avec le sujet « Template perso - [ton nom] ». On l’adapte en code pour ton CV et on te l’envoie sous quelques jours.</p>"
             "<p>À bientôt,<br>L’équipe AxeL Job</p>"
         )
@@ -1406,9 +1552,125 @@ def _send_template_perso_email(to_email: str) -> bool:
         return False
 
 
+def _stripe_attr(obj, name: str):
+    if obj is None:
+        return None
+    if isinstance(obj, dict):
+        return obj.get(name)
+    return getattr(obj, name, None)
+
+
+def _stripe_period_end_label_fr(unix_ts: Optional[int]) -> str:
+    if not unix_ts:
+        return ""
+    dt = datetime.fromtimestamp(int(unix_ts), tz=timezone.utc)
+    return dt.strftime("%d/%m/%Y")
+
+
+def _stripe_client():
+    import stripe
+
+    return stripe.StripeClient(STRIPE_SECRET_KEY)
+
+
+def _stripe_customer_id_for_user(client, user_id: str) -> Optional[str]:
+    customers = client.customers.search(params={"query": f"metadata['user_id']:'{user_id}'"})
+    if customers.data:
+        return customers.data[0].id
+    sessions = client.checkout.sessions.list(params={"limit": 100})
+    for s in sessions.data:
+        if s.client_reference_id == user_id and s.customer:
+            cid = s.customer
+            return cid if isinstance(cid, str) else _stripe_attr(cid, "id")
+    return None
+
+
+def _stripe_first_active_subscription_id(client, customer_id: str) -> Optional[str]:
+    lst = client.subscriptions.list(params={"customer": customer_id, "status": "active", "limit": 10})
+    for s in lst.data:
+        sid = _stripe_attr(s, "id")
+        if sid:
+            return sid
+    return None
+
+
+def _stripe_subscription_snapshot_dict(client, subscription_id: str) -> Optional[dict]:
+    """Lecture seule : état affichage (fin de période, résiliation programmée)."""
+    try:
+        sub = client.subscriptions.retrieve(subscription_id)
+        cpe = _stripe_attr(sub, "current_period_end")
+        catp = bool(_stripe_attr(sub, "cancel_at_period_end"))
+        st = _stripe_attr(sub, "status") or ""
+        if cpe is None:
+            return None
+        cpe = int(cpe)
+        return {
+            "status": st,
+            "cancel_at_period_end": catp,
+            "current_period_end": cpe,
+            "current_period_end_iso": datetime.fromtimestamp(cpe, tz=timezone.utc).isoformat(),
+            "current_period_end_label": _stripe_period_end_label_fr(cpe),
+        }
+    except Exception as e:
+        logger.info("Stripe subscription snapshot failed for %s: %s", subscription_id, e)
+        return None
+
+
+def _resolve_pro_subscription_id(client, user_id: str) -> tuple[Optional[str], Optional[str]]:
+    """
+    Retourne (customer_id, subscription_id) pour l'abonnement Pro actif, ou (None, None).
+    """
+    cust_id, sub_id_db = get_user_stripe_ids(user_id)
+    if not cust_id:
+        cust_id = _stripe_customer_id_for_user(client, user_id)
+    if not cust_id:
+        return None, None
+    if sub_id_db:
+        try:
+            client.subscriptions.retrieve(sub_id_db)
+            return cust_id, sub_id_db
+        except Exception:
+            pass
+    active = _stripe_first_active_subscription_id(client, cust_id)
+    return cust_id, active
+
+
+def _send_subscription_cancelled_email(to_email: str, period_end_label: str) -> bool:
+    """Confirmation de résiliation en fin de période (obligation d'information)."""
+    if not RESEND_API_KEY or not to_email:
+        return False
+    try:
+        import resend
+
+        resend.api_key = RESEND_API_KEY
+        safe_end = html_module.escape(period_end_label or "la fin de ta période payée")
+        html = (
+            "<p>Bonjour,</p>"
+            "<p>Nous confirmons la <strong>résiliation de ton abonnement AxeL Job Pro</strong>. "
+            "Elle prend effet à la <strong>fin de la période déjà payée</strong> (au plus tard le "
+            f"<strong>{safe_end}</strong>).</p>"
+            "<p>Jusqu'à cette date, tu conserves l'accès à ton compte et à tes données comme d'habitude.</p>"
+            "<p>Si tu as une question, réponds à ce message ou écris-nous à "
+            "<a href=\"mailto:contact@axelproject.fr\">contact@axelproject.fr</a>.</p>"
+            "<p>À bientôt,<br>L’équipe AxeL Job</p>"
+        )
+        params = {
+            "from": RESEND_FROM_EMAIL,
+            "to": [to_email],
+            "subject": "Confirmation de résiliation — AxeL Job Pro",
+            "html": html,
+        }
+        resend.Emails.send(params)
+        logger.info("Subscription cancel confirmation email sent to %s", to_email)
+        return True
+    except Exception as e:
+        logger.exception("Resend subscription cancel email failed: %s", e)
+        return False
+
+
 @app.post("/api/stripe-webhook")
 async def api_stripe_webhook(request: Request):
-    """Webhook Stripe : checkout.session.completed → Pro ou template perso (email Resend)."""
+    """Webhook Stripe : checkout.session.completed → Pro ; customer.subscription.deleted → free."""
     if not STRIPE_SECRET_KEY or not STRIPE_WEBHOOK_SECRET:
         raise HTTPException(status_code=503, detail="Webhook non configuré.")
     payload = await request.body()
@@ -1443,6 +1705,23 @@ async def api_stripe_webhook(request: Request):
         except Exception as e:
             logger.exception(
                 "Stripe webhook checkout.session.completed failed: %s (event_id=%s)",
+                e,
+                event.get("id"),
+            )
+            raise
+    elif event["type"] == "customer.subscription.deleted":
+        sub = event["data"]["object"]
+        try:
+            meta = sub.get("metadata") or {}
+            uid = (meta.get("user_id") or "").strip()
+            if not uid:
+                uid = (find_user_id_by_stripe_subscription_id(sub.get("id") or "") or "").strip()
+            if uid:
+                set_user_plan(uid, "free", stripe_subscription_id="")
+                logger.info("User %s set to free after Stripe subscription deleted", uid)
+        except Exception as e:
+            logger.exception(
+                "Stripe webhook customer.subscription.deleted failed: %s (event_id=%s)",
                 e,
                 event.get("id"),
             )
@@ -1482,6 +1761,67 @@ def api_create_portal_session(request: Request):
     except Exception as e:
         logger.exception(e)
         raise HTTPException(status_code=500, detail="Erreur interne.")
+
+
+@app.post("/api/cancel-subscription")
+def api_cancel_subscription(request: Request):
+    """
+    Résiliation depuis l'app (obligation légale) : fin de période payée uniquement.
+    Utilise Stripe subscription.update(cancel_at_period_end=True), pas une annulation immédiate.
+    """
+    user_id = _require_user_id(request)
+    if not STRIPE_SECRET_KEY:
+        raise HTTPException(status_code=503, detail="Paiement non configuré.")
+    if get_paywall_disabled(user_id):
+        raise HTTPException(status_code=400, detail="Ce compte n'a pas d'abonnement payant à résilier.")
+    try:
+        import stripe
+
+        client = stripe.StripeClient(STRIPE_SECRET_KEY)
+        cust_id, sub_id = _resolve_pro_subscription_id(client, user_id)
+        if not cust_id or not sub_id:
+            raise HTTPException(status_code=404, detail="Aucun abonnement Stripe actif trouvé.")
+        sub = client.subscriptions.retrieve(sub_id)
+        sub_cust = _stripe_attr(sub, "customer")
+        if isinstance(sub_cust, dict):
+            sub_cust = sub_cust.get("id")
+        if sub_cust and cust_id and sub_cust != cust_id:
+            raise HTTPException(status_code=403, detail="Cet abonnement n'est pas associé à ton compte.")
+        st = (_stripe_attr(sub, "status") or "").lower()
+        if st not in ("active", "trialing"):
+            raise HTTPException(status_code=400, detail="Aucun abonnement actif à résilier.")
+        already = bool(_stripe_attr(sub, "cancel_at_period_end"))
+        if not already:
+            sub = client.subscriptions.update(sub_id, params={"cancel_at_period_end": True})
+        snap = _stripe_subscription_snapshot_dict(client, sub_id)
+        if not snap:
+            cpe = _stripe_attr(sub, "current_period_end")
+            if cpe:
+                cpe = int(cpe)
+                snap = {
+                    "status": _stripe_attr(sub, "status") or "",
+                    "cancel_at_period_end": bool(_stripe_attr(sub, "cancel_at_period_end")),
+                    "current_period_end": cpe,
+                    "current_period_end_iso": datetime.fromtimestamp(cpe, tz=timezone.utc).isoformat(),
+                    "current_period_end_label": _stripe_period_end_label_fr(cpe),
+                }
+        # Mettre à jour les IDs en base si on les avait retrouvés dynamiquement
+        _, sub_db = get_user_stripe_ids(user_id)
+        if cust_id and (not sub_db or sub_db != sub_id):
+            set_user_plan(user_id, "pro", stripe_customer_id=cust_id, stripe_subscription_id=sub_id)
+        user_email = (_get_user_email_from_jwt(request) or "").strip()
+        if user_email and snap and not already:
+            _send_subscription_cancelled_email(user_email, snap.get("current_period_end_label") or "")
+        return {
+            "ok": True,
+            "already_scheduled": already,
+            **(snap or {}),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(e)
+        raise HTTPException(status_code=500, detail="Impossible de résilier pour le moment. Réessaie ou contacte le support.")
 
 
 class CancelFeedbackBody(BaseModel):
@@ -1562,7 +1902,7 @@ def _send_support_ticket_email(to_support: str, user_email: str, subject: str, m
           </tr>
           <tr>
             <td style="padding: 16px 28px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
-              <span style="font-size: 12px; color: #94a3b8;">AxeL Job — Ton CV sur-mesure pour chaque annonce</span>
+              <span style="font-size: 12px; color: #94a3b8;">AxeL Job - Ton CV sur-mesure pour chaque annonce</span>
             </td>
           </tr>
         </table>
@@ -1656,7 +1996,7 @@ def _send_support_reply_email(to_email: str, message: str) -> bool:
           </tr>
           <tr>
             <td style="padding: 16px 28px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
-              <span style="font-size: 12px; color: #94a3b8;">AxeL Job — Ton CV sur-mesure pour chaque annonce</span>
+              <span style="font-size: 12px; color: #94a3b8;">AxeL Job - Ton CV sur-mesure pour chaque annonce</span>
             </td>
           </tr>
         </table>
@@ -1669,7 +2009,7 @@ def _send_support_reply_email(to_email: str, message: str) -> bool:
         params = {
             "from": RESEND_FROM_EMAIL,
             "to": [to_email.strip()],
-            "subject": "Réponse à ton ticket — AxeL Job",
+            "subject": "Réponse à ton ticket - AxeL Job",
             "html": html,
         }
         resend.Emails.send(params)
@@ -1718,6 +2058,22 @@ def api_usage(request: Request):
     applications_limit = 999999 if (plan == "pro" or no_paywall) else FREE_APPLICATIONS_LIMIT
     user_email = _get_user_email_from_jwt(request)
     is_support = _is_support_admin(user_email)
+    stripe_subscription = None
+    if (
+        user_id
+        and STRIPE_SECRET_KEY
+        and plan == "pro"
+        and not no_paywall
+    ):
+        try:
+            import stripe
+
+            client = stripe.StripeClient(STRIPE_SECRET_KEY)
+            _c, sub_id = _resolve_pro_subscription_id(client, user_id)
+            if sub_id:
+                stripe_subscription = _stripe_subscription_snapshot_dict(client, sub_id)
+        except Exception as e:
+            logger.info("api/usage stripe snapshot skipped: %s", e)
     return {
         "plan": "pro" if no_paywall else plan,
         "paywall_disabled": no_paywall,
@@ -1726,6 +2082,7 @@ def api_usage(request: Request):
         "applications_count": count,
         "applications_limit": applications_limit,
         "is_support": is_support,
+        "stripe_subscription": stripe_subscription,
     }
 
 
@@ -1733,7 +2090,7 @@ def api_usage(request: Request):
 def api_adapt(request: Request, body: AdaptBody):
     REQUEST_COUNT.labels(method="POST", endpoint="/api/adapt").inc()
     user_id = _get_user_id(request)
-    _check_rate_limit(user_id, _RATE_LIMIT_MAX_ADAPT)
+    check_rate_limit(user_id, rate_limit_max_adapt())
     description = (body.description or "").strip()
     if not description:
         raise HTTPException(status_code=400, detail="Collez l'annonce dans le champ 'description'")
@@ -1790,7 +2147,15 @@ def api_adapt(request: Request, body: AdaptBody):
         except Exception:
             pass
 
-        save_adaptation(adaptation_id, {
+        tid = body.template_id or cv_base.get("template_id") or "classic"
+        tid = str(tid).strip() if tid else "classic"
+        if not tid:
+            tid = "classic"
+        topt = body.template_options if body.template_options is not None else (cv_base.get("template_options") or {})
+        _check_premium_template(user_id, tid)
+        _check_custom_template_access(user_id, tid)
+
+        initial_payload = {
             "resume": tweaks.get("resume"),
             "experiences": tweaks.get("experiences", []),
             "mots_cles_cache": tweaks.get("mots_cles_cache", ""),
@@ -1805,7 +2170,15 @@ def api_adapt(request: Request, body: AdaptBody):
             "statut": "candidature_envoyee",
             "archived": False,
             "created_at": datetime.now(timezone.utc).isoformat(),
-        }, user_id=user_id)
+            "template_id": tid,
+            "template_options": topt,
+        }
+        save_adaptation(adaptation_id, initial_payload, user_id=user_id)
+        snap = snapshot_application_pdfs_to_storage(
+            user_id, adaptation_id, initial_payload, do_cv=True, do_fiche=True, do_lettre=False
+        )
+        if snap:
+            save_adaptation(adaptation_id, {**initial_payload, **snap}, user_id=user_id)
         ADAPT_COUNT.inc()
         try:
             rapport_after_cv = appliquer_regles(merged, offre)
@@ -1837,7 +2210,7 @@ def api_adapt_refine(request: Request, body: AdaptRefineBody):
     """Affine le CV selon une instruction utilisateur (chat)."""
     REQUEST_COUNT.labels(method="POST", endpoint="/api/adapt-refine").inc()
     user_id = _get_user_id(request)
-    _check_rate_limit(user_id, _RATE_LIMIT_MAX_ADAPT)
+    check_rate_limit(user_id, rate_limit_max_adapt())
     instruction = (body.instruction or "").strip()
     if not instruction:
         raise HTTPException(status_code=400, detail="Instruction requise.")
@@ -1864,7 +2237,7 @@ def api_adapt_refine(request: Request, body: AdaptRefineBody):
 def api_pdf(request: Request, body: PdfBody):
     REQUEST_COUNT.labels(method="POST", endpoint="/api/pdf").inc()
     user_id = _get_user_id(request)
-    _check_rate_limit(user_id, 10)
+    check_rate_limit(user_id, 10)
     _check_premium_template(user_id, body.template_id)
     _check_custom_template_access(user_id, body.template_id)
     offre = {"titre": body.titre, "entreprise": body.entreprise}
@@ -1935,6 +2308,7 @@ def api_export_dossier(request: Request, body: ExportDossierBody):
             output_base=body.dossier or None,
             template_id=body.template_id,
             template_options=body.template_options,
+            selection_a4=body.selection_a4,
         )
         event_log.log_event(event_log.EVENT_EXPORT_DOSSIER, user_id, {"titre": body.titre or "", "entreprise": body.entreprise or ""})
         return result
@@ -1948,7 +2322,7 @@ def api_export_dossier_zip(request: Request, body: ExportDossierZipBody):
     if not (body.titre or "").strip():
         raise HTTPException(status_code=400, detail="Indiquez l'intitulé du poste")
     user_id = _get_user_id(request)
-    _check_rate_limit(user_id, 10)
+    check_rate_limit(user_id, 10)
     _check_premium_template(user_id, body.template_id)
     _check_custom_template_access(user_id, body.template_id)
     try:
@@ -1976,6 +2350,7 @@ def api_export_dossier_zip(request: Request, body: ExportDossierZipBody):
             for_pdf=True,
             template_id=body.template_id,
             template_options=body.template_options,
+            selection_a4=body.selection_a4,
         )
         from generator import PDF_EXPORT_LAYOUT_CSS, PDF_EXPORT_PREVIEW_ALIGN_CSS
         if "</head>" in html:
@@ -1998,6 +2373,29 @@ def api_export_dossier_zip(request: Request, body: ExportDossierZipBody):
             if payload:
                 payload["lettre_corps"] = lettre_corps
                 save_adaptation(body.adaptation_id, payload, user_id=user_id)
+        if body.adaptation_id and _safe_adaptation_id(body.adaptation_id) and user_id:
+            snap_payload = dict(get_adaptation(body.adaptation_id, user_id=user_id or "default") or {})
+            snap_payload.update({
+                "full_cv": cv,
+                "poste": (body.titre or "").strip(),
+                "entreprise": (body.entreprise or "").strip(),
+                "description_full": body.description or "",
+                "template_id": body.template_id,
+                "template_options": body.template_options or {},
+                "selection_a4": body.selection_a4,
+            })
+            if lettre_corps:
+                snap_payload["lettre_corps"] = lettre_corps
+            snap = snapshot_application_pdfs_to_storage(
+                user_id,
+                body.adaptation_id,
+                snap_payload,
+                do_cv=True,
+                do_fiche=True,
+                do_lettre=bool(lettre_corps),
+            )
+            if snap:
+                save_adaptation(body.adaptation_id, {**snap_payload, **snap}, user_id=user_id)
         event_log.log_event(event_log.EVENT_EXPORT_DOSSIER, user_id, {"titre": body.titre or "", "entreprise": body.entreprise or ""})
         return Response(
             content=zip_bytes,
@@ -2215,9 +2613,11 @@ def api_application_get(request: Request, adaptation_id: str):
     payload = get_adaptation(adaptation_id, user_id=user_id or "default")
     if not payload:
         raise HTTPException(status_code=404, detail="Candidature introuvable")
+    payload = dict(payload)
+    if USE_SUPABASE and user_id:
+        payload = hydrate_application_pdf_urls(payload, user_id or "default", adaptation_id)
     if payload.get("lettre_corps"):
         from letter_generator import corps_lettre_to_html
-        payload = dict(payload)
         payload["lettre_html"] = corps_lettre_to_html(payload["lettre_corps"])
     return payload
 
@@ -2228,7 +2628,7 @@ def api_application_generate_letter(request: Request, adaptation_id: str):
     if not _safe_adaptation_id(adaptation_id):
         raise HTTPException(status_code=400, detail="Id invalide")
     user_id = _get_user_id(request)
-    _check_rate_limit(user_id, _RATE_LIMIT_MAX_ADAPT)
+    check_rate_limit(user_id, rate_limit_max_adapt())
     payload = get_adaptation(adaptation_id, user_id=user_id or "default")
     if not payload:
         raise HTTPException(status_code=404, detail="Candidature introuvable")
@@ -2253,6 +2653,12 @@ def api_application_generate_letter(request: Request, adaptation_id: str):
             raise HTTPException(status_code=500, detail="Erreur lors de la génération de la lettre. Réessaie.")
         payload["lettre_corps"] = lettre_corps
         save_adaptation(adaptation_id, payload, user_id=user_id)
+    snap = snapshot_application_pdfs_to_storage(
+        user_id, adaptation_id, {**payload, "lettre_corps": lettre_corps}, do_cv=False, do_fiche=False, do_lettre=True
+    )
+    if snap:
+        save_adaptation(adaptation_id, {**payload, "lettre_corps": lettre_corps, **snap}, user_id=user_id)
+        payload = {**payload, **snap}
     from letter_generator import corps_lettre_to_html
     lettre_html = corps_lettre_to_html(lettre_corps)
     return {"lettre_corps": lettre_corps, "lettre_html": lettre_html}
@@ -2267,6 +2673,18 @@ def api_application_download_cv(request: Request, adaptation_id: str):
     payload = get_adaptation(adaptation_id, user_id=user_id or "default")
     if not payload:
         raise HTTPException(status_code=404, detail="Candidature introuvable")
+    uid_dl = user_id or "default"
+    if payload.get("pdf_cv_stored") and user_id:
+        raw = download_application_doc_bytes(uid_dl, adaptation_id, "cv")
+        if raw:
+            poste = (payload.get("poste") or "").strip()
+            entreprise = (payload.get("entreprise") or "").strip()
+            safe = "".join(c for c in f"{poste}_{entreprise}" if c.isalnum() or c in "._- ")[:80] or "cv"
+            return Response(
+                content=raw,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'attachment; filename="cv-{safe}.pdf"'},
+            )
     full_cv = payload.get("full_cv")
     if not full_cv:
         raise HTTPException(status_code=400, detail="CV adapté absent")
@@ -2298,10 +2716,20 @@ def api_application_download_lettre(request: Request, adaptation_id: str):
     payload = get_adaptation(adaptation_id, user_id=user_id or "default")
     if not payload:
         raise HTTPException(status_code=404, detail="Candidature introuvable")
-    full_cv = payload.get("full_cv")
-    description_full = payload.get("description_full") or ""
     poste = (payload.get("poste") or "").strip()
     entreprise = (payload.get("entreprise") or "").strip()
+    uid_dl = user_id or "default"
+    if payload.get("pdf_lettre_stored") and user_id:
+        raw = download_application_doc_bytes(uid_dl, adaptation_id, "lettre")
+        if raw:
+            safe = "".join(c for c in f"lettre_{poste}_{entreprise}" if c.isalnum() or c in "._- ")[:80] or "lettre"
+            return Response(
+                content=raw,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'attachment; filename="{safe}.pdf"'},
+            )
+    full_cv = payload.get("full_cv")
+    description_full = payload.get("description_full") or ""
     if not full_cv:
         raise HTTPException(status_code=400, detail="CV adapté absent")
     from letter_generator import generer_corps_lettre, generer_lettre_pdf_bytes_from_corps
@@ -2336,6 +2764,18 @@ def api_application_download_fiche(request: Request, adaptation_id: str):
     payload = get_adaptation(adaptation_id, user_id=user_id or "default")
     if not payload:
         raise HTTPException(status_code=404, detail="Candidature introuvable")
+    uid_dl = user_id or "default"
+    if payload.get("pdf_fiche_stored") and user_id:
+        raw = download_application_doc_bytes(uid_dl, adaptation_id, "fiche")
+        if raw:
+            poste = (payload.get("poste") or "").strip()
+            entreprise = (payload.get("entreprise") or "").strip()
+            safe = "".join(c for c in f"fiche_{poste}_{entreprise}" if c.isalnum() or c in "._- ")[:80] or "fiche"
+            return Response(
+                content=raw,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'attachment; filename="{safe}.pdf"'},
+            )
     description_full = payload.get("description_full") or ""
     poste = (payload.get("poste") or "").strip()
     entreprise = (payload.get("entreprise") or "").strip()
@@ -2378,6 +2818,7 @@ async def api_application_upload_doc(request: Request, adaptation_id: str):
         raise HTTPException(status_code=500, detail="Erreur de stockage. Réessaie.")
     key = f"pdf_{doc_type}_url"
     payload[key] = url
+    payload[f"pdf_{doc_type}_stored"] = True
     save_adaptation(adaptation_id, payload, user_id=uid)
     return {key: url}
 
@@ -2611,7 +3052,13 @@ def metrics(request: Request):
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "supabase": supabase_data_mode_info(),
+        "thread_pool_max_workers": thread_pool_max_workers(),
+        "rate_limit": "memory_per_process",
+        "rate_limit_note": "Plusieurs workers/instances : limiter aussi au proxy (nginx) ou Redis si besoin.",
+    }
 
 
 if __name__ == "__main__":

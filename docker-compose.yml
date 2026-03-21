@@ -7,6 +7,9 @@ services:
       - .env
     environment:
       - ENVIRONMENT=production
+      - UVICORN_WORKERS=${UVICORN_WORKERS:-1}
+      - THREAD_POOL_MAX_WORKERS=${THREAD_POOL_MAX_WORKERS:-4}
+      - USER_PLAN_CACHE_TTL_SEC=${USER_PLAN_CACHE_TTL_SEC:-30}
     restart: unless-stopped
     expose:
       - "8000"

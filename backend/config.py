@@ -12,12 +12,77 @@ IS_PRODUCTION = ENVIRONMENT == "production"
 
 SUPABASE_URL = _env("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = _env("SUPABASE_SERVICE_KEY")
+# URI Postgres (Dashboard > Project Settings > Database) - accès direct, plus rapide que PostgREST
+SUPABASE_DATABASE_URL = _env("SUPABASE_DATABASE_URL")
 
 USE_SUPABASE = bool(SUPABASE_URL and SUPABASE_SERVICE_KEY)
+USE_SUPABASE_PG = bool(USE_SUPABASE and SUPABASE_DATABASE_URL)
+
+
+def _pg_pool_max() -> int:
+    try:
+        return max(1, min(32, int(os.environ.get("SUPABASE_PG_POOL_MAX", "8"))))
+    except ValueError:
+        return 8
+
+
+def supabase_pg_pool_max() -> int:
+    """Taille max du pool PG (partagée config / supabase_pg / health)."""
+    return _pg_pool_max()
+
+
+# Cache mémoire processus pour user_plans (plan + paywall) - 0 = désactivé
+def _user_plan_cache_ttl() -> float:
+    try:
+        return max(0.0, float(os.environ.get("USER_PLAN_CACHE_TTL_SEC", "30")))
+    except ValueError:
+        return 30.0
+
+
+USER_PLAN_CACHE_TTL_SEC = _user_plan_cache_ttl()
+
+# ThreadPool asyncio (tâches CPU / WeasyPrint) - réduire sur petit VPS
+def thread_pool_max_workers() -> int:
+    try:
+        return max(1, min(32, int(os.environ.get("THREAD_POOL_MAX_WORKERS", "4"))))
+    except ValueError:
+        return 4
+
+
+def supabase_data_mode_info() -> dict:
+    """
+    Résumé pour logs /health (sans secrets).
+    backend: pg_direct | rest_api | disabled
+    """
+    if not USE_SUPABASE:
+        return {
+            "backend": "disabled",
+            "hint": "cv_base.json et adaptations/ en local",
+        }
+    if USE_SUPABASE_PG:
+        return {
+            "backend": "pg_direct",
+            "fallback": "rest_api",
+            "pg_pool_max": supabase_pg_pool_max(),
+        }
+    return {
+        "backend": "rest_api",
+        "hint": "PostgREST via supabase-py",
+    }
 
 API_BASE_URL = _env("CV_BOT_API_BASE_URL")
 
 SUPABASE_JWT_SECRET = _env("SUPABASE_JWT_SECRET")
+# Tolérance iat/exp (secondes) : évite « token is not yet valid (iat) » si l’horloge du serveur est
+# légèrement en retard vs Supabase (Windows / VM sans NTP). PyJWT : leeway.
+def _jwt_leeway_seconds() -> float:
+    try:
+        return max(0.0, float(os.environ.get("JWT_LEEWAY_SECONDS", "120")))
+    except ValueError:
+        return 120.0
+
+
+JWT_LEEWAY_SECONDS = _jwt_leeway_seconds()
 
 STRIPE_SECRET_KEY = _env("STRIPE_SECRET_KEY")
 STRIPE_PRICE_ID_PRO_MONTHLY = _env("STRIPE_PRICE_ID_PRO_MONTHLY")
@@ -33,7 +98,23 @@ SUPPORT_ADMIN_EMAILS = [e.strip().lower() for e in _env("SUPPORT_ADMIN_EMAILS", 
 
 METRICS_AUTH_TOKEN = _env("METRICS_AUTH_TOKEN")
 
-# Budget Gemini par compte (€) — dépassement = blocage soft (pas affiché à l'utilisateur)
+
+def _truthy_env(key: str) -> bool:
+    return os.environ.get(key, "").strip().lower() in ("1", "true", "yes", "on")
+
+
+# En production, sans Supabase, refuser le démarrage sauf opt-in explicite (données locales partagées = risque)
+ALLOW_LOCAL_DATA_IN_PRODUCTION = _truthy_env("ALLOW_LOCAL_DATA_IN_PRODUCTION")
+
+
+def trusted_host_names() -> list[str]:
+    """Hôtes HTTP autorisés (Host / X-Forwarded-Host). Vide = pas de filtre TrustedHost."""
+    raw = _env("TRUSTED_HOSTS")
+    if not raw:
+        return []
+    return [h.strip().lower() for h in raw.split(",") if h.strip()]
+
+# Budget Gemini par compte (€) - dépassement = blocage soft (pas affiché à l'utilisateur)
 GEMINI_BUDGET_EUR = float(os.environ.get("GEMINI_BUDGET_EUR", "10"))
 # Taux USD/EUR pour convertir le budget en coût API (USD)
 GEMINI_USD_PER_EUR = float(os.environ.get("GEMINI_USD_PER_EUR", "1.08"))

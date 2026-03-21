@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+import { useState, useRef, useEffect, useMemo, Suspense } from 'react';
 import DOMPurify from 'dompurify';
-import { useLocation, useNavigate, NavLink } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   apiGet,
   apiPost,
@@ -14,44 +14,13 @@ import {
 } from './api';
 import { supabase } from './lib/supabase';
 import AuthForm from './components/AuthForm';
+import AppTopbar from './components/AppTopbar';
 import CompanyLogo from './components/CompanyLogo';
-import { STORAGE_EXPORT_DIR, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
+import { CONTACT_EMAIL, STORAGE_EXPORT_DIR, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
 import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiCheck, HiSwatch } from 'react-icons/hi2';
-
-/** Erreur de chargement d'un chunk (ex. 404 après un nouveau déploiement). */
-function isChunkLoadError(err) {
-  const msg = err?.message || '';
-  return (
-    msg.includes('Failed to fetch dynamically imported module') ||
-    msg.includes('Importing a module script failed') ||
-    msg.includes('Loading chunk') ||
-    msg.includes('Loading CSS chunk') ||
-    (err?.name === 'TypeError' && msg.includes('fetch'))
-  );
-}
-
-/** lazy() avec repli : en cas de 404 sur un chunk (nouveau déploiement), recharge la page une fois. */
-function lazyWithChunkReload(importFn) {
-  return lazy(() =>
-    importFn().catch((err) => {
-      if (isChunkLoadError(err) && typeof window !== 'undefined') {
-        const key = 'chunkErrorReload';
-        if (!sessionStorage.getItem(key)) {
-          sessionStorage.setItem(key, '1');
-          window.location.reload();
-        }
-      }
-      throw err;
-    })
-  );
-}
-
-/** Réinitialise le flag de reload chunk après chargement réussi (pour permettre un nouveau reload si un déploiement ultérieur cause encore une 404). */
-function clearChunkErrorReloadKey() {
-  try {
-    sessionStorage.removeItem('chunkErrorReload');
-  } catch (_) {}
-}
+import { lazyWithChunkReload, clearChunkErrorReloadKey } from './lib/lazyChunkReload';
+import { getViewFromPathname } from './lib/appRoutes';
+import { syncRobotsMeta } from './lib/seoHead';
 
 const ProfileView = lazyWithChunkReload(() => import('./components/ProfileView'));
 const LandingPage = lazyWithChunkReload(() => import('./components/LandingPage'));
@@ -68,6 +37,7 @@ const SupportHighlight = lazyWithChunkReload(() => import('./components/SupportH
 import './App.css';
 import './styles/TemplatePicker.css';
 import './styles/GuidedTour.css';
+import { formatApplicationDateLabel } from './lib/applicationDates';
 
 
 /** URL logo entreprise (Clearbit, open source). Fallback: pas d’image. */
@@ -76,14 +46,8 @@ import './styles/GuidedTour.css';
 
 const TPL_FONT_SAFE = { 'Plus Jakarta Sans': "'Plus Jakarta Sans', Arial, sans-serif", 'Inter': "'Inter', Arial, sans-serif", 'Georgia': "Georgia, 'Times New Roman', serif" };
 
-function getViewFromPathname(pathname) {
-  if (pathname === '/app/cv' || pathname.startsWith('/app/cv')) return 'cv';
-  if (pathname === '/app/postule' || pathname.startsWith('/app/postule')) return 'candidatures';
-  if (pathname === '/app/profil' || pathname.startsWith('/app/profil')) return 'profil';
-  if (pathname === '/app/linkedin' || pathname.startsWith('/app/linkedin')) return 'profil';
-  if (pathname === '/app/support' || pathname.startsWith('/app/support')) return 'support';
-  return 'cv';
-}
+/** Évite de rappeler render-html à chaque pas de curseur (réglages template). */
+const TEMPLATE_PREVIEW_DEBOUNCE_MS = 150;
 
 function MfaChallengeScreen({ onSuccess }) {
   const [code, setCode] = useState('');
@@ -284,7 +248,7 @@ const TOUR_STEPS = [
   {
     selector: '.tpl-bar',
     title: 'Choisis ton template',
-    content: 'Sélectionne parmi 3 templates professionnels et personnalise les couleurs.',
+    content: 'Ouvre « Template » pour le modèle, puis la roue dentée pour les couleurs, la typo et un aperçu plein écran en direct.',
     position: 'bottom',
   },
   {
@@ -356,11 +320,11 @@ const SUPPORT_TOPICS = [
   {
     id: 'personnaliser-couleurs',
     route: '/app/cv',
-    selector: '.tpl-popover',
+    selector: '.tpl-options-modal',
     title: 'Personnaliser les couleurs et la police',
-    description: 'Choisis les couleurs de l\'en-tête, de la sidebar et d\'accent, la police des titres, et affiche ou masque la photo et les mots-clés ATS.',
-    bubbleTitle: 'Menu de personnalisation',
-    bubbleContent: 'Ici tu peux modifier la couleur de l\'en-tête, de la sidebar et d\'accent, choisir la police des titres, afficher ou non ta photo et la section mots-clés ATS. Les réglages s\'appliquent à ton aperçu et sont mémorisés.',
+    description: 'Panneau à gauche, aperçu du CV à droite : tu règles en direct sans valider. Préréglages ou couleur au choix (nuancier complet).',
+    bubbleTitle: 'Personnalisation + aperçu',
+    bubbleContent: 'À gauche : en-tête, sidebar, accent, police, photo, ATS, typo. À droite : l’aperçu se met à jour tout de suite. Tu peux aussi choisir une couleur exacte via « Couleur au choix ».',
     position: 'left',
     icon: HiSwatch,
     openTemplateOptions: true,
@@ -540,6 +504,8 @@ export default function App() {
   const [previewVariant, setPreviewVariant] = useState('modified');
   const [originalPreviewHtml, setOriginalPreviewHtml] = useState('');
   const [modifiedPreviewHtml, setModifiedPreviewHtml] = useState('');
+  /** HTML du dernier rendu passé par setPreviewHtml (aperçu sans CV adapté, ex. GET /api/cv/preview) */
+  const [previewHtmlFallback, setPreviewHtmlFallback] = useState('');
   const [rapport, setRapport] = useState(null);
   const [rapportBefore, setRapportBefore] = useState(null);
   const [error, setError] = useState('');
@@ -591,6 +557,7 @@ export default function App() {
   /** true quand l’API a répondu ; on n’affiche le résultat qu’une fois l’animation à la dernière étape */
   const [apiAdaptDone, setApiAdaptDone] = useState(false);
   const pendingAdaptResultRef = useRef(null);
+  const sourceOffreDebounceRef = useRef(null);
   const [kanbanDraggedId, setKanbanDraggedId] = useState(null);
   const [kanbanDragOverColumn, setKanbanDragOverColumn] = useState(null);
   const [atsDisclaimerVisible, setAtsDisclaimerVisible] = useState(false);
@@ -637,10 +604,14 @@ export default function App() {
   useEffect(() => {
     const titles = {
       '/': "AxeL Job - CV adapté à chaque offre en 1 clic | IA & score ATS",
-      '/faq': "FAQ : CV, ATS et outil IA | AxeL Job",
-      '/ats': "Qu'est-ce qu'un ATS ? | AxeL Job",
+      '/faq': "CV, ATS et IA : les réponses aux questions que tout le monde se pose | AxeL Job",
+      '/ats': "ATS : qu'est-ce que c'est et comment ça fonctionne vraiment ? | AxeL Job",
       '/login': "Connexion | AxeL Job",
-      '/cv-adapte-chaque-offre': "CV adapté à chaque offre | AxeL Job",
+      '/modeles-cv': "Modèles de CV : comment choisir un template qui passe l'ATS et convainc un recruteur | AxeL Job",
+      '/guide-cv': "Comment faire un bon CV en 2025 : les règles qui font vraiment la différence | AxeL Job",
+      '/erreurs-cv': "Les 7 erreurs les plus courantes dans un CV (et comment les corriger) | AxeL Job",
+      '/cv-par-metier': "CV par secteur : les mots-clés qui font la différence en tech, marketing et finance | AxeL Job",
+      '/cv-adapte-chaque-offre': "Pourquoi adapter son CV à chaque offre d'emploi (et comment le faire efficacement) | AxeL Job",
       '/mentions-legales': "Mentions légales | AxeL Job",
       '/confidentialite': "Confidentialité | AxeL Job",
       '/cgu': "CGU | AxeL Job",
@@ -657,6 +628,11 @@ export default function App() {
   useEffect(() => {
     clearChunkErrorReloadKey();
   }, []);
+
+  // Meta robots : sync client sur les routes SPA ; en prod /login sert login.html (noindex déjà dans le HTML)
+  useEffect(() => {
+    syncRobotsMeta(pathname);
+  }, [pathname]);
 
   // Liste des templates : fetch en app (avec token si session pour avoir les templates perso dans « Mes templates »)
   useEffect(() => {
@@ -687,21 +663,17 @@ export default function App() {
 
   // Garder HTML original/modifié pour l'iframe et CvEditablePreview
   const wantHighlight = !!(lastBaseCv && lastAdaptedCv);
-  useEffect(() => {
-    if (!session) return;
-    if (lastAdaptedCv) {
-      apiPost('/api/render-html', { cv: lastAdaptedCv, base_cv: lastBaseCv || undefined, highlight_changes: wantHighlight, template_id: templateId, template_options: templateOptions, selection_a4: lastSelectionA4 || undefined })
-        .then((html) => { setModifiedPreviewHtml(html); })
-        .catch(() => {});
-    } else {
-      loadInitialPreview();
-    }
-    if (lastBaseCv) {
-      apiPost('/api/render-html', { cv: lastBaseCv, template_id: templateId, template_options: templateOptions })
-        .then((html) => setOriginalPreviewHtml(html))
-        .catch(() => {});
-    }
-  }, [session, templateKey, wantHighlight]);
+
+  const templateIdForPreviewRef = useRef(templateId);
+  const templateOptionsForPreviewRef = useRef(templateOptions);
+  templateIdForPreviewRef.current = templateId;
+  templateOptionsForPreviewRef.current = templateOptions;
+
+  const prevHadSessionRef = useRef(false);
+  const prevAdaptedCvRef = useRef(lastAdaptedCv);
+  const prevWantHighlightRef = useRef(wantHighlight);
+  const prevLastBaseCvRef = useRef(lastBaseCv);
+  const prevLastSelectionA4Ref = useRef(lastSelectionA4);
 
   useEffect(() => {
     if (!supabase) {
@@ -822,7 +794,23 @@ export default function App() {
     }
   }, [session, pathname, authLoading, navigate, location.search]);
 
+  /* /app sans sous-chemin reconnu → CV (évite état incohérent URL / contenu) */
+  useEffect(() => {
+    if (!session || authLoading) return;
+    if (!pathname.startsWith('/app')) return;
+    const ok =
+      pathname === '/app' ||
+      pathname === '/app/' ||
+      pathname.startsWith('/app/cv') ||
+      pathname.startsWith('/app/postule') ||
+      pathname.startsWith('/app/profil') ||
+      pathname.startsWith('/app/linkedin') ||
+      pathname.startsWith('/app/support');
+    if (!ok) navigate('/app/cv', { replace: true });
+  }, [session, authLoading, pathname, navigate]);
+
   const setPreviewHtml = (html) => {
+    setPreviewHtmlFallback(typeof html === 'string' ? html : '');
     if (!iframeRef.current) return;
     const iframe = iframeRef.current;
     iframe.style.opacity = '0';
@@ -873,6 +861,63 @@ export default function App() {
     }
   };
 
+  // Aperçu original / modifié : debounce si seuls template_id / template_options changent (sliders, couleurs).
+  useEffect(() => {
+    if (!session) {
+      prevHadSessionRef.current = false;
+      return;
+    }
+
+    const sessionBecameActive = !prevHadSessionRef.current;
+    prevHadSessionRef.current = true;
+
+    const adaptChanged = lastAdaptedCv !== prevAdaptedCvRef.current;
+    const highlightChanged = wantHighlight !== prevWantHighlightRef.current;
+    const baseChanged = lastBaseCv !== prevLastBaseCvRef.current;
+    const selectionChanged = lastSelectionA4 !== prevLastSelectionA4Ref.current;
+
+    prevAdaptedCvRef.current = lastAdaptedCv;
+    prevWantHighlightRef.current = wantHighlight;
+    prevLastBaseCvRef.current = lastBaseCv;
+    prevLastSelectionA4Ref.current = lastSelectionA4;
+
+    const immediate = sessionBecameActive || adaptChanged || highlightChanged || baseChanged || selectionChanged;
+
+    const run = () => {
+      const tid = templateIdForPreviewRef.current;
+      const opts = templateOptionsForPreviewRef.current;
+      if (lastAdaptedCv) {
+        apiPost('/api/render-html', {
+          cv: lastAdaptedCv,
+          base_cv: lastBaseCv || undefined,
+          highlight_changes: wantHighlight,
+          template_id: tid,
+          template_options: opts,
+          selection_a4: lastSelectionA4 || undefined,
+        })
+          .then((html) => {
+            setModifiedPreviewHtml(html);
+          })
+          .catch(() => {});
+      } else {
+        loadInitialPreview(tid, opts);
+      }
+      if (lastBaseCv) {
+        apiPost('/api/render-html', { cv: lastBaseCv, template_id: tid, template_options: opts })
+          .then((html) => setOriginalPreviewHtml(html))
+          .catch(() => {});
+      }
+    };
+
+    if (immediate) {
+      run();
+      return;
+    }
+
+    const t = setTimeout(run, TEMPLATE_PREVIEW_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [session, templateKey, wantHighlight, lastAdaptedCv, lastBaseCv, lastSelectionA4]);
+
   const loadApplications = async () => {
     try {
       const list = await apiGet('/api/applications' + (showArchived ? '?archived=1' : ''));
@@ -880,6 +925,54 @@ export default function App() {
     } catch {
       setApplications([]);
     }
+  };
+
+  /** Réinitialise l’espace « Adapter un CV » : nouveau fil de chat, nouvel adapt (sans toucher aux candidatures déjà enregistrées). */
+  const resetAdaptationWorkspace = () => {
+    setLastAdaptedCv(null);
+    setLastAdaptationId(null);
+    setLastSelectionA4(null);
+    setRapport(null);
+    setRapportBefore(null);
+    setExportBlockVisible(false);
+    setChatMessages([]);
+    setChatInput('');
+    setAnnonce('');
+    setAdaptRating(null);
+    setApiAdaptDone(false);
+    pendingAdaptResultRef.current = null;
+    setOriginalPreviewHtml('');
+    setModifiedPreviewHtml('');
+    setPreviewHtmlFallback('');
+    setPreviewVariant('modified');
+    setSourceOffreValue('');
+    setEntrepriseNom('');
+    setPosteNom('');
+    setError('');
+    setCvEditPanelOpen(false);
+    setAdaptStepIndex(0);
+    setAdapting(false);
+    apiGet('/api/cv')
+      .then((cv) => {
+        if (cv) {
+          setLastBaseCv(cv);
+          setFreshPreviewPhotoUrl(cv.photo_url ?? null);
+        }
+      })
+      .catch(() => {});
+    loadInitialPreview();
+  };
+
+  const requestNewCandidatureWorkspace = () => {
+    if (adapting) return;
+    if (lastAdaptedCv || chatMessages.length > 0) {
+      const ok = window.confirm(
+        "Démarrer une nouvelle candidature dans l'éditeur ? Le chat et l'aperçu de cette session seront effacés. Ta candidature reste dans « Mes candidatures » si elle a déjà été enregistrée.",
+      );
+      if (!ok) return;
+    }
+    trackEvent('new_candidature_workspace', { had_adapted_cv: !!lastAdaptedCv });
+    resetAdaptationWorkspace();
   };
 
   useEffect(() => {
@@ -908,13 +1001,6 @@ export default function App() {
     // Ne pas mettre lastAdaptedCv en dépendance : au retour sur l’onglet CV on affiche
     // la dernière version adaptée (valeur à l’exécution), sans recharger le CV de base.
   }, [view, session?.user?.id]);
-
-  // Réappliquer les options (couleurs, police) à l'aperçu même sans CV adapté par Gemini
-  useEffect(() => {
-    if (!session || view !== 'cv') return;
-    if (lastAdaptedCv) return;
-    loadInitialPreview(templateId, templateOptions);
-  }, [templateKey]);
 
   // Synchroniser template/options depuis le localStorage en passant sur l'onglet CV (au cas où modifié depuis Profil)
   useEffect(() => {
@@ -1116,6 +1202,7 @@ export default function App() {
           description: text,
           titre: posteNom || undefined,
           entreprise: entrepriseNom || undefined,
+          ...templateParams,
         });
         let baseCv = null;
         try {
@@ -1236,11 +1323,13 @@ export default function App() {
   const doDownloadPdf = async () => {
     if (!lastAdaptedCv) return;
     try {
+      const pdfTemplateOptions = { ...templateOptions, show_mots_cles_ats: templateOptions?.show_mots_cles_ats !== false };
       const blob = await apiPostBlob('/api/pdf', {
         cv: lastAdaptedCv,
         titre: posteNom || undefined,
         selection_a4: lastSelectionA4 || undefined,
-        ...templateParams,
+        template_id: templateId,
+        template_options: pdfTemplateOptions,
       });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -1332,6 +1421,7 @@ export default function App() {
           entreprise: entrepriseNom,
           description: annonce,
           adaptation_id: lastAdaptationId || undefined,
+          selection_a4: lastSelectionA4 || undefined,
           ...templateParams,
         });
         const JSZip = (await import('jszip')).default;
@@ -1360,6 +1450,7 @@ export default function App() {
           entreprise: entrepriseNom,
           description: annonce,
           dossier: exportDossierPath.trim() || undefined,
+          selection_a4: lastSelectionA4 || undefined,
           ...templateParams,
         });
         if (exportDossierPath.trim()) localStorage.setItem(STORAGE_EXPORT_DIR, exportDossierPath.trim());
@@ -1616,7 +1707,7 @@ export default function App() {
     if (pathname === '/ats') {
       return <Suspense fallback={<div className="app-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}><AtsPage onBack={() => navigate('/')} /></Suspense>;
     }
-    if (pathname === '/modeles-cv' || pathname === '/guide-cv' || pathname === '/erreurs-cv' || pathname === '/cv-par-metier') {
+    if (pathname === '/modeles-cv' || pathname === '/guide-cv' || pathname === '/erreurs-cv' || pathname === '/cv-par-metier' || pathname === '/cv-adapte-chaque-offre') {
       return <Suspense fallback={<div className="app-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}><ArticlesPages slug={pathname.slice(1)} onBack={() => navigate('/')} /></Suspense>;
     }
     if (pathname === '/faq') {
@@ -1628,47 +1719,14 @@ export default function App() {
   return (
     <Suspense fallback={<div className="app-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}>
     <div className="app-shell">
-      <header className="topbar">
-        <div className="topbar-left">
-          <img src="/favicon.svg" alt="AxeL Job" className="topbar-logo" />
-          <span className="topbar-brand">AxeL Job</span>
-        </div>
-        <nav className="topbar-nav">
-          <NavLink to="/app/cv" className={({ isActive }) => `topbar-link ${isActive ? 'active' : ''}`}>
-            <HiDocumentText size={18} />
-            <span>Adapter CV</span>
-          </NavLink>
-          <NavLink to="/app/postule" className={({ isActive }) => `topbar-link ${isActive ? 'active' : ''}`}>
-            <HiClipboardDocumentList size={18} />
-            <span>Candidatures</span>
-          </NavLink>
-          <NavLink to="/app/profil" className={({ isActive }) => `topbar-link ${isActive ? 'active' : ''}`}>
-            <HiPencilSquare size={18} />
-            <span>Profil</span>
-          </NavLink>
-          <NavLink to="/app/support" className={({ isActive }) => `topbar-link ${isActive ? 'active' : ''}`}>
-            <HiChatBubbleLeftRight size={18} />
-            <span>Support</span>
-          </NavLink>
-        </nav>
-        <div className="topbar-right">
-          {session && usage && usage.plan !== 'pro' && (
-            <button type="button" className="topbar-upgrade-btn" onClick={handleUpgradeClick} disabled={checkoutLoading}>
-              {checkoutLoading ? '…' : 'Passer Pro'}
-            </button>
-          )}
-          {session && usage && usage.plan === 'pro' && (
-            <button type="button" className="topbar-pro-badge" onClick={() => setProModalVisible(true)}>
-              Pro
-            </button>
-          )}
-          {session && (
-            <button type="button" className="topbar-user-btn" onClick={() => setSignOutConfirmOpen(true)} title="Déconnexion">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
-            </button>
-          )}
-        </div>
-      </header>
+      <AppTopbar
+        session={session}
+        usage={usage}
+        checkoutLoading={checkoutLoading}
+        onUpgradeClick={handleUpgradeClick}
+        onProBadgeClick={() => setProModalVisible(true)}
+        onSignOutClick={() => setSignOutConfirmOpen(true)}
+      />
 
       <main className="app-main" id="main-content">
         {needsOnboarding && onboardingChecked && (
@@ -1685,9 +1743,20 @@ export default function App() {
         <div id="viewCv" className={`view-panel app-page cv-chat-page ${isCvView ? 'active' : ''}`} style={{ display: isCvView ? 'flex' : 'none' }}>
           <header className="page-header">
             <div className="page-title-row">
-              <h1 className="page-title">Adapter un CV</h1>
-              <button type="button" className="page-tour-help" onClick={handleRestartTour} title="Revoir le tutoriel" aria-label="Revoir le tutoriel">
-                ?
+              <div className="page-title-row-left">
+                <h1 className="page-title">Adapter un CV</h1>
+                <button type="button" className="page-tour-help" onClick={handleRestartTour} title="Revoir le tutoriel" aria-label="Revoir le tutoriel">
+                  ?
+                </button>
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary btn-new-adapt-session"
+                onClick={requestNewCandidatureWorkspace}
+                disabled={adapting}
+                title="Vider le chat et l’aperçu pour adapter ton CV à une autre offre (sans supprimer tes candidatures enregistrées)"
+              >
+                Nouvelle candidature
               </button>
             </div>
             <p className="page-subtitle">Colle une offre d'emploi, l'IA adapte ton CV. Affine par chat, puis exporte en PDF.</p>
@@ -1754,7 +1823,14 @@ export default function App() {
                   className="cv-chat-input"
                   placeholder="Colle une offre d'emploi ou décris ce que tu veux modifier..."
                   value={chatInput}
-                  onChange={(e) => { setChatInput(e.target.value); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px'; }}
+                  onChange={(e) => {
+                    const el = e.target;
+                    setChatInput(el.value);
+                    requestAnimationFrame(() => {
+                      el.style.height = 'auto';
+                      el.style.height = `${Math.min(el.scrollHeight, 150)}px`;
+                    });
+                  }}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
                   rows={1}
                   disabled={adapting}
@@ -1777,6 +1853,8 @@ export default function App() {
                   openOptionsFromSupport={location.state?.supportHighlight?.openTemplateOptions}
                   openModalToTab={new URLSearchParams(location.search || '').get('open') === 'template-perso' ? 'mine' : null}
                   onOpenFromUrlConsumed={() => navigate(location.pathname, { replace: true })}
+                  optionsPreviewHtml={previewVariant === 'original' ? (originalPreviewHtml || previewHtmlFallback) : (modifiedPreviewHtml || previewHtmlFallback)}
+                  optionsPreviewLoading={false}
                 />
               </div>
               {lastAdaptedCv && adaptRating === null && (
@@ -1857,7 +1935,18 @@ export default function App() {
                   <input type="text" className="input-field" placeholder="Entreprise" value={entrepriseNom} onChange={(e) => setEntrepriseNom(e.target.value)} />
                   <input type="text" className="input-field" placeholder="Intitulé du poste" value={posteNom} onChange={(e) => setPosteNom(e.target.value)} />
                   {lastAdaptationId && (
-                    <select className="input-field" value={sourceOffreValue} onChange={(e) => { setSourceOffreValue(e.target.value); if (e.target.value.trim() && lastAdaptationId) { apiPatch(`/api/applications/${encodeURIComponent(lastAdaptationId)}`, { source_offre: e.target.value.trim() }).catch(() => {}); } }} style={{ maxWidth: '150px' }}>
+                    <select className="input-field" value={sourceOffreValue} onChange={(e) => {
+                      const v = e.target.value;
+                      setSourceOffreValue(v);
+                      const aid = lastAdaptationId;
+                      if (!aid) return;
+                      if (sourceOffreDebounceRef.current) clearTimeout(sourceOffreDebounceRef.current);
+                      const trimmed = v.trim();
+                      if (!trimmed) return;
+                      sourceOffreDebounceRef.current = setTimeout(() => {
+                        apiPatch(`/api/applications/${encodeURIComponent(aid)}`, { source_offre: trimmed }).catch(() => {});
+                      }, 800);
+                    }} style={{ maxWidth: '150px' }}>
                       <option value="">Source</option>
                       <option value="LinkedIn">LinkedIn</option>
                       <option value="Site entreprise">Site entreprise</option>
@@ -2085,11 +2174,11 @@ export default function App() {
                               <CompanyLogo companyName={app.entreprise} className="app-company-logo" size={36} />
                               <div className="app-poste-date">
                                 <div className="app-title">{titre}</div>
-                                <div className="app-date">{app.date}</div>
+                                <div className="app-date">{formatApplicationDateLabel(app.date)}</div>
                               </div>
                             </div>
                             {sousTitre && <div className="app-meta">{sousTitre}</div>}
-                            {(app.pdf_lettre_url || app.pdf_cv_url || app.pdf_fiche_url) && (
+                            {(app.pdf_lettre_url || app.pdf_cv_url || app.pdf_fiche_url || app.pdf_cv_stored || app.pdf_fiche_stored || app.pdf_lettre_stored) && (
                               <div className="app-docs-badge" title="Documents PDF joints">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
                                 <span>PDF</span>
@@ -2134,7 +2223,7 @@ export default function App() {
                           <CompanyLogo companyName={app.entreprise} className="app-company-logo" size={36} />
                           <div className="app-poste-date">
                             <div className="app-title">{titre}</div>
-                            <div className="app-date">{app.date}</div>
+                            <div className="app-date">{formatApplicationDateLabel(app.date)}</div>
                           </div>
                         </div>
                         <div className="app-actions">
@@ -2276,19 +2365,22 @@ export default function App() {
                   const fiche = setupFiche.trim();
                   const ent = setupEntreprise.trim();
                   const pos = setupPoste.trim();
-                  setAnnonce(fiche);
-                  setEntrepriseNom(ent);
-                  setPosteNom(pos);
                   setSetupModalOpen(false);
                   setSetupEntreprise('');
                   setSetupPoste('');
                   setSetupFiche('');
                   navigate('/app/cv');
                   hideError();
+                  resetAdaptationWorkspace();
+                  setEntrepriseNom(ent);
+                  setPosteNom(pos);
+                  setAnnonce(fiche);
+                  setAdaptRating(null);
                   setAdapting(true);
-                  setChatMessages((prev) => [...prev, { role: 'user', content: fiche.slice(0, 300) + (fiche.length > 300 ? '…' : '') }]);
+                  const userPreview = fiche.slice(0, 300) + (fiche.length > 300 ? '…' : '');
+                  setChatMessages([{ role: 'user', content: userPreview }]);
                   try {
-                    const data = await apiPost('/api/adapt', { description: fiche, titre: pos || undefined, entreprise: ent || undefined });
+                    const data = await apiPost('/api/adapt', { description: fiche, titre: pos || undefined, entreprise: ent || undefined, ...templateParams });
                     setLastAdaptedCv(data.cv);
                     setLastAdaptationId(data.adaptation_id || null);
                     setLastSelectionA4(data.selection_a4 || null);
@@ -2301,20 +2393,23 @@ export default function App() {
                     let baseCv = null;
                     try { baseCv = await apiGet('/api/cv'); } catch {}
                     if (baseCv) setLastBaseCv(baseCv);
-                    const html = await apiPost('/api/render-html', { cv: data.cv, base_cv: baseCv ?? lastBaseCv ?? undefined, highlight_changes: true, selection_a4: data.selection_a4 || undefined, ...templateParams });
+                    const html = await apiPost('/api/render-html', { cv: data.cv, base_cv: baseCv ?? undefined, highlight_changes: true, selection_a4: data.selection_a4 || undefined, ...templateParams });
                     setPreviewHtml(html);
                     setModifiedPreviewHtml(html);
                     const summary = data.rapport?.score_global != null
                       ? `CV adapté (score ${data.rapport.score_global}/100). Tu peux affiner en envoyant un autre message.`
                       : 'CV adapté. Envoie un message pour affiner ou clique sur le texte pour éditer.';
-                    setChatMessages((prev) => [...prev, { role: 'assistant', content: summary }]);
+                    setChatMessages([{ role: 'user', content: userPreview }, { role: 'assistant', content: summary }]);
                   } catch (e) {
                     if (e.status === 402 || (e.message && e.message.includes('épuisé'))) {
                       setUpgradeModalVisible(true);
                     } else {
                       showError(e.message || "Erreur lors de l'adaptation.");
                     }
-                    setChatMessages((prev) => [...prev, { role: 'assistant', content: 'Erreur : ' + (e.message || '') }]);
+                    setChatMessages([
+                      { role: 'user', content: userPreview },
+                      { role: 'assistant', content: 'Erreur : ' + (e.message || '') },
+                    ]);
                   } finally {
                     setAdapting(false);
                   }
@@ -2333,14 +2428,17 @@ export default function App() {
             <p className="page-subtitle">Ton CV de base. Modifications enregistrées automatiquement.</p>
           </header>
           <div className="page-content">
-            <ProfileView onSaveSuccess={handleProfileSaveSuccess} session={session} refreshKey={profileRefreshKey} usage={usage} onUpgradeClick={handleUpgradeClick} templatesList={templatesList} templateId={templateId} templateOptions={templateOptions} onTemplateIdChange={setTemplateId} onTemplateOptionsChange={setTemplateOptions} onPhotoSessionExpired={handlePhotoSessionExpired} />
+            <ProfileView onSaveSuccess={handleProfileSaveSuccess} session={session} refreshKey={profileRefreshKey} usage={usage} onUpgradeClick={handleUpgradeClick} onUsageRefresh={loadUsage} onBillingPortalClick={() => setManageSubscriptionModalOpen(true)} templatesList={templatesList} templateId={templateId} templateOptions={templateOptions} onTemplateIdChange={setTemplateId} onTemplateOptionsChange={setTemplateOptions} onPhotoSessionExpired={handlePhotoSessionExpired} />
           </div>
         </div>
 
         <div id="viewSupport" className={`view-panel app-page view-support ${view === 'support' ? 'active' : ''}`} style={{ display: view === 'support' ? 'flex' : 'none' }}>
           <div className="support-hero">
             <h1 className="support-hero-title">Support</h1>
-            <p className="support-hero-subtitle">On t&apos;aide à tirer le meilleur de AxeL Job. Sujets fréquents ci-dessous, ou ouvre un ticket pour une réponse par email.</p>
+            <p className="support-hero-subtitle">
+              On t&apos;aide à tirer le meilleur de AxeL Job. Sujets fréquents ci-dessous, ouvre un ticket pour une réponse par email, ou écris-nous à{' '}
+              <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+            </p>
           </div>
           <div className="page-content support-page-content">
             <section className="support-usecases">
@@ -2419,7 +2517,7 @@ export default function App() {
               <ul style={{ textAlign: 'left', margin: '1rem 0', paddingLeft: '1.25rem', color: 'var(--text)' }}>
                 <li>Adaptations IA illimitées</li>
                 <li>Suivi de candidatures illimité</li>
-                <li>Lettre de motivation ciblée (à venir)</li>
+                <li>Lettre de motivation ciblée</li>
               </ul>
               <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
                 <button type="button" className="btn btn-primary" onClick={() => { setUpgradeModalVisible(false); handleStartCheckout(); }} disabled={checkoutLoading}>
@@ -2447,7 +2545,7 @@ export default function App() {
                     <li><span className="pro-check"><HiCheck size={14} strokeWidth={2.5} /></span>Adaptations IA illimitées</li>
                     <li><span className="pro-check"><HiCheck size={14} strokeWidth={2.5} /></span>Suivi de candidatures illimité</li>
                     <li><span className="pro-check"><HiCheck size={14} strokeWidth={2.5} /></span>Templates premium</li>
-                    <li><span className="pro-check"><HiCheck size={14} strokeWidth={2.5} /></span>Lettre de motivation ciblée (à venir)</li>
+                    <li><span className="pro-check"><HiCheck size={14} strokeWidth={2.5} /></span>Lettre de motivation ciblée</li>
                   </ul>
                   <div className="linkedin-sync-actions" style={{ marginTop: '1rem', flexDirection: 'column', gap: '0.5rem' }}>
                     <button type="button" className="btn btn-secondary" onClick={() => { setProModalVisible(false); handleManageSubscriptionClick(); }} disabled={checkoutLoading}>
@@ -2479,7 +2577,7 @@ export default function App() {
                         <li><strong>Illimité</strong> - adaptations IA</li>
                         <li><strong>Illimité</strong> - candidatures</li>
                         <li>Templates premium</li>
-                        <li>Lettre de motivation ciblée (à venir)</li>
+                        <li>Lettre de motivation ciblée</li>
                       </ul>
                     </div>
                   </div>
@@ -2517,7 +2615,7 @@ export default function App() {
               <p className="profile-subtitle" style={{ marginTop: 0 }}>Tu seras redirigé vers le portail de gestion. Si tu envisages d&apos;annuler, peux-tu nous dire pourquoi ? (optionnel)</p>
               <label className="input-label" style={{ display: 'block', marginTop: '0.75rem' }}>Raison</label>
               <select className="input-field" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} style={{ width: '100%', marginTop: '0.25rem' }}>
-                <option value="">— Choisir —</option>
+                <option value="">- Choisir -</option>
                 <option value="trop_cher">Trop cher</option>
                 <option value="pas_utile">Pas utile pour moi</option>
                 <option value="autre">Autre</option>

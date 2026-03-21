@@ -86,6 +86,33 @@ TYPO_OPTION_DEFAULTS = {
     "photo_size": 72,
 }
 
+# Clés réglables dans l’UI (TemplatePicker) : doivent toujours fusionner même si meta.options est vide (ex. template Supabase).
+_MERGE_OPTION_KEYS = (
+    {"show_photo", "show_mots_cles_ats", "photo_size", "header_color", "sidebar_color", "accent_color", "font"}
+    | set(TYPO_OPTION_DEFAULTS.keys())
+)
+
+
+def get_default_layout_options_for_custom() -> list:
+    """Même liste d’options que le template classique - utilisée si cv_templates.options est vide ou absent."""
+    classic = TEMPLATES_DIR / "classic" / "meta.json"
+    try:
+        meta = json.loads(classic.read_text(encoding="utf-8"))
+        opts = meta.get("options")
+        if isinstance(opts, list) and opts:
+            return json.loads(json.dumps(opts))
+    except Exception:
+        pass
+    return [
+        {"key": "header_color", "type": "color", "default": "#1e2a3a", "label": "Couleur en-tête"},
+        {"key": "sidebar_color", "type": "color", "default": "#f4f4f2", "label": "Couleur sidebar"},
+        {"key": "accent_color", "type": "color", "default": "#1e2a3a", "label": "Couleur accent"},
+        {"key": "font", "type": "select", "choices": ["Plus Jakarta Sans", "Inter", "Georgia"], "default": "Plus Jakarta Sans", "label": "Police titres"},
+        {"key": "show_photo", "type": "boolean", "default": True, "label": "Afficher la photo"},
+        {"key": "show_mots_cles_ats", "type": "boolean", "default": True, "label": "Mots-clés ATS"},
+    ]
+
+
 def resolve_options(template_id: str | None, user_options: dict | None) -> dict:
     """Merge user options with template defaults. Inclut show_photo, show_mots_cles_ats et options typo pour tous les templates."""
     meta = get_template(template_id)
@@ -96,9 +123,8 @@ def resolve_options(template_id: str | None, user_options: dict | None) -> dict:
     defaults.setdefault("show_mots_cles_ats", True)
     final = {**defaults}
     if user_options:
-        allowed_extra = {"show_photo", "show_mots_cles_ats", "photo_size"} | set(TYPO_OPTION_DEFAULTS)
         for k, v in user_options.items():
-            if v is not None and (k in defaults or k in allowed_extra):
+            if v is not None and (k in defaults or k in _MERGE_OPTION_KEYS):
                 final[k] = v
     return final
 

@@ -1,5 +1,8 @@
 """Accès données : Supabase (cv_base, applications) ou fallback fichiers."""
 import json
+import logging
+import threading
+import time
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional
@@ -7,11 +10,79 @@ from typing import Optional
 from backend.config import (
     BASE_DIR,
     USE_SUPABASE,
+    USE_SUPABASE_PG,
+    USER_PLAN_CACHE_TTL_SEC,
     SUPABASE_URL,
     SUPABASE_SERVICE_KEY,
     GEMINI_BUDGET_EUR,
     GEMINI_USD_PER_EUR,
 )
+from backend.supabase_metrics import inc_pg_fallback
+
+logger = logging.getLogger(__name__)
+
+_user_plan_lock = threading.Lock()
+# uid -> (plan 'free'|'pro', paywall_disabled, expire_monotonic)
+_user_plan_cache: dict[str, tuple[str, bool, float]] = {}
+
+
+def _warn_pg_fallback(operation: str, exc: BaseException) -> None:
+    """PG direct indisponible : repli sur le client Supabase (PostgREST)."""
+    inc_pg_fallback(operation)
+    logger.info("Supabase PG → repli REST pour %s : %s", operation, exc)
+
+
+def _invalidate_user_plan_cache(uid: str) -> None:
+    with _user_plan_lock:
+        _user_plan_cache.pop(uid, None)
+
+
+def _fetch_user_plan_state(uid: str) -> tuple[str, bool]:
+    """Une requête store : (plan 'free'|'pro', paywall_disabled)."""
+    sb = _get_supabase()
+    if not sb:
+        return "free", False
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg as spg
+
+            row = spg.get_user_plan_row(uid)
+            if row:
+                plan = "pro" if row[0] == "pro" else "free"
+                return plan, bool(row[1])
+            return "free", False
+        except Exception as e:
+            _warn_pg_fallback("get_user_plan_row", e)
+    try:
+        r = (
+            sb.table("user_plans")
+            .select("plan, paywall_disabled")
+            .eq("user_id", uid)
+            .limit(1)
+            .execute()
+        )
+        if r.data and len(r.data) > 0:
+            row = r.data[0]
+            plan = "pro" if row.get("plan") == "pro" else "free"
+            return plan, bool(row.get("paywall_disabled"))
+    except Exception:
+        pass
+    return "free", False
+
+
+def _get_cached_user_plan_state(uid: str) -> tuple[str, bool]:
+    ttl = USER_PLAN_CACHE_TTL_SEC
+    if ttl <= 0:
+        return _fetch_user_plan_state(uid)
+    now = time.monotonic()
+    with _user_plan_lock:
+        hit = _user_plan_cache.get(uid)
+        if hit is not None and hit[2] > now:
+            return hit[0], hit[1]
+    plan, pw = _fetch_user_plan_state(uid)
+    with _user_plan_lock:
+        _user_plan_cache[uid] = (plan, pw, now + ttl)
+    return plan, pw
 
 CV_BASE_PATH = BASE_DIR / "cv_base.json"
 ADAPTATIONS_DIR = BASE_DIR / "adaptations"
@@ -178,6 +249,15 @@ def load_cv_base(user_id: Optional[str] = None) -> dict:
     row_id = _cv_row_id(user_id)
     sb = _get_supabase()
     if sb:
+        if USE_SUPABASE_PG:
+            try:
+                from backend import supabase_pg as spg
+
+                data = spg.load_cv_base_data(row_id)
+                if data is not None:
+                    return data
+            except Exception as e:
+                _warn_pg_fallback("load_cv_base", e)
         try:
             r = sb.table("cv_base").select("data").eq("id", row_id).limit(1).execute()
             if r.data and len(r.data) > 0 and r.data[0].get("data"):
@@ -233,9 +313,18 @@ def save_cv_base(data: dict, user_id: Optional[str] = None) -> None:
             pass
     sb = _get_supabase()
     if sb:
+        ts = datetime.now(timezone.utc).isoformat()
+        if USE_SUPABASE_PG:
+            try:
+                from backend import supabase_pg as spg
+
+                spg.upsert_cv_base(row_id, data, ts)
+                return
+            except Exception as e:
+                _warn_pg_fallback("save_cv_base", e)
         try:
             sb.table("cv_base").upsert(
-                {"id": row_id, "data": data, "updated_at": datetime.now(timezone.utc).isoformat()},
+                {"id": row_id, "data": data, "updated_at": ts},
                 on_conflict="id",
             ).execute()
             return
@@ -294,7 +383,7 @@ def _signed_url(sb, bucket: str, path: str) -> str:
         return ""
 
 
-# 1 an en secondes — évite que la photo ne s’affiche plus après une nuit (JWT expiré)
+# 1 an en secondes - évite que la photo ne s’affiche plus après une nuit (JWT expiré)
 _SIGNED_URL_EXPIRY = 604800  # 1 semaine
 
 
@@ -351,6 +440,48 @@ def upload_application_doc(
     return _signed_url(sb, APPLICATION_DOCS_BUCKET, path)
 
 
+def get_application_doc_signed_url(user_id: str, application_id: str, doc_type: str) -> str:
+    """URL signée fraîche pour un PDF déjà stocké (les URLs en base expirent)."""
+    if doc_type not in APPLICATION_DOC_TYPES:
+        return ""
+    sb = _get_supabase()
+    if not sb:
+        return ""
+    try:
+        path = _application_doc_path(user_id, application_id, doc_type)
+        return _signed_url(sb, APPLICATION_DOCS_BUCKET, path) or ""
+    except Exception:
+        return ""
+
+
+def download_application_doc_bytes(user_id: str, application_id: str, doc_type: str) -> Optional[bytes]:
+    """Télécharge le PDF depuis Storage, ou None si absent / erreur."""
+    if doc_type not in APPLICATION_DOC_TYPES:
+        return None
+    sb = _get_supabase()
+    if not sb:
+        return None
+    try:
+        path = _application_doc_path(user_id, application_id, doc_type)
+        return sb.storage.from_(APPLICATION_DOCS_BUCKET).download(path)
+    except Exception:
+        return None
+
+
+def hydrate_application_pdf_urls(payload: dict, user_id: str, application_id: str) -> dict:
+    """Met à jour pdf_*_url pour les documents stockés (URLs signées renouvelées)."""
+    if not payload:
+        return payload
+    out = dict(payload)
+    uid = (user_id or "default").strip() or "default"
+    for doc_type in APPLICATION_DOC_TYPES:
+        if out.get(f"pdf_{doc_type}_stored"):
+            u = get_application_doc_signed_url(uid, application_id, doc_type)
+            if u:
+                out[f"pdf_{doc_type}_url"] = u
+    return out
+
+
 # --- Applications (adaptations) ---
 
 def save_adaptation(adaptation_id: str, payload: dict, user_id: Optional[str] = None) -> None:
@@ -361,19 +492,28 @@ def save_adaptation(adaptation_id: str, payload: dict, user_id: Optional[str] = 
     payload["user_id"] = uid
     if "created_at" not in payload:
         payload["created_at"] = datetime.now(timezone.utc).isoformat()
-    # Date d'envoi : fixée une seule fois quand la candidature est en "candidature_envoyee" (pour stats et affichage)
+    # Date d'envoi : fixée une seule fois quand la candidature est en "candidature_envoyee" (heure UTC réelle, pas minuit)
     if payload.get("statut") == "candidature_envoyee" and not payload.get("date_envoi"):
-        payload["date_envoi"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        payload["date_envoi"] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
 
     sb = _get_supabase()
     if sb:
+        ts = datetime.now(timezone.utc).isoformat()
+        if USE_SUPABASE_PG:
+            try:
+                from backend import supabase_pg as spg
+
+                spg.upsert_application(adaptation_id, uid, payload, ts)
+                return
+            except Exception as e:
+                _warn_pg_fallback("save_adaptation", e)
         try:
             sb.table("applications").upsert(
                 {
                     "id": adaptation_id,
                     "user_id": uid,
                     "payload": payload,
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": ts,
                 },
                 on_conflict="id",
             ).execute()
@@ -392,6 +532,20 @@ def list_applications(include_archived: bool = False, user_id: Optional[str] = N
     uid = (user_id or "default").strip() or "default"
     sb = _get_supabase()
     if sb:
+        if USE_SUPABASE_PG:
+            try:
+                from backend import supabase_pg as spg
+
+                rows = spg.list_application_rows(uid)
+                out = []
+                for row in rows:
+                    p = row.get("payload") or {}
+                    if p.get("archived") and not include_archived:
+                        continue
+                    out.append(_application_row(row["id"], p, row.get("updated_at")))
+                return out
+            except Exception as e:
+                _warn_pg_fallback("list_applications", e)
         try:
             r = (
                 sb.table("applications")
@@ -413,28 +567,46 @@ def list_applications(include_archived: bool = False, user_id: Optional[str] = N
     return _list_applications_files(include_archived, uid)
 
 
+def _format_application_list_date(data: dict, updated_at: Optional[str] = None) -> str:
+    """Date pour liste / export : date_envoi avec heure si dispo ; anciennes entrées jour-seul sans 00:00 fictif."""
+    raw = (data.get("date_envoi") or "").strip()
+    if raw:
+        if "T" in raw:
+            try:
+                dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M")
+            except Exception:
+                return raw
+        # Déjà "YYYY-MM-DD HH:MM" (nouveau stockage)
+        if len(raw) >= 16 and raw[4] == "-" and raw[7] == "-" and raw[10] == " " and raw[13] == ":":
+            return raw[:16]
+        # Ancien stockage : jour seul → pas d'heure à minuit affichée
+        if len(raw) >= 10 and raw[4] == "-" and raw[7] == "-":
+            return raw[:10]
+        return raw
+    date_str = ""
+    ts = None
+    if updated_at:
+        try:
+            ts = datetime.fromisoformat(updated_at.replace("Z", "+00:00")).timestamp()
+        except Exception:
+            pass
+    if ts:
+        date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
+    created_val = data.get("created_at") or ""
+    if created_val and not date_str:
+        try:
+            ts_created = datetime.fromisoformat(created_val.replace("Z", "+00:00")).timestamp()
+            date_str = datetime.fromtimestamp(ts_created).strftime("%Y-%m-%d %H:%M")
+        except Exception:
+            pass
+    return date_str
+
+
 def _application_row(aid: str, data: dict, updated_at: Optional[str] = None) -> dict:
-    # Date affichée = date d'envoi (apply) si présente, sinon fallback updated_at / created_at (rétrocompat)
-    date_str = (data.get("date_envoi") or "").strip()
-    if date_str and len(date_str) >= 10:
-        date_str = date_str[:10] + " 00:00" if len(date_str) <= 10 else date_str
-    else:
-        date_str = ""
-        ts = None
-        if updated_at:
-            try:
-                ts = datetime.fromisoformat(updated_at.replace("Z", "+00:00")).timestamp()
-            except Exception:
-                pass
-        if ts:
-            date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
-        created_val = data.get("created_at") or ""
-        if created_val and not date_str:
-            try:
-                ts_created = datetime.fromisoformat(created_val.replace("Z", "+00:00")).timestamp()
-                date_str = datetime.fromtimestamp(ts_created).strftime("%Y-%m-%d %H:%M")
-            except Exception:
-                pass
+    date_str = _format_application_list_date(data, updated_at)
     created = data.get("created_at") or ""
     return {
         "id": aid,
@@ -455,6 +627,9 @@ def _application_row(aid: str, data: dict, updated_at: Optional[str] = None) -> 
         "pdf_lettre_url": data.get("pdf_lettre_url", ""),
         "pdf_cv_url": data.get("pdf_cv_url", ""),
         "pdf_fiche_url": data.get("pdf_fiche_url", ""),
+        "pdf_cv_stored": bool(data.get("pdf_cv_stored")),
+        "pdf_fiche_stored": bool(data.get("pdf_fiche_stored")),
+        "pdf_lettre_stored": bool(data.get("pdf_lettre_stored")),
     }
 
 
@@ -484,6 +659,17 @@ def get_adaptation(adaptation_id: str, user_id: Optional[str] = None) -> Optiona
     uid = (user_id or "default").strip() or "default"
     sb = _get_supabase()
     if sb:
+        if USE_SUPABASE_PG:
+            try:
+                from backend import supabase_pg as spg
+
+                row = spg.get_application_row(adaptation_id)
+                if row:
+                    if row.get("user_id") != uid:
+                        return None
+                    return row.get("payload")
+            except Exception as e:
+                _warn_pg_fallback("get_adaptation", e)
         try:
             r = (
                 sb.table("applications")
@@ -514,6 +700,13 @@ def count_applications(user_id: Optional[str] = None) -> int:
     uid = (user_id or "default").strip() or "default"
     sb = _get_supabase()
     if sb:
+        if USE_SUPABASE_PG:
+            try:
+                from backend import supabase_pg as spg
+
+                return spg.count_applications_for_user(uid)
+            except Exception as e:
+                _warn_pg_fallback("count_applications", e)
         try:
             r = (
                 sb.table("applications")
@@ -541,30 +734,90 @@ def count_applications(user_id: Optional[str] = None) -> int:
 def get_user_plan(user_id: Optional[str] = None) -> str:
     """Retourne 'free' ou 'pro'. Par défaut 'free' si pas de ligne."""
     uid = (user_id or "default").strip() or "default"
-    sb = _get_supabase()
-    if sb:
-        try:
-            r = sb.table("user_plans").select("plan").eq("user_id", uid).limit(1).execute()
-            if r.data and len(r.data) > 0 and r.data[0].get("plan") == "pro":
-                return "pro"
-        except Exception:
-            pass
-    return "free"
+    if not _get_supabase():
+        return "free"
+    plan, _ = _get_cached_user_plan_state(uid)
+    return plan
 
 
 def get_paywall_disabled(user_id: Optional[str] = None) -> bool:
     """True si le paywall est désactivé pour cet utilisateur (option dans user_plans.paywall_disabled)."""
     uid = (user_id or "default").strip() or "default"
+    if not _get_supabase():
+        return False
+    _, pw = _get_cached_user_plan_state(uid)
+    return pw
+
+
+def get_user_stripe_ids(user_id: Optional[str] = None) -> tuple[Optional[str], Optional[str]]:
+    """Retourne (stripe_customer_id, stripe_subscription_id) depuis user_plans."""
+    uid = (user_id or "default").strip() or "default"
     sb = _get_supabase()
     if not sb:
-        return False
+        return None, None
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg as spg
+
+            row = spg.get_user_plan_stripe_fields(uid)
+            if row:
+                cid = row.get("stripe_customer_id")
+                sid = row.get("stripe_subscription_id")
+                return (
+                    str(cid).strip() if cid else None,
+                    str(sid).strip() if sid else None,
+                )
+            return None, None
+        except Exception as e:
+            _warn_pg_fallback("get_user_plan_stripe_fields", e)
     try:
-        r = sb.table("user_plans").select("paywall_disabled").eq("user_id", uid).limit(1).execute()
+        r = (
+            sb.table("user_plans")
+            .select("stripe_customer_id, stripe_subscription_id")
+            .eq("user_id", uid)
+            .limit(1)
+            .execute()
+        )
         if r.data and len(r.data) > 0:
-            return bool(r.data[0].get("paywall_disabled"))
+            row = r.data[0]
+            cid = row.get("stripe_customer_id")
+            sid = row.get("stripe_subscription_id")
+            return (
+                str(cid).strip() if cid else None,
+                str(sid).strip() if sid else None,
+            )
     except Exception:
         pass
-    return False
+    return None, None
+
+
+def find_user_id_by_stripe_subscription_id(subscription_id: str) -> Optional[str]:
+    """user_id associé à un abonnement Stripe (pour webhooks)."""
+    sid = (subscription_id or "").strip()
+    if not sid or not _get_supabase():
+        return None
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg as spg
+
+            return spg.find_user_id_by_stripe_subscription_id(sid)
+        except Exception as e:
+            _warn_pg_fallback("find_user_id_by_stripe_subscription_id", e)
+    try:
+        r = (
+            _get_supabase()
+            .table("user_plans")
+            .select("user_id")
+            .eq("stripe_subscription_id", sid)
+            .limit(1)
+            .execute()
+        )
+        if r.data and len(r.data) > 0:
+            uid = r.data[0].get("user_id")
+            return str(uid).strip() if uid else None
+    except Exception:
+        pass
+    return None
 
 
 def set_user_plan(user_id: str, plan: str, stripe_customer_id: Optional[str] = None, stripe_subscription_id: Optional[str] = None) -> None:
@@ -573,17 +826,34 @@ def set_user_plan(user_id: str, plan: str, stripe_customer_id: Optional[str] = N
     sb = _get_supabase()
     if not sb:
         return
+    ts = datetime.now(timezone.utc).isoformat()
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg as spg
+
+            spg.upsert_user_plan(
+                uid,
+                plan,
+                ts,
+                stripe_customer_id=stripe_customer_id,
+                stripe_subscription_id=stripe_subscription_id,
+            )
+            _invalidate_user_plan_cache(uid)
+            return
+        except Exception as e:
+            _warn_pg_fallback("set_user_plan", e)
     try:
         row = {
             "user_id": uid,
             "plan": plan,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": ts,
         }
         if stripe_customer_id is not None:
             row["stripe_customer_id"] = stripe_customer_id
         if stripe_subscription_id is not None:
             row["stripe_subscription_id"] = stripe_subscription_id
         sb.table("user_plans").upsert(row, on_conflict="user_id").execute()
+        _invalidate_user_plan_cache(uid)
     except Exception:
         raise
 
@@ -598,7 +868,7 @@ def update_adaptation(adaptation_id: str, updates: dict, user_id: Optional[str] 
         current["statut"] = updates["statut"]
         # Ne fixer date_envoi que lors du premier passage en "candidature_envoyee" (pas quand on y revient après un autre statut)
         if updates["statut"] == "candidature_envoyee" and statut_prev != "candidature_envoyee":
-            current["date_envoi"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            current["date_envoi"] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
     if "archived" in updates:
         current["archived"] = bool(updates["archived"])
     if "poste" in updates:
@@ -639,14 +909,26 @@ def record_gemini_usage(
     sb = _get_supabase()
     if not sb:
         return cost_usd
+    op = (operation or "unknown")[:64]
+    cost_rounded = round(cost_usd, 6)
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg as spg
+
+            spg.record_gemini_usage_pg(
+                uid, op, input_tokens, output_tokens, cost_rounded
+            )
+            return cost_usd
+        except Exception as e:
+            _warn_pg_fallback("record_gemini_usage", e)
     try:
         sb.table("gemini_usage_log").insert(
             {
                 "user_id": uid,
-                "operation": (operation or "unknown")[:64],
+                "operation": op,
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
-                "cost_usd": round(cost_usd, 6),
+                "cost_usd": cost_rounded,
             }
         ).execute()
     except Exception:
@@ -683,6 +965,16 @@ def get_gemini_usage(user_id: Optional[str]) -> tuple[int, int, float]:
     sb = _get_supabase()
     if not sb:
         return 0, 0, 0.0
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg as spg
+
+            totals = spg.get_gemini_usage_totals(uid)
+            if totals is not None:
+                ti, to = totals
+                return ti, to, _gemini_cost_usd(ti, to)
+        except Exception as e:
+            _warn_pg_fallback("get_gemini_usage", e)
     try:
         r = (
             sb.table("gemini_usage")
@@ -747,6 +1039,19 @@ def list_custom_templates_for_user(user_id: Optional[str]) -> list[dict]:
     sb = _get_supabase()
     if not sb:
         return []
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg as spg
+
+            rows = spg.list_cv_templates_visible_for_user(uid)
+            out = []
+            for row in rows:
+                owner = (row.get("owner_user_id") or "").strip()
+                is_owner = _norm_uid(owner) == uid
+                out.append(_custom_template_meta(row, is_owner=is_owner))
+            return out
+        except Exception as e:
+            _warn_pg_fallback("list_custom_templates_for_user", e)
     try:
         r = sb.table("cv_templates").select("id, name, description, options, owner_user_id, allowed_user_ids").execute()
         out = []
@@ -767,11 +1072,27 @@ def list_custom_templates_for_user(user_id: Optional[str]) -> list[dict]:
 
 def _custom_template_meta(row: dict, is_owner: bool = False) -> dict:
     """Construit le meta d'un template custom pour list_templates / get_template (sans html/css)."""
+    raw_opts = row.get("options")
+    if not isinstance(raw_opts, list):
+        raw_opts = []
+    try:
+        from backend.template_registry import get_default_layout_options_for_custom
+        defaults = get_default_layout_options_for_custom()
+    except Exception:
+        defaults = []
+    if len(raw_opts) == 0:
+        opts = list(defaults)
+    else:
+        keys = {o.get("key") for o in raw_opts if isinstance(o, dict) and o.get("key")}
+        opts = list(raw_opts)
+        for d in defaults:
+            if isinstance(d, dict) and d.get("key") and d["key"] not in keys:
+                opts.append(d)
     return {
         "id": row.get("id") or "",
         "name": row.get("name") or "Template perso",
         "description": row.get("description") or "",
-        "options": row.get("options") or [],
+        "options": opts,
         "tags": ["custom", "perso"],
         "premium": False,
         "_custom": True,
@@ -786,8 +1107,23 @@ def get_custom_template_by_id(template_id: str) -> dict | None:
     sb = _get_supabase()
     if not sb:
         return None
+    tid = template_id.strip()
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg as spg
+
+            row = spg.get_cv_template_full(tid)
+            if not row:
+                return None
+            meta = _custom_template_meta(row)
+            meta["_dir"] = None
+            meta["_html_content"] = row.get("html_content") or ""
+            meta["_css_content"] = row.get("css_content") or ""
+            return meta
+        except Exception as e:
+            _warn_pg_fallback("get_custom_template_by_id", e)
     try:
-        r = sb.table("cv_templates").select("*").eq("id", template_id.strip()).limit(1).execute()
+        r = sb.table("cv_templates").select("*").eq("id", tid).limit(1).execute()
         if not r.data or len(r.data) == 0:
             return None
         row = r.data[0]
@@ -808,8 +1144,23 @@ def can_user_use_custom_template(template_id: str, user_id: Optional[str]) -> bo
     sb = _get_supabase()
     if not sb:
         return False
+    tid = template_id.strip()
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg as spg
+
+            acl = spg.get_cv_template_acl(tid)
+            if not acl:
+                return False
+            owner, allowed_raw = acl
+            if _norm_uid(owner) == uid:
+                return True
+            allowed_norm = _normalize_allowed_ids(allowed_raw)
+            return uid in allowed_norm
+        except Exception as e:
+            _warn_pg_fallback("can_user_use_custom_template", e)
     try:
-        r = sb.table("cv_templates").select("owner_user_id, allowed_user_ids").eq("id", template_id.strip()).limit(1).execute()
+        r = sb.table("cv_templates").select("owner_user_id, allowed_user_ids").eq("id", tid).limit(1).execute()
         if not r.data or len(r.data) == 0:
             return False
         row = r.data[0]
@@ -848,6 +1199,15 @@ def create_custom_template(
         "allowed_user_ids": list(allowed_user_ids) if allowed_user_ids is not None else [],
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg as spg
+
+            spg.insert_cv_template(payload)
+            row = {**payload, "allowed_user_ids": payload["allowed_user_ids"]}
+            return _custom_template_meta(row, is_owner=True)
+        except Exception as e:
+            _warn_pg_fallback("create_custom_template", e)
     sb.table("cv_templates").insert(payload).execute()
     row = {**payload, "allowed_user_ids": payload["allowed_user_ids"]}
     return _custom_template_meta(row, is_owner=True)
@@ -878,6 +1238,14 @@ def create_pending_custom_template(
         "allowed_user_ids": [],
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg as spg
+
+            spg.insert_cv_template(payload)
+            return {"id": tid, "name": payload["name"], "description": payload["description"]}
+        except Exception as e:
+            _warn_pg_fallback("create_pending_custom_template", e)
     sb.table("cv_templates").insert(payload).execute()
     return {"id": tid, "name": payload["name"], "description": payload["description"]}
 
@@ -891,11 +1259,21 @@ def update_custom_template_content(template_id: str, html_content: str, css_cont
     sb = _get_supabase()
     if not sb:
         raise RuntimeError("Supabase non configuré.")
+    ts = datetime.now(timezone.utc).isoformat()
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg as spg
+
+            return spg.update_cv_template_content_pg(
+                tid, html_content or "", (css_content or "").strip() or None, ts
+            )
+        except Exception as e:
+            _warn_pg_fallback("update_custom_template_content", e)
     try:
         updates = {
             "html_content": html_content or "",
             "css_content": (css_content or "").strip() or None,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": ts,
         }
         sb.table("cv_templates").update(updates).eq("id", tid).execute()
         return True
@@ -921,23 +1299,33 @@ def update_custom_template(
     sb = _get_supabase()
     if not sb:
         raise RuntimeError("Supabase non configuré.")
+    updates = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    if name is not None:
+        updates["name"] = (name or "Template perso").strip() or "Template perso"
+    if description is not None:
+        updates["description"] = (description or "").strip()
+    if html_content is not None:
+        updates["html_content"] = html_content
+    if css_content is not None:
+        updates["css_content"] = (css_content or "").strip() or None
+    if options is not None:
+        updates["options"] = options
+    if allowed_user_ids is not None:
+        updates["allowed_user_ids"] = list(allowed_user_ids)
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg as spg
+
+            row = spg.update_cv_template_by_owner(tid, uid, updates)
+            if row:
+                return _custom_template_meta(row, is_owner=True)
+            return None
+        except Exception as e:
+            _warn_pg_fallback("update_custom_template", e)
     try:
         r = sb.table("cv_templates").select("*").eq("id", tid).eq("owner_user_id", uid).limit(1).execute()
         if not r.data or len(r.data) == 0:
             return None
-        updates = {"updated_at": datetime.now(timezone.utc).isoformat()}
-        if name is not None:
-            updates["name"] = (name or "Template perso").strip() or "Template perso"
-        if description is not None:
-            updates["description"] = (description or "").strip()
-        if html_content is not None:
-            updates["html_content"] = html_content
-        if css_content is not None:
-            updates["css_content"] = (css_content or "").strip() or None
-        if options is not None:
-            updates["options"] = options
-        if allowed_user_ids is not None:
-            updates["allowed_user_ids"] = list(allowed_user_ids)
         sb.table("cv_templates").update(updates).eq("id", tid).eq("owner_user_id", uid).execute()
         r2 = sb.table("cv_templates").select("id, name, description, options, owner_user_id, allowed_user_ids").eq("id", tid).limit(1).execute()
         if r2.data and len(r2.data) > 0:
@@ -956,6 +1344,13 @@ def delete_custom_template(template_id: str, owner_user_id: str) -> bool:
     sb = _get_supabase()
     if not sb:
         raise RuntimeError("Supabase non configuré.")
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg as spg
+
+            return spg.delete_cv_template_by_owner(tid, uid)
+        except Exception as e:
+            _warn_pg_fallback("delete_custom_template", e)
     try:
         r = sb.table("cv_templates").delete().eq("id", tid).eq("owner_user_id", uid).execute()
         return bool(r.data)

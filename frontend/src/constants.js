@@ -1,5 +1,8 @@
 export const STORAGE_EXPORT_DIR = 'cv_bot_last_export_dir';
 
+/** Email de contact public (légales, landing, support). */
+export const CONTACT_EMAIL = 'contact@axelproject.fr';
+
 export const STATUT_LABELS = {
   a_postuler: 'À postuler',
   candidature_envoyee: 'Candidature envoyée',

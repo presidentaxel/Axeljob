@@ -1,5 +1,14 @@
 import { Link } from 'react-router-dom';
+import { ARTICLE_SOURCE_URLS as U } from '../content/articleSources.js';
 import './ContentPages.css';
+
+function Out({ href, children }) {
+  return (
+    <a href={href} className="content-source" target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
+  );
+}
 
 function IconFunnel() {
   return (
@@ -12,8 +21,18 @@ function IconFunnel() {
 function IconAlert() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-      <path d="M12 16h.01" />
+      <circle cx="12" cy="12" r="10" />
+      <path d="m15 9-6 6" />
+      <path d="m9 9 6 6" />
+    </svg>
+  );
+}
+
+function IconChecklist() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 11l3 3L22 4" />
+      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
     </svg>
   );
 }
@@ -47,7 +66,7 @@ export default function AtsPage({ onBack }) {
       <header className="content-header">
         <div className="content-header-inner">
           <Link to="/" className="content-back" onClick={(e) => { e.preventDefault(); onBack?.(); }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6" /></svg>
             Retour à l&apos;accueil
           </Link>
         </div>
@@ -57,20 +76,25 @@ export default function AtsPage({ onBack }) {
         <div className="content-hero-inner">
           <h1>Qu&apos;est-ce qu&apos;un ATS ?</h1>
           <p className="content-lead">
-            <strong>ATS</strong> = Applicant Tracking System. C&apos;est le logiciel qui trie les candidatures avant qu&apos;un recruteur ne les lise. Comprendre comment il fonctionne, c&apos;est mettre toutes les chances de ton côté.
+            Tu envoies ta candidature. Quelques minutes plus tard, tu reçois un refus automatique. Pas de retour, pas d&apos;explication. La faute à l&apos;ATS ? Pas forcément. Voici ce que les données disent vraiment.
           </p>
         </div>
       </section>
 
       <section className="content-section">
-        <div className="content-section-inner">
+        <div className="content-section-inner content-prose">
           <div className="content-section-icon">
             <IconFunnel />
           </div>
           <div className="content-section-body">
-            <h2>À quoi ça sert ?</h2>
+            <h2>L&apos;ATS, c&apos;est quoi ?</h2>
             <p>
-              Quand tu postules (site carrière, LinkedIn, Indeed…), ton CV atterrit le plus souvent dans un ATS. Le système scanne ton CV, en extrait les infos (expériences, compétences, formation) et les compare aux critères du poste. Les candidats dont le profil colle le mieux aux mots-clés de l&apos;annonce remontent en tête et ont plus de chances d&apos;être contactés.
+              Un ATS (Applicant Tracking System, ou logiciel de gestion des candidatures) est un outil utilisé par les entreprises pour traiter les candidatures à grande échelle. Il centralise les CV reçus, les organise, permet de les filtrer par mots-clés ou critères, et gère les communications avec les candidats.
+            </p>
+            <p>
+              Aujourd&apos;hui, plus de 98&nbsp;% des entreprises du Fortune 500 utilisent un ATS, et 75&nbsp;% des recruteurs s&apos;appuient sur ces outils pour gérer leurs candidatures (
+              <Out href={U.JOBSCAN_TAILOR}>Jobscan</Out>
+              ).
             </p>
             <div className="content-visual">
               <VisualAtsFlow />
@@ -80,28 +104,76 @@ export default function AtsPage({ onBack }) {
       </section>
 
       <section className="content-section">
-        <div className="content-section-inner">
+        <div className="content-section-inner content-prose">
           <div className="content-section-icon">
             <IconAlert />
           </div>
           <div className="content-section-body">
-            <h2>Pourquoi c&apos;est important pour toi ?</h2>
+            <h2>Ce que l&apos;ATS fait vraiment (et ce qu&apos;il ne fait pas)</h2>
             <p>
-              Si ton CV n&apos;est pas adapté au format et au vocabulaire attendus par l&apos;ATS, il peut être mal lu ou rejeté alors même que tu corresponds au poste. Tableaux compliqués, titres en image, formulations qui ne reprennent pas les mots de l&apos;offre = score en baisse. À l&apos;inverse, un CV structuré, lisible et aligné sur les mots-clés de l&apos;annonce passe mieux le filtre et augmente tes chances d&apos;être vu par un humain.
+              La croyance populaire veut que les ATS rejettent automatiquement 75&nbsp;% des CV avant qu&apos;un humain ne les lise. C&apos;est faux. Selon{' '}
+              <Out href={U.ENHANCV_ATS}>Enhancv</Out>
+              , cette statistique remonte à une entreprise appelée Preptel, qui a fermé ses portes en 2013 sans jamais publier de méthodologie.
+            </p>
+            <p>
+              La réalité, documentée par une étude{' '}
+              <Out href={U.ENHANCV_ATS}>Enhancv</Out>
+              {' '}menée sur 25 recruteurs en 2025&nbsp;: 100&nbsp;% utilisent des questions d&apos;élimination binaires (autorisation de travail, certifications, localisation), mais seulement 8&nbsp;% configurent un rejet automatique basé sur le contenu du CV. Les 92&nbsp;% restants rejettent manuellement ou uniquement via ces questions d&apos;élimination.
+            </p>
+            <p>
+              En clair&nbsp;: l&apos;ATS classe et organise, les humains rejettent. Le vrai problème n&apos;est pas un algorithme mystérieux — c&apos;est le volume. Toujours selon{' '}
+              <Out href={U.ENHANCV_ATS}>Enhancv</Out>
+              , un poste junior reçoit entre 400 et 600 candidatures, et certains postes en remote dépassent 1&nbsp;000 la première semaine.
             </p>
           </div>
         </div>
       </section>
 
       <section className="content-section">
-        <div className="content-section-inner">
+        <div className="content-section-inner content-prose">
+          <div className="content-section-icon">
+            <IconChecklist />
+          </div>
+          <div className="content-section-body">
+            <h2>Pourquoi certains CV passent mieux que d&apos;autres</h2>
+            <p>Il y a deux vrais risques&nbsp;:</p>
+            <ol>
+              <li>
+                <strong>Les questions d&apos;élimination.</strong> Si l&apos;offre exige 5 ans d&apos;expérience et que tu en as 2, tu es éliminé automatiquement — pas par un algorithme qui lit ton CV, mais parce que tu ne réponds pas au critère binaire posé.
+              </li>
+              <li>
+                <strong>Le mauvais parsing.</strong> Selon une analyse{' '}
+                <Out href={U.EDLIGO_1000_CV}>EDLIGO</Out>
+                {' '}de 1&nbsp;000 CV rejetés, un fichier DOCX simple a un taux d&apos;échec de parsing de seulement 4&nbsp;%, contre 18&nbsp;% pour un PDF. Les tableaux, zones de texte et mises en page multi-colonnes augmentent considérablement les risques d&apos;erreur de lecture.
+              </li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <section className="content-section">
+        <div className="content-section-inner content-prose">
+          <div className="content-section-icon">
+            <IconSparkles />
+          </div>
+          <div className="content-section-body">
+            <h2>Ce que ça change pour toi</h2>
+            <p className="content-callout">
+              L&apos;objectif n&apos;est pas de «&nbsp;tromper&nbsp;» l&apos;ATS. C&apos;est de lui rendre la tâche facile. Format simple, mots-clés alignés avec l&apos;offre, sections bien nommées («&nbsp;Expérience&nbsp;», «&nbsp;Formation&nbsp;», «&nbsp;Compétences&nbsp;»)&nbsp;: c&apos;est tout ce qu&apos;il faut.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="content-section">
+        <div className="content-section-inner content-prose">
           <div className="content-section-icon">
             <IconSparkles />
           </div>
           <div className="content-section-body">
             <h2>Comment AxeL Job t&apos;aide ?</h2>
             <p>
-              AxeL Job utilise l&apos;IA pour adapter ton CV à chaque offre : reformulation du résumé, mise en avant des expériences pertinentes, intégration des mots-clés de l&apos;annonce de façon naturelle. Objectif : optimiser ton passage dans les ATS tout en gardant un CV honnête et lisible par les recruteurs.
+              AxeL Job utilise l&apos;IA pour adapter ton CV à chaque offre&nbsp;: reformulation du résumé, mise en avant des expériences pertinentes, intégration des mots-clés de l&apos;annonce de façon naturelle. Objectif&nbsp;: optimiser ton passage dans les ATS tout en gardant un CV honnête et lisible par les recruteurs.
             </p>
           </div>
         </div>
@@ -122,6 +194,7 @@ export default function AtsPage({ onBack }) {
           <Link to="/guide-cv">Guide CV</Link>
           <Link to="/erreurs-cv">Erreurs à éviter</Link>
           <Link to="/cv-par-metier">CV par métier</Link>
+          <Link to="/cv-adapte-chaque-offre">CV adapté à chaque offre</Link>
           <Link to="/mentions-legales">Mentions légales</Link>
           <Link to="/confidentialite">Confidentialité</Link>
           <Link to="/cgu">CGU</Link>

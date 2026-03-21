@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
+import { CONTACT_EMAIL } from '../constants';
 import './LegalPages.css';
 
 const SITE_NAME = 'AxeL Job';
 const SITE_URL = 'https://job.axelproject.fr';
 const COMPANY_NAME = 'Axel Project';
-const CONTACT_EMAIL = 'louis.vedovato@axelproject.fr';
 const HOSTING = 'DigitalOcean, LLC - 101 Avenue of the Americas, New York, NY 10013, États-Unis';
 
 function MentionsLegales() {

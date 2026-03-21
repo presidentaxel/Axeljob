@@ -110,7 +110,7 @@ function isSupabaseSignedPhotoUrl(url) {
   return typeof url === 'string' && url.includes('supabase.co/storage') && url.includes('/object/sign');
 }
 
-export default function ProfileView({ onSaveSuccess, session, refreshKey, usage, onUpgradeClick, templatesList, templateId: templateIdProp, templateOptions: templateOptionsProp, onTemplateIdChange, onTemplateOptionsChange, onPhotoSessionExpired }) {
+export default function ProfileView({ onSaveSuccess, session, refreshKey, usage, onUpgradeClick, onUsageRefresh, onBillingPortalClick, templatesList, templateId: templateIdProp, templateOptions: templateOptionsProp, onTemplateIdChange, onTemplateOptionsChange, onPhotoSessionExpired }) {
   const [cv, setCv] = useState(defaultCv());
   const [localTemplateId, setLocalTemplateId] = useState(() => localStorage.getItem('cv_template_id') || 'classic');
   const [localTemplateOptions, setLocalTemplateOptions] = useState(() => {
@@ -164,6 +164,8 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
   const [setPasswordConfirm, setSetPasswordConfirm] = useState('');
   const [setPasswordLoading, setSetPasswordLoading] = useState(false);
   const [setPasswordError, setSetPasswordError] = useState('');
+  const [cancelSubModalOpen, setCancelSubModalOpen] = useState(false);
+  const [cancelSubLoading, setCancelSubLoading] = useState(false);
   const [mfaFactors, setMfaFactors] = useState({ totp: [], phone: [] });
   const [mfaEnrollOpen, setMfaEnrollOpen] = useState(false);
   const [mfaEnrollQr, setMfaEnrollQr] = useState('');
@@ -1042,6 +1044,110 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
         </div>
       </CollapsibleSection>
 
+      {usage?.plan === 'pro' && !usage?.paywall_disabled && (
+        <CollapsibleSection title="Abonnement" defaultOpen={true}>
+          <p className="profile-section-desc">Gère la résiliation depuis ici (exigence légale). La facturation détaillée reste disponible sur le portail sécurisé Stripe si besoin.</p>
+          {usage.stripe_subscription ? (
+            <>
+              <p className="profile-subscription-period">
+                <strong>Fin de la période en cours :</strong>{' '}
+                {usage.stripe_subscription.current_period_end_label || '—'}
+                {usage.stripe_subscription.cancel_at_period_end && (
+                  <span className="profile-subscription-badge"> Résiliation déjà programmée</span>
+                )}
+              </p>
+              {usage.stripe_subscription.cancel_at_period_end ? (
+                <p className="profile-section-desc">
+                  Ton abonnement ne sera pas renouvelé. Tu conserves l&apos;accès Pro jusqu&apos;au{' '}
+                  <strong>{usage.stripe_subscription.current_period_end_label || 'fin de période indiquée par Stripe'}</strong>
+                  , puis ton compte repassera en offre gratuite (sans suppression automatique de tes données).
+                </p>
+              ) : (
+                <>
+                  <p className="profile-subscription-legal" role="note">
+                    Résilier mon abonnement — La résiliation prend effet à la fin de la période en cours. Vos données restent accessibles jusqu&apos;à cette date.
+                  </p>
+                  <div className="profile-subscription-actions">
+                    <button
+                      type="button"
+                      className="btn btn-secondary profile-btn-cancel-sub"
+                      onClick={() => setCancelSubModalOpen(true)}
+                      disabled={cancelSubLoading}
+                    >
+                      Résilier mon abonnement
+                    </button>
+                    {typeof onBillingPortalClick === 'function' && (
+                      <button type="button" className="btn btn-secondary" onClick={onBillingPortalClick}>
+                        Facturation &amp; moyens de paiement (Stripe)
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </>
+          ) : (
+            <div className="profile-subscription-fallback">
+              <p className="profile-section-desc">
+                Le détail Stripe n&apos;est pas disponible pour l&apos;instant (connexion ou synchronisation). Tu peux ouvrir le portail de facturation pour gérer ton abonnement.
+              </p>
+              {typeof onBillingPortalClick === 'function' && (
+                <button type="button" className="btn btn-secondary" onClick={onBillingPortalClick}>
+                  Ouvrir le portail de facturation
+                </button>
+              )}
+            </div>
+          )}
+        </CollapsibleSection>
+      )}
+
+      {cancelSubModalOpen && (
+        <div className="profile-change-email-overlay" onClick={() => !cancelSubLoading && setCancelSubModalOpen(false)} role="dialog" aria-modal="true" aria-labelledby="cancel-sub-title">
+          <div className="profile-change-email-modal profile-cancel-sub-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 id="cancel-sub-title">Confirmer la résiliation</h3>
+            <p className="profile-change-email-hint">
+              Ta résiliation est effective à la <strong>fin de la période déjà payée</strong>
+              {usage?.stripe_subscription?.current_period_end_label ? (
+                <> (au plus tard le <strong>{usage.stripe_subscription.current_period_end_label}</strong>)</>
+              ) : null}
+              . Aucun remboursement automatique de la période en cours : tu conserves l&apos;accès Pro jusqu&apos;à cette date. Un email de confirmation te sera envoyé.
+            </p>
+            <div className="reauth-actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={cancelSubLoading}
+                onClick={async () => {
+                  setCancelSubLoading(true);
+                  setError('');
+                  try {
+                    const data = await apiPost('/api/cancel-subscription', {});
+                    setCancelSubModalOpen(false);
+                    const end = data.current_period_end_label || '';
+                    if (data.already_scheduled) {
+                      setMessage(`Ta résiliation était déjà programmée. Accès Pro jusqu'au ${end || 'fin de période'}.`);
+                    } else {
+                      setMessage(
+                        `Résiliation enregistrée. Accès Pro jusqu'au ${end || 'fin de période'}. Un email de confirmation t'a été envoyé.`
+                      );
+                    }
+                    onUsageRefresh?.();
+                  } catch (err) {
+                    setError(err?.message || 'Impossible de résilier pour le moment.');
+                  } finally {
+                    setCancelSubLoading(false);
+                  }
+                }}
+              >
+                {cancelSubLoading ? 'Traitement…' : 'Résilier mon abonnement'}
+              </button>
+              <button type="button" className="btn btn-secondary" disabled={cancelSubLoading} onClick={() => setCancelSubModalOpen(false)}>
+                Retour
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <CollapsibleSection title="Compte et sécurité" defaultOpen={false}>
         <p className="profile-section-desc">Gère l&apos;email de connexion et la sécurité de ton compte.</p>
         <button type="button" className="btn btn-secondary" onClick={() => { setChangeEmailOpen(true); setChangeEmailNew(''); setChangeEmailPassword(''); setChangeEmailError(''); }}>
@@ -1240,6 +1346,8 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
           onChangeOptions={setTemplateOptions}
           userPlan={usage?.plan}
           onUpgradeClick={onUpgradeClick}
+          optionsPreviewHtml={profilePreviewHtml}
+          optionsPreviewLoading={profilePreviewLoading}
         />
         <div className="profile-preview-wrap profile-preview-a4">
           {profilePreviewLoading && (

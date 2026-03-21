@@ -56,8 +56,10 @@
 .landing-nav {
   margin-left: auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1.5rem;
+  justify-content: flex-end;
+  gap: 1rem 1.25rem;
 }
 
 .landing-nav a {
@@ -66,10 +68,6 @@
   font-size: 0.875rem;
   font-weight: 500;
   transition: color 0.15s;
-}
-
-.landing-nav a:hover {
-  color: var(--text);
 }
 
 .landing-cta-nav {

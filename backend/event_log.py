@@ -7,7 +7,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from backend.config import BASE_DIR, USE_SUPABASE, SUPABASE_URL, SUPABASE_SERVICE_KEY
+from backend.config import (
+    BASE_DIR,
+    USE_SUPABASE,
+    USE_SUPABASE_PG,
+    SUPABASE_URL,
+    SUPABASE_SERVICE_KEY,
+)
 
 LOGS_DIR = BASE_DIR / "logs"
 
@@ -108,6 +114,19 @@ def _log_event_supabase(
         }
         if session_id:
             row["session_id"] = session_id
+        if USE_SUPABASE_PG:
+            try:
+                from backend import supabase_pg as spg
+
+                spg.insert_event_row(
+                    event_type,
+                    row["user_id"],
+                    row["context"],
+                    session_id=session_id,
+                )
+                return
+            except Exception:
+                pass
         sb.table("events").insert(row).execute()
     except Exception:
         # Table peut ne pas exister ; on ignore

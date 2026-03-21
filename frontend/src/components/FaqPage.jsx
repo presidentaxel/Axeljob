@@ -1,65 +1,104 @@
 import { Link } from 'react-router-dom';
+import { ARTICLE_SOURCE_URLS as U } from '../content/articleSources.js';
 import './ContentPages.css';
 
-/**
- * Page FAQ GEO : une question = une section avec réponse directe dès la première phrase.
- * Alignée sur les requêtes cibles (clusters 1-4) pour citabilité par les IA.
- */
+function Out({ href, children }) {
+  return (
+    <a href={href} className="content-source" target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
+  );
+}
+
 const FAQ_ITEMS = [
   {
-    q: "C'est quoi un ATS ?",
-    a: "Un ATS (Applicant Tracking System) est le logiciel utilisé par les recruteurs pour trier les candidatures. Il scanne les CV, en extrait les infos (expériences, compétences, formation) et les compare aux critères du poste. Les candidats dont le profil correspond le mieux aux mots-clés de l'annonce remontent en tête.",
-    slug: 'c-est-quoi-un-ats',
+    q: "Est-ce que l'ATS rejette automatiquement mon CV ?",
+    slug: 'ats-rejet-automatique',
+    a: (
+      <p>
+        Dans la grande majorité des cas, non. Selon{' '}
+        <Out href={U.ENHANCV_ATS}>Enhancv</Out>
+        , 56&nbsp;% des recruteurs ignorent complètement le «&nbsp;score de matching&nbsp;» fourni par l&apos;ATS et vérifient toujours manuellement avant de rejeter un candidat. Ce sont les recruteurs qui rejettent, pas le logiciel.
+      </p>
+    ),
   },
   {
-    q: "Comment fonctionne un logiciel ATS ?",
-    a: "L'ATS reçoit ton CV (site carrière, LinkedIn, Indeed…), le parse pour extraire expériences, compétences et formation, puis compare ces données aux critères et mots-clés du poste. Les CV les mieux alignés obtiennent un score plus élevé et sont présentés en priorité aux recruteurs.",
-    slug: 'comment-fonctionne-ats',
+    q: "Pourquoi mon CV ne passe pas si j'ai les bonnes compétences ?",
+    slug: 'cv-bonnes-competences',
+    a: (
+      <p>
+        Selon l&apos;étude Harvard Business School «&nbsp;
+        <Out href={U.HBS_HIDDEN_WORKERS}>Hidden Workers</Out>
+        &nbsp;», 88&nbsp;% des employeurs estiment perdre des candidats qualifiés non pas parce que l&apos;ATS les rejette automatiquement, mais parce que les mots utilisés dans leur CV ne correspondent pas aux termes exacts configurés par le recruteur. Le CV est bien lu, mais le vocabulaire ne matche pas.
+      </p>
+    ),
   },
   {
-    q: "Est-ce que mon CV passe l'ATS ?",
-    a: "Pour le savoir, il faut un CV structuré (une colonne, titres en texte, listes à puces, polices standards), avec les mots-clés de l'offre dans ton résumé et tes expériences, et sans erreurs qui bloquent (tableaux complexes, texte en image). AxeL Job propose un score ATS et adapte ton CV à chaque offre pour maximiser tes chances.",
-    slug: 'mon-cv-passe-ats',
+    q: 'Est-ce que le format PDF est problématique ?',
+    slug: 'format-pdf-problematique',
+    a: (
+      <p>
+        Oui, dans certains cas. L&apos;analyse{' '}
+        <Out href={U.EDLIGO_1000_CV}>EDLIGO</Out>
+        {' '}de 1&nbsp;000 CV rejetés sur Workday, Taleo et Greenhouse montre qu&apos;un PDF a un taux d&apos;échec de parsing de 18&nbsp;% contre 4&nbsp;% pour un fichier DOCX simple. Si l&apos;offre ne précise pas de format, le DOCX est plus sûr.
+      </p>
+    ),
   },
   {
-    q: "Format CV compatible ATS : Word ou PDF ?",
-    a: "Les deux peuvent être compatibles ATS si le contenu est en texte sélectionnable (pas d'image de texte), avec une structure simple : titres clairs (Expérience, Formation, Compétences), listes à puces, polices standards (Arial, Helvetica). Éviter tableaux complexes et graphiques. Quand l'annonce ne précise pas, le PDF est souvent un bon choix.",
-    slug: 'format-cv-word-ou-pdf',
+    q: 'Est-ce que je dois adapter mon CV à chaque offre ?',
+    slug: 'adapter-cv-chaque-offre',
+    a: (
+      <p>
+        Les données sont claires. Selon une analyse{' '}
+        <Out href={U.JOBSCAN_TAILOR}>Jobscan</Out>
+        {' '}portant sur près d&apos;un million de candidatures, intégrer le titre de poste exact de l&apos;offre dans son CV rend 3,5 fois plus probable d&apos;obtenir un entretien. Et selon des données issues de 3,2 millions d&apos;utilisateurs{' '}
+        <Out href={U.TEAL_TAILOR}>Teal</Out>
+        , adapter son CV à l&apos;offre rend 6 fois plus probable d&apos;être convoqué en entretien.
+      </p>
+    ),
   },
   {
-    q: "Quelles erreurs de CV bloquent l'ATS ?",
-    a: "Tableaux ou mises en page complexes (mal lus par l'ATS), titres ou texte en image (non extraits), polices fantaisistes ou trop petites. Côté contenu : CV générique sans mots-clés de l'offre, mentions vagues sans détail, fautes d'orthographe. Un CV structuré, en texte, avec les mots-clés de l'annonce passe beaucoup mieux.",
-    slug: 'erreurs-cv-bloquent-ats',
+    q: "Puis-je utiliser l'IA pour rédiger mon CV ?",
+    slug: 'ia-rediger-cv',
+    a: (
+      <>
+        <p>
+          Oui, et les recruteurs l&apos;acceptent. Selon une étude{' '}
+          <Out href={U.CANVA_SAGO_2025}>Canva/Sago</Out>
+          {' '}menée sur 10&nbsp;000 personnes dans 10 pays, 90&nbsp;% des recruteurs considèrent qu&apos;il est acceptable d&apos;utiliser l&apos;IA générative dans la rédaction de candidatures. Une étude{' '}
+          <Out href={U.MIT_SLOAN_AI_RESUME}>MIT Sloan</Out>
+          {' '}confirme que les candidats ayant bénéficié d&apos;une assistance algorithmique pour rédiger leur CV sont 8&nbsp;% plus susceptibles d&apos;être embauchés et reçoivent 7,8&nbsp;% d&apos;offres supplémentaires.
+        </p>
+        <p>
+          <strong>Note de contexte sur l&apos;étude MIT&nbsp;:</strong> elle porte sur une plateforme de travail en ligne, avec une majorité de candidats non-anglophones. L&apos;assistance portait sur l&apos;orthographe et la grammaire, pas sur la personnalisation à une offre — les résultats sont pertinents, mais à lire dans ce contexte.{' '}
+          <Out href={U.MIT_SLOAN_AI_RESUME}>MIT Sloan</Out>
+        </p>
+      </>
+    ),
   },
   {
-    q: "Comment avoir un meilleur CV ?",
-    a: "Structure claire (coordonnées, expériences récentes en premier, formation, compétences), formulations concrètes avec verbes d'action et chiffres, adaptation à chaque offre en reprenant les mots-clés de l'annonce. Un outil comme AxeL Job fait cette adaptation en un clic et améliore le score ATS.",
-    slug: 'meilleur-cv',
+    q: 'Mon CV doit faire combien de pages ?',
+    slug: 'nombre-pages-cv',
+    a: (
+      <p>
+        Selon le Resume Genius Hiring Trends Survey 2025 (
+        <Out href={U.RESUME_GENIUS_STATS}>Resume Genius</Out>
+        ), 54&nbsp;% des recruteurs préfèrent un CV de deux pages, et 70&nbsp;% sont plus enclins à considérer un CV de deux pages plutôt qu&apos;un de une page pour les profils avec de l&apos;expérience. En France, une page reste souvent la norme pour les profils juniors.
+      </p>
+    ),
   },
   {
-    q: "Quels mots-clés mettre dans son CV pour l'ATS ?",
-    a: "Reprendre les termes exacts de l'offre : intitulé du poste, compétences demandées, outils, secteurs. Les placer dans ton résumé, les intitulés d'expériences et les descriptions. Éviter les synonymes seuls si l'annonce utilise un mot précis ; l'ATS cherche souvent des correspondances littérales.",
-    slug: 'mots-cles-cv-ats',
-  },
-  {
-    q: "L'IA peut-elle personnaliser mon CV automatiquement ?",
-    a: "Oui. AxeL Job utilise l'IA pour personnaliser ton CV à partir du texte de l'annonce : mots-clés, formulations, mise en avant des expériences pertinentes. En un clic. Essai gratuit sur job.axelproject.fr.",
-    slug: 'ia-personnaliser-cv',
-  },
-  {
-    q: "Meilleur outil pour créer un CV avec l'IA ?",
-    a: "AxeL Job adapte ton CV à chaque offre en un clic avec l'IA, améliore ton score ATS, propose des modèles compatibles ATS et un suivi des candidatures. Essai gratuit sans carte bancaire. Idéal pour personnaliser son CV pour chaque annonce sans tout réécrire.",
-    slug: 'outil-cv-ia',
-  },
-  {
-    q: "Comment personnaliser son CV pour chaque offre ?",
-    a: "Reprendre les mots-clés de l'offre dans ton résumé et tes expériences. Adapter les formulations et mettre en avant les missions les plus pertinentes. Des outils comme AxeL Job font cette adaptation automatiquement à partir du texte de l'annonce, en un clic, tout en gardant un CV honnête et lisible.",
-    slug: 'personnaliser-cv-offre',
-  },
-  {
-    q: "Pourquoi mon CV est rejeté automatiquement ? / Je n'ai pas de réponse à mes candidatures ?",
-    a: "Souvent à cause de l'ATS : le CV ne contient pas assez de mots-clés de l'offre, le format est illisible (tableaux, texte en image), ou des erreurs récurrentes (formulations vagues, fautes). Adapter le CV à chaque annonce et utiliser un format sobre améliore fortement le passage et les réponses.",
-    slug: 'cv-rejete-pas-reponse',
+    q: "Est-ce que les fautes d'orthographe sont vraiment éliminatoires ?",
+    slug: 'fautes-orthographe',
+    a: (
+      <p>
+        Oui. Selon{' '}
+        <Out href={U.RESUME_GENIUS_STATS}>Resume Genius</Out>
+        , 77&nbsp;% des recruteurs rejettent immédiatement un CV contenant des fautes ou une mauvaise grammaire. L&apos;étude{' '}
+        <Out href={U.MIT_SLOAN_AI_RESUME}>MIT Sloan</Out>
+        {' '}est encore plus précise&nbsp;: les candidats avec plus de 99&nbsp;% de mots correctement orthographiés sont embauchés 3 fois plus souvent que ceux dont le taux d&apos;orthographe est inférieur à 90&nbsp;% — qui n&apos;ont que 3&nbsp;% de chances d&apos;être recrutés dans leur premier mois.
+      </p>
+    ),
   },
 ];
 
@@ -69,7 +108,7 @@ export default function FaqPage({ onBack }) {
       <header className="content-header">
         <div className="content-header-inner">
           <Link to="/" className="content-back" onClick={(e) => { e.preventDefault(); onBack?.(); }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6" /></svg>
             Retour à l&apos;accueil
           </Link>
         </div>
@@ -77,19 +116,19 @@ export default function FaqPage({ onBack }) {
 
       <section className="content-hero">
         <div className="content-hero-inner">
-          <h1>FAQ : CV, ATS et outil IA</h1>
+          <h1>FAQ : CV, ATS et IA</h1>
           <p className="content-lead">
-            Réponses directes aux questions que tu te poses sur l&apos;ATS, l&apos;optimisation CV et la personnalisation par offre. Pour être cité, on répond dès la première phrase.
+            Les réponses aux questions que tout le monde se pose — avec ce que disent les études et les enquêtes recruteurs.
           </p>
         </div>
       </section>
 
       <section className="content-section">
         <div className="content-section-inner faq-inner">
-          {FAQ_ITEMS.map((item, i) => (
-            <article key={i} id={item.slug} className="faq-item">
+          {FAQ_ITEMS.map((item) => (
+            <article key={item.slug} id={item.slug} className="faq-item">
               <h2 className="faq-question">{item.q}</h2>
-              <p className="faq-answer">{item.a}</p>
+              <div className="faq-answer">{item.a}</div>
             </article>
           ))}
         </div>
@@ -110,6 +149,7 @@ export default function FaqPage({ onBack }) {
           <Link to="/guide-cv">Guide CV</Link>
           <Link to="/erreurs-cv">Erreurs à éviter</Link>
           <Link to="/cv-par-metier">CV par métier</Link>
+          <Link to="/cv-adapte-chaque-offre">CV adapté à chaque offre</Link>
           <Link to="/mentions-legales">Mentions légales</Link>
           <Link to="/confidentialite">Confidentialité</Link>
           <Link to="/cgu">CGU</Link>

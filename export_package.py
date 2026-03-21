@@ -77,6 +77,7 @@ def export_dossier(
     output_base: str | None = None,
     template_id: str | None = None,
     template_options: dict | None = None,
+    selection_a4: dict | None = None,
 ) -> dict:
     """
     Crée le dossier 'Entreprise - Poste' dans output_base (ou CV_BOT_EXPORT_BASE si non fourni), y place :
@@ -92,9 +93,14 @@ def export_dossier(
     offre = {"titre": poste, "entreprise": entreprise}
     files_created = []
 
-    # 1) CV
+    # 1) CV (même filtre A4 que l’aperçu / PDF seul si selection_a4 fourni)
+    try:
+        from cv_select_a4 import apply_selection_to_cv
+        cv_pdf = apply_selection_to_cv(cv, selection_a4)
+    except Exception:
+        cv_pdf = cv
     from generator import generer_pdf
-    cv_path = generer_pdf(cv, offre, output_dir=str(folder_path), template_id=template_id, template_options=template_options)
+    cv_path = generer_pdf(cv_pdf, offre, output_dir=str(folder_path), template_id=template_id, template_options=template_options)
     files_created.append(Path(cv_path).name)
 
     # 2) Fiche de poste

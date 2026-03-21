@@ -7,26 +7,59 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
-    <noscript><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet" /></noscript>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=optional" rel="stylesheet" media="print" onload="this.media='all'" />
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=optional" rel="stylesheet" /></noscript>
     <title>AxeL Job - CV adapté à chaque offre en 1 clic | IA & score ATS</title>
     <meta name="description" content="Adaptez votre CV à chaque annonce avec l'IA. Améliorez votre score ATS, suivez vos candidatures et décrochez plus d'entretiens. Essai gratuit." />
     <meta property="og:title" content="AxeL Job - CV adapté à chaque offre en 1 clic | IA & ATS" />
     <meta property="og:description" content="Adaptez votre CV à chaque annonce avec l'IA. Score ATS, suivi des candidatures, export PDF. Essai gratuit." />
     <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="AxeL Job - CV adapté à chaque offre en 1 clic" />
     <meta name="twitter:description" content="Adaptez votre CV à chaque annonce avec l'IA. Score ATS, plus d'entretiens. Essai gratuit." />
+    <meta name="twitter:image" content="https://job.axelproject.fr/og-image.png" />
     <link rel="canonical" href="https://job.axelproject.fr" />
-    <meta name="robots" content="index, follow" />
+    <link rel="sitemap" type="application/xml" title="Plan du site AxeL Job" href="/sitemap.xml" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <meta name="theme-color" content="#5b4cff" />
     <meta property="og:url" content="https://job.axelproject.fr" />
     <meta property="og:image" content="https://job.axelproject.fr/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="AxeL Job - adapter son CV à chaque offre avec l'IA et le score ATS" />
     <meta property="og:locale" content="fr_FR" />
     <meta property="og:site_name" content="AxeL Job" />
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
+      "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://job.axelproject.fr/#website",
+      "name": "AxeL Job",
+      "url": "https://job.axelproject.fr",
+      "inLanguage": "fr-FR",
+      "description": "Outil web pour adapter son CV à chaque offre avec l'IA, optimiser le score ATS et suivre ses candidatures.",
+      "publisher": { "@id": "https://job.axelproject.fr/#organization" },
+      "hasPart": [
+        { "@type": "WebPage", "name": "CV et logiciel ATS", "url": "https://job.axelproject.fr/ats", "description": "Comprendre l'ATS : définition, fonctionnement et bonnes pratiques pour faire passer son CV dans les filtres recruteurs." },
+        { "@type": "WebPage", "name": "FAQ CV, ATS et outil", "url": "https://job.axelproject.fr/faq", "description": "Réponses sur les CV compatibles ATS, l'adaptation par offre et l'utilisation d'AxeL Job." },
+        { "@type": "WebPage", "name": "CV adapté à chaque offre", "url": "https://job.axelproject.fr/cv-adapte-chaque-offre", "description": "Pourquoi personnaliser son CV par annonce et comment l'IA aide à aligner mots-clés et expériences." },
+        { "@type": "WebPage", "name": "Guide CV et mots-clés ATS", "url": "https://job.axelproject.fr/guide-cv", "description": "Structure, formulation et mots-clés pour un CV lisible par les ATS et les recruteurs." },
+        { "@type": "WebPage", "name": "Modèles de CV compatibles ATS", "url": "https://job.axelproject.fr/modeles-cv", "description": "Formats Word et PDF, mise en page une colonne et pièges à éviter pour le passage ATS." },
+        { "@type": "WebPage", "name": "Erreurs CV qui bloquent l'ATS", "url": "https://job.axelproject.fr/erreurs-cv", "description": "Erreurs fréquentes de contenu et de format qui font échouer le tri automatique des candidatures." },
+        { "@type": "WebPage", "name": "CV par métier", "url": "https://job.axelproject.fr/cv-par-metier", "description": "Conseils pour adapter son CV selon le secteur : tech, marketing, finance et autres métiers." }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://job.axelproject.fr/#organization",
+      "name": "AxeL Job",
+      "url": "https://job.axelproject.fr",
+      "logo": { "@type": "ImageObject", "url": "https://job.axelproject.fr/favicon.svg" },
+      "sameAs": ["https://axelproject.fr"]
+    },
+    {
       "@type": "SoftwareApplication",
       "name": "AxeL Job",
       "url": "https://job.axelproject.fr",
@@ -34,62 +67,9 @@
       "applicationCategory": "BusinessApplication",
       "operatingSystem": "Web",
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
-      "featureList": "Adaptation du CV à chaque offre avec IA; Score ATS; Mots-clés et format compatible ATS; Suivi des candidatures; Export PDF"
+      "featureList": "Adaptation du CV à chaque offre avec IA; Score ATS; Mots-clés et format compatible ATS; Suivi des candidatures; Export PDF",
+      "publisher": { "@id": "https://job.axelproject.fr/#organization" }
     }
-    </script>
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      "mainEntity": [
-        {
-          "@type": "Question",
-          "name": "C'est quoi un ATS ?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Un ATS (Applicant Tracking System) est le logiciel utilisé par les recruteurs pour trier les candidatures. Il scanne les CV, en extrait les infos (expériences, compétences, formation) et les compare aux critères du poste. Les candidats dont le profil correspond le mieux aux mots-clés de l'annonce remontent en tête."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Comment fonctionne un logiciel ATS ?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "L'ATS reçoit ton CV (site carrière, LinkedIn, Indeed…), le parse pour extraire expériences, compétences et formation, puis compare ces données aux critères et mots-clés du poste. Les CV les mieux alignés obtiennent un score plus élevé et sont présentés en priorité aux recruteurs."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Format CV compatible ATS : Word ou PDF ?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Les deux peuvent être compatibles ATS si le contenu est en texte sélectionnable (pas d'image de texte), avec une structure simple : titres clairs (Expérience, Formation, Compétences), listes à puces, polices standards (Arial, Helvetica). Éviter tableaux complexes et graphiques. Quand l'annonce ne précise pas, le PDF est souvent un bon choix."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Quelles erreurs de CV bloquent l'ATS ?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Tableaux ou mises en page complexes (mal lus par l'ATS), titres ou texte en image (non extraits), polices fantaisistes ou trop petites. Côté contenu : CV générique sans mots-clés de l'offre, mentions vagues sans détail, fautes d'orthographe. Un CV structuré, en texte, avec les mots-clés de l'annonce passe beaucoup mieux."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Comment personnaliser son CV pour chaque offre ?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Reprendre les mots-clés de l'offre dans ton résumé et tes expériences. Adapter les formulations et mettre en avant les missions les plus pertinentes. Des outils comme AxeL Job font cette adaptation automatiquement à partir du texte de l'annonce, en un clic, tout en gardant un CV honnête et lisible."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Pourquoi mon CV est rejeté automatiquement ?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Souvent à cause de l'ATS : le CV ne contient pas assez de mots-clés de l'offre, le format est illisible (tableaux, texte en image), ou des erreurs récurrentes (formulations vagues, fautes). Adapter le CV à chaque annonce et utiliser un format sobre (une colonne, titres en texte, listes) améliore fortement le passage."
-          }
-        }
       ]
     }
     </script>
@@ -97,22 +77,21 @@
     {
       "@context": "https://schema.org",
       "@type": "HowTo",
-      "name": "Comment optimiser son CV pour l'ATS",
-      "description": "Guide pour faire passer son CV dans les logiciels de tri des candidatures (ATS).",
+      "name": "Adapter son CV à une offre avec AxeL Job",
+      "description": "Importe ton profil, colle l'annonce et obtiens un CV adapté pour l'ATS en quelques secondes.",
       "step": [
-        { "@type": "HowToStep", "name": "Choisir un format compatible", "text": "Utiliser une seule colonne ou deux colonnes simples, des titres en texte (Expérience, Formation, Compétences), des listes à puces, des polices standards (10-12 pt)." },
-        { "@type": "HowToStep", "name": "Reprendre les mots-clés de l'offre", "text": "Intégrer les termes de l'annonce dans ton résumé et tes expériences de façon naturelle pour améliorer le score ATS." },
-        { "@type": "HowToStep", "name": "Éviter les pièges", "text": "Pas de tableaux complexes, pas de texte en image, pas de CV générique envoyé partout sans adaptation." },
-        { "@type": "HowToStep", "name": "Adapter à chaque candidature", "text": "Personnaliser le CV pour chaque offre. Un outil comme AxeL Job peut faire cette adaptation en un clic avec l'IA." }
+        { "@type": "HowToStep", "name": "Importe ton profil", "text": "LinkedIn, import de CV ou saisie manuelle : ton profil en quelques clics." },
+        { "@type": "HowToStep", "name": "Colle l'annonce visée", "text": "Copie le texte de l'offre d'emploi dans l'outil." },
+        { "@type": "HowToStep", "name": "Laisse l'IA faire la magie", "text": "Adaptation instantanée du CV, score ATS et suivi de tes candidatures." }
       ]
     }
     </script>
-    <!-- Critical CSS for LCP (hero + header) — évite les requêtes bloquantes -->
+    <!-- Critical CSS for LCP (hero + header) - évite les requêtes bloquantes -->
     <style>
 :root{--bg:#fff;--bg-page:#f8fafc;--border:#e2e8f0;--text:#0f172a;--text-secondary:#334155;--muted:#64748b;--accent:#4f46e5;--accent-hover:#4338ca;--accent-light:#eef2ff;--accent-subtle:rgba(79,70,229,.06);--shadow:0 1px 3px rgba(15,23,42,.06),0 1px 2px rgba(15,23,42,.04);--shadow-lg:0 10px 15px -3px rgba(15,23,42,.08),0 4px 6px rgba(15,23,42,.04);--radius:12px;--radius-sm:8px}
 *{box-sizing:border-box}
-body{margin:0;font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg-page);color:var(--text);min-height:100vh}
-.btn{font-family:'Plus Jakarta Sans',sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;padding:.6rem 1.2rem;font-size:.875rem;font-weight:600;border:none;border-radius:8px;cursor:pointer;transition:all .15s ease;letter-spacing:-.01em;line-height:1.4;white-space:nowrap;text-decoration:none}
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg-page);color:var(--text);min-height:100vh}
+.btn{font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;padding:.6rem 1.2rem;font-size:.875rem;font-weight:600;border:none;border-radius:8px;cursor:pointer;transition:all .15s ease;letter-spacing:-.01em;line-height:1.4;white-space:nowrap;text-decoration:none}
 a.btn{text-decoration:none}
 .btn-primary{background:var(--accent);color:#fff;box-shadow:0 1px 2px rgba(79,70,229,.3)}
 .btn-primary:hover{background:var(--accent-hover);box-shadow:0 2px 6px rgba(79,70,229,.35)}
@@ -125,10 +104,9 @@ a.btn{text-decoration:none}
 .landing-header-inner{display:flex;align-items:center;gap:.75rem;min-height:3.25rem}
 .landing-logo{width:32px;height:32px;border-radius:8px;object-fit:contain}
 .landing-brand{font-weight:700;font-size:1.1rem;color:var(--text);letter-spacing:-.03em}
-.landing-nav{margin-left:auto;display:flex;align-items:center;gap:1.5rem}
+.landing-nav{margin-left:auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:1rem 1.25rem}
 .landing-nav a{color:var(--muted);text-decoration:none;font-size:.875rem;font-weight:500;transition:color .15s}
 .landing-nav a.btn{background:var(--accent);color:#fff;box-shadow:0 1px 2px rgba(79,70,229,.3)}
-.landing-nav a:hover{color:var(--text)}
 .landing-cta-nav{padding:.45rem 1rem;font-size:.875rem}
 @media (max-width:767px){.landing-nav{display:none}}
 .landing-mobile-cta.btn{display:none;margin-left:auto;padding:.4rem .9rem;font-size:.8rem}
@@ -140,6 +118,7 @@ a.btn{text-decoration:none}
 .landing-hero-subtitle{margin:0 0 1.75rem;font-size:1.05rem;line-height:1.6;color:var(--muted)}
 .landing-cta-hero{padding:.75rem 1.5rem;font-size:.95rem;font-weight:600;border-radius:var(--radius-sm);box-shadow:0 2px 8px rgba(79,70,229,.3);transition:all .2s}
 .landing-cta-hero:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(79,70,229,.35)}
+.landing-nav a:hover{background:var(--accent-hover); box-shadow:0 4px 16px rgba(79,70,229,.35)}
 .landing-hero-ctas{display:flex;flex-direction:column;align-items:flex-start;gap:.5rem}
 .landing-hero-hint{font-size:.8rem;color:var(--muted)}
 .landing-hero-visual{background:var(--bg);border:1px solid var(--border);border-radius:16px;min-height:280px;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-lg);overflow:hidden}
@@ -159,11 +138,9 @@ a.btn{text-decoration:none}
 .mockup-cv-line{height:6px;width:100%;background:var(--border);border-radius:2px}
 .mockup-cv-line--short{width:60%}.mockup-cv-line--highlight{background:#86efac}
 @media (max-width:600px){.mockup-body{grid-template-columns:1fr}.mockup-chat{border-right:none;border-bottom:1px solid var(--border)}}
+.landing-section{width:100%;padding:4.5rem 0}.landing-section:nth-child(even){background:var(--bg-page)}.landing-section-title{margin:0 0 2.5rem;font-size:1.5rem;font-weight:700;text-align:center;color:var(--text);letter-spacing:-.025em}.landing-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem}@media (max-width:767px){.landing-steps{grid-template-columns:1fr}}.landing-step{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:1.75rem 1.5rem;transition:all .2s}.landing-step:hover{border-color:var(--accent);box-shadow:var(--shadow-lg);transform:translateY(-2px)}.landing-step-icon{width:48px;height:48px;border-radius:12px;background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;margin-bottom:1rem}.landing-step-num{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);margin-bottom:.35rem;display:block}.landing-step-title{margin:0 0 .4rem;font-size:1rem;font-weight:600;color:var(--text)}.landing-step-desc{margin:0;font-size:.875rem;line-height:1.55;color:var(--muted)}.landing-features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem}@media (max-width:767px){.landing-features-grid{grid-template-columns:1fr}}.landing-feature-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;transition:all .2s}.landing-feature-card:hover{border-color:var(--accent);box-shadow:var(--shadow)}.landing-feature-title{margin:0 0 .4rem;font-size:1rem;font-weight:600;color:var(--text)}.landing-feature-desc{margin:0;font-size:.875rem;line-height:1.55;color:var(--muted)}.landing-ats-link{display:inline-block;margin-top:.5rem;font-size:.85rem;color:var(--accent);text-decoration:none;font-weight:500}.landing-ats-link:hover{text-decoration:underline}.landing-section-subtitle{text-align:center;color:var(--muted);font-size:1rem;margin:-1.5rem 0 2.5rem}.landing-pricing{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;max-width:720px;margin:0 auto}@media (max-width:600px){.landing-pricing{grid-template-columns:1fr;max-width:400px}}.pricing-card{position:relative;background:var(--bg);border:1.5px solid var(--border);border-radius:16px;padding:2rem 1.5rem;display:flex;flex-direction:column;transition:all .2s}.pricing-card--pro{border-color:var(--accent);box-shadow:0 4px 24px rgba(79,70,229,.12)}.pricing-badge{position:absolute;top:-.65rem;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;font-size:.7rem;font-weight:700;padding:.2rem .85rem;border-radius:100px;letter-spacing:.03em;text-transform:uppercase}.pricing-card-header{margin-bottom:1.5rem}.pricing-plan-name{margin:0 0 .5rem;font-size:1.1rem;font-weight:700;color:var(--text)}.pricing-price{display:flex;align-items:baseline;gap:.25rem}.pricing-amount{font-size:2.5rem;font-weight:800;color:var(--text);letter-spacing:-.03em;line-height:1}.pricing-period{font-size:.9rem;color:var(--muted);font-weight:500}.pricing-features{list-style:none;padding:0;margin:0 0 1.5rem;display:flex;flex-direction:column;gap:.6rem;flex:1}.pricing-features li{display:flex;align-items:center;gap:.5rem;font-size:.875rem;color:var(--text)}.pricing-features li svg{flex-shrink:0;color:var(--accent)}.pricing-cta{width:100%;padding:.65rem 1rem;font-size:.9rem}.landing-cta-bottom{width:100%;text-align:center;padding:5rem 1.5rem;background:var(--accent-light);border-top:1px solid var(--border)}.landing-cta-bottom h2{margin:0 0 .5rem;font-size:1.5rem;font-weight:700;color:var(--text);letter-spacing:-.02em}.landing-cta-bottom p{margin:0 0 1.75rem;color:var(--text-secondary);font-size:1rem}.landing-footer{width:100%;padding:1.5rem 0;font-size:.8rem;color:var(--muted);border-top:1px solid var(--border);background:var(--bg)}.landing-footer-inner{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem}.landing-footer-inner p{margin:0}.landing-footer-links{display:flex;flex-wrap:wrap;gap:1.25rem;align-items:center}.landing-footer-sep{color:var(--border);user-select:none}.landing-footer-links a{color:var(--muted);text-decoration:none;font-size:.8rem;transition:color .15s}.landing-footer-links a:hover{color:var(--text);text-decoration:underline}@media (max-width:600px){.landing-footer-inner{flex-direction:column;text-align:center}}
     </style>
-    <!-- Feuille complète en async pour ne pas bloquer le rendu (recommandation Lighthouse) -->
-    <link rel="preload" href="/landing-static.css" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-    <script>(function(){setTimeout(function(){var l=document.querySelector('link[href=\'/landing-static.css\']');if(l&&l.rel==='preload')l.rel='stylesheet';},150);})();</script>
-    <noscript><link rel="stylesheet" href="/landing-static.css" /></noscript>
+    <!-- Mise en page landing entière en critical CSS (évite CLS quand une feuille externe arrivait en différé). landing-static.css reste la référence pour aligner les changements. -->
     <style>.js-enabled #root .static-crawlable{display:none!important}</style>
     <script>window.__APP_CSS__ = "__APP_CSS_FILENAME__";</script>
   </head>
@@ -190,18 +167,21 @@ a.btn{text-decoration:none}
       })();
     </script>
     <div id="root">
-      <!-- Contenu statique pour crawlers (sans JS) — même structure et CSS que la landing dynamique -->
+      <!-- Contenu statique pour crawlers (sans JS) - même structure et CSS que la landing dynamique -->
       <div class="static-crawlable landing">
         <header class="landing-header">
           <div class="landing-container">
             <div class="landing-header-inner">
               <img src="/favicon.svg" alt="AxeL Job" class="landing-logo" />
               <span class="landing-brand">AxeL Job</span>
-              <nav class="landing-nav">
+              <nav class="landing-nav" aria-label="Navigation principale">
                 <a href="#comment">Comment ça marche</a>
                 <a href="#tarifs">Tarifs</a>
                 <a href="#features">Fonctionnalités</a>
                 <a href="/ats">Qu'est-ce que l'ATS ?</a>
+                <a href="/faq">FAQ</a>
+                <a href="/modeles-cv">Modèles CV</a>
+                <a href="/guide-cv">Guide CV</a>
                 <a href="/login" class="btn btn-primary landing-cta-nav">Essayer gratuitement</a>
               </nav>
               <a href="/login" class="landing-mobile-cta btn btn-primary">Commencer</a>
@@ -217,7 +197,7 @@ a.btn{text-decoration:none}
                   <p class="landing-hero-subtitle">L'IA analyse l'offre d'emploi et adapte instantanément ton CV pour passer les filtres (ATS) et taper dans l'œil des recruteurs.</p>
                   <div class="landing-hero-ctas">
                     <a href="/login" class="btn btn-primary landing-cta-hero">Essayer gratuitement</a>
-                    <span class="landing-hero-hint">3 adaptations offertes - sans carte bancaire</span>
+                    <span class="landing-hero-hint">3 adaptations offertes</span>
                   </div>
                 </div>
                 <div class="landing-hero-visual">
@@ -231,7 +211,7 @@ a.btn{text-decoration:none}
                         <div class="mockup-msg mockup-msg--user">Adapte mon CV pour ce poste de Chef de projet digital</div>
                         <div class="mockup-msg mockup-msg--ai">
                           <span class="mockup-ai-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg></span>
-                          CV adapté (score ATS 87/100). Titre, résumé et expériences optimisés.
+                          CV adapté (score ATS 92/100). Titre, résumé et expériences optimisés.
                         </div>
                       </div>
                       <div class="mockup-preview">
@@ -286,7 +266,7 @@ a.btn{text-decoration:none}
                   </div>
                   <ul class="pricing-features">
                     <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>3 adaptations de CV</li>
-                    <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Import PDF / Word / LinkedIn</li>
+                    <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Import PDF  / LinkedIn</li>
                     <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Suivi de candidatures</li>
                     <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Export PDF</li>
                   </ul>
@@ -300,7 +280,7 @@ a.btn{text-decoration:none}
                   </div>
                   <ul class="pricing-features">
                     <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Adaptations illimitées</li>
-                    <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Import PDF / Word / LinkedIn</li>
+                    <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Import PDF  / LinkedIn</li>
                     <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Suivi de candidatures illimité</li>
                     <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Export PDF &amp; dossier complet</li>
                     <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Lettre de motivation IA</li>
@@ -361,9 +341,9 @@ a.btn{text-decoration:none}
         <footer class="landing-footer">
           <div class="landing-container">
             <div class="landing-footer-inner">
-              <p>© 2025 AxeL Job - Ton CV sur-mesure pour chaque annonce.</p>
-              <nav class="landing-footer-links">
-                <a href="mailto:louis.vedovato@axelproject.fr?subject=Support%20AxeL%20Job">Support</a>
+              <p>© 2025 AxeL Job - Ton CV sur-mesure pour chaque annonce. Une réalisation <a href="https://axelproject.fr" rel="noopener noreferrer">Axel Project</a>.</p>
+              <nav class="landing-footer-links" aria-label="Guides, FAQ et pages légales">
+                <a href="mailto:contact@axelproject.fr?subject=Support%20AxeL%20Job">Support</a>
                 <a href="/app?open=template-perso">Template personnalisé</a>
                 <a href="/ats">CV et ATS</a>
                 <a href="/faq">FAQ</a>

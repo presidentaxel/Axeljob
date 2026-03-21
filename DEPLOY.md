@@ -17,6 +17,7 @@ Ce guide couvre le deploiement de AxeL Job sur un serveur DigitalOcean (Droplet)
 9. [Verifier que tout marche](#9-verifier-que-tout-marche)
 10. [Maintenance et mises a jour](#10-maintenance-et-mises-a-jour)
 11. [Securite en production](#11-securite-en-production)
+12. [Google Search Console (SEO)](#12-google-search-console-seo)
 
 ---
 
@@ -372,6 +373,34 @@ VITE_SUPABASE_ANON_KEY=eyJhbGci...  (anon key)
 - `CV_BOT_FRONTEND_URL` : **obligatoire** pour CORS et les redirections Stripe.
 - `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY` : ces variables sont lues par `docker-compose.yml` au moment du build frontend et injectees dans le bundle JS. C'est la cle `anon` (publique), pas la `service_role`.
 
+### 5.2 Accès PostgreSQL direct (optionnel, performances)
+
+Le backend utilise par defaut le client Supabase (HTTP / PostgREST). Tu peux ajouter une connexion **PostgreSQL directe** pour reduire la latence et la charge CPU sur un petit VPS :
+
+```env
+SUPABASE_DATABASE_URL=postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-....pooler.supabase.com:5432/postgres
+```
+
+- **Ou la trouver** : Supabase Dashboard > **Project Settings** > **Database** > *Connection string* > URI. Sur un droplet, le **Session pooler** (IPv4) est en general le plus simple.
+- **Repli** : si `SUPABASE_DATABASE_URL` est absent ou si la connexion PG echoue, le code retombe automatiquement sur le client REST (`SUPABASE_URL` + `SUPABASE_SERVICE_KEY`) - Storage, Auth Admin et signatures URL restent sur l’API.
+- **Reglages** (optionnels) : `SUPABASE_PG_POOL_MAX` (defaut `8`), `SUPABASE_PG_CONNECT_TIMEOUT` (defaut `10` s).
+
+**Ne commite jamais** l’URI complete (mot de passe base) : uniquement dans `.env` sur le serveur.
+
+### 5.3 Pistes perf / petit droplet (deja integrees dans le repo)
+
+| Reglage | Role |
+|--------|------|
+| `UVICORN_WORKERS` | Docker backend : defaut **1** (voir `docker-compose.yml` / `backend/Dockerfile`). Augmente seulement avec assez de RAM. |
+| `THREAD_POOL_MAX_WORKERS` | Threads pour taches async lourdes (WeasyPrint, etc.) : defaut **4**. |
+| `USER_PLAN_CACHE_TTL_SEC` | Cache memoire processus pour plan + paywall (`user_plans`) : defaut **30** s ; `0` = desactive. |
+| Nginx `frontend/nginx.conf` | `limit_req` sur `/api/` + limite plus basse sur `/api/pdf`, `/api/adapt`, `/api/adapt-refine` ; `index.html` en `no-cache` ; assets longue duree. |
+| Frontend | Profil : auto-save deja debounce ; select « Source » offre : patch debounce 800 ms. |
+
+**Voir le mode donnees** : `GET /health` renvoie `supabase` (`backend`: `pg_direct` \| `rest_api` \| `disabled`) et `thread_pool_max_workers`. Au demarrage du backend, une ligne de log JSON indique aussi `Données Supabase: backend=...`.
+
+**Metrique Prometheus** : `cv_bot_supabase_pg_fallback_total{operation="..."}` incrementee a chaque repli PG → REST (a grapher si les replis explosent).
+
 ---
 
 ## 6. Deployer avec Docker
@@ -530,7 +559,7 @@ Pour activer le plan Pro payant :
 
 1. Developers > Webhooks > Add endpoint
 2. URL : `https://cv.tondomaine.com/api/stripe-webhook`
-3. Events : `checkout.session.completed`
+3. Events : `checkout.session.completed` **et** `customer.subscription.deleted` (passage en gratuit en fin d’abonnement après résiliation)
 4. Note le **Signing secret** (`whsec_...`)
 
 ### 8.3 Variables d'environnement
@@ -715,6 +744,22 @@ Ainsi, les requêtes avec ces User-Agents ne seront pas bloquées même si elles
 **Où trouver le blocage** : Si tu as activé **Bot Fight Mode**, **Under Attack Mode** ou une règle du type « block requests from known data centers / bad ASN », c’est là que les 403 sont générés. La règle ci-dessus doit s’appliquer **avant** ce bloc (ordre des règles ou « Skip » sur les bonnes actions).
 
 **Vérification** : depuis une machine en data center (ou un outil type « fetch as bot »), une requête avec par exemple `User-Agent: Claude-Web/1.0` ne doit plus recevoir 403.
+
+---
+
+## 12. Google Search Console (SEO)
+
+Après mise en ligne sur le domaine définitif (ex. `https://job.axelproject.fr`) :
+
+1. **Ajouter la propriété** dans [Google Search Console](https://search.google.com/search-console) : domaine (recommandé, enregistrement DNS TXT) ou préfixe d’URL (fichier HTML ou balise meta).
+2. **Soumettre le sitemap** : `https://job.axelproject.fr/sitemap.xml` (menu *Sitemaps*). Le fichier ne liste que les pages à indexer ; login, CGU, confidentialité et mentions légales sont en `noindex` et hors sitemap.
+3. **Demander l’indexation** des URLs importantes : *Inspection d’URL* → accueil, guides (`/ats`, `/faq`, etc.) si besoin après déploiement ou grosse mise à jour. L’indexation reste décision de Google ; la demande accélère souvent la découverte.
+4. **Lien depuis le site vitrine** : ajouter sur [axelproject.fr](https://axelproject.fr) un lien contextuel vers AxeL Job (footer, page projets, ou article) avec ancre descriptive - cela renforce la découverte et le signal de confiance.
+5. **Surveiller** : couverture, expérience de page (Core Web Vitals si disponible), et erreurs de sitemap.
+
+**Sitelinks** (les liens supplémentaires sous le résultat principal, comme sur les grands sites) : Google les **génère automatiquement** ; il n’existe aucun réglage pour en fixer la liste. Une navigation cohérente (liens visibles dès l’accueil vers les pages clés), des titres de page uniques et pertinent, un sitemap à jour et, avec le temps, plus d’autorité sur la requête de marque (« AxeL Job ») augmentent les chances qu’ils apparaissent. Le schéma `WebSite` avec `hasPart` sur la page d’accueil aide à signaler les rubriques importantes mais **ne garantit pas** l’affichage de sitelinks.
+
+Les backlinks externes ne se configurent pas dans ce dépôt ; ils relèvent du marketing et du partenariat sur la durée.
 
 ---
 

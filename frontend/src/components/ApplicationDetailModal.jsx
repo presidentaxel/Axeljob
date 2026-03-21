@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import DOMPurify from 'dompurify';
 import { apiGet, apiPost, apiGetBlob, apiPostFormData } from '../api';
 import CompanyLogo from './CompanyLogo';
+import { formatApplicationDateLabel } from '../lib/applicationDates';
 
 const DOC_LABELS = { lettre: 'Lettre de motivation', cv: 'CV', fiche: 'Fiche de poste' };
 
@@ -45,8 +46,10 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
       const data = await apiPost(`/api/applications/${encodeURIComponent(applicationDetailId)}/generate-letter`);
       if (data?.lettre_html) {
         setDetailLetterHtml(data.lettre_html);
-        setApplicationDetail((prev) => (prev ? { ...prev, lettre_html: data.lettre_html } : null));
       }
+      const payload = await apiGet(`/api/applications/${encodeURIComponent(applicationDetailId)}`);
+      setApplicationDetail(payload);
+      if (payload?.lettre_html) setDetailLetterHtml(payload.lettre_html);
     } catch (e) {
       setError(e.message || 'Génération lettre impossible.');
     } finally {
@@ -105,7 +108,7 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
           <div className="detail-header-text">
             <span className="detail-entreprise">{applicationDetail.entreprise || ''}</span>
             <h3>{applicationDetail.poste || applicationDetail.poste_offre || 'Sans intitulé'}</h3>
-            {app?.date && <span className="detail-date">{app.date}</span>}
+            {app?.date && <span className="detail-date">{formatApplicationDateLabel(app.date)}</span>}
           </div>
           <button type="button" className="btn-close-detail" onClick={onClose} aria-label="Fermer">×</button>
         </div>
@@ -159,7 +162,9 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
         <div className="application-detail-content">
           {detailTab === 'cv' && (
             <div className="detail-pane detail-cv">
-              {applicationDetail.full_cv ? (
+              {applicationDetail.pdf_cv_stored && applicationDetail.pdf_cv_url ? (
+                <iframe title="Aperçu CV (PDF exporté)" src={applicationDetail.pdf_cv_url} className="detail-iframe" />
+              ) : applicationDetail.full_cv ? (
                 detailCvHtml ? <iframe title="Aperçu CV" srcDoc={detailCvHtml} className="detail-iframe" /> : <p>Chargement de l&apos;aperçu CV…</p>
               ) : applicationDetail.pdf_cv_url ? (
                 <iframe title="Aperçu CV (PDF)" src={applicationDetail.pdf_cv_url} className="detail-iframe" />
@@ -171,8 +176,13 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
           {detailTab === 'lettre' && (
             <div className="detail-pane detail-lettre">
               {detailLetterLoading && <p>Génération de la lettre…</p>}
-              {!detailLetterLoading && detailLetterHtml && <div className="letter-html" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(detailLetterHtml) }} />}
-              {!detailLetterLoading && !detailLetterHtml && applicationDetail.pdf_lettre_url && (
+              {!detailLetterLoading && applicationDetail.pdf_lettre_stored && applicationDetail.pdf_lettre_url && (
+                <iframe title="Aperçu lettre (PDF exporté)" src={applicationDetail.pdf_lettre_url} className="detail-iframe" />
+              )}
+              {!detailLetterLoading && !(applicationDetail.pdf_lettre_stored && applicationDetail.pdf_lettre_url) && detailLetterHtml && (
+                <div className="letter-html" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(detailLetterHtml) }} />
+              )}
+              {!detailLetterLoading && !(applicationDetail.pdf_lettre_stored && applicationDetail.pdf_lettre_url) && !detailLetterHtml && applicationDetail.pdf_lettre_url && (
                 <iframe title="Aperçu lettre (PDF)" src={applicationDetail.pdf_lettre_url} className="detail-iframe" />
               )}
               {!detailLetterLoading && !detailLetterHtml && !applicationDetail.pdf_lettre_url && (
@@ -185,7 +195,9 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
           )}
           {detailTab === 'fiche' && (
             <div className="detail-pane detail-fiche">
-              {applicationDetail.pdf_fiche_url ? (
+              {applicationDetail.pdf_fiche_stored && applicationDetail.pdf_fiche_url ? (
+                <iframe title="Aperçu fiche de poste (PDF exporté)" src={applicationDetail.pdf_fiche_url} className="detail-iframe" />
+              ) : applicationDetail.pdf_fiche_url ? (
                 <iframe title="Aperçu fiche de poste (PDF)" src={applicationDetail.pdf_fiche_url} className="detail-iframe" />
               ) : (applicationDetail.description_full || '').trim() ? (
                 <pre className="fiche-text">{(applicationDetail.description_full || '').trim()}</pre>

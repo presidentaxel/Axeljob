@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { CONTACT_EMAIL } from '../constants';
 import './LandingPage.css';
 
 const STEPS = [
@@ -33,14 +34,14 @@ const BENEFITS = [
 
 const FREE_FEATURES = [
   '3 adaptations de CV',
-  'Import PDF / Word / LinkedIn',
+  'Import PDF  / LinkedIn',
   'Suivi de candidatures',
   'Export PDF',
 ];
 
 const PRO_FEATURES = [
   'Adaptations illimitées',
-  'Import PDF / Word / LinkedIn',
+  'Import PDF  / LinkedIn',
   'Suivi de candidatures illimité',
   'Export PDF & dossier complet',
   'Lettre de motivation IA',
@@ -55,11 +56,14 @@ export default function LandingPage({ onCtaClick, onProClick }) {
           <div className="landing-header-inner">
             <img src="/favicon.svg" alt="AxeL Job" className="landing-logo" />
             <span className="landing-brand">AxeL Job</span>
-            <nav className="landing-nav">
+            <nav className="landing-nav" aria-label="Navigation principale">
               <a href="#comment">Comment ça marche</a>
               <a href="#tarifs">Tarifs</a>
               <a href="#features">Fonctionnalités</a>
               <Link to="/ats">Qu&apos;est-ce que l&apos;ATS ?</Link>
+              <Link to="/faq">FAQ</Link>
+              <Link to="/modeles-cv">Modèles CV</Link>
+              <Link to="/guide-cv">Guide CV</Link>
               <button type="button" className="btn btn-primary landing-cta-nav" onClick={onCtaClick}>
                 Essayer gratuitement
               </button>
@@ -86,7 +90,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
                 <button type="button" className="btn btn-primary landing-cta-hero" onClick={onCtaClick}>
                   Essayer gratuitement
                 </button>
-                <span className="landing-hero-hint">3 adaptations offertes - sans carte bancaire</span>
+                <span className="landing-hero-hint">3 adaptations offertes</span>
               </div>
             </div>
             <div className="landing-hero-visual">
@@ -100,7 +104,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
                     <div className="mockup-msg mockup-msg--user">Adapte mon CV pour ce poste de Chef de projet digital</div>
                     <div className="mockup-msg mockup-msg--ai">
                       <span className="mockup-ai-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg></span>
-                      CV adapté (score ATS 87/100). Titre, résumé et expériences optimisés.
+                      CV adapté (score ATS 92/100). Titre, résumé et expériences optimisés.
                     </div>
                   </div>
                   <div className="mockup-preview">
@@ -247,9 +251,12 @@ export default function LandingPage({ onCtaClick, onProClick }) {
       <footer className="landing-footer">
         <div className="landing-container">
           <div className="landing-footer-inner">
-            <p>© {new Date().getFullYear()} AxeL Job - Ton CV sur-mesure pour chaque annonce.</p>
-            <nav className="landing-footer-links">
-              <a href="mailto:louis.vedovato@axelproject.fr?subject=Support%20AxeL%20Job">Support</a>
+            <p>
+              © {new Date().getFullYear()} AxeL Job - Ton CV sur-mesure pour chaque annonce. Une réalisation{' '}
+              <a href="https://axelproject.fr" rel="noopener noreferrer">Axel Project</a>.
+            </p>
+            <nav className="landing-footer-links" aria-label="Guides, FAQ et pages légales">
+              <a href={`mailto:${CONTACT_EMAIL}?subject=Support%20AxeL%20Job`}>Support</a>
               <Link to="/app?open=template-perso">Template personnalisé</Link>
               <Link to="/ats">CV et ATS</Link>
               <Link to="/faq">FAQ</Link>

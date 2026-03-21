@@ -179,14 +179,14 @@ PDF_EXPORT_CUSTOM_TEMPLATE_FIX = (
 )
 
 # Export : uniquement @page + print-color-adjust pour WeasyPrint. Le template (couleurs, layout, options) reste maître.
-# La section mots-clés ATS n'est dans le HTML que si show_mots_cles_ats est True (voir _render_cv_html) ; ces règles ne s'appliquent que lorsqu'elle existe.
+# Ne pas forcer font-size:0 sur .mots-cles-ats-invisible : WeasyPrint omet souvent ce texte de la couche texte du PDF,
+# donc les ATS et la copie depuis le PDF ne voient pas les mots-clés. Le template.css (@media print, ~5pt, couleur = sidebar) suffit.
 PDF_EXPORT_PREVIEW_ALIGN_CSS = (
     "<style>"
     "@page{size:A4;margin:0}"
     "body.cv-preview,.cv-preview .cv-header,.cv-preview .cv-sidebar{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}"
     "@media print{"
     ".cv-preview .section-mots-cles-ats .mots-cles-ats-titre{display:none!important;}"
-    ".cv-preview .section-mots-cles-ats .mots-cles-ats-invisible,.cv-preview .cv-sidebar .section-mots-cles-ats .mots-cles-ats-invisible{color:var(--cv-sidebar-color,#f4f4f2)!important;font-size:0!important;line-height:0!important;overflow:hidden!important;}"
     "}"
     "</style>"
 )

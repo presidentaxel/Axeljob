@@ -67,7 +67,7 @@
   user-select: none;
 }
 
-/* Header titre : retour à la ligne (max 90 caractères) — priorité sur le template */
+/* Header titre : retour à la ligne (max 90 caractères) - priorité sur le template */
 .cv-editable-preview .cv-header .header-nom {
   white-space: normal !important;
   flex-shrink: 1 !important;

@@ -1,4 +1,8 @@
-/* Même rendu que la landing dynamique (LandingPage) — chargé en noscript pour crawlers / sans JS */
+/*
+ * Même rendu que la landing dynamique (LandingPage).
+ * La mise en page est aussi dupliquée dans index.html (critical CSS inline) pour éviter le CLS :
+ * en cas de changement de styles de section, mettre à jour les deux fichiers.
+ */
 :root {
   --bg: #ffffff;
   --bg-page: #f8fafc;
@@ -107,8 +111,10 @@ a.btn { text-decoration: none; }
 .landing-nav {
   margin-left: auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1.5rem;
+  justify-content: flex-end;
+  gap: 1rem 1.25rem;
 }
 
 .landing-nav a {
@@ -124,8 +130,6 @@ a.btn { text-decoration: none; }
   color: #fff;
   box-shadow: 0 1px 2px rgba(79, 70, 229, 0.3);
 }
-
-.landing-nav a:hover { color: var(--text); }
 
 .landing-cta-nav { padding: 0.45rem 1rem; font-size: 0.875rem; }
 

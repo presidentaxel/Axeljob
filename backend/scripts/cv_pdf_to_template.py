@@ -52,12 +52,12 @@ from backend.config import USE_SUPABASE
 # Variables Jinja2 que le moteur de rendu CV injecte (le template doit les utiliser).
 # IMPORTANT : langues_for_display et listes de compétences sont des listes d'objets ; ne JAMAIS faire {{ langues_for_display }} seul (afficherait du Python brut).
 JINJA_VARS_REF = """
-Variables disponibles (Jinja2) — syntaxe EXACTE à respecter :
+Variables disponibles (Jinja2) - syntaxe EXACTE à respecter :
 - En-tête : {{ prenom }}, {{ nom }}, {{ titre_professionnel_display }}, {{ resume_display }}, {{ telephone }}, {{ email }}, {{ linkedin }}, {{ photo_url }} (optionnel), {{ for_preview }}
 - Expériences : {% for exp in experiences_for_display %} ... {{ exp.entreprise_display }}, {{ exp.date_debut_display }}, {{ exp.date_fin_display }}, {{ exp.lieu_display }}, {{ exp.poste_display }}, {{ exp.secteur_display }}, {{ exp.clients_display }}, {% for bullet in exp.bullet_points %} {{ bullet.html|safe }} {% endfor %} {% endfor %}
 - Formations : {% for form in formations_for_display %} {{ form.etablissement }}, {{ form.diplome }}, {{ form.date }}, {{ form.mention }} {% endfor %}
 - Projets : {% for proj in projets_for_display %} {{ proj.nom }}, {{ proj.description }} {% endfor %}
-- Langues : OBLIGATOIRE — {% for l in langues_for_display %} {{ l.langue }} - {{ l.niveau }} {% endfor %}. Ne JAMAIS écrire {{ langues_for_display }} seul (sinon affichage type {'langue': 'Français', ...}).
+- Langues : OBLIGATOIRE - {% for l in langues_for_display %} {{ l.langue }} - {{ l.niveau }} {% endfor %}. Ne JAMAIS écrire {{ langues_for_display }} seul (sinon affichage type {'langue': 'Français', ...}).
 - Compétences (listes) : {% for item in competences.techniques %} {{ item }} {% endfor %}, idem pour competences.logiciels, competences.autres. Ou boucles équivalentes.
 - Certifications : {% for c in certifications_for_display %} {{ c.nom }}, {{ c.organisme }}, {{ c.date }} {% endfor %}
 - ATS : {{ show_mots_cles_ats }}, {{ mots_cles_cache }}
@@ -313,7 +313,7 @@ def main():
     if html_content is None:
         if use_ai and not api_key:
             print("GEMINI_API_KEY absente dans .env : impossible de reproduire le design. Repli sur template « classic » + couleurs.")
-        print("(Repli) Extraction des couleurs + template « classic » — le rendu ne reproduit pas la mise en page de ton PDF.")
+        print("(Repli) Extraction des couleurs + template « classic » - le rendu ne reproduit pas la mise en page de ton PDF.")
         colors = extract_dominant_colors(img)
         header_hex, sidebar_hex, accent_hex = pick_header_sidebar_accent(colors)
         print(f"Couleurs extraites: header={header_hex} sidebar={sidebar_hex} accent={accent_hex}")

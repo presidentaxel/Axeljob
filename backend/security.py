@@ -5,7 +5,7 @@ Rejeter en 400 avec un message générique (sans révéler la raison).
 import re
 from typing import Optional
 
-# Expressions suspectes (injection de prompt) — en minuscules, recherche insensible à la casse
+# Expressions suspectes (injection de prompt) - en minuscules, recherche insensible à la casse
 _PROMPT_INJECTION_PATTERNS = [
     "ignore previous instructions",
     "ignore all instructions",

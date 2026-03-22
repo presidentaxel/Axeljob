@@ -1456,6 +1456,64 @@ body {
 }
 .export-modal { text-align: center; min-width: 280px; }
 
+/* Rappel bloc ATS avant export PDF / dossier */
+.export-ats-block-modal {
+  max-width: 520px;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+}
+.export-ats-block-lead {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text);
+  margin: 0.75rem 0;
+}
+.export-ats-block-muted {
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 0 0 1rem;
+}
+.export-ats-block-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  margin: 0 0 0.5rem;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.export-ats-block-fieldset {
+  border: none;
+  margin: 0 0 0.25rem;
+  padding: 0;
+}
+.export-ats-block-legend {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+  padding: 0;
+}
+.export-ats-block-radio {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text);
+  margin: 0 0 0.5rem;
+  cursor: pointer;
+}
+.export-ats-block-radio input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+.export-ats-block-actions {
+  margin-top: 1rem;
+}
+
 /* Panneau IA : fond clair pour une lecture moins fatigante */
 .cv-chat-area {
   display: flex;

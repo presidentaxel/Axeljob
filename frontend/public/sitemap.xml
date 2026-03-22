@@ -8,7 +8,7 @@
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <image:image>
-      <image:loc>https://job.axelproject.fr/og-image.png</image:loc>
+      <image:loc>https://job.axelproject.fr/axel_og_image.png</image:loc>
       <image:title>AxeL Job - CV adapté à chaque offre, score ATS</image:title>
       <image:caption>Outil web pour adapter son CV avec l&apos;IA et optimiser le passage ATS</image:caption>
     </image:image>

@@ -13,17 +13,6 @@ function Out({ href, children }) {
 
 const FAQ_ITEMS = [
   {
-    q: "Est-ce que l'ATS rejette automatiquement mon CV ?",
-    slug: 'ats-rejet-automatique',
-    a: (
-      <p>
-        Dans la grande majorité des cas, non. Selon{' '}
-        <Out href={U.ENHANCV_ATS}>Enhancv</Out>
-        , 56&nbsp;% des recruteurs ignorent complètement le «&nbsp;score de matching&nbsp;» fourni par l&apos;ATS et vérifient toujours manuellement avant de rejeter un candidat. Ce sont les recruteurs qui rejettent, pas le logiciel.
-      </p>
-    ),
-  },
-  {
     q: "Pourquoi mon CV ne passe pas si j'ai les bonnes compétences ?",
     slug: 'cv-bonnes-competences',
     a: (

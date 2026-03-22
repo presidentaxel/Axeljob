@@ -208,7 +208,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
           <div className="landing-hero-inner">
             <div className="landing-hero-content">
               <h1 className="landing-hero-title">
-                Ton CV sur-mesure pour chaque annonce, en 1 clic.
+                Passe les filtres automatiques. Décroche des entretiens en 1 clic.
               </h1>
               <p className="landing-hero-subtitle">
                 {"L'IA analyse l'offre d'emploi et adapte instantanément ton CV pour passer les filtres (ATS) et taper dans l'œil des recruteurs."}

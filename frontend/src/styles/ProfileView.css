@@ -706,7 +706,7 @@
   flex-wrap: wrap;
 }
 
-/* Modal fusion import CV — aligné sur le design system (cartes, accent, lisibilité) */
+/* Modal fusion import CV - aligné sur le design system (cartes, accent, lisibilité) */
 .import-merge-overlay {
   background: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(4px);
@@ -1169,7 +1169,7 @@
   border-top: 1px solid var(--border);
 }
 
-/* Abonnement — résiliation légale */
+/* Abonnement - résiliation légale */
 .profile-subscription-period {
   font-size: 0.95rem;
   margin: 0 0 0.75rem;

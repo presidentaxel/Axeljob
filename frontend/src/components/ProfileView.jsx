@@ -1418,7 +1418,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
       {importMergeOpen && importMergeParsed && (
         <div className="linkedin-sync-overlay import-merge-overlay" onClick={() => { setImportMergeOpen(false); setImportMergeParsed(null); }} role="dialog" aria-modal="true" aria-labelledby="import-merge-title">
           <div className="linkedin-sync-modal import-merge-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 id="import-merge-title" className="import-merge-modal-title">Importer le CV — choisir les champs</h3>
+            <h3 id="import-merge-title" className="import-merge-modal-title">Importer le CV - choisir les champs</h3>
             <p className="linkedin-sync-intro import-merge-intro">Champ vide : ajouter le texte importé ou l’ignorer. Champ déjà rempli : remplacer ou conserver ta version actuelle.</p>
             <ul className="linkedin-sync-changes import-merge-list">
               {IMPORT_SCALAR_KEYS.filter(({ key }) => importMergeParsed[key] !== undefined && String(importMergeParsed[key] ?? '').trim() !== '').map(({ key, label }) => {

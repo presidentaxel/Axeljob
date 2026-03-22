@@ -6,7 +6,7 @@ import { HiChartBarSquare } from 'react-icons/hi2';
 const DAY_OPTIONS = [7, 14, 30];
 
 function formatBytes(n) {
-  if (n == null || Number.isNaN(n)) return '—';
+  if (n == null || Number.isNaN(n)) return '-';
   const mb = n / (1024 * 1024);
   if (mb >= 1024) return `${(mb / 1024).toFixed(2)} Go`;
   return `${mb.toFixed(1)} Mo`;
@@ -133,7 +133,7 @@ export default function MonitoringDashboard({ usage }) {
           <>
             {!op && (
               <p className="monitoring-muted">
-                Le backend ne renvoie pas encore le bloc <code className="monitoring-code">operational</code> — déploie la dernière version de l’API.
+                Le backend ne renvoie pas encore le bloc <code className="monitoring-code">operational</code> - déploie la dernière version de l’API.
               </p>
             )}
             {op && (
@@ -146,7 +146,7 @@ export default function MonitoringDashboard({ usage }) {
               <div className="monitoring-cards">
                 <div className="monitoring-card">
                   <h3>Inscrits (auth.users)</h3>
-                  <p className="monitoring-card-metric">{users?.registered_total != null ? users.registered_total : '—'}</p>
+                  <p className="monitoring-card-metric">{users?.registered_total != null ? users.registered_total : '-'}</p>
                   <p className="monitoring-muted">Requiert SUPABASE_DATABASE_URL</p>
                 </div>
                 <div className="monitoring-card">
@@ -164,7 +164,7 @@ export default function MonitoringDashboard({ usage }) {
                   <p className="monitoring-card-metric">
                     {cap?.estimated_max_active_users_at_target_cpu != null
                       ? `~${cap.estimated_max_active_users_at_target_cpu} actifs @ ${cap.target_cpu_percent}% CPU`
-                      : '—'}
+                      : '-'}
                   </p>
                   {cap?.samples_in_window > 0 && (
                     <p className="monitoring-muted" style={{ marginTop: '0.35rem', fontSize: '0.8125rem' }}>
@@ -184,16 +184,16 @@ export default function MonitoringDashboard({ usage }) {
               <div className="monitoring-cards">
                 <div className="monitoring-card">
                   <h3>CPU système</h3>
-                  <p className="monitoring-card-metric">{sys?.system_cpu_percent != null ? `${sys.system_cpu_percent}%` : '—'}</p>
-                  <p className="monitoring-muted">{sys?.psutil_available ? 'psutil OK' : 'psutil indisponible — pip install psutil'}</p>
+                  <p className="monitoring-card-metric">{sys?.system_cpu_percent != null ? `${sys.system_cpu_percent}%` : '-'}</p>
+                  <p className="monitoring-muted">{sys?.psutil_available ? 'psutil OK' : 'psutil indisponible - pip install psutil'}</p>
                 </div>
                 <div className="monitoring-card">
                   <h3>CPU processus</h3>
-                  <p className="monitoring-card-metric">{sys?.process_cpu_percent != null ? `${sys.process_cpu_percent}%` : '—'}</p>
+                  <p className="monitoring-card-metric">{sys?.process_cpu_percent != null ? `${sys.process_cpu_percent}%` : '-'}</p>
                 </div>
                 <div className="monitoring-card">
                   <h3>RAM système</h3>
-                  <p className="monitoring-card-metric">{sys?.system_memory_used_percent != null ? `${sys.system_memory_used_percent}%` : '—'}</p>
+                  <p className="monitoring-card-metric">{sys?.system_memory_used_percent != null ? `${sys.system_memory_used_percent}%` : '-'}</p>
                 </div>
                 <div className="monitoring-card">
                   <h3>RSS processus</h3>
@@ -308,21 +308,21 @@ export default function MonitoringDashboard({ usage }) {
               <div className="monitoring-cards">
                 <div className="monitoring-card">
                   <h3>API</h3>
-                  <p className="monitoring-card-metric">{health?.status || '—'}</p>
+                  <p className="monitoring-card-metric">{health?.status || '-'}</p>
                   <p className="monitoring-muted">
-                    {health?.production ? 'Production' : 'Non-production'} · workers async: {health?.thread_pool_max_workers ?? '—'}
+                    {health?.production ? 'Production' : 'Non-production'} · workers async: {health?.thread_pool_max_workers ?? '-'}
                   </p>
                 </div>
                 <div className="monitoring-card">
                   <h3>Données</h3>
-                  <p className="monitoring-card-metric">{health?.supabase?.backend || '—'}</p>
+                  <p className="monitoring-card-metric">{health?.supabase?.backend || '-'}</p>
                   <pre className="monitoring-pre">{JSON.stringify(health?.supabase || {}, null, 2)}</pre>
                 </div>
                 <div className="monitoring-card monitoring-card--wide">
                   <h3>Prometheus</h3>
                   <p className="monitoring-muted">
                     Chemin <code className="monitoring-code">{prom?.path}</code>
-                    {prom?.protected ? ' (protégé par jeton)' : ' (sans jeton — risqué en prod)'}
+                    {prom?.protected ? ' (protégé par jeton)' : ' (sans jeton - risqué en prod)'}
                   </p>
                   <p className="monitoring-hint">{prom?.hint}</p>
                 </div>
@@ -374,7 +374,7 @@ export default function MonitoringDashboard({ usage }) {
               {(news.items || []).map((item) => (
                 <li key={item.id || item.title} className="monitoring-news-card">
                   <div className="monitoring-news-meta">
-                    <span className="monitoring-news-date">{item.date || '—'}</span>
+                    <span className="monitoring-news-date">{item.date || '-'}</span>
                     {item.link ? (
                       <a href={item.link} target="_blank" rel="noopener noreferrer" className="monitoring-news-link">
                         Lien

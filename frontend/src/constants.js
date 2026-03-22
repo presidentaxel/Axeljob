@@ -1,5 +1,8 @@
 export const STORAGE_EXPORT_DIR = 'cv_bot_last_export_dir';
 
+/** Timestamp (ms) : après confirmation, ne plus afficher le rappel « bloc ATS » à l’export avant cette date. */
+export const STORAGE_EXPORT_ATS_BLOCK_SNOOZE = 'export_ats_block_prompt_snooze_until';
+
 /** Email de contact public (légales, landing, support). */
 export const CONTACT_EMAIL = 'contact@axelproject.fr';
 

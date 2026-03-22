@@ -17,7 +17,7 @@ import AuthForm from './components/AuthForm';
 import AppTopbar from './components/AppTopbar';
 import CompanyLogo from './components/CompanyLogo';
 import { NotFoundPage } from './components/ErrorPages';
-import { CONTACT_EMAIL, STORAGE_EXPORT_DIR, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
+import { CONTACT_EMAIL, STORAGE_EXPORT_DIR, STORAGE_EXPORT_ATS_BLOCK_SNOOZE, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
 import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiCheck, HiSwatch } from 'react-icons/hi2';
 import { lazyWithChunkReload, clearChunkErrorReloadKey } from './lib/lazyChunkReload';
 import { getViewFromPathname } from './lib/appRoutes';
@@ -41,6 +41,15 @@ import './styles/TemplatePicker.css';
 import './styles/GuidedTour.css';
 import { formatApplicationDateLabel } from './lib/applicationDates';
 
+function shouldShowExportAtsBlockModal() {
+  try {
+    const until = parseInt(localStorage.getItem(STORAGE_EXPORT_ATS_BLOCK_SNOOZE) || '0', 10);
+    if (!Number.isFinite(until) || until <= 0) return true;
+    return Date.now() >= until;
+  } catch {
+    return true;
+  }
+}
 
 /** URL logo entreprise (Clearbit, open source). Fallback: pas d’image. */
 
@@ -658,6 +667,11 @@ export default function App() {
   const [kanbanDragOverColumn, setKanbanDragOverColumn] = useState(null);
   const [atsDisclaimerVisible, setAtsDisclaimerVisible] = useState(false);
   const [pendingPdfAction, setPendingPdfAction] = useState(null);
+  const [exportAtsBlockModalOpen, setExportAtsBlockModalOpen] = useState(false);
+  const [exportAtsBlockPendingAction, setExportAtsBlockPendingAction] = useState(null);
+  const [exportAtsBlockModalShowMotsCles, setExportAtsBlockModalShowMotsCles] = useState(true);
+  const [exportAtsBlockReminderMode, setExportAtsBlockReminderMode] = useState('every');
+  const pendingExportTemplateOptionsRef = useRef(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [cvEditPanelOpen, setCvEditPanelOpen] = useState(false);
@@ -1564,10 +1578,11 @@ export default function App() {
     setPreviewVariant(v);
   };
 
-  const doDownloadPdf = async () => {
+  const doDownloadPdf = async (templateOptsOverride) => {
     if (!lastAdaptedCv) return;
+    const opts = templateOptsOverride ?? templateOptions;
     try {
-      const pdfTemplateOptions = { ...templateOptions, show_mots_cles_ats: templateOptions?.show_mots_cles_ats !== false };
+      const pdfTemplateOptions = { ...opts, show_mots_cles_ats: opts?.show_mots_cles_ats !== false };
       const blob = await apiPostBlob('/api/pdf', {
         cv: lastAdaptedCv,
         titre: posteNom || undefined,
@@ -1594,8 +1609,123 @@ export default function App() {
     }
   };
 
+  const runExportDossier = async (templateOptsOverride) => {
+    if (!lastAdaptedCv) return;
+    const params = { template_id: templateId, template_options: templateOptsOverride ?? templateOptions };
+    hideError();
+    setExporting(true);
+
+    const updateAppMeta = async () => {
+      if (lastAdaptationId) {
+        try {
+          await apiPatch(`/api/applications/${encodeURIComponent(lastAdaptationId)}`, {
+            poste: posteNom,
+            entreprise: entrepriseNom,
+          });
+          loadApplications();
+        } catch {}
+      }
+    };
+
+    try {
+      const pickerAvailable = typeof showDirectoryPicker === 'function';
+      const usePicker = pickerAvailable;
+      if (usePicker) {
+        const rootHandle = await showDirectoryPicker();
+        const folderName = getExportFolderName(entrepriseNom, posteNom);
+        const subDir = await rootHandle.getDirectoryHandle(folderName, { create: true });
+        const blob = await apiPostBlob('/api/export-dossier-zip', {
+          cv: lastAdaptedCv,
+          titre: posteNom,
+          entreprise: entrepriseNom,
+          description: annonce,
+          adaptation_id: lastAdaptationId || undefined,
+          selection_a4: lastSelectionA4 || undefined,
+          ...params,
+        });
+        const JSZip = (await import('jszip')).default;
+        const zip = await JSZip.loadAsync(blob);
+        const entries = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
+        const filesWritten = [];
+        for (const path of entries) {
+          const name = path.includes('/') ? path.slice(path.indexOf('/') + 1) : path;
+          const fileBlob = await zip.files[path].async('blob');
+          const f = await subDir.getFileHandle(name, { create: true });
+          const w = await f.createWritable();
+          await w.write(fileBlob);
+          await w.close();
+          filesWritten.push(name);
+        }
+        setRapport({
+          score_global: null,
+          folder: rootHandle.name + '/' + folderName,
+          files: filesWritten,
+        });
+        await updateAppMeta();
+      } else {
+        const data = await apiPost('/api/export-dossier', {
+          cv: lastAdaptedCv,
+          titre: posteNom,
+          entreprise: entrepriseNom,
+          description: annonce,
+          dossier: exportDossierPath.trim() || undefined,
+          selection_a4: lastSelectionA4 || undefined,
+          ...params,
+        });
+        if (exportDossierPath.trim()) localStorage.setItem(STORAGE_EXPORT_DIR, exportDossierPath.trim());
+        setRapport({ ...rapport, folder: data.folder, files: data.files || [] });
+        await updateAppMeta();
+      }
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        hideError();
+      } else {
+        showError('Export dossier : ' + (e.message || e));
+      }
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const closeExportAtsBlockModal = () => {
+    setExportAtsBlockModalOpen(false);
+    setExportAtsBlockPendingAction(null);
+  };
+
+  const confirmExportAtsBlockModal = () => {
+    const nextOpts = { ...templateOptions, show_mots_cles_ats: exportAtsBlockModalShowMotsCles };
+    setTemplateOptions(nextOpts);
+    if (exportAtsBlockReminderMode === 'snooze7') {
+      localStorage.setItem(STORAGE_EXPORT_ATS_BLOCK_SNOOZE, String(Date.now() + 7 * 24 * 60 * 60 * 1000));
+    } else {
+      localStorage.removeItem(STORAGE_EXPORT_ATS_BLOCK_SNOOZE);
+    }
+    setExportAtsBlockModalOpen(false);
+    const action = exportAtsBlockPendingAction;
+    setExportAtsBlockPendingAction(null);
+    if (action === 'pdf') {
+      const count = parseInt(localStorage.getItem('pdf_export_count') || '0', 10);
+      if (count < 3) {
+        pendingExportTemplateOptionsRef.current = nextOpts;
+        setPendingPdfAction('pdf');
+        setAtsDisclaimerVisible(true);
+      } else {
+        doDownloadPdf(nextOpts);
+      }
+    } else if (action === 'dossier') {
+      runExportDossier(nextOpts);
+    }
+  };
+
   const handlePdf = () => {
     if (!lastAdaptedCv) return;
+    if (shouldShowExportAtsBlockModal()) {
+      setExportAtsBlockModalShowMotsCles(templateOptions?.show_mots_cles_ats !== false);
+      setExportAtsBlockReminderMode('every');
+      setExportAtsBlockPendingAction('pdf');
+      setExportAtsBlockModalOpen(true);
+      return;
+    }
     const count = parseInt(localStorage.getItem('pdf_export_count') || '0', 10);
     if (count < 3) {
       setPendingPdfAction('pdf');
@@ -1642,79 +1772,14 @@ export default function App() {
       showError("Indiquez l'intitulé du poste.");
       return;
     }
-    hideError();
-    setExporting(true);
-
-    const updateAppMeta = async () => {
-      if (lastAdaptationId) {
-        try {
-          await apiPatch(`/api/applications/${encodeURIComponent(lastAdaptationId)}`, {
-            poste: posteNom,
-            entreprise: entrepriseNom,
-          });
-          loadApplications();
-        } catch {}
-      }
-    };
-
-    try {
-      const pickerAvailable = typeof showDirectoryPicker === 'function';
-      const usePicker = pickerAvailable;
-      if (usePicker) {
-        const rootHandle = await showDirectoryPicker();
-        const folderName = getExportFolderName(entrepriseNom, posteNom);
-        const subDir = await rootHandle.getDirectoryHandle(folderName, { create: true });
-        const blob = await apiPostBlob('/api/export-dossier-zip', {
-          cv: lastAdaptedCv,
-          titre: posteNom,
-          entreprise: entrepriseNom,
-          description: annonce,
-          adaptation_id: lastAdaptationId || undefined,
-          selection_a4: lastSelectionA4 || undefined,
-          ...templateParams,
-        });
-        const JSZip = (await import('jszip')).default;
-        const zip = await JSZip.loadAsync(blob);
-        const entries = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
-        const filesWritten = [];
-        for (const path of entries) {
-          const name = path.includes('/') ? path.slice(path.indexOf('/') + 1) : path;
-          const fileBlob = await zip.files[path].async('blob');
-          const f = await subDir.getFileHandle(name, { create: true });
-          const w = await f.createWritable();
-          await w.write(fileBlob);
-          await w.close();
-          filesWritten.push(name);
-        }
-        setRapport({
-          score_global: null,
-          folder: rootHandle.name + '/' + folderName,
-          files: filesWritten,
-        });
-        await updateAppMeta();
-      } else {
-        const data = await apiPost('/api/export-dossier', {
-          cv: lastAdaptedCv,
-          titre: posteNom,
-          entreprise: entrepriseNom,
-          description: annonce,
-          dossier: exportDossierPath.trim() || undefined,
-          selection_a4: lastSelectionA4 || undefined,
-          ...templateParams,
-        });
-        if (exportDossierPath.trim()) localStorage.setItem(STORAGE_EXPORT_DIR, exportDossierPath.trim());
-        setRapport({ ...rapport, folder: data.folder, files: data.files || [] });
-        await updateAppMeta();
-      }
-    } catch (e) {
-      if (e.name === 'AbortError') {
-        hideError();
-      } else {
-        showError('Export dossier : ' + (e.message || e));
-      }
-    } finally {
-      setExporting(false);
+    if (shouldShowExportAtsBlockModal()) {
+      setExportAtsBlockModalShowMotsCles(templateOptions?.show_mots_cles_ats !== false);
+      setExportAtsBlockReminderMode('every');
+      setExportAtsBlockPendingAction('dossier');
+      setExportAtsBlockModalOpen(true);
+      return;
     }
+    await runExportDossier();
   };
 
   const handleBrowseExportDir = async () => {
@@ -2949,8 +3014,80 @@ export default function App() {
           />
         )}
 
+        {exportAtsBlockModalOpen && (
+          <div className="application-detail-overlay linkedin-sync-overlay" onClick={closeExportAtsBlockModal} role="dialog" aria-modal="true" aria-labelledby="export-ats-block-title">
+            <div className="linkedin-sync-modal export-ats-block-modal" onClick={(e) => e.stopPropagation()}>
+              <h3 id="export-ats-block-title">Avant l&apos;export</h3>
+              {exportAtsBlockModalShowMotsCles ? (
+                <>
+                  <p className="export-ats-block-lead">
+                    Le <strong>bloc mots-clés ATS</strong> est <strong>activé</strong> pour cet export : une section en bas du CV reprend des termes utiles aux logiciels de tri.
+                    Le texte est volontairement très discret (couleur proche du fond) : un recruteur qui ouvre le PDF voit surtout le titre de section, pas une liste de mots en évidence.
+                  </p>
+                  <p className="export-ats-block-muted">
+                    Ça peut aider le parsing automatique lorsque les mots correspondent bien à ton profil et à l&apos;annonce. En revanche, certains recruteurs n&apos;aiment pas l&apos;idée d&apos;un bloc « caché » - le risque est faible si les termes restent honnêtes, mais c&apos;est toi qui valides ce compromis avant d&apos;envoyer le CV.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="export-ats-block-lead">
+                    Tu exportes <strong>sans</strong> le bloc dédié « mots-clés ATS » : c&apos;est un choix tout à fait pertinent.
+                  </p>
+                  <p className="export-ats-block-muted">
+                    Beaucoup de candidats s&apos;en passent : intégrer les mots-clés dans le résumé et les expériences suffit souvent pour les ATS modernes. Le bloc séparé n&apos;est pas obligatoire - c&apos;est une option d&apos;optimisation, pas une condition pour un bon CV.
+                  </p>
+                </>
+              )}
+              <div className="export-ats-block-toggle-row">
+                <div className="tpl-toggle-row-text">
+                  <span className="tpl-toggle-row-title">Inclure le bloc mots-clés ATS dans l&apos;export</span>
+                  <span className="tpl-toggle-row-hint">Tu peux changer ici sans aller dans les réglages du modèle</span>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={exportAtsBlockModalShowMotsCles}
+                  className={`tpl-toggle${exportAtsBlockModalShowMotsCles ? ' tpl-toggle--on' : ''}`}
+                  onClick={() => setExportAtsBlockModalShowMotsCles((v) => !v)}
+                >
+                  <span className="tpl-toggle-knob" />
+                </button>
+              </div>
+              <fieldset className="export-ats-block-fieldset">
+                <legend className="export-ats-block-legend">Cette fenêtre</legend>
+                <label className="export-ats-block-radio">
+                  <input
+                    type="radio"
+                    name="export-ats-reminder"
+                    checked={exportAtsBlockReminderMode === 'every'}
+                    onChange={() => setExportAtsBlockReminderMode('every')}
+                  />
+                  <span>Me la montrer à chaque export (recommandé pour bien garder le contrôle)</span>
+                </label>
+                <label className="export-ats-block-radio">
+                  <input
+                    type="radio"
+                    name="export-ats-reminder"
+                    checked={exportAtsBlockReminderMode === 'snooze7'}
+                    onChange={() => setExportAtsBlockReminderMode('snooze7')}
+                  />
+                  <span>Ne plus l&apos;afficher pendant 7 jours après validation</span>
+                </label>
+              </fieldset>
+              <div className="linkedin-sync-actions export-ats-block-actions">
+                <button type="button" className="btn btn-primary" onClick={confirmExportAtsBlockModal}>
+                  Valider et continuer
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={closeExportAtsBlockModal}>
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {atsDisclaimerVisible && (
-          <div className="application-detail-overlay linkedin-sync-overlay" onClick={() => { setAtsDisclaimerVisible(false); setPendingPdfAction(null); }} role="dialog" aria-modal="true">
+          <div className="application-detail-overlay linkedin-sync-overlay" onClick={() => { setAtsDisclaimerVisible(false); setPendingPdfAction(null); pendingExportTemplateOptionsRef.current = null; }} role="dialog" aria-modal="true">
             <div className="linkedin-sync-modal ats-disclaimer-modal" onClick={(e) => e.stopPropagation()}>
               <h3>Information importante</h3>
               <p style={{ fontSize: '0.9rem', lineHeight: 1.6, color: 'var(--text)' }}>
@@ -2967,12 +3104,16 @@ export default function App() {
               <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
                 <button type="button" className="btn btn-primary" onClick={() => {
                   setAtsDisclaimerVisible(false);
-                  if (pendingPdfAction === 'pdf') doDownloadPdf();
+                  if (pendingPdfAction === 'pdf') {
+                    const o = pendingExportTemplateOptionsRef.current;
+                    pendingExportTemplateOptionsRef.current = null;
+                    doDownloadPdf(o ?? undefined);
+                  }
                   setPendingPdfAction(null);
                 }}>
                   J'ai compris, télécharger
                 </button>
-                <button type="button" className="btn btn-secondary" onClick={() => { setAtsDisclaimerVisible(false); setPendingPdfAction(null); }}>
+                <button type="button" className="btn btn-secondary" onClick={() => { setAtsDisclaimerVisible(false); setPendingPdfAction(null); pendingExportTemplateOptionsRef.current = null; }}>
                   Annuler
                 </button>
               </div>

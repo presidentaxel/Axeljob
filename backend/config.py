@@ -142,7 +142,12 @@ def trusted_host_names() -> list[str]:
     raw = _env("TRUSTED_HOSTS")
     if not raw:
         return []
-    return [h.strip().lower() for h in raw.split(",") if h.strip()]
+    hosts = [h.strip().lower() for h in raw.split(",") if h.strip()]
+    # Healthcheck Docker et outils locaux utilisent Host localhost / 127.0.0.1
+    for loopback in ("localhost", "127.0.0.1", "[::1]"):
+        if loopback not in hosts:
+            hosts.append(loopback)
+    return hosts
 
 # Budget Gemini par compte (€) - dépassement = blocage soft (pas affiché à l'utilisateur)
 GEMINI_BUDGET_EUR = float(os.environ.get("GEMINI_BUDGET_EUR", "10"))

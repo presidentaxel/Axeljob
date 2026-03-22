@@ -132,6 +132,12 @@ MONITORING_ALERT_SPIKE_CPU_RATIO = _float_env("MONITORING_ALERT_SPIKE_CPU_RATIO"
 MONITORING_ALERT_SPIKE_MIN_CPU = _float_env("MONITORING_ALERT_SPIKE_MIN_CPU", 70.0)
 MONITORING_ACTIVE_USER_TTL_SEC = _float_env("MONITORING_ACTIVE_USER_TTL_SEC", 600.0)
 MONITORING_CAPACITY_TARGET_CPU_PCT = _float_env("MONITORING_CAPACITY_TARGET_CPU_PCT", 70.0)
+# Capacité indicative : lissage (0.05–0.5, défaut 0.14 ≈ demi-vie ~5 ticks à 45 s)
+MONITORING_CAPACITY_EMA_ALPHA = _float_env("MONITORING_CAPACITY_EMA_ALPHA", 0.14)
+# N’enregistre un échantillon que si CPU système ≥ ce % (évite extrapolation folle à l’idle)
+MONITORING_CAPACITY_MIN_CPU_SAMPLE_PCT = _float_env("MONITORING_CAPACITY_MIN_CPU_SAMPLE_PCT", 4.0)
+# Taille max de la fenêtre glissante d’estimations ponctuelles (~1 h20 à un tick / 45 s)
+MONITORING_CAPACITY_SAMPLE_MAX = _int_env("MONITORING_CAPACITY_SAMPLE_MAX", 96)
 
 
 # En production, sans Supabase, refuser le démarrage sauf opt-in explicite (données locales partagées = risque)

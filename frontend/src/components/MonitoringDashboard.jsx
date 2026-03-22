@@ -166,6 +166,14 @@ export default function MonitoringDashboard({ usage }) {
                       ? `~${cap.estimated_max_active_users_at_target_cpu} actifs @ ${cap.target_cpu_percent}% CPU`
                       : '—'}
                   </p>
+                  {cap?.samples_in_window > 0 && (
+                    <p className="monitoring-muted" style={{ marginTop: '0.35rem', fontSize: '0.8125rem' }}>
+                      {cap.samples_in_window} mesure{cap.samples_in_window > 1 ? 's' : ''} en fenêtre
+                      {cap.ema_estimate != null && ` · EMA ~${cap.ema_estimate}`}
+                      {cap.window_median_estimate != null && ` · médiane ~${cap.window_median_estimate}`}
+                      {cap.instant_estimate != null && ` · instantané ~${cap.instant_estimate}`}
+                    </p>
+                  )}
                   <p className="monitoring-muted">{cap?.note}</p>
                 </div>
               </div>

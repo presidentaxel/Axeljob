@@ -33,6 +33,9 @@ from backend.config import (
     MONITORING_ALERT_SLOW_REQUEST_SEC,
     MONITORING_ALERT_SPIKE_CPU_RATIO,
     MONITORING_ALERT_SPIKE_MIN_CPU,
+    MONITORING_CAPACITY_EMA_ALPHA,
+    MONITORING_CAPACITY_MIN_CPU_SAMPLE_PCT,
+    MONITORING_CAPACITY_SAMPLE_MAX,
     MONITORING_CAPACITY_TARGET_CPU_PCT,
     RESEND_API_KEY,
     RESEND_FROM_EMAIL,
@@ -119,6 +122,9 @@ _last_snap: dict[str, float] = {
     "system_mem_pct": 0.0,
     "process_rss": 0.0,
 }
+# Estimations « max actifs @ CPU cible » : fenêtre glissante + EMA (rempli par tick_system_and_db)
+_capacity_point_estimates: deque[float] = deque(maxlen=max(8, MONITORING_CAPACITY_SAMPLE_MAX))
+_capacity_ema: Optional[float] = None
 
 
 def datetime_iso() -> str:
@@ -323,6 +329,7 @@ def tick_system_and_db() -> None:
                 _last_snap["system_mem_pct"] = mem_pct
                 _last_snap["process_rss"] = float(rss)
             _cpu_samples.append(sys_cpu)
+            _record_capacity_sample()
         except Exception as e:
             logger.debug("psutil tick skipped: %s", e)
 
@@ -409,27 +416,123 @@ def evaluate_alerts() -> None:
             _append_alert_log("cpu_spike", msg)
 
 
-def capacity_estimate(active_users: int, system_cpu: float) -> dict[str, Any]:
+def _median_sorted(values: list[float]) -> Optional[float]:
+    if not values:
+        return None
+    s = sorted(values)
+    n = len(s)
+    mid = n // 2
+    if n % 2:
+        return float(s[mid])
+    return (s[mid - 1] + s[mid]) / 2.0
+
+
+def _record_capacity_sample() -> None:
+    """
+    Un point par tick (~45 s) : actifs JWT × (CPU cible / CPU mesuré), seulement si la charge
+    est assez lisible (évite extrapolation à l’idle).
+    """
+    global _capacity_ema
     target = max(10.0, min(95.0, float(MONITORING_CAPACITY_TARGET_CPU_PCT)))
-    cpu = max(0.1, float(system_cpu))
-    if active_users <= 0:
+    min_cpu = max(1.0, float(MONITORING_CAPACITY_MIN_CPU_SAMPLE_PCT))
+    alpha = max(0.05, min(0.5, float(MONITORING_CAPACITY_EMA_ALPHA)))
+    with _lock:
+        active = len(_active_sub_last_seen)
+        sys_cpu = float(_last_snap["system_cpu"])
+        if active < 1 or sys_cpu < min_cpu:
+            return
+        point = float(active) * (target / sys_cpu)
+        _capacity_point_estimates.append(point)
+        if _capacity_ema is None:
+            _capacity_ema = point
+        else:
+            _capacity_ema = alpha * point + (1.0 - alpha) * _capacity_ema
+
+
+def capacity_estimate(active_users: int, system_cpu: float) -> dict[str, Any]:
+    """
+    Capacité indicative : pas seulement l’instantané. Moyenne bien stabilisée = EMA des points
+    échantillonnés + médiane sur la fenêtre quand assez de données (robuste aux pics).
+    """
+    target = max(10.0, min(95.0, float(MONITORING_CAPACITY_TARGET_CPU_PCT)))
+    min_cpu = max(1.0, float(MONITORING_CAPACITY_MIN_CPU_SAMPLE_PCT))
+    alpha_cfg = max(0.05, min(0.5, float(MONITORING_CAPACITY_EMA_ALPHA)))
+    cpu_now = max(0.1, float(system_cpu))
+
+    instant: Optional[int] = None
+    if active_users > 0:
+        instant = int(active_users * (target / cpu_now))
+
+    with _lock:
+        points = list(_capacity_point_estimates)
+        ema_val = _capacity_ema
+
+    if not points and ema_val is None:
+        if active_users <= 0:
+            return {
+                "method": "linear_smoothed_window",
+                "note": (
+                    f"Aucun échantillon encore : besoin d’au moins 1 actif JWT et de CPU système >= {min_cpu:.0f}% "
+                    "pendant les ticks monitoring (~45 s)."
+                ),
+                "estimated_max_active_users_at_target_cpu": None,
+                "target_cpu_percent": target,
+                "samples_in_window": 0,
+                "min_cpu_sample_percent": min_cpu,
+            }
         return {
-            "method": "linear_system_cpu_vs_active_jwt_users",
-            "note": "Aucun utilisateur actif récemment (JWT) - estimation indisponible.",
-            "estimated_max_active_users_at_target_cpu": None,
+            "method": "linear_smoothed_window",
+            "note": (
+                f"Valeur instantanée seule (historique vide). L’estimation se stabilise après quelques mesures "
+                f"quand CPU >= {min_cpu:.0f}% et >= 1 actif."
+            ),
+            "inputs": {
+                "active_users_with_jwt": active_users,
+                "system_cpu_percent": round(cpu_now, 2),
+            },
             "target_cpu_percent": target,
+            "estimated_max_active_users_at_target_cpu": instant,
+            "instant_estimate": instant,
+            "samples_in_window": 0,
+            "min_cpu_sample_percent": min_cpu,
         }
-    est = int(active_users * (target / cpu))
-    return {
-        "method": "linear_system_cpu_vs_active_jwt_users",
-        "note": "Ordre de grandeur : charge ~linéaire avec les utilisateurs ayant un JWT valide dans la fenêtre TTL. À valider avec l’historique Prometheus sur le droplet.",
+
+    if ema_val is None:
+        ema_val = float(points[-1]) if points else 0.0
+    med = _median_sorted(points)
+    if len(points) >= 5 and med is not None:
+        blended = 0.55 * ema_val + 0.45 * med
+        refined = int(max(1, round(blended)))
+    else:
+        refined = int(max(1, round(ema_val)))
+
+    note = (
+        f"Lissage EMA (α={alpha_cfg:.2f}) sur {len(points)} mesures"
+        + (" + médiane (>= 5 pts)" if len(points) >= 5 and med is not None else "")
+        + f" ; échantillons si >= 1 actif JWT et CPU >= {min_cpu:.0f}%."
+    )
+    if active_users <= 0:
+        note += " Aucun actif dans la fenêtre TTL : chiffre basé sur l’historique récent."
+    elif instant is not None:
+        note += f" Instantané courant ~{instant}."
+
+    out: dict[str, Any] = {
+        "method": "linear_smoothed_window",
+        "note": note,
         "inputs": {
             "active_users_with_jwt": active_users,
-            "system_cpu_percent": round(cpu, 2),
+            "system_cpu_percent": round(cpu_now, 2),
         },
         "target_cpu_percent": target,
-        "estimated_max_active_users_at_target_cpu": max(active_users, est),
+        "estimated_max_active_users_at_target_cpu": refined,
+        "instant_estimate": instant,
+        "samples_in_window": len(points),
+        "ema_estimate": round(ema_val, 1),
+        "min_cpu_sample_percent": min_cpu,
     }
+    if med is not None and len(points) >= 3:
+        out["window_median_estimate"] = int(round(med))
+    return out
 
 
 def top_routes(limit: int = 25) -> list[dict[str, Any]]:

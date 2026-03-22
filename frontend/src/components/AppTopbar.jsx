@@ -1,5 +1,6 @@
+import { useState, useRef, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { HiDocumentText, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight } from 'react-icons/hi2';
+import { HiDocumentText, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiChartBarSquare } from 'react-icons/hi2';
 
 /**
  * Barre de navigation workspace /app/* (séparée du shell pour lisibilité d’App.jsx).
@@ -11,7 +12,29 @@ export default function AppTopbar({
   onUpgradeClick,
   onProBadgeClick,
   onSignOutClick,
+  onCookieSettingsClick,
 }) {
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountWrapRef = useRef(null);
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+    const onDocMouseDown = (e) => {
+      if (accountWrapRef.current && !accountWrapRef.current.contains(e.target)) {
+        setAccountMenuOpen(false);
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setAccountMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [accountMenuOpen]);
+
   return (
     <header className="topbar">
       <div className="topbar-left">
@@ -35,6 +58,12 @@ export default function AppTopbar({
           <HiChatBubbleLeftRight size={18} />
           <span>Support</span>
         </NavLink>
+        {usage?.is_support && (
+          <NavLink to="/app/monitoring" className={({ isActive }) => `topbar-link ${isActive ? 'active' : ''}`}>
+            <HiChartBarSquare size={18} />
+            <span>Monitoring</span>
+          </NavLink>
+        )}
       </nav>
       <div className="topbar-right">
         {session && usage && usage.plan !== 'pro' && (
@@ -48,9 +77,46 @@ export default function AppTopbar({
           </button>
         )}
         {session && (
-          <button type="button" className="topbar-user-btn" onClick={onSignOutClick} title="Déconnexion">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
-          </button>
+          <div className="topbar-account-wrap" ref={accountWrapRef}>
+            <button
+              type="button"
+              className="topbar-user-btn"
+              onClick={() => setAccountMenuOpen((o) => !o)}
+              aria-expanded={accountMenuOpen}
+              aria-haspopup="menu"
+              aria-controls="topbar-account-menu"
+              title="Compte et déconnexion"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
+            </button>
+            {accountMenuOpen && (
+              <div id="topbar-account-menu" className="topbar-account-menu" role="menu" aria-label="Compte">
+                <button
+                  type="button"
+                  className="topbar-account-menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setAccountMenuOpen(false);
+                    onCookieSettingsClick?.();
+                  }}
+                >
+                  Paramètres cookies
+                </button>
+                <div className="topbar-account-menu-sep" role="separator" />
+                <button
+                  type="button"
+                  className="topbar-account-menu-item topbar-account-menu-item--danger"
+                  role="menuitem"
+                  onClick={() => {
+                    setAccountMenuOpen(false);
+                    onSignOutClick();
+                  }}
+                >
+                  Déconnexion
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </header>

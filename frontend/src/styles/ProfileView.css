@@ -706,20 +706,221 @@
   flex-wrap: wrap;
 }
 
-.import-merge-modal .import-merge-row .change-values {
+/* Modal fusion import CV — aligné sur le design system (cartes, accent, lisibilité) */
+.import-merge-overlay {
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+.import-merge-modal {
+  max-width: min(600px, calc(100vw - 2rem));
+  padding: 1.35rem 1.5rem 1.5rem;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+
+.import-merge-modal-title {
+  margin: 0 0 0.65rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.import-merge-modal .import-merge-intro {
+  margin: 0 0 1.1rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  background: var(--accent-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+.import-merge-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0 0 1.15rem;
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 0.25rem;
+  scrollbar-gutter: stable;
+}
+
+/* Empêcher le flex d’écraser les lignes quand max-height + scroll (sinon texte coupé) */
+.import-merge-list > .import-merge-row {
+  flex-shrink: 0;
+  min-height: min-content;
+}
+
+.import-merge-modal .import-merge-row {
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.import-merge-field-label {
+  display: block;
+  padding: 0.7rem 1rem;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  background: linear-gradient(180deg, var(--bg-page) 0%, var(--surface, var(--bg)) 100%);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.import-merge-field-body {
+  padding: 0.85rem 1rem 1rem;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.import-merge-previews {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.import-merge-previews--compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+@media (max-width: 520px) {
+  .import-merge-previews--compare {
+    grid-template-columns: 1fr;
+  }
+}
+
+.import-merge-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--radius-xs);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  min-width: 0;
+  border: 1px solid var(--border);
+}
+
+.import-merge-preview-tag {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+
+.import-merge-preview--current {
+  background: var(--bg-page);
+  border-color: var(--border);
+}
+
+.import-merge-preview--current .import-merge-preview-tag {
+  color: var(--muted);
+  background: var(--border-light);
+}
+
+.import-merge-preview--import {
+  background: var(--success-light, #ecfdf5);
+  border-color: rgba(5, 150, 105, 0.22);
+}
+
+.import-merge-preview--import .import-merge-preview-tag {
+  color: var(--success);
+  background: rgba(5, 150, 105, 0.12);
+}
+
+.import-merge-preview-text {
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.import-merge-section-note {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.import-merge-row--section .import-merge-field-body {
+  padding-top: 0.65rem;
+}
+
+.import-merge-choice-group {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 1rem;
+  gap: 0.45rem;
+  align-items: stretch;
 }
-.import-merge-choice {
+
+.import-merge-modal .linkedin-sync-change label.import-merge-choice {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  font-size: 0.9rem;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
   cursor: pointer;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  transition: border-color var(--transition), background var(--transition), color var(--transition), box-shadow var(--transition);
+  user-select: none;
 }
-.import-merge-choice input { margin: 0; }
+
+.import-merge-modal .linkedin-sync-change label.import-merge-choice:hover {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.import-merge-modal .linkedin-sync-change label.import-merge-choice:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+  box-shadow: var(--shadow-focus);
+}
+
+.import-merge-modal .linkedin-sync-change label.import-merge-choice input {
+  margin: 0;
+  flex-shrink: 0;
+  width: 0.95rem;
+  height: 0.95rem;
+  accent-color: var(--accent);
+}
+
+.import-merge-actions {
+  margin-top: 0.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-light);
+  gap: 0.65rem;
+}
+
+.import-merge-actions .btn-primary {
+  min-width: 9rem;
+}
 
 /* Import CV loading overlay */
 .import-cv-loading-overlay {
@@ -765,7 +966,8 @@
   font-size: 1.05rem;
   font-weight: 600;
   color: var(--text);
-  margin: 0 0 0.75rem;
+  line-height: 1.35;
+  margin: 0 0 1rem;
 }
 .import-cv-loading-steps {
   list-style: none;
@@ -778,8 +980,17 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.9rem;
+  line-height: 1.4;
   color: var(--muted, #6b7280);
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+.import-cv-loading-step:last-child {
+  margin-bottom: 0;
+}
+.import-cv-loading-step-label {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
 }
 .import-cv-loading-step--done {
   color: var(--success, #059669);

@@ -1,8 +1,22 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 const TOUR_STORAGE_KEY = 'cv_bot_tour_done';
+const MARGIN = 12;
+const TOOLTIP_W = 320;
 
-export default function GuidedTour({ steps, onComplete, tourKey = 'main' }) {
+function tooltipWidthPx() {
+  return Math.min(TOOLTIP_W, window.innerWidth - 2 * MARGIN);
+}
+
+/** Centre sous / au-dessus de la zone cible, en restant dans le viewport. */
+function clampLeftCenteredUnder(elRect) {
+  const vw = window.innerWidth;
+  const tw = tooltipWidthPx();
+  const ideal = elRect.left + elRect.width / 2 - tw / 2;
+  return Math.max(MARGIN, Math.min(ideal, vw - tw - MARGIN));
+}
+
+export default function GuidedTour({ steps, onComplete, onStepChange, tourKey = 'main' }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [visible, setVisible] = useState(false);
   const [spotlightRect, setSpotlightRect] = useState(null);
@@ -42,6 +56,15 @@ export default function GuidedTour({ steps, onComplete, tourKey = 'main' }) {
     };
   }, [updateSpotlight]);
 
+  useEffect(() => {
+    if (!visible) {
+      onStepChange?.(null, -1);
+      return;
+    }
+    if (currentStep >= steps.length) return;
+    onStepChange?.(steps[currentStep], currentStep);
+  }, [visible, currentStep, steps, onStepChange]);
+
   const finish = useCallback(() => {
     setVisible(false);
     localStorage.setItem(TOUR_STORAGE_KEY + '_' + tourKey, '1');
@@ -61,14 +84,26 @@ export default function GuidedTour({ steps, onComplete, tourKey = 'main' }) {
   let tooltipStyle = {};
   if (spotlightRect) {
     const { elRect } = spotlightRect;
+    const tw = tooltipWidthPx();
+    const vh = window.innerHeight;
+    const estH = 200;
+    const clampTop = (t) => Math.max(MARGIN, Math.min(t, vh - estH - MARGIN));
+
     if (pos === 'bottom') {
-      tooltipStyle = { top: elRect.bottom + 12, left: Math.max(12, elRect.left + elRect.width / 2 - 160) };
+      tooltipStyle = { top: elRect.bottom + MARGIN, left: clampLeftCenteredUnder(elRect) };
     } else if (pos === 'top') {
-      tooltipStyle = { bottom: window.innerHeight - elRect.top + 12, left: Math.max(12, elRect.left + elRect.width / 2 - 160) };
+      tooltipStyle = {
+        bottom: vh - elRect.top + MARGIN,
+        left: clampLeftCenteredUnder(elRect),
+      };
     } else if (pos === 'right') {
-      tooltipStyle = { top: elRect.top + elRect.height / 2 - 40, left: elRect.right + 12 };
+      let left = elRect.right + MARGIN;
+      left = Math.max(MARGIN, Math.min(left, window.innerWidth - tw - MARGIN));
+      tooltipStyle = { top: clampTop(elRect.top + elRect.height / 2 - 40), left };
     } else {
-      tooltipStyle = { top: elRect.top + elRect.height / 2 - 40, right: window.innerWidth - elRect.left + 12 };
+      let left = elRect.left - MARGIN - tw;
+      left = Math.max(MARGIN, Math.min(left, window.innerWidth - tw - MARGIN));
+      tooltipStyle = { top: clampTop(elRect.top + elRect.height / 2 - 40), left };
     }
   }
 

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ARTICLE_SOURCE_URLS as U } from '../content/articleSources.js';
+import ContentScrollToTop from './ContentScrollToTop';
 import './ContentPages.css';
 
 function Out({ href, children }) {
@@ -122,6 +123,7 @@ function ArticleLayout({ title, lead, sections, onBack, prose }) {
           <Link to="/cgu">CGU</Link>
         </nav>
       </footer>
+      <ContentScrollToTop />
     </div>
   );
 }
@@ -172,7 +174,7 @@ const ARTICLES = {
           <>
             <ul>
               <li><strong>Une colonne unique</strong> (ou deux maximum, bien parsables)</li>
-              <li><strong>Des titres de sections standards</strong>&nbsp;: Expérience, Formation, Compétences — pas «&nbsp;Mon parcours&nbsp;» ou «&nbsp;Ce que je sais faire&nbsp;»</li>
+              <li><strong>Des titres de sections standards</strong>&nbsp;: Expérience, Formation, Compétences - pas «&nbsp;Mon parcours&nbsp;» ou «&nbsp;Ce que je sais faire&nbsp;»</li>
               <li>
                 <strong>Une police lisible</strong>&nbsp;: selon{' '}
                 <Out href={U.RESUME_GENIUS_STATS}>Resume Genius</Out>
@@ -212,7 +214,7 @@ const ARTICLES = {
   'guide-cv': {
     prose: true,
     title: 'Comment faire un bon CV',
-    lead: "Ton CV a environ 7 secondes pour convaincre. Pas pour être lu en entier — pour survivre au premier scan. Voici ce que les recruteurs regardent vraiment.",
+    lead: "Ton CV a environ 7 secondes pour convaincre. Pas pour être lu en entier - pour survivre au premier scan. Voici ce que les recruteurs regardent vraiment.",
     sections: [
       {
         icon: 'clock',
@@ -235,7 +237,7 @@ const ARTICLES = {
           <>
             <h3>1. Un titre clair et ancré dans le poste visé</h3>
             <p>
-              Pas «&nbsp;Professionnel dynamique et motivé&nbsp;» — mais «&nbsp;Analyste marketing junior | SEO &amp; Data&nbsp;». Selon une analyse{' '}
+              Pas «&nbsp;Professionnel dynamique et motivé&nbsp;» - mais «&nbsp;Analyste marketing junior | SEO &amp; Data&nbsp;». Selon une analyse{' '}
               <Out href={U.JOBSCAN_TAILOR}>Jobscan</Out>
               {' '}portant sur près d&apos;un million de candidatures, faire correspondre le titre de ton CV avec celui de l&apos;offre augmente de 3,5 fois tes chances d&apos;obtenir un entretien.
             </p>
@@ -249,7 +251,7 @@ const ARTICLES = {
             </p>
             <h3>4. Des compétences alignées sur l&apos;offre</h3>
             <p>
-              Reprends les mots exacts de l&apos;offre d&apos;emploi. Pas les synonymes — les mots exacts.{' '}
+              Reprends les mots exacts de l&apos;offre d&apos;emploi. Pas les synonymes - les mots exacts.{' '}
               <Out href={U.HBS_HIDDEN_WORKERS}>Harvard Business School</Out>
               {' '}documente que 88&nbsp;% des employeurs signalent perdre des candidats qualifiés simplement parce que les termes de leur CV ne correspondent pas aux mots-clés configurés dans l&apos;ATS.
             </p>
@@ -273,7 +275,7 @@ const ARTICLES = {
               , les candidats avec plus de 99&nbsp;% de mots correctement orthographiés sont embauchés 3 fois plus souvent que ceux en dessous de 90&nbsp;% de précision.
             </p>
             <p>
-              AxeL Job adapte ton CV à chaque offre à partir du texte de l&apos;annonce — mots-clés, formulations, mise en avant des expériences pertinentes — pour t&apos;aider à appliquer ces règles sans tout réécrire à la main.
+              AxeL Job adapte ton CV à chaque offre à partir du texte de l&apos;annonce - mots-clés, formulations, mise en avant des expériences pertinentes - pour t&apos;aider à appliquer ces règles sans tout réécrire à la main.
             </p>
           </>
         ),
@@ -283,7 +285,7 @@ const ARTICLES = {
   'erreurs-cv': {
     prose: true,
     title: 'Erreurs fréquentes dans un CV',
-    lead: "Les 7 erreurs les plus courantes — et comment les corriger pour passer le filtre recruteur et ATS.",
+    lead: "Les 7 erreurs les plus courantes - et comment les corriger pour passer le filtre recruteur et ATS.",
     sections: [
       {
         icon: 'alert',
@@ -322,7 +324,7 @@ const ARTICLES = {
               <p>
                 Colonnes, tableaux, graphiques, barres de compétences en image&nbsp;: tout ce que tu ne peux pas copier-coller en texte brut, l&apos;ATS ne peut pas le lire non plus. L&apos;analyse{' '}
                 <Out href={U.EDLIGO_1000_CV}>EDLIGO</Out>
-                {' '}montre que 23&nbsp;% des rejections sont liées à des erreurs de parsing — avant même que tes compétences soient évaluées. Et 25&nbsp;% des ATS ignorent les contenus placés en en-tête ou pied de page.
+                {' '}montre que 23&nbsp;% des rejections sont liées à des erreurs de parsing - avant même que tes compétences soient évaluées. Et 25&nbsp;% des ATS ignorent les contenus placés en en-tête ou pied de page.
               </p>
             </div>
             <div className="content-error-block">
@@ -330,7 +332,7 @@ const ARTICLES = {
               <p>
                 Selon{' '}
                 <Out href={U.EDLIGO_1000_CV}>EDLIGO</Out>
-                , les CV qui listent 20 compétences ou plus de façon isolée ont un taux de rejet de 67&nbsp;%, contre 34&nbsp;% pour ceux qui intègrent ces compétences dans des descriptions d&apos;expérience. Les ATS modernes analysent le contexte, pas seulement la présence d&apos;un mot. Exemple&nbsp;: ❌ «&nbsp;Python, SQL, Tableau&nbsp;» → ✅ «&nbsp;Développé un modèle Python analysant 50&nbsp;000 données clients, réduisant le temps de reporting de 40&nbsp;%&nbsp;».
+                , les CV qui listent 20 compétences ou plus de façon isolée ont un taux de rejet de 67&nbsp;%, contre 34&nbsp;% pour ceux qui intègrent ces compétences dans des descriptions d&apos;expérience. Les ATS modernes analysent le contexte, pas seulement la présence d&apos;un mot. Exemple&nbsp;:  «&nbsp;Python, SQL, Tableau&nbsp;» →  «&nbsp;Développé un modèle Python analysant 50&nbsp;000 données clients, réduisant le temps de reporting de 40&nbsp;%&nbsp;».
               </p>
             </div>
             <div className="content-error-block">
@@ -365,7 +367,7 @@ const ARTICLES = {
   'cv-par-metier': {
     prose: true,
     title: 'CV par secteur : tech, marketing, finance',
-    lead: "Un bon CV ne se rédige pas de la même façon selon le secteur. Ce ne sont pas seulement des mots différents — c'est une logique différente de ce que les recruteurs cherchent en premier.",
+    lead: "Un bon CV ne se rédige pas de la même façon selon le secteur. Ce ne sont pas seulement des mots différents - c'est une logique différente de ce que les recruteurs cherchent en premier.",
     sections: [
       {
         icon: 'briefcase',
@@ -438,7 +440,7 @@ const ARTICLES = {
               , les termes génériques comme «&nbsp;orienté résultats&nbsp;» ou «&nbsp;analytique&nbsp;», sans preuve concrète associée, affaiblissent systématiquement un CV. Associe toujours un attribut à un résultat vérifiable.
             </p>
             <p>
-              AxeL Job t&apos;aide à adapter ton CV à chaque offre, quel que soit ton secteur — en intégrant les mots-clés de l&apos;annonce dans un contenu honnête et structuré.
+              AxeL Job t&apos;aide à adapter ton CV à chaque offre, quel que soit ton secteur - en intégrant les mots-clés de l&apos;annonce dans un contenu honnête et structuré.
             </p>
           </>
         ),
@@ -514,7 +516,7 @@ const ARTICLES = {
         heading: 'Le coût de la personnalisation',
         body: (
           <p>
-            Le frein principal, c&apos;est le temps. Adapter un CV manuellement pour chaque offre prend en moyenne 45 à 60 minutes. Sur 20 candidatures, c&apos;est 15 à 20 heures. C&apos;est là que les outils d&apos;IA entrent en jeu&nbsp;: en analysant l&apos;offre et en adaptant automatiquement le CV, ils réduisent ce temps à quelques minutes — sans changer le fond, en optimisant la forme et les mots-clés.
+            Le frein principal, c&apos;est le temps. Adapter un CV manuellement pour chaque offre prend en moyenne 45 à 60 minutes. Sur 20 candidatures, c&apos;est 15 à 20 heures. C&apos;est là que les outils d&apos;IA entrent en jeu&nbsp;: en analysant l&apos;offre et en adaptant automatiquement le CV, ils réduisent ce temps à quelques minutes - sans changer le fond, en optimisant la forme et les mots-clés.
           </p>
         ),
       },
@@ -527,7 +529,7 @@ const ARTICLES = {
               Tu renseignes ton profil une fois (expériences, formation, compétences). Pour chaque candidature, tu colles le texte de l&apos;annonce. L&apos;IA adapte ton CV&nbsp;: résumé reformulé avec les mots-clés de l&apos;offre, expériences réordonnées ou mises en avant, formulations alignées sur l&apos;annonce. Tu gardes le contrôle, tu peux modifier avant d&apos;exporter en PDF.
             </p>
             <p>
-              Peu d&apos;outils proposent une <strong>adaptation automatique du contenu à chaque annonce</strong> — c&apos;est ce que fait AxeL Job. Tu n&apos;as pas à copier-coller les mots-clés toi-même&nbsp;; l&apos;IA les intègre de façon naturelle à partir du texte de l&apos;offre.
+              Peu d&apos;outils proposent une <strong>adaptation automatique du contenu à chaque annonce</strong> - c&apos;est ce que fait AxeL Job. Tu n&apos;as pas à copier-coller les mots-clés toi-même&nbsp;; l&apos;IA les intègre de façon naturelle à partir du texte de l&apos;offre.
             </p>
           </>
         ),

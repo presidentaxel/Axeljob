@@ -3,7 +3,8 @@ Logs structurés pour mémoire / analyse : événements en JSON (fichier .jsonl 
 Chaque événement : timestamp, event_type, user_id, context.
 """
 import json
-from datetime import datetime, timezone
+from collections import Counter
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -160,3 +161,57 @@ def read_events_from_files(date_from: Optional[str] = None, date_to: Optional[st
         except OSError:
             continue
     return events
+
+
+def aggregate_events_from_files(days: int = 7, max_lines: int = 50000) -> dict[str, Any]:
+    """
+    Agrège les événements des fichiers .jsonl sur les N derniers jours (tous utilisateurs).
+    Utilisé par le tableau de bord admin ; limite le volume lu pour éviter les pics mémoire.
+    """
+    days = max(1, min(int(days), 90))
+    max_lines = max(100, min(int(max_lines), 200000))
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
+    counts: Counter[str] = Counter()
+    unique_users: set[str] = set()
+    total = 0
+    truncated = False
+    _ensure_log_dir()
+    for path in sorted(LOGS_DIR.glob("cv_bot_*.jsonl")):
+        try:
+            date_str = path.stem.replace("cv_bot_", "")
+            if date_str < cutoff:
+                continue
+        except Exception:
+            continue
+        try:
+            with open(path, encoding="utf-8") as f:
+                for line in f:
+                    if total >= max_lines:
+                        truncated = True
+                        break
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        row = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    et = row.get("event_type") or "unknown"
+                    counts[et] += 1
+                    uid = row.get("user_id")
+                    if uid:
+                        unique_users.add(uid)
+                    total += 1
+        except OSError:
+            continue
+        if truncated:
+            break
+    by_type = dict(counts.most_common(80))
+    return {
+        "period_days": days,
+        "events_total": total,
+        "unique_anon_users": len(unique_users),
+        "by_type": by_type,
+        "truncated": truncated,
+        "source": "jsonl_files",
+    }

@@ -100,7 +100,7 @@
 .legal-footer {
   border-top: 1px solid var(--border);
   padding: 1rem 0;
-  background: var(--bg);
+  background: var(--bg-page);
 }
 
 .legal-footer-nav {

@@ -20,8 +20,32 @@
   --radius-sm: 8px;
 }
 
-* { box-sizing: border-box; }
-body { margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg-page); color: var(--text); min-height: 100vh; }
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-hover);
+}
+
+html { background: var(--bg); }
+body { margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
 /* Boutons (pour liens en .btn) */
 .btn {

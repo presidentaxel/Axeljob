@@ -26,6 +26,9 @@
   <meta name="twitter:image" content="https://job.axelproject.fr/og-image.png" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <link rel="stylesheet" href="/static-pages.css" />
+  <link rel="stylesheet" href="/consent-banner.css" />
+  <script src="/analytics-config.js"></script>
+  <script src="/consent-gtm.js"></script>
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
     {"@type":"Question","name":"Est-ce que l'ATS rejette automatiquement mon CV ?","acceptedAnswer":{"@type":"Answer","text":"Dans la grande majorité des cas, non. Selon Enhancv, 56 % des recruteurs ignorent complètement le score de matching fourni par l'ATS et vérifient toujours manuellement avant de rejeter un candidat. Ce sont les recruteurs qui rejettent, pas le logiciel."}},
@@ -34,7 +37,7 @@
     {"@type":"Question","name":"Est-ce que je dois adapter mon CV à chaque offre ?","acceptedAnswer":{"@type":"Answer","text":"Les données sont claires. Selon une analyse Jobscan portant sur près d'un million de candidatures, intégrer le titre de poste exact de l'offre dans son CV rend 3,5 fois plus probable d'obtenir un entretien. Et selon des données issues de 3,2 millions d'utilisateurs Teal, adapter son CV à l'offre rend 6 fois plus probable d'être convoqué en entretien."}},
     {"@type":"Question","name":"Puis-je utiliser l'IA pour rédiger mon CV ?","acceptedAnswer":{"@type":"Answer","text":"Oui, et les recruteurs l'acceptent. Selon une étude Canva/Sago menée sur 10000 personnes dans 10 pays, 90 % des recruteurs considèrent qu'il est acceptable d'utiliser l'IA générative dans la rédaction de candidatures. Une étude MIT Sloan confirme que les candidats ayant bénéficié d'une assistance algorithmique pour rédiger leur CV sont 8 % plus susceptibles d'être embauchés et reçoivent 7,8 % d'offres supplémentaires. L'étude porte sur une plateforme de travail en ligne, avec une majorité de candidats non-anglophones ; l'assistance portait sur l'orthographe et la grammaire, pas sur la personnalisation à une offre."}},
     {"@type":"Question","name":"Mon CV doit faire combien de pages ?","acceptedAnswer":{"@type":"Answer","text":"Selon le Resume Genius Hiring Trends Survey 2025, 54 % des recruteurs préfèrent un CV de deux pages, et 70 % sont plus enclins à considérer un CV de deux pages plutôt qu'un de une page pour les profils avec de l'expérience. En France, une page reste souvent la norme pour les profils juniors."}},
-    {"@type":"Question","name":"Est-ce que les fautes d'orthographe sont vraiment éliminatoires ?","acceptedAnswer":{"@type":"Answer","text":"Oui. Selon Resume Genius, 77 % des recruteurs rejettent immédiatement un CV contenant des fautes ou une mauvaise grammaire. L'étude MIT Sloan est encore plus précise : les candidats avec plus de 99 % de mots correctement orthographiés sont embauchés 3 fois plus souvent que ceux dont le taux d'orthographe est inférieur à 90 % — qui n'ont que 3 % de chances d'être recrutés dans leur premier mois."}}
+    {"@type":"Question","name":"Est-ce que les fautes d'orthographe sont vraiment éliminatoires ?","acceptedAnswer":{"@type":"Answer","text":"Oui. Selon Resume Genius, 77 % des recruteurs rejettent immédiatement un CV contenant des fautes ou une mauvaise grammaire. L'étude MIT Sloan est encore plus précise : les candidats avec plus de 99 % de mots correctement orthographiés sont embauchés 3 fois plus souvent que ceux dont le taux d'orthographe est inférieur à 90 % - qui n'ont que 3 % de chances d'être recrutés dans leur premier mois."}}
   ]}
   </script>
 </head>
@@ -50,7 +53,7 @@
         <section class="content-hero">
           <div class="content-hero-inner">
             <h1>FAQ : CV, ATS et IA</h1>
-            <p class="content-lead">Les réponses aux questions que tout le monde se pose — avec ce que disent les études et les enquêtes recruteurs.</p>
+            <p class="content-lead">Les réponses aux questions que tout le monde se pose - avec ce que disent les études et les enquêtes recruteurs.</p>
           </div>
         </section>
         <section class="content-section">
@@ -83,7 +86,7 @@
               <h2 class="faq-question">Puis-je utiliser l'IA pour rédiger mon CV ?</h2>
               <div class="faq-answer">
                 <p>Oui, et les recruteurs l'acceptent. Selon une étude <a href="https://www.canva.com/newsroom/news/new-job-2025/" class="content-source" target="_blank" rel="noopener noreferrer">Canva/Sago</a> menée sur 10&nbsp;000 personnes dans 10 pays, 90&nbsp;% des recruteurs considèrent qu'il est acceptable d'utiliser l'IA générative dans la rédaction de candidatures. Une étude <a href="https://mitsloan.mit.edu/ideas-made-to-matter/job-seekers-ai-boosted-resumes-more-likely-to-be-hired" class="content-source" target="_blank" rel="noopener noreferrer">MIT Sloan</a> confirme que les candidats ayant bénéficié d'une assistance algorithmique pour rédiger leur CV sont 8&nbsp;% plus susceptibles d'être embauchés et reçoivent 7,8&nbsp;% d'offres supplémentaires.</p>
-                <p><strong>Note de contexte sur l'étude MIT&nbsp;:</strong> elle porte sur une plateforme de travail en ligne, avec une majorité de candidats non-anglophones. L'assistance portait sur l'orthographe et la grammaire, pas sur la personnalisation à une offre — les résultats sont pertinents, mais à lire dans ce contexte. <a href="https://mitsloan.mit.edu/ideas-made-to-matter/job-seekers-ai-boosted-resumes-more-likely-to-be-hired" class="content-source" target="_blank" rel="noopener noreferrer">MIT Sloan</a></p>
+                <p><strong>Note de contexte sur l'étude MIT&nbsp;:</strong> elle porte sur une plateforme de travail en ligne, avec une majorité de candidats non-anglophones. L'assistance portait sur l'orthographe et la grammaire, pas sur la personnalisation à une offre - les résultats sont pertinents, mais à lire dans ce contexte. <a href="https://mitsloan.mit.edu/ideas-made-to-matter/job-seekers-ai-boosted-resumes-more-likely-to-be-hired" class="content-source" target="_blank" rel="noopener noreferrer">MIT Sloan</a></p>
               </div>
             </article>
             <article class="faq-item" id="nombre-pages-cv">
@@ -95,7 +98,7 @@
             <article class="faq-item" id="fautes-orthographe">
               <h2 class="faq-question">Est-ce que les fautes d'orthographe sont vraiment éliminatoires ?</h2>
               <div class="faq-answer">
-                <p>Oui. Selon <a href="https://resumegenius.com/blog/resume-help/resume-statistics" class="content-source" target="_blank" rel="noopener noreferrer">Resume Genius</a>, 77&nbsp;% des recruteurs rejettent immédiatement un CV contenant des fautes ou une mauvaise grammaire. L'étude <a href="https://mitsloan.mit.edu/ideas-made-to-matter/job-seekers-ai-boosted-resumes-more-likely-to-be-hired" class="content-source" target="_blank" rel="noopener noreferrer">MIT Sloan</a> est encore plus précise&nbsp;: les candidats avec plus de 99&nbsp;% de mots correctement orthographiés sont embauchés 3 fois plus souvent que ceux dont le taux d'orthographe est inférieur à 90&nbsp;% — qui n'ont que 3&nbsp;% de chances d'être recrutés dans leur premier mois.</p>
+                <p>Oui. Selon <a href="https://resumegenius.com/blog/resume-help/resume-statistics" class="content-source" target="_blank" rel="noopener noreferrer">Resume Genius</a>, 77&nbsp;% des recruteurs rejettent immédiatement un CV contenant des fautes ou une mauvaise grammaire. L'étude <a href="https://mitsloan.mit.edu/ideas-made-to-matter/job-seekers-ai-boosted-resumes-more-likely-to-be-hired" class="content-source" target="_blank" rel="noopener noreferrer">MIT Sloan</a> est encore plus précise&nbsp;: les candidats avec plus de 99&nbsp;% de mots correctement orthographiés sont embauchés 3 fois plus souvent que ceux dont le taux d'orthographe est inférieur à 90&nbsp;% - qui n'ont que 3&nbsp;% de chances d'être recrutés dans leur premier mois.</p>
               </div>
             </article>
           </div>
@@ -124,6 +127,6 @@
       </div>
     </div>
   </div>
-  <script type="module" src="/assets/main.js"></script>
+  <script src="/content-scroll-top.js" defer></script>
 </body>
 </html>

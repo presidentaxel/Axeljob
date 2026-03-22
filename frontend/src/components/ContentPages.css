@@ -202,11 +202,10 @@
 }
 .content-source {
   display: inline;
-  font-size: 0.8125rem;
+  font-size: inherit;
   font-weight: 600;
   font-style: normal;
   color: var(--accent);
-  margin-left: 0.35rem;
   white-space: nowrap;
 }
 a.content-source {
@@ -319,7 +318,7 @@ a.content-source:hover {
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
   font-weight: 600;
-  background: #fff;
+  background: var(--bg);
   color: var(--text);
   border: none;
   border-radius: var(--radius);

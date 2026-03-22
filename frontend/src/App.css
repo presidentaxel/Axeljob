@@ -31,11 +31,13 @@
 
 * {
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
 }
 
 *::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 *::-webkit-scrollbar-track {
@@ -43,23 +45,27 @@
 }
 
 *::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 3px;
+  background: var(--accent);
+  border-radius: 9999px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: var(--muted);
+  background: var(--accent-hover);
 }
 
 body {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   margin: 0;
-  background: var(--bg-page, var(--bg));
+  background: var(--bg);
   color: var(--text);
   min-height: 100vh;
 }
 
 /* ========== ROOT & APP LAYOUT ========== */
+html {
+  background: var(--bg);
+}
+
 html,
 body {
   height: 100%;
@@ -83,6 +89,36 @@ body {
   width: 100%;
 }
 
+/* Masque workspace + topbar le temps de savoir si l’onboarding est requis */
+.app-onboarding-boot {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.app-onboarding-boot-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: app-onboarding-boot-spin 0.7s linear infinite;
+}
+
+@keyframes app-onboarding-boot-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Écran de connexion pleine page (quand Supabase activé et non connecté) */
 .login-screen {
   position: relative;
@@ -91,7 +127,7 @@ body {
   justify-content: center;
   min-height: 100vh;
   width: 100%;
-  background: var(--bg-page);
+  background: var(--bg);
   padding: 1.5rem;
 }
 .login-screen-back {
@@ -307,6 +343,59 @@ body {
   background: var(--accent-subtle);
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.topbar-account-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.topbar-account-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 12.5rem;
+  background: var(--bg, #fff);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs, 10px);
+  box-shadow: 0 10px 40px rgba(15, 23, 42, 0.12);
+  padding: 0.35rem 0;
+  z-index: 3000;
+}
+
+.topbar-account-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  text-align: left;
+  padding: 0.55rem 0.95rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.topbar-account-menu-item:hover {
+  background: var(--accent-subtle);
+}
+
+.topbar-account-menu-item--danger {
+  color: #b91c1c;
+}
+
+.topbar-account-menu-item--danger:hover {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.topbar-account-menu-sep {
+  height: 1px;
+  margin: 0.25rem 0.5rem;
+  background: var(--border);
 }
 
 @media (max-width: 600px) {
@@ -601,6 +690,299 @@ body {
   letter-spacing: 0.04em;
   color: var(--text-secondary);
   margin-bottom: 4px;
+}
+
+/* ----- Monitoring (admin) ----- */
+.view-monitoring {
+  background: var(--bg-page);
+}
+
+.monitoring-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.monitoring-hero .support-hero-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.monitoring-hero-icon {
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.monitoring-content {
+  max-width: 960px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.monitoring-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.monitoring-days-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.monitoring-days-select {
+  max-width: 200px;
+}
+
+.monitoring-refresh {
+  align-self: flex-end;
+}
+
+.monitoring-error {
+  color: var(--error, #dc2626);
+  font-size: 0.9rem;
+}
+
+.monitoring-section {
+  margin-bottom: 2rem;
+}
+
+.monitoring-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.monitoring-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem 1.15rem;
+}
+
+.monitoring-card--wide {
+  grid-column: 1 / -1;
+}
+
+.monitoring-card h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.monitoring-card-metric {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.monitoring-muted {
+  margin: 0.35rem 0 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.monitoring-pre {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.72rem;
+  max-height: 120px;
+  overflow: auto;
+  background: var(--bg-page);
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border);
+}
+
+.monitoring-hint {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.monitoring-code {
+  font-size: 0.8em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--bg-page);
+  border: 1px solid var(--border);
+}
+
+.monitoring-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .monitoring-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.monitoring-subhead {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.monitoring-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.45rem;
+  border-radius: 6px;
+  background: var(--accent-light, #eef2ff);
+  color: var(--accent, #4f46e5);
+}
+
+.monitoring-bar-list {
+  list-style: none;
+  margin: 0.75rem 0 0 0;
+  padding: 0;
+}
+
+.monitoring-bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(80px, 2fr) auto;
+  gap: 0.5rem 0.65rem;
+  align-items: center;
+  margin-bottom: 0.45rem;
+  font-size: 0.8rem;
+}
+
+.monitoring-bar-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.monitoring-bar-track {
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.monitoring-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent, #6366f1), #818cf8);
+  border-radius: 4px;
+  min-width: 2px;
+}
+
+.monitoring-bar-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+.monitoring-news-list {
+  list-style: none;
+  margin: 0.75rem 0 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.monitoring-news-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem 1.15rem;
+}
+
+.monitoring-news-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.monitoring-news-date {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.monitoring-news-link {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent, #4f46e5);
+}
+
+.monitoring-news-title {
+  margin: 0 0 0.35rem 0;
+  font-size: 1.05rem;
+}
+
+.monitoring-news-summary {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.monitoring-table-wrap {
+  overflow-x: auto;
+  margin-top: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.monitoring-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.monitoring-table th,
+.monitoring-table td {
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.monitoring-table th {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.monitoring-table-route {
+  font-family: ui-monospace, monospace;
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Layout: topbar already sticky, app-main fills remaining height */

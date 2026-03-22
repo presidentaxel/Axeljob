@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, useLocation } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
+import { AppErrorBoundary } from './components/AppErrorBoundary.jsx'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -26,7 +27,9 @@ createRoot(document.getElementById('root')).render(
     <BrowserRouter>
       <ScrollToTop />
       <ChunkErrorReloadReset />
-      <App />
+      <AppErrorBoundary>
+        <App />
+      </AppErrorBoundary>
     </BrowserRouter>
   </StrictMode>,
 )

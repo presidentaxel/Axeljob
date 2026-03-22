@@ -1,6 +1,18 @@
+import { useCallback, useEffect, useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CONTACT_EMAIL } from '../constants';
 import './LandingPage.css';
+
+/** Liens articles / guides (menu mobile + cohérence avec le footer) */
+const ARTICLE_NAV_LINKS = [
+  { to: '/ats', label: "Qu'est-ce que l'ATS ?" },
+  { to: '/faq', label: 'FAQ' },
+  { to: '/modeles-cv', label: 'Modèles de CV' },
+  { to: '/guide-cv', label: 'Guide CV' },
+  { to: '/erreurs-cv', label: 'Erreurs à éviter' },
+  { to: '/cv-par-metier', label: 'CV par métier' },
+  { to: '/cv-adapte-chaque-offre', label: 'CV adapté à chaque offre' },
+];
 
 const STEPS = [
   {
@@ -48,7 +60,57 @@ const PRO_FEATURES = [
   'Support prioritaire',
 ];
 
+function BurgerIcon({ open }) {
+  return (
+    <svg className="landing-burger-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden>
+      {open ? (
+        <>
+          <path d="M18 6 6 18" />
+          <path d="m6 6 12 12" />
+        </>
+      ) : (
+        <>
+          <path d="M4 6h16" />
+          <path d="M4 12h16" />
+          <path d="M4 18h16" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 export default function LandingPage({ onCtaClick, onProClick }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const drawerId = useId();
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const onChange = () => {
+      if (mq.matches) setMenuOpen(false);
+    };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
   return (
     <div className="landing">
       <header className="landing-header">
@@ -68,12 +130,77 @@ export default function LandingPage({ onCtaClick, onProClick }) {
                 Essayer gratuitement
               </button>
             </nav>
-            <button type="button" className="landing-mobile-cta btn btn-primary" onClick={onCtaClick}>
-              Commencer
-            </button>
+            <div className="landing-header-mobile-actions">
+              <button
+                type="button"
+                className="landing-burger"
+                onClick={() => setMenuOpen((o) => !o)}
+                aria-expanded={menuOpen}
+                aria-controls={drawerId}
+                aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+              >
+                <BurgerIcon open={menuOpen} />
+              </button>
+              <button type="button" className="landing-mobile-cta btn btn-primary" onClick={onCtaClick}>
+                Commencer
+              </button>
+            </div>
           </div>
         </div>
       </header>
+
+      {menuOpen && (
+        <div className="landing-nav-drawer-root" role="presentation">
+          <button type="button" className="landing-nav-drawer-backdrop" aria-label="Fermer le menu" onClick={closeMenu} />
+          <div
+            id={drawerId}
+            className="landing-nav-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu et articles"
+          >
+            <div className="landing-nav-drawer-head">
+              <span className="landing-nav-drawer-title">Menu</span>
+              <button type="button" className="landing-nav-drawer-close" onClick={closeMenu} aria-label="Fermer">
+                <BurgerIcon open />
+              </button>
+            </div>
+            <nav className="landing-nav-drawer-body" aria-label="Navigation mobile">
+              <p className="landing-nav-drawer-section-label">Sur cette page</p>
+              <ul className="landing-nav-drawer-list">
+                <li>
+                  <a href="#comment" onClick={closeMenu}>Comment ça marche</a>
+                </li>
+                <li>
+                  <a href="#tarifs" onClick={closeMenu}>Tarifs</a>
+                </li>
+                <li>
+                  <a href="#features" onClick={closeMenu}>Fonctionnalités</a>
+                </li>
+              </ul>
+              <p className="landing-nav-drawer-section-label">Articles &amp; guides</p>
+              <ul className="landing-nav-drawer-list">
+                {ARTICLE_NAV_LINKS.map(({ to, label }) => (
+                  <li key={to}>
+                    <Link to={to} onClick={closeMenu}>{label}</Link>
+                  </li>
+                ))}
+              </ul>
+              <p className="landing-nav-drawer-section-label">Légal</p>
+              <ul className="landing-nav-drawer-list landing-nav-drawer-list--compact">
+                <li><Link to="/mentions-legales" onClick={closeMenu}>Mentions légales</Link></li>
+                <li><Link to="/confidentialite" onClick={closeMenu}>Confidentialité</Link></li>
+                <li><Link to="/cgu" onClick={closeMenu}>CGU</Link></li>
+              </ul>
+              <div className="landing-nav-drawer-cta">
+                <button type="button" className="btn btn-primary" onClick={() => { closeMenu(); onCtaClick(); }}>
+                  Essayer gratuitement
+                </button>
+              </div>
+            </nav>
+          </div>
+        </div>
+      )}
 
       <main id="main-content">
       <section className="landing-hero">

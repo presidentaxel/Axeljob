@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ARTICLE_SOURCE_URLS as U } from '../content/articleSources.js';
+import ContentScrollToTop from './ContentScrollToTop';
 import './ContentPages.css';
 
 function Out({ href, children }) {
@@ -121,7 +122,7 @@ export default function AtsPage({ onBack }) {
               {' '}menée sur 25 recruteurs en 2025&nbsp;: 100&nbsp;% utilisent des questions d&apos;élimination binaires (autorisation de travail, certifications, localisation), mais seulement 8&nbsp;% configurent un rejet automatique basé sur le contenu du CV. Les 92&nbsp;% restants rejettent manuellement ou uniquement via ces questions d&apos;élimination.
             </p>
             <p>
-              En clair&nbsp;: l&apos;ATS classe et organise, les humains rejettent. Le vrai problème n&apos;est pas un algorithme mystérieux — c&apos;est le volume. Toujours selon{' '}
+              En clair&nbsp;: l&apos;ATS classe et organise, les humains rejettent. Le vrai problème n&apos;est pas un algorithme mystérieux - c&apos;est le volume. Toujours selon{' '}
               <Out href={U.ENHANCV_ATS}>Enhancv</Out>
               , un poste junior reçoit entre 400 et 600 candidatures, et certains postes en remote dépassent 1&nbsp;000 la première semaine.
             </p>
@@ -139,7 +140,7 @@ export default function AtsPage({ onBack }) {
             <p>Il y a deux vrais risques&nbsp;:</p>
             <ol>
               <li>
-                <strong>Les questions d&apos;élimination.</strong> Si l&apos;offre exige 5 ans d&apos;expérience et que tu en as 2, tu es éliminé automatiquement — pas par un algorithme qui lit ton CV, mais parce que tu ne réponds pas au critère binaire posé.
+                <strong>Les questions d&apos;élimination.</strong> Si l&apos;offre exige 5 ans d&apos;expérience et que tu en as 2, tu es éliminé automatiquement - pas par un algorithme qui lit ton CV, mais parce que tu ne réponds pas au critère binaire posé.
               </li>
               <li>
                 <strong>Le mauvais parsing.</strong> Selon une analyse{' '}
@@ -200,6 +201,7 @@ export default function AtsPage({ onBack }) {
           <Link to="/cgu">CGU</Link>
         </nav>
       </footer>
+      <ContentScrollToTop />
     </div>
   );
 }

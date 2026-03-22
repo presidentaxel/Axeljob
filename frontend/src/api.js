@@ -43,7 +43,9 @@ export async function apiGet(path) {
       const data = JSON.parse(text);
       msg = data.detail || data.error || msg;
     } catch {}
-    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    const err = new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    err.status = r.status;
+    throw err;
   }
   return isJson ? JSON.parse(text) : text;
 }

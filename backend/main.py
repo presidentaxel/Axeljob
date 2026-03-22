@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 from typing import Optional
+from urllib.parse import quote as url_quote
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -31,7 +32,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import HTMLResponse, FileResponse, Response
 from pydantic import BaseModel
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
 
 from backend.config import (
     BASE_DIR as CONFIG_BASE_DIR,
@@ -39,6 +40,7 @@ from backend.config import (
     SUPABASE_URL,
     SUPABASE_JWT_SECRET,
     USE_SUPABASE,
+    USE_SUPABASE_PG,
     supabase_data_mode_info,
     thread_pool_max_workers,
     JWT_LEEWAY_SECONDS,
@@ -107,6 +109,8 @@ logger.setLevel(logging.INFO)
 
 BASE_DIR = CONFIG_BASE_DIR
 
+_ADMIN_MONITORING_NEWS_PATH = CONFIG_BASE_DIR / "backend" / "data" / "admin_monitoring_news.json"
+
 app = FastAPI(
     title="AxeL Job API",
     version="1.0.0",
@@ -132,6 +136,9 @@ def _set_thread_pool():
         thread_pool_max_workers(),
         mode,
     )
+    from backend.monitoring_ops import start_monitoring_background
+
+    start_monitoring_background()
 
 # --- Middlewares ---
 app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -170,9 +177,15 @@ async def limit_request_body(request: Request, call_next):
         )
     return await call_next(request)
 
-# --- Prometheus ---
-REQUEST_COUNT = Counter("cv_bot_http_requests_total", "Total HTTP requests", ["method", "endpoint"])
-REQUEST_LATENCY = Histogram("cv_bot_http_request_duration_seconds", "Request latency", ["endpoint"])
+
+@app.middleware("http")
+async def monitoring_http_middleware(request: Request, call_next):
+    from backend.monitoring_ops import observe_http_request
+
+    return await observe_http_request(request, call_next)
+
+
+# --- Prometheus (requêtes HTTP : backend.monitoring_ops) ---
 ADAPT_COUNT = Counter("cv_bot_adaptations_total", "Total CV adaptations")
 PDF_COUNT = Counter("cv_bot_pdfs_generated_total", "Total PDFs generated")
 
@@ -936,7 +949,6 @@ def api_cv(request: Request, profile: bool = False):
     """GET /api/cv : CV de l'utilisateur (Supabase).
     Si profile=1 (requête depuis l'onglet Profil) et qu'aucun CV n'est enregistré, on renvoie {} pour
     afficher un formulaire vide (données Supabase = rien), pas le CV d'exemple."""
-    REQUEST_COUNT.labels(method="GET", endpoint="/api/cv").inc()
     user_id = _get_user_id(request)
     if USE_SUPABASE and user_id is None and _bearer_token_nonempty(request):
         raise HTTPException(
@@ -968,7 +980,6 @@ def api_cv(request: Request, profile: bool = False):
 @app.patch("/api/cv")
 def api_cv_patch(request: Request, body: dict):
     """Met à jour partiellement le CV (ex. template_id, template_options). Fusionne avec le document existant."""
-    REQUEST_COUNT.labels(method="PATCH", endpoint="/api/cv").inc()
     user_id = _require_user_id(request)
     allowed = {"template_id", "template_options"}
     patch = {k: v for k, v in body.items() if k in allowed}
@@ -992,7 +1003,6 @@ def api_cv_patch(request: Request, body: dict):
 @app.put("/api/cv")
 def api_cv_put(request: Request, body: dict):
     """Enregistre le CV de base (JSON). Utilisé par la section Profil. Avec auth : stocké par user_id ; sans : id 'default'."""
-    REQUEST_COUNT.labels(method="PUT", endpoint="/api/cv").inc()
     user_id = _get_user_id(request)
     try:
         save_cv_base(body, user_id)
@@ -1013,7 +1023,6 @@ def api_cv_put(request: Request, body: dict):
 @app.post("/api/cv/fetch-linkedin")
 def api_cv_fetch_linkedin(request: Request, body: FetchLinkedInBody):
     """Récupère le profil LinkedIn (nom, prénom, photo) et propose les différences avec le CV actuel."""
-    REQUEST_COUNT.labels(method="POST", endpoint="/api/cv/fetch-linkedin").inc()
     user_id = _get_user_id(request)
     token = (body.linkedin_access_token or "").strip()
     if not token:
@@ -1036,7 +1045,6 @@ def api_cv_fetch_linkedin(request: Request, body: FetchLinkedInBody):
 @app.post("/api/cv/apply-linkedin-updates")
 def api_cv_apply_linkedin(request: Request, body: ApplyLinkedInBody):
     """Applique les changements validés depuis LinkedIn (IA adapte les textes au style CV)."""
-    REQUEST_COUNT.labels(method="POST", endpoint="/api/cv/apply-linkedin-updates").inc()
     user_id = _require_user_id(request)
     check_rate_limit(user_id, 10)
     if not body.changes:
@@ -1082,7 +1090,6 @@ def api_cv_linkedin_photo(request: Request, body: FetchLinkedInBody):
 @app.post("/api/cv/import-linkedin-photo")
 def api_cv_import_linkedin_photo(request: Request, body: FetchLinkedInBody):
     """Récupère la photo LinkedIn et l'enregistre dans le CV (optionnellement prénom/nom)."""
-    REQUEST_COUNT.labels(method="POST", endpoint="/api/cv/import-linkedin-photo").inc()
     user_id = _get_user_id(request)
     token = (body.linkedin_access_token or "").strip()
     if not token:
@@ -1117,7 +1124,6 @@ UPLOADS_SUBDIR = "uploads"
 @app.post("/api/cv/upload-photo")
 def api_cv_upload_photo(request: Request, file: UploadFile = File(...)):
     """Importe une photo depuis le PC. Avec Supabase : stockage exclusif dans Supabase Storage (bucket cv_photos). Sinon : assets/uploads/ (fallback)."""
-    REQUEST_COUNT.labels(method="POST", endpoint="/api/cv/upload-photo").inc()
     user_id = _require_user_id(request)
     content_type = (file.content_type or "").strip().lower()
     if content_type not in ALLOWED_PHOTO_CONTENT_TYPES:
@@ -1299,7 +1305,6 @@ def _parse_cv_text_with_ai(text: str, user_id: str | None = None) -> dict:
 @app.post("/api/cv/import")
 def api_cv_import_file(request: Request, file: UploadFile = File(...)):
     """Importe un CV depuis un fichier PDF ou Word, parse via IA, retourne le CV structuré."""
-    REQUEST_COUNT.labels(method="POST", endpoint="/api/cv/import").inc()
     _require_user_id(request)
     check_rate_limit(_get_user_id(request), rate_limit_max_adapt())
     content_type = (file.content_type or "").strip().lower()
@@ -1342,7 +1347,6 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
 @app.post("/api/cv/import-text")
 def api_cv_import_text(request: Request, body: ImportTextBody):
     """Importe un CV depuis du texte brut (copier-coller), parse via IA, retourne le CV structuré."""
-    REQUEST_COUNT.labels(method="POST", endpoint="/api/cv/import-text").inc()
     _require_user_id(request)
     check_rate_limit(_get_user_id(request), rate_limit_max_adapt())
     text = (body.text or "").strip()
@@ -1377,7 +1381,6 @@ def _render_empty_preview_html() -> str:
 @app.get("/api/cv/preview", response_class=HTMLResponse)
 def api_cv_preview(request: Request):
     """Aperçu du CV : exclusivement les données Supabase du compte connecté. Si aucun CV enregistré, message invitant à compléter le profil."""
-    REQUEST_COUNT.labels(method="GET", endpoint="/api/cv/preview").inc()
     user_id = _get_user_id(request)
     if USE_SUPABASE and user_id is None and _bearer_token_nonempty(request):
         raise HTTPException(
@@ -1416,7 +1419,6 @@ def api_cv_preview(request: Request):
 
 @app.post("/api/render-html", response_class=HTMLResponse)
 def api_render_html(request: Request, body: RenderHtmlBody):
-    REQUEST_COUNT.labels(method="POST", endpoint="/api/render-html").inc()
     user_id = _get_user_id(request)
     _check_premium_template(user_id, body.template_id)
     _check_custom_template_access(user_id, body.template_id)
@@ -1489,8 +1491,8 @@ def api_create_checkout_session(request: Request):
             "allow_promotion_codes": True,
             "line_items": [{"price": STRIPE_PRICE_ID_PRO_MONTHLY, "quantity": 1}],
             "subscription_data": {"metadata": {"user_id": user_id}},
-            "success_url": f"{base}/?success=pro",
-            "cancel_url": f"{base}/?cancel=checkout",
+            "success_url": f"{base}/app?success=pro",
+            "cancel_url": f"{base}/app?cancel=checkout",
         })
         return {"url": session.url}
     except Exception as e:
@@ -1524,6 +1526,82 @@ def api_create_checkout_session_template_perso(request: Request):
         raise HTTPException(status_code=500, detail="Erreur interne. Réessaie ou contacte le support.")
 
 
+def _primary_frontend_base_url() -> str:
+    """Première origine (FRONTEND_URL peut être une liste séparée par des virgules pour CORS)."""
+    raw = (FRONTEND_URL or "").strip()
+    if not raw:
+        return "https://job.axelproject.fr"
+    first = raw.split(",")[0].strip().rstrip("/")
+    return first or "https://job.axelproject.fr"
+
+
+def _html_email_template_perso_confirmation() -> str:
+    """HTML transactionnel (tables + styles inline) aligné sur la charte landing AxeL Job."""
+    base = _primary_frontend_base_url().rstrip("/")
+    contact = (SUPPORT_EMAIL or "contact@axelproject.fr").strip()
+    app_href = html_module.escape(f"{base}/app?open=template-perso", quote=True)
+    site_href = html_module.escape(base, quote=True)
+    mailto_href = html_module.escape(
+        f"mailto:{contact}?subject={url_quote('Template perso - ')}",
+        quote=True,
+    )
+    contact_esc = html_module.escape(contact)
+    ff = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif"
+    return f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="x-ua-compatible" content="ie=edge">
+<title>AxeL Job - Template personnalisé</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f8fafc;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;border-collapse:collapse;">
+<tr><td align="center" style="padding:32px 16px 48px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;border-collapse:collapse;">
+<tr><td align="center" style="padding-bottom:20px;">
+<span style="font-family:{ff};font-size:22px;font-weight:700;color:#0f172a;letter-spacing:-0.03em;">AxeL Job</span>
+</td></tr>
+<tr><td style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,0.08),0 4px 12px rgba(15,23,42,0.04);">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+<tr><td style="height:4px;line-height:4px;background-color:#4f46e5;font-size:0;">&nbsp;</td></tr>
+<tr><td style="padding:28px 28px 8px;font-family:{ff};">
+<h1 style="margin:0;font-size:20px;font-weight:700;color:#0f172a;line-height:1.3;">Paiement bien reçu - merci !</h1>
+<p style="margin:14px 0 0;font-size:15px;line-height:1.6;color:#334155;">Ta commande de <strong style="color:#0f172a;">template personnalisé</strong> est enregistrée. Voici la suite pour qu’on intègre ton design dans AxeL Job.</p>
+</td></tr>
+<tr><td style="padding:8px 28px 20px;font-family:{ff};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#eef2ff;border-radius:10px;border:1px solid rgba(79,70,229,0.14);border-collapse:separate;">
+<tr><td style="padding:20px 22px;">
+<p style="margin:0 0 10px;font-size:12px;font-weight:600;color:#4f46e5;text-transform:uppercase;letter-spacing:0.06em;font-family:{ff};">Prochaine étape</p>
+<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#334155;font-family:{ff};">Envoie-nous ton design (PDF ou maquette) :</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-family:{ff};">
+<tr><td style="padding:0 0 12px 0;vertical-align:top;width:28px;font-size:15px;line-height:1.55;color:#4f46e5;font-weight:700;">1.</td><td style="padding:0 0 12px 0;font-size:15px;line-height:1.55;color:#334155;"><strong style="color:#0f172a;">Réponds à cet e-mail</strong> en joignant ton fichier.</td></tr>
+<tr><td style="padding:0 0 12px 0;vertical-align:top;font-size:15px;line-height:1.55;color:#4f46e5;font-weight:700;">2.</td><td style="padding:0 0 12px 0;font-size:15px;line-height:1.55;color:#334155;">Ou écris à <a href="{mailto_href}" style="color:#4f46e5;font-weight:600;text-decoration:none;">{contact_esc}</a> avec le sujet <strong style="color:#0f172a;">« Template perso - [ton nom] »</strong>.</td></tr>
+<tr><td style="padding:0;vertical-align:top;font-size:15px;line-height:1.55;color:#4f46e5;font-weight:700;">3.</td><td style="padding:0;font-size:15px;line-height:1.55;color:#334155;">On adapte ton design en code pour ton CV et on te livre le template sous <strong style="color:#0f172a;">quelques jours</strong>.</td></tr>
+</table>
+</td></tr>
+</table>
+</td></tr>
+<tr><td align="center" style="padding:4px 28px 24px;font-family:{ff};">
+<a href="{app_href}" style="display:inline-block;background-color:#4f46e5;color:#ffffff !important;text-decoration:none;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;box-shadow:0 1px 2px rgba(79,70,229,0.35);">Ouvrir AxeL Job</a>
+</td></tr>
+<tr><td style="padding:0 28px 28px;font-family:{ff};font-size:14px;line-height:1.6;color:#64748b;border-top:1px solid #e2e8f0;">
+<p style="margin:20px 0 0;">Des questions ? Réponds simplement à ce message.</p>
+<p style="margin:18px 0 0;font-size:14px;color:#0f172a;">À bientôt,<br><strong style="color:#334155;">L’équipe AxeL Job</strong></p>
+</td></tr>
+</table>
+</td></tr>
+<tr><td align="center" style="padding:8px 12px 0;font-family:{ff};font-size:12px;line-height:1.55;color:#94a3b8;">
+<p style="margin:0;">CV sur-mesure pour chaque annonce · Score ATS · IA</p>
+<p style="margin:10px 0 0;"><a href="{site_href}" style="color:#64748b;text-decoration:underline;">{html_module.escape(base, quote=False)}</a></p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>"""
+
+
 def _send_template_perso_email(to_email: str) -> bool:
     """Envoie l'email post-paiement template perso via Resend. Retourne True si envoyé."""
     if not RESEND_API_KEY or not to_email:
@@ -1531,13 +1609,7 @@ def _send_template_perso_email(to_email: str) -> bool:
     try:
         import resend
         resend.api_key = RESEND_API_KEY
-        html = (
-            "<p>Merci pour ton paiement pour le <strong>template personnalisé</strong>.</p>"
-            "<p>Pour recevoir ton template sur-mesure : envoie-nous ton design (PDF ou maquette) "
-            "en réponse à ce mail, ou à <a href=\"mailto:contact@axelproject.fr\">contact@axelproject.fr</a> "
-            "avec le sujet « Template perso - [ton nom] ». On l’adapte en code pour ton CV et on te l’envoie sous quelques jours.</p>"
-            "<p>À bientôt,<br>L’équipe AxeL Job</p>"
-        )
+        html = _html_email_template_perso_confirmation()
         params = {
             "from": RESEND_FROM_EMAIL,
             "to": [to_email],
@@ -1657,7 +1729,7 @@ def _send_subscription_cancelled_email(to_email: str, period_end_label: str) -> 
         params = {
             "from": RESEND_FROM_EMAIL,
             "to": [to_email],
-            "subject": "Confirmation de résiliation — AxeL Job Pro",
+            "subject": "Confirmation de résiliation - AxeL Job Pro",
             "html": html,
         }
         resend.Emails.send(params)
@@ -1961,6 +2033,13 @@ def _is_support_admin(email: str | None) -> bool:
     return bool(SUPPORT_EMAIL and e == SUPPORT_EMAIL.strip().lower())
 
 
+def _require_support_admin(request: Request) -> None:
+    """JWT valide + email dans SUPPORT_ADMIN_EMAILS ou égal à SUPPORT_EMAIL."""
+    _require_user_id(request)
+    if not _is_support_admin(_get_user_email_from_jwt(request)):
+        raise HTTPException(status_code=403, detail="Accès réservé aux administrateurs.")
+
+
 def _send_support_reply_email(to_email: str, message: str) -> bool:
     """Envoie une réponse support à l'utilisateur (template HTML propre, via Resend)."""
     if not RESEND_API_KEY or not to_email:
@@ -2048,7 +2127,6 @@ def api_support_reply(request: Request, body: SupportReplyBody):
 @app.get("/api/usage")
 def api_usage(request: Request):
     """Retourne les quotas (adaptations, candidatures) et le plan (free/pro)."""
-    REQUEST_COUNT.labels(method="GET", endpoint="/api/usage").inc()
     user_id = _get_user_id(request)
     uid = user_id or "default"
     plan = get_user_plan(uid)
@@ -2086,9 +2164,87 @@ def api_usage(request: Request):
     }
 
 
+@app.get("/api/admin/monitoring/summary")
+def api_admin_monitoring_summary(request: Request, days: int = 7):
+    """Tableau de bord ops : santé, agrégats d'événements (fichiers + optionnellement Supabase PG), rappel Prometheus."""
+    _require_support_admin(request)
+    d = max(1, min(int(days), 90))
+    files_agg = event_log.aggregate_events_from_files(days=d)
+    db_agg = None
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg
+
+            db_agg = supabase_pg.aggregate_events_recent_days(d)
+        except Exception as ex:
+            logger.info("admin monitoring supabase aggregate skipped: %s", ex)
+    if METRICS_AUTH_TOKEN:
+        prom_hint = (
+            "Prometheus : scraper GET /metrics avec l'en-tête "
+            "Authorization: Bearer <METRICS_AUTH_TOKEN> (valeur de METRICS_AUTH_TOKEN sur le serveur)."
+        )
+    else:
+        prom_hint = (
+            "Endpoint /metrics sans jeton : à éviter en production - définir METRICS_AUTH_TOKEN "
+            "et configurer le scrape Prometheus avec ce Bearer."
+        )
+    from backend.monitoring_ops import get_admin_snapshot
+
+    return {
+        "health": {
+            "status": "ok",
+            "supabase": supabase_data_mode_info(),
+            "thread_pool_max_workers": thread_pool_max_workers(),
+            "production": IS_PRODUCTION,
+        },
+        "events_from_log_files": files_agg,
+        "events_from_database": db_agg,
+        "prometheus": {
+            "path": "/metrics",
+            "protected": bool(METRICS_AUTH_TOKEN),
+            "hint": prom_hint,
+        },
+        "operational": get_admin_snapshot(),
+    }
+
+
+@app.get("/api/admin/monitoring/news")
+def api_admin_monitoring_news(request: Request):
+    """Actualités / notes internes pour l'équipe (fichier JSON éditable au déploiement)."""
+    _require_support_admin(request)
+    default: dict = {"items": [], "note": "Éditer backend/data/admin_monitoring_news.json sur le serveur."}
+    path = _ADMIN_MONITORING_NEWS_PATH
+    if not path.is_file():
+        return default
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        logger.warning("admin_monitoring_news read failed: %s", e)
+        return {**default, "error": "fichier invalide ou illisible"}
+    if not isinstance(raw, dict):
+        return default
+    items = raw.get("items")
+    if not isinstance(items, list):
+        items = []
+    safe: list[dict] = []
+    for it in items[:50]:
+        if not isinstance(it, dict):
+            continue
+        link = it.get("link")
+        safe.append(
+            {
+                "id": str(it.get("id", ""))[:64],
+                "title": str(it.get("title", ""))[:200],
+                "date": str(it.get("date", ""))[:32],
+                "summary": str(it.get("summary", ""))[:2000],
+                "link": str(link)[:500] if link else None,
+            }
+        )
+    return {"items": safe}
+
+
 @app.post("/api/adapt")
 def api_adapt(request: Request, body: AdaptBody):
-    REQUEST_COUNT.labels(method="POST", endpoint="/api/adapt").inc()
     user_id = _get_user_id(request)
     check_rate_limit(user_id, rate_limit_max_adapt())
     description = (body.description or "").strip()
@@ -2109,106 +2265,104 @@ def api_adapt(request: Request, body: AdaptBody):
                 detail="Vous avez épuisé vos 3 adaptations gratuites. Passez en Pro pour des adaptations illimitées.",
             )
     event_log.log_event(event_log.EVENT_ADAPTATION_STARTED, user_id, {"description_length": len(description)})
-    with REQUEST_LATENCY.labels(endpoint="adapt").time():
-        try:
-            cv_base = load_cv_base(user_id)
-        except FileNotFoundError as e:
-            raise HTTPException(status_code=404, detail=str(e))
+    try:
+        cv_base = load_cv_base(user_id)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
-        offre = _offre_from_description(
-            description,
-            titre=(body.titre or "").strip(),
-            entreprise=(body.entreprise or "").strip(),
-        )
-        from rules import appliquer_regles
-        cv_enrichi = appliquer_regles(cv_base, offre)
-        rapport = cv_enrichi.get("rapport", {})
+    offre = _offre_from_description(
+        description,
+        titre=(body.titre or "").strip(),
+        entreprise=(body.entreprise or "").strip(),
+    )
+    from rules import appliquer_regles
+    cv_enrichi = appliquer_regles(cv_base, offre)
+    rapport = cv_enrichi.get("rapport", {})
 
-        from adapter import adapter_cv
-        try:
-            tweaks = adapter_cv(cv_base, offre, rapport=rapport, user_id=user_id, operation="adapt")
-        except GeminiQuotaExceeded:
-            raise HTTPException(status_code=429, detail="Quota temporairement atteint. Réessaie plus tard.")
-        except Exception as e:
-            logger.exception(e)
-            event_log.log_event(event_log.EVENT_ADAPTATION_FAILED, user_id, {"error": str(e)})
-            raise HTTPException(status_code=500, detail="Erreur lors de l'adaptation. Réessaie.")
+    from adapter import adapter_cv
+    try:
+        tweaks = adapter_cv(cv_base, offre, rapport=rapport, user_id=user_id, operation="adapt")
+    except GeminiQuotaExceeded:
+        raise HTTPException(status_code=429, detail="Quota temporairement atteint. Réessaie plus tard.")
+    except Exception as e:
+        logger.exception(e)
+        event_log.log_event(event_log.EVENT_ADAPTATION_FAILED, user_id, {"error": str(e)})
+        raise HTTPException(status_code=500, detail="Erreur lors de l'adaptation. Réessaie.")
 
-        merged = _apply_tweaks(cv_base, tweaks)
-        adaptation_id = _adaptation_id_from_description(description)
-        poste_offre = (tweaks.get("poste_offre") or "").strip()
-        entreprise_offre = (offre.get("entreprise") or "").strip()
+    merged = _apply_tweaks(cv_base, tweaks)
+    adaptation_id = _adaptation_id_from_description(description)
+    poste_offre = (tweaks.get("poste_offre") or "").strip()
+    entreprise_offre = (offre.get("entreprise") or "").strip()
 
-        # Toujours sélectionner le contenu pour tenir sur 1 page A4 à l'adaptation (preview / export / PDF cohérents).
-        selection_a4 = None
-        try:
-            from cv_select_a4 import select_cv_content_for_a4
-            selection_a4 = select_cv_content_for_a4(merged, offre, user_id=user_id, force=True)
-        except Exception:
-            pass
+    # Toujours sélectionner le contenu pour tenir sur 1 page A4 à l'adaptation (preview / export / PDF cohérents).
+    selection_a4 = None
+    try:
+        from cv_select_a4 import select_cv_content_for_a4
+        selection_a4 = select_cv_content_for_a4(merged, offre, user_id=user_id, force=True)
+    except Exception:
+        pass
 
-        tid = body.template_id or cv_base.get("template_id") or "classic"
-        tid = str(tid).strip() if tid else "classic"
-        if not tid:
-            tid = "classic"
-        topt = body.template_options if body.template_options is not None else (cv_base.get("template_options") or {})
-        _check_premium_template(user_id, tid)
-        _check_custom_template_access(user_id, tid)
+    tid = body.template_id or cv_base.get("template_id") or "classic"
+    tid = str(tid).strip() if tid else "classic"
+    if not tid:
+        tid = "classic"
+    topt = body.template_options if body.template_options is not None else (cv_base.get("template_options") or {})
+    _check_premium_template(user_id, tid)
+    _check_custom_template_access(user_id, tid)
 
-        initial_payload = {
-            "resume": tweaks.get("resume"),
-            "experiences": tweaks.get("experiences", []),
-            "mots_cles_cache": tweaks.get("mots_cles_cache", ""),
-            "poste_offre": poste_offre,
-            "poste": poste_offre,
-            "entreprise": entreprise_offre,
-            "rapport": rapport,
-            "description_preview": description[:200] + "..." if len(description) > 200 else description,
-            "description_full": description,
-            "full_cv": merged,
-            "selection_a4": selection_a4,
-            "statut": "candidature_envoyee",
-            "archived": False,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "template_id": tid,
-            "template_options": topt,
-        }
-        save_adaptation(adaptation_id, initial_payload, user_id=user_id)
-        snap = snapshot_application_pdfs_to_storage(
-            user_id, adaptation_id, initial_payload, do_cv=True, do_fiche=True, do_lettre=False
-        )
-        if snap:
-            save_adaptation(adaptation_id, {**initial_payload, **snap}, user_id=user_id)
-        ADAPT_COUNT.inc()
-        try:
-            rapport_after_cv = appliquer_regles(merged, offre)
-            rapport_after = rapport_after_cv.get("rapport", {})
-        except Exception:
-            rapport_after = None
-        try:
-            a_metrics = adaptation_metrics(cv_base, merged, offre, rapport, rapport_after)
-            a_metrics["adaptation_id"] = adaptation_id
-            content_before = cv_content_metrics(cv_base)
-            content_after = cv_content_metrics(merged)
-            a_metrics["content_before"] = content_before
-            a_metrics["content_after"] = content_after
-            event_log.log_event(event_log.EVENT_ADAPTATION_COMPLETED, user_id, a_metrics)
-        except Exception:
-            event_log.log_event(event_log.EVENT_ADAPTATION_COMPLETED, user_id, {"adaptation_id": adaptation_id})
-        return {
-            "cv": merged,
-            "rapport": rapport_after or rapport,
-            "rapport_before": rapport,
-            "tweaks": tweaks,
-            "adaptation_id": adaptation_id,
-            "selection_a4": selection_a4,
-        }
+    initial_payload = {
+        "resume": tweaks.get("resume"),
+        "experiences": tweaks.get("experiences", []),
+        "mots_cles_cache": tweaks.get("mots_cles_cache", ""),
+        "poste_offre": poste_offre,
+        "poste": poste_offre,
+        "entreprise": entreprise_offre,
+        "rapport": rapport,
+        "description_preview": description[:200] + "..." if len(description) > 200 else description,
+        "description_full": description,
+        "full_cv": merged,
+        "selection_a4": selection_a4,
+        "statut": "candidature_envoyee",
+        "archived": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "template_id": tid,
+        "template_options": topt,
+    }
+    save_adaptation(adaptation_id, initial_payload, user_id=user_id)
+    snap = snapshot_application_pdfs_to_storage(
+        user_id, adaptation_id, initial_payload, do_cv=True, do_fiche=True, do_lettre=False
+    )
+    if snap:
+        save_adaptation(adaptation_id, {**initial_payload, **snap}, user_id=user_id)
+    ADAPT_COUNT.inc()
+    try:
+        rapport_after_cv = appliquer_regles(merged, offre)
+        rapport_after = rapport_after_cv.get("rapport", {})
+    except Exception:
+        rapport_after = None
+    try:
+        a_metrics = adaptation_metrics(cv_base, merged, offre, rapport, rapport_after)
+        a_metrics["adaptation_id"] = adaptation_id
+        content_before = cv_content_metrics(cv_base)
+        content_after = cv_content_metrics(merged)
+        a_metrics["content_before"] = content_before
+        a_metrics["content_after"] = content_after
+        event_log.log_event(event_log.EVENT_ADAPTATION_COMPLETED, user_id, a_metrics)
+    except Exception:
+        event_log.log_event(event_log.EVENT_ADAPTATION_COMPLETED, user_id, {"adaptation_id": adaptation_id})
+    return {
+        "cv": merged,
+        "rapport": rapport_after or rapport,
+        "rapport_before": rapport,
+        "tweaks": tweaks,
+        "adaptation_id": adaptation_id,
+        "selection_a4": selection_a4,
+    }
 
 
 @app.post("/api/adapt-refine")
 def api_adapt_refine(request: Request, body: AdaptRefineBody):
     """Affine le CV selon une instruction utilisateur (chat)."""
-    REQUEST_COUNT.labels(method="POST", endpoint="/api/adapt-refine").inc()
     user_id = _get_user_id(request)
     check_rate_limit(user_id, rate_limit_max_adapt())
     instruction = (body.instruction or "").strip()
@@ -2235,7 +2389,6 @@ def api_adapt_refine(request: Request, body: AdaptRefineBody):
 
 @app.post("/api/pdf")
 def api_pdf(request: Request, body: PdfBody):
-    REQUEST_COUNT.labels(method="POST", endpoint="/api/pdf").inc()
     user_id = _get_user_id(request)
     check_rate_limit(user_id, 10)
     _check_premium_template(user_id, body.template_id)
@@ -2418,7 +2571,6 @@ def api_applications_list(request: Request, archived: str = ""):
 @app.post("/api/applications")
 def api_application_create(request: Request, body: ApplicationCreateBody):
     """Crée une candidature manuelle (postulé hors app) : poste, entreprise, statut. Pas de CV adapté."""
-    REQUEST_COUNT.labels(method="POST", endpoint="/api/applications").inc()
     user_id = _get_user_id(request)
     uid = user_id or "default"
     poste = (body.poste or "").strip()
@@ -2459,7 +2611,6 @@ def api_application_create(request: Request, body: ApplicationCreateBody):
 @app.get("/api/applications/export")
 def api_applications_export(request: Request, format: str = "json"):
     """Export des candidatures de l'utilisateur (JSON ou CSV) pour mémoire / analyse."""
-    REQUEST_COUNT.labels(method="GET", endpoint="/api/applications/export").inc()
     user_id = _get_user_id(request)
     applications = list_applications(include_archived=True, user_id=user_id or "default")
     if format == "csv":
@@ -2479,7 +2630,6 @@ def api_applications_export(request: Request, format: str = "json"):
 @app.get("/api/events/export")
 def api_events_export(request: Request, date_from: str = "", date_to: str = "", format: str = "json"):
     """Export des événements (logs) de l'utilisateur pour mémoire / analyse. Filtre par user_id anonymisé."""
-    REQUEST_COUNT.labels(method="GET", endpoint="/api/events/export").inc()
     user_id = _get_user_id(request)
     anon_id = event_log.get_anon_user_id(user_id)
     events = event_log.read_events_from_files(date_from=date_from or None, date_to=date_to or None)
@@ -3046,7 +3196,6 @@ def metrics(request: Request):
         token = (request.headers.get("Authorization") or "").removeprefix("Bearer ").strip()
         if token != METRICS_AUTH_TOKEN:
             raise HTTPException(status_code=403, detail="Forbidden")
-    REQUEST_COUNT.labels(method="GET", endpoint="/metrics").inc()
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 

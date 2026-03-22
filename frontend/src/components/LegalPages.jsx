@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { CONTACT_EMAIL } from '../constants';
+import ContentScrollToTop from './ContentScrollToTop';
 import './LegalPages.css';
 
 const SITE_NAME = 'AxeL Job';
@@ -38,7 +39,9 @@ function MentionsLegales() {
       <h2>Cookies</h2>
       <p>
         Le site utilise des cookies strictement nécessaires au fonctionnement du service
-        (authentification, préférences). Aucun cookie publicitaire ou de tracking tiers n'est déposé.
+        (authentification, préférences, sécurité). D’autres traceurs (mesure d’audience via Google Tag
+        Manager / Google Analytics, éventuellement publicité) ne sont déposés qu’avec votre consentement,
+        géré depuis la bannière « Cookies » ou le lien « Paramètres cookies ».
       </p>
     </>
   );
@@ -87,6 +90,10 @@ function PolitiqueConfidentialite() {
         <li><strong>Stripe</strong> (traitement des paiements)</li>
         <li><strong>Google Gemini</strong> (traitement IA - les données envoyées sont limitées au contenu du CV et de l'offre)</li>
         <li><strong>DigitalOcean</strong> (hébergement du serveur)</li>
+        <li>
+          <strong>Google Ireland Limited</strong> (Google Tag Manager, Google Analytics - mesure d’audience
+          et, le cas échéant, publicité ; uniquement si vous y consentez via la bannière cookies)
+        </li>
       </ul>
 
       <h2>6. Durée de conservation</h2>
@@ -110,14 +117,27 @@ function PolitiqueConfidentialite() {
         Nous répondons sous 30 jours.
       </p>
 
-      <h2>8. Sécurité</h2>
+      <h2>8. Cookies et traceurs</h2>
+      <p>
+        Des cookies et technologies similaires peuvent être utilisés : certains sont strictement nécessaires
+        au service (connexion, session, préférences, sécurité) et ne requièrent pas de consentement au sens
+        de la directive ePrivacy telle qu’interprétée par la CNIL pour les cookies exemptés.
+      </p>
+      <p>
+        Les traceurs liés à la mesure d’audience (Google Tag Manager, Google Analytics) et, le cas échéant,
+        à la publicité, ne sont activés qu’après votre accord, via le bandeau de consentement ou le lien
+        « Paramètres cookies ». Vous pouvez retirer ou modifier votre consentement à tout moment ; les choix
+        sont mémorisés localement sur votre navigateur (localStorage).
+      </p>
+
+      <h2>9. Sécurité</h2>
       <p>
         Nous mettons en œuvre des mesures techniques et organisationnelles pour protéger vos données :
         chiffrement HTTPS, tokens JWT, mots de passe hashés, accès restreint aux bases de données
         (Row Level Security), rate-limiting.
       </p>
 
-      <h2>9. Réclamation</h2>
+      <h2>10. Réclamation</h2>
       <p>
         Si vous estimez que le traitement de vos données n'est pas conforme, vous pouvez introduire
         une réclamation auprès de la CNIL (<a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer">www.cnil.fr</a>).
@@ -260,6 +280,7 @@ export default function LegalPages({ page, onBack }) {
           </nav>
         </div>
       </footer>
+      <ContentScrollToTop />
     </div>
   );
 }

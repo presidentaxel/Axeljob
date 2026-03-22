@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react';
 import { apiPost, apiPostFile, apiPut, trackEvent } from '../api';
-import { supabase } from '../lib/supabase';
 import '../styles/OnboardingWizard.css';
 
 const STEPS = ['Importer', 'Vérifier', 'C\'est parti'];
@@ -33,23 +32,6 @@ export default function OnboardingWizard({ session, onComplete }) {
   const [parsedCv, setParsedCv] = useState(null);
   const [cvText, setCvText] = useState('');
   const fileRef = useRef(null);
-
-  const handleLinkedIn = async () => {
-    setMethod('linkedin');
-    setError('');
-    trackEvent('onboarding_method_chosen', { method: 'linkedin' });
-    try {
-      const { error: err } = await supabase.auth.signInWithOAuth({
-        provider: 'linkedin_oidc',
-        options: {
-          redirectTo: window.location.origin + '/login?onboarding=linkedin',
-        },
-      });
-      if (err) throw err;
-    } catch (e) {
-      setError(e.message || 'Connexion LinkedIn impossible.');
-    }
-  };
 
   const handleFileUpload = async (e) => {
     const file = e?.target?.files?.[0];
@@ -144,16 +126,6 @@ export default function OnboardingWizard({ session, onComplete }) {
                 <span className="onb-method-desc">PDF ou Word - on extrait tout automatiquement</span>
               </button>
 
-              <button type="button" className="onb-method-card" onClick={handleLinkedIn} disabled={loading}>
-                <div className="onb-method-icon onb-method-icon--linkedin">
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                  </svg>
-                </div>
-                <span className="onb-method-title">Depuis LinkedIn</span>
-                <span className="onb-method-desc">Connexion sécurisée, import en un clic</span>
-              </button>
-
               <button type="button" className="onb-method-card" onClick={handleManual} disabled={loading}>
                 <div className="onb-method-icon">
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -204,7 +176,7 @@ export default function OnboardingWizard({ session, onComplete }) {
 
         {step === 1 && parsedCv && (
           <div className="onb-content">
-            <h1 className="onb-title">Vérifie ton profil</h1>
+            <h1 className="onb-title">Ton profil</h1>
             <p className="onb-subtitle">
               Voici ce qu'on a extrait. Tu pourras tout modifier en détail après.
             </p>
@@ -259,10 +231,7 @@ export default function OnboardingWizard({ session, onComplete }) {
 
             <div className="onb-actions">
               <button type="button" className="btn btn-primary" onClick={handleConfirmProfile} disabled={loading}>
-                {loading ? 'Sauvegarde…' : 'C\'est bon, on continue'}
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={handleGoToProfile}>
-                Je veux modifier d'abord
+                {loading ? 'Sauvegarde…' : 'On continue'}
               </button>
             </div>
           </div>

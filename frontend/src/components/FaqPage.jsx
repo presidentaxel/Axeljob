@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ARTICLE_SOURCE_URLS as U } from '../content/articleSources.js';
+import ContentScrollToTop from './ContentScrollToTop';
 import './ContentPages.css';
 
 function Out({ href, children }) {
@@ -70,7 +71,7 @@ const FAQ_ITEMS = [
           {' '}confirme que les candidats ayant bénéficié d&apos;une assistance algorithmique pour rédiger leur CV sont 8&nbsp;% plus susceptibles d&apos;être embauchés et reçoivent 7,8&nbsp;% d&apos;offres supplémentaires.
         </p>
         <p>
-          <strong>Note de contexte sur l&apos;étude MIT&nbsp;:</strong> elle porte sur une plateforme de travail en ligne, avec une majorité de candidats non-anglophones. L&apos;assistance portait sur l&apos;orthographe et la grammaire, pas sur la personnalisation à une offre — les résultats sont pertinents, mais à lire dans ce contexte.{' '}
+          <strong>Note de contexte sur l&apos;étude MIT&nbsp;:</strong> elle porte sur une plateforme de travail en ligne, avec une majorité de candidats non-anglophones. L&apos;assistance portait sur l&apos;orthographe et la grammaire, pas sur la personnalisation à une offre - les résultats sont pertinents, mais à lire dans ce contexte.{' '}
           <Out href={U.MIT_SLOAN_AI_RESUME}>MIT Sloan</Out>
         </p>
       </>
@@ -96,7 +97,7 @@ const FAQ_ITEMS = [
         <Out href={U.RESUME_GENIUS_STATS}>Resume Genius</Out>
         , 77&nbsp;% des recruteurs rejettent immédiatement un CV contenant des fautes ou une mauvaise grammaire. L&apos;étude{' '}
         <Out href={U.MIT_SLOAN_AI_RESUME}>MIT Sloan</Out>
-        {' '}est encore plus précise&nbsp;: les candidats avec plus de 99&nbsp;% de mots correctement orthographiés sont embauchés 3 fois plus souvent que ceux dont le taux d&apos;orthographe est inférieur à 90&nbsp;% — qui n&apos;ont que 3&nbsp;% de chances d&apos;être recrutés dans leur premier mois.
+        {' '}est encore plus précise&nbsp;: les candidats avec plus de 99&nbsp;% de mots correctement orthographiés sont embauchés 3 fois plus souvent que ceux dont le taux d&apos;orthographe est inférieur à 90&nbsp;% - qui n&apos;ont que 3&nbsp;% de chances d&apos;être recrutés dans leur premier mois.
       </p>
     ),
   },
@@ -118,7 +119,7 @@ export default function FaqPage({ onBack }) {
         <div className="content-hero-inner">
           <h1>FAQ : CV, ATS et IA</h1>
           <p className="content-lead">
-            Les réponses aux questions que tout le monde se pose — avec ce que disent les études et les enquêtes recruteurs.
+            Les réponses aux questions que tout le monde se pose - avec ce que disent les études et les enquêtes recruteurs.
           </p>
         </div>
       </section>
@@ -155,6 +156,7 @@ export default function FaqPage({ onBack }) {
           <Link to="/cgu">CGU</Link>
         </nav>
       </footer>
+      <ContentScrollToTop />
     </div>
   );
 }

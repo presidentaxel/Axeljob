@@ -73,6 +73,83 @@ def insert_event_row(
             )
 
 
+def count_auth_users() -> Optional[int]:
+    """Nombre de comptes Supabase Auth (auth.users). None si PG indisponible ou erreur."""
+    pool = get_pool()
+    if not pool:
+        return None
+    try:
+        with pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT count(*)::bigint FROM auth.users")
+                row = cur.fetchone()
+        if row is None:
+            return None
+        return int(row[0])
+    except Exception as e:
+        logger.warning("count_auth_users failed: %s", e)
+        return None
+
+
+def aggregate_events_recent_days(days: int = 7) -> Optional[dict[str, Any]]:
+    """
+    Compte les lignes public.events par type sur les N derniers jours (requête admin).
+    Retourne None si le pool PG n'est pas configuré ou en cas d'erreur.
+    """
+    days = max(1, min(int(days), 90))
+    pool = get_pool()
+    if not pool:
+        return None
+    from psycopg.rows import dict_row
+
+    try:
+        with pool.connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                cur.execute(
+                    """
+                    SELECT event_type, COUNT(*)::bigint AS n
+                    FROM public.events
+                    WHERE created_at >= NOW() - (%s * INTERVAL '1 day')
+                    GROUP BY event_type
+                    ORDER BY n DESC
+                    """,
+                    (days,),
+                )
+                rows = cur.fetchall()
+                cur.execute(
+                    """
+                    SELECT COUNT(*)::bigint AS n FROM public.events
+                    WHERE created_at >= NOW() - (%s * INTERVAL '1 day')
+                    """,
+                    (days,),
+                )
+                total_row = cur.fetchone()
+                cur.execute(
+                    """
+                    SELECT COUNT(DISTINCT user_id)::bigint AS n FROM public.events
+                    WHERE created_at >= NOW() - (%s * INTERVAL '1 day')
+                      AND user_id IS NOT NULL AND user_id != ''
+                    """,
+                    (days,),
+                )
+                distinct_row = cur.fetchone()
+    except Exception as e:
+        logger.warning("aggregate_events_recent_days failed: %s", e)
+        return None
+
+    by_type = {r["event_type"]: int(r["n"]) for r in rows}
+    total = int(total_row["n"]) if total_row else 0
+    distinct_users = int(distinct_row["n"]) if distinct_row else 0
+    return {
+        "period_days": days,
+        "events_total": total,
+        "unique_anon_users": distinct_users,
+        "by_type": by_type,
+        "truncated": False,
+        "source": "supabase_pg",
+    }
+
+
 def close_pool() -> None:
     """Fermeture propre (tests / shutdown)."""
     global _pool

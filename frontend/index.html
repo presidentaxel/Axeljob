@@ -89,8 +89,13 @@
     <!-- Critical CSS for LCP (hero + header) - évite les requêtes bloquantes -->
     <style>
 :root{--bg:#fff;--bg-page:#f8fafc;--border:#e2e8f0;--text:#0f172a;--text-secondary:#334155;--muted:#64748b;--accent:#4f46e5;--accent-hover:#4338ca;--accent-light:#eef2ff;--accent-subtle:rgba(79,70,229,.06);--shadow:0 1px 3px rgba(15,23,42,.06),0 1px 2px rgba(15,23,42,.04);--shadow-lg:0 10px 15px -3px rgba(15,23,42,.08),0 4px 6px rgba(15,23,42,.04);--radius:12px;--radius-sm:8px}
-*{box-sizing:border-box}
-body{margin:0;font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg-page);color:var(--text);min-height:100vh}
+html{background:var(--bg)}
+*{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--accent) transparent}
+*::-webkit-scrollbar{width:4px;height:4px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{background:var(--accent);border-radius:9999px}
+*::-webkit-scrollbar-thumb:hover{background:var(--accent-hover)}
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 .btn{font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;padding:.6rem 1.2rem;font-size:.875rem;font-weight:600;border:none;border-radius:8px;cursor:pointer;transition:all .15s ease;letter-spacing:-.01em;line-height:1.4;white-space:nowrap;text-decoration:none}
 a.btn{text-decoration:none}
 .btn-primary{background:var(--accent);color:#fff;box-shadow:0 1px 2px rgba(79,70,229,.3)}
@@ -142,6 +147,9 @@ a.btn{text-decoration:none}
     </style>
     <!-- Mise en page landing entière en critical CSS (évite CLS quand une feuille externe arrivait en différé). landing-static.css reste la référence pour aligner les changements. -->
     <style>.js-enabled #root .static-crawlable{display:none!important}</style>
+    <link rel="stylesheet" href="/consent-banner.css" />
+    <script src="/analytics-config.js"></script>
+    <script src="/consent-gtm.js"></script>
     <script>window.__APP_CSS__ = "__APP_CSS_FILENAME__";</script>
   </head>
   <body>
@@ -316,7 +324,7 @@ a.btn{text-decoration:none}
               <div class="landing-features-grid">
                 <div class="landing-feature-card">
                   <h3 class="landing-feature-title">Score ATS optimisé</h3>
-                  <p class="landing-feature-desc">Chaque CV est analysé et adapté pour maximiser son passage dans les filtres automatiques des recruteurs (voir Qu'est-ce que l'ATS ?).</p>
+                  <p class="landing-feature-desc">Chaque CV est analysé et adapté pour maximiser son passage dans les filtres automatiques des recruteurs.</p>
                   <a href="/ats" class="landing-ats-link">Qu'est-ce que l'ATS ?</a>
                 </div>
                 <div class="landing-feature-card">

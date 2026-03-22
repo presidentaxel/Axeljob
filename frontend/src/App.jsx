@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, Suspense } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, Suspense } from 'react';
 import DOMPurify from 'dompurify';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -16,6 +16,7 @@ import { supabase } from './lib/supabase';
 import AuthForm from './components/AuthForm';
 import AppTopbar from './components/AppTopbar';
 import CompanyLogo from './components/CompanyLogo';
+import { NotFoundPage } from './components/ErrorPages';
 import { CONTACT_EMAIL, STORAGE_EXPORT_DIR, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
 import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiCheck, HiSwatch } from 'react-icons/hi2';
 import { lazyWithChunkReload, clearChunkErrorReloadKey } from './lib/lazyChunkReload';
@@ -34,6 +35,7 @@ const ApplicationDetailModal = lazyWithChunkReload(() => import('./components/Ap
 const TemplatePicker = lazyWithChunkReload(() => import('./components/TemplatePicker'));
 const GuidedTour = lazyWithChunkReload(() => import('./components/GuidedTour'));
 const SupportHighlight = lazyWithChunkReload(() => import('./components/SupportHighlight'));
+const MonitoringDashboard = lazyWithChunkReload(() => import('./components/MonitoringDashboard'));
 import './App.css';
 import './styles/TemplatePicker.css';
 import './styles/GuidedTour.css';
@@ -248,13 +250,26 @@ const TOUR_STEPS = [
   {
     selector: '.tpl-bar',
     title: 'Choisis ton template',
-    content: 'Ouvre « Template » pour le modèle, puis la roue dentée pour les couleurs, la typo et un aperçu plein écran en direct.',
+    content: 'Ouvre « Template » pour choisir le modèle de CV (classique, moderne, etc.).',
+    position: 'bottom',
+  },
+  {
+    selector: '.tpl-gear',
+    title: 'Réglages du CV',
+    content: 'La roue dentée ouvre les réglages : couleurs, police, photo sur le CV, densité du texte et options d’affichage. Tout se met à jour en direct sur l’aperçu.',
     position: 'bottom',
   },
   {
     selector: '.cv-chat-preview',
     title: 'Aperçu en direct',
     content: 'Ton CV mis à jour s\'affiche ici. Tu peux cliquer sur le texte pour le modifier directement.',
+    position: 'left',
+  },
+  {
+    id: 'preview-ai-highlight',
+    selector: '.preview-wrap',
+    title: 'Les changements en vert',
+    content: 'Quand l’IA adapte ton CV, les mots et phrases modifiés sont surlignés en vert (comme dans l’aperçu ci-contre). C’est le même rendu que après une vraie adaptation.',
     position: 'left',
   },
   {
@@ -270,6 +285,92 @@ const TOUR_STEPS = [
     position: 'bottom',
   },
 ];
+
+const TOUR_STEP_PREVIEW_AI_HIGHLIGHT = 'preview-ai-highlight';
+
+/** Profil minimal pour afficher une démo surlignée sans adaptation en cours */
+function hasProfilMinContent(cv) {
+  if (!cv || typeof cv !== 'object') return false;
+  if ((cv.titre_professionnel || '').trim()) return true;
+  if ((cv.resume || '').trim()) return true;
+  return (cv.experiences || []).some((e) =>
+    (e?.poste || '').trim()
+    || (e?.entreprise || '').trim()
+    || (e?.bullet_points || []).some((b) => (b || '').trim()),
+  );
+}
+
+/** Copie légèrement modifiée du profil pour générer des <span class="cv-changed"> via l’API */
+function buildTourDemoAdaptedFromBase(base) {
+  const cv = JSON.parse(JSON.stringify(base));
+  const t = (cv.titre_professionnel || '').trim();
+  cv.titre_professionnel = t ? `${t} · aligné sur l’offre` : 'Profil ciblé pour le poste';
+  const r = (cv.resume || '').trim();
+  cv.resume = r ? `${r}\nFormulations et mots-clés ajustés selon l’annonce.` : 'Synthèse adaptée aux exigences du poste visé.';
+  const exps = cv.experiences || [];
+  if (exps.length > 0 && exps[0]) {
+    const exp = { ...exps[0] };
+    const bullets = [...(exp.bullet_points || [])];
+    if (bullets.length > 0 && (bullets[0] || '').trim()) {
+      bullets[0] = `${(bullets[0] || '').trim()} - impact et résultats mis en avant pour l’offre.`;
+    } else {
+      bullets[0] = 'Réalisations reformulées pour correspondre au poste.';
+    }
+    exp.bullet_points = bullets;
+    cv.experiences = [exp, ...exps.slice(1)];
+  }
+  return cv;
+}
+
+const TOUR_STATIC_DEMO_BASE_CV = {
+  prenom: 'Camille',
+  nom: 'Renard',
+  email: '',
+  telephone: '',
+  linkedin: '',
+  ville: 'Lyon',
+  titre_professionnel: 'Chef de projet IT',
+  resume: 'Gestion de projets digitaux et coordination d\'équipes interfonctionnelles.',
+  photo_url: '',
+  experiences: [
+    {
+      id: 'exp_tour_demo',
+      poste: 'Chef de projet',
+      entreprise: 'Numérix',
+      secteur: '',
+      date_debut: '2021',
+      date_fin: '',
+      lieu: '',
+      contexte: '',
+      bullet_points: [
+        'Pilotage de projets web et applications métier',
+        'Animation des rituels agiles',
+      ],
+      mots_cles: [],
+      clients: '',
+    },
+  ],
+  formations: [],
+  certifications: [],
+  competences: { techniques: ['Agile', 'Jira'], logiciels: [], langues: [], autres: [] },
+  projets: [],
+};
+
+const TOUR_STATIC_DEMO_ADAPTED_CV = {
+  ...TOUR_STATIC_DEMO_BASE_CV,
+  titre_professionnel: 'Chef de projet IT - delivery & produit SaaS',
+  resume:
+    'Gestion de projets digitaux et coordination d\'équipes interfonctionnelles.\nMots-clés et livrables alignés sur le poste visé.',
+  experiences: [
+    {
+      ...TOUR_STATIC_DEMO_BASE_CV.experiences[0],
+      bullet_points: [
+        'Pilotage de projets web et apps métier avec indicateurs utilisateurs',
+        'Animation des rituels agiles (backlog priorisé)',
+      ],
+    },
+  ],
+};
 
 /** Sujets Support : au clic, on ouvre la page et on affiche un spotlight + bulle sur l’élément concerné. */
 const SUPPORT_TOPICS = [
@@ -437,55 +538,50 @@ function SupportReplySection() {
   };
 
   const sendAnother = () => { setSuccess(false); };
+}
 
-  return (
-    <section className="support-conv support-reply-section">
-      <h2 className="support-section-title" id="support-reply-title">
-        Répondre à un utilisateur
-      </h2>
-      <div className="support-conv-card">
-        {success ? (
-          <>
-            <p className="support-ticket-success">Réponse envoyée. L&apos;utilisateur la recevra par email (template AxeL Job).</p>
-            <button type="button" className="btn btn-secondary support-ticket-another" onClick={sendAnother}>
-              Envoyer une autre réponse
-            </button>
-          </>
-        ) : (
-          <>
-            <p className="support-conv-placeholder-text">
-              Envoie une réponse depuis l&apos;app : elle partira via Resend avec un email formaté (plus d&apos;icône « non vérifié » si le domaine Resend est configuré).
-            </p>
-            <form onSubmit={handleSubmit} className="support-ticket-form">
-              <label className="support-reply-label">Email du destinataire</label>
-              <input
-                type="email"
-                className="support-ticket-subject"
-                placeholder="utilisateur@exemple.fr"
-                value={toEmail}
-                onChange={(e) => setToEmail(e.target.value)}
-                required
-              />
-              <label className="support-reply-label">Ta réponse</label>
-              <textarea
-                className="support-ticket-message"
-                placeholder="Écris ta réponse…"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                rows={5}
-                maxLength={8000}
-                required
-              />
-              {error && <p className="support-ticket-error">{error}</p>}
-              <button type="submit" className="btn btn-primary support-ticket-submit" disabled={loading}>
-                {loading ? 'Envoi…' : 'Envoyer la réponse'}
-              </button>
-            </form>
-          </>
-        )}
-      </div>
-    </section>
-  );
+const marketingSuspenseFallback = (
+  <div className="app-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <span aria-hidden>Chargement…</span>
+  </div>
+);
+
+function renderPublicMarketingPage(pathname, navigate) {
+  if (pathname === '/mentions-legales' || pathname === '/confidentialite' || pathname === '/cgu') {
+    return (
+      <Suspense fallback={marketingSuspenseFallback}>
+        <LegalPages page={pathname.slice(1)} onBack={() => navigate('/')} />
+      </Suspense>
+    );
+  }
+  if (pathname === '/ats') {
+    return (
+      <Suspense fallback={marketingSuspenseFallback}>
+        <AtsPage onBack={() => navigate('/')} />
+      </Suspense>
+    );
+  }
+  if (
+    pathname === '/modeles-cv' ||
+    pathname === '/guide-cv' ||
+    pathname === '/erreurs-cv' ||
+    pathname === '/cv-par-metier' ||
+    pathname === '/cv-adapte-chaque-offre'
+  ) {
+    return (
+      <Suspense fallback={marketingSuspenseFallback}>
+        <ArticlesPages slug={pathname.slice(1)} onBack={() => navigate('/')} />
+      </Suspense>
+    );
+  }
+  if (pathname === '/faq') {
+    return (
+      <Suspense fallback={marketingSuspenseFallback}>
+        <FaqPage onBack={() => navigate('/')} />
+      </Suspense>
+    );
+  }
+  return null;
 }
 
 export default function App() {
@@ -594,6 +690,13 @@ export default function App() {
   });
   const [templatesList, setTemplatesList] = useState([]);
   const [tourRestartKey, setTourRestartKey] = useState(0);
+  const [tourHighlightStepActive, setTourHighlightStepActive] = useState(false);
+  const [tourDemoPreviewHtml, setTourDemoPreviewHtml] = useState('');
+  const prevTourHighlightRef = useRef(false);
+
+  const handleTourStepChange = useCallback((step) => {
+    setTourHighlightStepActive(step?.id === TOUR_STEP_PREVIEW_AI_HIGHLIGHT);
+  }, []);
 
   const handleRestartTour = () => {
     try { localStorage.removeItem('cv_bot_tour_done_main'); } catch (_) {}
@@ -632,6 +735,24 @@ export default function App() {
   // Meta robots : sync client sur les routes SPA ; en prod /login sert login.html (noindex déjà dans le HTML)
   useEffect(() => {
     syncRobotsMeta(pathname);
+  }, [pathname]);
+
+  // Espace /app : masquer le bouton flottant « Paramètres cookies » (accès via menu compte uniquement).
+  useEffect(() => {
+    const el = document.getElementById('axel-cookie-settings');
+    if (!el) return;
+    if (pathname.startsWith('/app')) {
+      el.setAttribute('hidden', '');
+    } else {
+      try {
+        const raw = localStorage.getItem('axel_job_consent_v1');
+        const ok = raw && JSON.parse(raw).v === 1;
+        if (ok) el.removeAttribute('hidden');
+        else el.setAttribute('hidden', '');
+      } catch (_) {
+        el.setAttribute('hidden', '');
+      }
+    }
   }, [pathname]);
 
   // Liste des templates : fetch en app (avec token si session pour avoir les templates perso dans « Mes templates »)
@@ -773,8 +894,6 @@ export default function App() {
           const safeNext = nextPath && nextPath.startsWith('/app/') && !nextPath.includes('//') ? nextPath : null;
           if (safeNext) {
             navigate(safeNext, { replace: true });
-          } else if (params.get('onboarding') === 'linkedin') {
-            navigate('/app?onboarding=linkedin', { replace: true });
           } else {
             navigate('/app', { replace: true });
           }
@@ -805,7 +924,8 @@ export default function App() {
       pathname.startsWith('/app/postule') ||
       pathname.startsWith('/app/profil') ||
       pathname.startsWith('/app/linkedin') ||
-      pathname.startsWith('/app/support');
+      pathname.startsWith('/app/support') ||
+      pathname.startsWith('/app/monitoring');
     if (!ok) navigate('/app/cv', { replace: true });
   }, [session, authLoading, pathname, navigate]);
 
@@ -862,11 +982,14 @@ export default function App() {
   };
 
   // Aperçu original / modifié : debounce si seuls template_id / template_options changent (sliders, couleurs).
+  // Dépendre de session?.user?.id (pas de session) : Supabase renvoie souvent un nouvel objet session au refresh token,
+  // ce qui relançait cet effet en boucle. Ne pas fetch hors onglet CV : évite travail réseau + flash quand on navigue ailleurs.
   useEffect(() => {
     if (!session) {
       prevHadSessionRef.current = false;
       return;
     }
+    if (!isCvView) return;
 
     const sessionBecameActive = !prevHadSessionRef.current;
     prevHadSessionRef.current = true;
@@ -899,7 +1022,7 @@ export default function App() {
             setModifiedPreviewHtml(html);
           })
           .catch(() => {});
-      } else {
+      } else if (!tourHighlightStepActive) {
         loadInitialPreview(tid, opts);
       }
       if (lastBaseCv) {
@@ -916,7 +1039,97 @@ export default function App() {
 
     const t = setTimeout(run, TEMPLATE_PREVIEW_DEBOUNCE_MS);
     return () => clearTimeout(t);
-  }, [session, templateKey, wantHighlight, lastAdaptedCv, lastBaseCv, lastSelectionA4]);
+  }, [session?.user?.id, isCvView, templateKey, wantHighlight, lastAdaptedCv, lastBaseCv, lastSelectionA4, tourHighlightStepActive]);
+
+  // Tutoriel : surlignage vert réel (API render-html + highlight_changes), sur le CV adapté ou une démo
+  useEffect(() => {
+    if (!tourHighlightStepActive || !session || !isCvView) return;
+    let cancelled = false;
+    const run = async () => {
+      try {
+        if (lastAdaptedCv && lastBaseCv) {
+          const html = await apiPost('/api/render-html', {
+            cv: lastAdaptedCv,
+            base_cv: lastBaseCv,
+            highlight_changes: true,
+            template_id: templateId,
+            template_options: templateOptions,
+            selection_a4: lastSelectionA4 || undefined,
+          });
+          if (!cancelled) setModifiedPreviewHtml(html);
+          return;
+        }
+        if (lastBaseCv && hasProfilMinContent(lastBaseCv)) {
+          const adapted = buildTourDemoAdaptedFromBase(lastBaseCv);
+          const html = await apiPost('/api/render-html', {
+            cv: adapted,
+            base_cv: lastBaseCv,
+            highlight_changes: true,
+            template_id: templateId,
+            template_options: templateOptions,
+          });
+          if (!cancelled) setTourDemoPreviewHtml(html);
+          return;
+        }
+        const html = await apiPost('/api/render-html', {
+          cv: TOUR_STATIC_DEMO_ADAPTED_CV,
+          base_cv: TOUR_STATIC_DEMO_BASE_CV,
+          highlight_changes: true,
+          template_id: templateId,
+          template_options: templateOptions,
+        });
+        if (!cancelled) setTourDemoPreviewHtml(html);
+      } catch {
+        if (!cancelled) setTourDemoPreviewHtml('');
+      }
+    };
+    void run();
+    return () => { cancelled = true; };
+  }, [
+    tourHighlightStepActive,
+    session?.user?.id,
+    isCvView,
+    lastAdaptedCv,
+    lastBaseCv,
+    templateId,
+    templateOptions,
+    lastSelectionA4,
+  ]);
+
+  useEffect(() => {
+    if (tourHighlightStepActive) {
+      prevTourHighlightRef.current = true;
+      return;
+    }
+    setTourDemoPreviewHtml('');
+    if (prevTourHighlightRef.current) {
+      prevTourHighlightRef.current = false;
+      if (!lastAdaptedCv && session && isCvView) {
+        loadInitialPreview();
+      }
+      if (lastAdaptedCv) {
+        apiPost('/api/render-html', {
+          cv: lastAdaptedCv,
+          base_cv: lastBaseCv || undefined,
+          highlight_changes: !!(lastBaseCv && lastAdaptedCv),
+          template_id: templateId,
+          template_options: templateOptions,
+          selection_a4: lastSelectionA4 || undefined,
+        })
+          .then((html) => { setModifiedPreviewHtml(html); })
+          .catch(() => {});
+      }
+    }
+  }, [
+    tourHighlightStepActive,
+    lastAdaptedCv,
+    lastBaseCv,
+    session?.user?.id,
+    isCvView,
+    templateId,
+    templateOptions,
+    lastSelectionA4,
+  ]);
 
   const loadApplications = async () => {
     try {
@@ -1273,6 +1486,37 @@ export default function App() {
 
   const [proModalVisible, setProModalVisible] = useState(false);
 
+  // Retour Stripe (abo Pro) : URL nettoyée + rafraîchissement plan (webhook peut prendre quelques secondes)
+  useEffect(() => {
+    if (!session || authLoading || !pathname.startsWith('/app')) return;
+    const params = new URLSearchParams(location.search);
+    const isProSuccess = params.get('success') === 'pro';
+    const isCheckoutCancel = params.get('cancel') === 'checkout';
+    if (!isProSuccess && !isCheckoutCancel) return;
+    params.delete('success');
+    params.delete('cancel');
+    const qs = params.toString();
+    navigate({ pathname: location.pathname, search: qs ? `?${qs}` : '' }, { replace: true });
+    if (!isProSuccess) return;
+    let cancelled = false;
+    (async () => {
+      for (let i = 0; i < 20; i++) {
+        if (cancelled) return;
+        try {
+          const data = await apiGet('/api/usage');
+          if (cancelled) return;
+          setUsage(data);
+          if (data?.plan === 'pro') {
+            setProModalVisible(true);
+            break;
+          }
+        } catch (_) { /* ignore */ }
+        await new Promise((r) => setTimeout(r, 500));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [session, authLoading, pathname, location.search, navigate]);
+
   const handleUpgradeClick = () => {
     setProModalVisible(true);
   };
@@ -1382,10 +1626,15 @@ export default function App() {
   // Quand on switch sur "modified", afficher le HTML modifié dans l'iframe
   useEffect(() => {
     if (!isCvView || previewVariant !== 'modified') return;
-    if (modifiedPreviewHtml && iframeRef.current) {
+    if (!iframeRef.current) return;
+    if (tourHighlightStepActive && tourDemoPreviewHtml) {
+      iframeRef.current.srcdoc = tourDemoPreviewHtml;
+      return;
+    }
+    if (modifiedPreviewHtml) {
       iframeRef.current.srcdoc = modifiedPreviewHtml;
     }
-  }, [previewVariant, isCvView, modifiedPreviewHtml]);
+  }, [previewVariant, isCvView, modifiedPreviewHtml, tourDemoPreviewHtml, tourHighlightStepActive]);
 
   const handleExportDossier = async () => {
     if (!lastAdaptedCv) return;
@@ -1701,30 +1950,48 @@ export default function App() {
         </div>
       );
     }
-    if (pathname === '/mentions-legales' || pathname === '/confidentialite' || pathname === '/cgu') {
-      return <Suspense fallback={<div className="app-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}><LegalPages page={pathname.slice(1)} onBack={() => navigate('/')} /></Suspense>;
+    const marketing = renderPublicMarketingPage(pathname, navigate);
+    if (marketing) return marketing;
+    if (pathname === '/') {
+      return <Suspense fallback={<div className="landing" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}><LandingPage onCtaClick={() => navigate('/login')} onProClick={() => navigate('/login?plan=pro')} /></Suspense>;
     }
-    if (pathname === '/ats') {
-      return <Suspense fallback={<div className="app-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}><AtsPage onBack={() => navigate('/')} /></Suspense>;
-    }
-    if (pathname === '/modeles-cv' || pathname === '/guide-cv' || pathname === '/erreurs-cv' || pathname === '/cv-par-metier' || pathname === '/cv-adapte-chaque-offre') {
-      return <Suspense fallback={<div className="app-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}><ArticlesPages slug={pathname.slice(1)} onBack={() => navigate('/')} /></Suspense>;
-    }
-    if (pathname === '/faq') {
-      return <Suspense fallback={<div className="app-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}><FaqPage onBack={() => navigate('/')} /></Suspense>;
-    }
-    return <Suspense fallback={<div className="landing" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}><LandingPage onCtaClick={() => navigate('/login')} onProClick={() => navigate('/login?plan=pro')} /></Suspense>;
+    return <NotFoundPage />;
   }
+
+  /* Connecté : redirection / ou /login vers /app (useEffect) ; pages publiques hors /app ; sinon 404 */
+  if (!authLoading && session && (pathname === '/' || pathname === '/login')) {
+    return (
+      <div className="app-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span aria-live="polite">Chargement…</span>
+      </div>
+    );
+  }
+  if (!authLoading && session && !pathname.startsWith('/app')) {
+    const marketing = renderPublicMarketingPage(pathname, navigate);
+    if (marketing) return marketing;
+    return <NotFoundPage />;
+  }
+
+  const showOnboardingBoot = !!(session && pathname.startsWith('/app') && !onboardingChecked);
 
   return (
     <Suspense fallback={<div className="app-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}>
     <div className="app-shell">
+      {showOnboardingBoot && (
+        <div className="app-onboarding-boot" role="status" aria-live="polite" aria-busy="true">
+          <span className="app-onboarding-boot-spinner" aria-hidden />
+          <span>Chargement…</span>
+        </div>
+      )}
       <AppTopbar
         session={session}
         usage={usage}
         checkoutLoading={checkoutLoading}
         onUpgradeClick={handleUpgradeClick}
         onProBadgeClick={() => setProModalVisible(true)}
+        onCookieSettingsClick={() => {
+          if (typeof window.axelOpenCookieSettings === 'function') window.axelOpenCookieSettings();
+        }}
         onSignOutClick={() => setSignOutConfirmOpen(true)}
       />
 
@@ -2468,6 +2735,14 @@ export default function App() {
           </div>
         </div>
 
+        <div
+          id="viewMonitoring"
+          className={`view-panel app-page view-monitoring ${view === 'monitoring' ? 'active' : ''}`}
+          style={{ display: view === 'monitoring' ? 'flex' : 'none' }}
+        >
+          <MonitoringDashboard usage={usage} />
+        </div>
+
         {applicationDetailId && (
           <ApplicationDetailModal
             applicationDetailId={applicationDetailId}
@@ -2661,7 +2936,7 @@ export default function App() {
         )}
 
         {session && !needsOnboarding && isCvView && (
-          <GuidedTour key={`tour-${tourRestartKey}`} steps={TOUR_STEPS} tourKey="main" />
+          <GuidedTour key={`tour-${tourRestartKey}`} steps={TOUR_STEPS} tourKey="main" onStepChange={handleTourStepChange} />
         )}
 
         {session && location.state?.supportHighlight && (pathname === location.state.supportHighlight.route || pathname.startsWith(location.state.supportHighlight.route + '/')) && (

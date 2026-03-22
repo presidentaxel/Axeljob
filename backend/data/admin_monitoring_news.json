@@ -1,0 +1,11 @@
+{
+  "items": [
+    {
+      "id": "welcome-monitoring",
+      "title": "Tableau de bord monitoring",
+      "date": "2026-03-22",
+      "summary": "Cette section affiche les actualités que tu édites dans backend/data/admin_monitoring_news.json (déploiement ou volume Docker). Ajoute des lignes pour communiquer incidents, releases et changements infra.",
+      "link": null
+    }
+  ]
+}

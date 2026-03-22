@@ -110,6 +110,16 @@ function isSupabaseSignedPhotoUrl(url) {
   return typeof url === 'string' && url.includes('supabase.co/storage') && url.includes('/object/sign');
 }
 
+/** Aperçu texte (import / sync) : ne pas exposer l’URL de la photo. */
+function formatScalarPreviewForPrivacy(fieldKey, value, maxLen) {
+  if (fieldKey === 'photo_url') {
+    const v = String(value ?? '').trim();
+    return v ? '(photo)' : '-';
+  }
+  const s = (value ?? '').toString();
+  return s.slice(0, maxLen) + (s.length > maxLen ? '…' : '');
+}
+
 export default function ProfileView({ onSaveSuccess, session, refreshKey, usage, onUpgradeClick, onUsageRefresh, onBillingPortalClick, templatesList, templateId: templateIdProp, templateOptions: templateOptionsProp, onTemplateIdChange, onTemplateOptionsChange, onPhotoSessionExpired }) {
   const [cv, setCv] = useState(defaultCv());
   const [localTemplateId, setLocalTemplateId] = useState(() => localStorage.getItem('cv_template_id') || 'classic');
@@ -639,7 +649,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
     { key: 'ville', label: 'Ville' },
     { key: 'titre_professionnel', label: 'Titre professionnel' },
     { key: 'resume', label: 'Résumé / Accroche' },
-    { key: 'photo_url', label: 'Photo (URL)' },
+    { key: 'photo_url', label: 'Photo' },
   ];
   const IMPORT_SECTION_KEYS = [
     { key: 'experiences', label: 'Expériences' },
@@ -835,10 +845,6 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
           <div className="profile-photo-modal-overlay" onClick={() => setPhotoModalOpen(false)} role="dialog" aria-modal="true" aria-labelledby="photo-modal-title">
             <div className="profile-photo-modal" onClick={(e) => e.stopPropagation()}>
               <h3 id="photo-modal-title">Modifier la photo</h3>
-              <label className="profile-photo-modal-option">
-                <span>URL de l&apos;image</span>
-                <input type="text" value={cv.photo_url || ''} onChange={(e) => update('photo_url', e.target.value)} placeholder="https://…" />
-              </label>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -1051,7 +1057,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
             <>
               <p className="profile-subscription-period">
                 <strong>Fin de la période en cours :</strong>{' '}
-                {usage.stripe_subscription.current_period_end_label || '—'}
+                {usage.stripe_subscription.current_period_end_label || '-'}
                 {usage.stripe_subscription.cancel_at_period_end && (
                   <span className="profile-subscription-badge"> Résiliation déjà programmée</span>
                 )}
@@ -1065,7 +1071,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
               ) : (
                 <>
                   <p className="profile-subscription-legal" role="note">
-                    Résilier mon abonnement — La résiliation prend effet à la fin de la période en cours. Vos données restent accessibles jusqu&apos;à cette date.
+                    Résilier mon abonnement - La résiliation prend effet à la fin de la période en cours. Vos données restent accessibles jusqu&apos;à cette date.
                   </p>
                   <div className="profile-subscription-actions">
                     <button
@@ -1385,8 +1391,8 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                         <span className="change-label">{c.label}</span>
                       </label>
                       <div className="change-values">
-                        <div className="change-current"><strong>Actuel :</strong> {c.field === 'photo_url' ? c.current_value : (c.current_value || '-')}</div>
-                        <div className="change-new"><strong>LinkedIn :</strong> {c.field === 'photo_url' ? '(photo)' : (c.linkedin_value || '-')}</div>
+                        <div className="change-current"><strong>Actuel :</strong> {c.field === 'photo_url' ? formatScalarPreviewForPrivacy('photo_url', c.current_value, 0) : (c.current_value || '-')}</div>
+                        <div className="change-new"><strong>LinkedIn :</strong> {c.field === 'photo_url' ? formatScalarPreviewForPrivacy('photo_url', c.linkedin_value, 0) : (c.linkedin_value || '-')}</div>
                       </div>
                     </li>
                   ))}
@@ -1410,43 +1416,51 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
       )}
 
       {importMergeOpen && importMergeParsed && (
-        <div className="linkedin-sync-overlay" onClick={() => { setImportMergeOpen(false); setImportMergeParsed(null); }} role="dialog" aria-modal="true" aria-labelledby="import-merge-title">
+        <div className="linkedin-sync-overlay import-merge-overlay" onClick={() => { setImportMergeOpen(false); setImportMergeParsed(null); }} role="dialog" aria-modal="true" aria-labelledby="import-merge-title">
           <div className="linkedin-sync-modal import-merge-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 id="import-merge-title">Importer le CV - choisir les champs</h3>
-            <p className="linkedin-sync-intro">Pour chaque champ : case vide → ajouter les infos de l’import ? Case déjà remplie → remplacer par l’import ?</p>
-            <ul className="linkedin-sync-changes">
+            <h3 id="import-merge-title" className="import-merge-modal-title">Importer le CV — choisir les champs</h3>
+            <p className="linkedin-sync-intro import-merge-intro">Champ vide : ajouter le texte importé ou l’ignorer. Champ déjà rempli : remplacer ou conserver ta version actuelle.</p>
+            <ul className="linkedin-sync-changes import-merge-list">
               {IMPORT_SCALAR_KEYS.filter(({ key }) => importMergeParsed[key] !== undefined && String(importMergeParsed[key] ?? '').trim() !== '').map(({ key, label }) => {
                 const currentVal = (cv[key] ?? '').toString().trim();
                 const isEmpty = currentVal === '';
                 const choice = importMergeChoices[key];
                 return (
                   <li key={key} className="linkedin-sync-change import-merge-row">
-                    <span className="change-label">{label}</span>
-                    <div className="change-values">
+                    <span className="change-label import-merge-field-label">{label}</span>
+                    <div className="change-values import-merge-field-body">
                       {isEmpty ? (
                         <>
-                          <div className="change-new"><strong>Import :</strong> {(importMergeParsed[key] ?? '').toString().slice(0, 80)}{(String(importMergeParsed[key] ?? '').length > 80 ? '…' : '')}</div>
-                          <label className="import-merge-choice">
-                            <input type="radio" checked={choice === 'add'} onChange={() => setImportMergeChoices((p) => ({ ...p, [key]: 'add' }))} />
-                            Ajouter
-                          </label>
-                          <label className="import-merge-choice">
-                            <input type="radio" checked={choice === 'skip'} onChange={() => setImportMergeChoices((p) => ({ ...p, [key]: 'skip' }))} />
-                            Ne pas ajouter
-                          </label>
+                          <div className="import-merge-previews">
+                            <div className="change-new import-merge-preview import-merge-preview--import"><span className="import-merge-preview-tag">Import</span><span className="import-merge-preview-text">{formatScalarPreviewForPrivacy(key, importMergeParsed[key], 80)}</span></div>
+                          </div>
+                          <div className="import-merge-choice-group" role="group" aria-label={`Choix pour ${label}`}>
+                            <label className="import-merge-choice">
+                              <input type="radio" name={`import-merge-${key}`} checked={choice === 'add'} onChange={() => setImportMergeChoices((p) => ({ ...p, [key]: 'add' }))} />
+                              Ajouter
+                            </label>
+                            <label className="import-merge-choice">
+                              <input type="radio" name={`import-merge-${key}`} checked={choice === 'skip'} onChange={() => setImportMergeChoices((p) => ({ ...p, [key]: 'skip' }))} />
+                              Ne pas ajouter
+                            </label>
+                          </div>
                         </>
                       ) : (
                         <>
-                          <div className="change-current"><strong>Actuel :</strong> {currentVal.slice(0, 60)}{(currentVal.length > 60 ? '…' : '')}</div>
-                          <div className="change-new"><strong>Import :</strong> {(importMergeParsed[key] ?? '').toString().slice(0, 60)}{(String(importMergeParsed[key] ?? '').length > 60 ? '…' : '')}</div>
-                          <label className="import-merge-choice">
-                            <input type="radio" checked={choice === 'replace'} onChange={() => setImportMergeChoices((p) => ({ ...p, [key]: 'replace' }))} />
-                            Remplacer
-                          </label>
-                          <label className="import-merge-choice">
-                            <input type="radio" checked={choice === 'keep'} onChange={() => setImportMergeChoices((p) => ({ ...p, [key]: 'keep' }))} />
-                            Garder l’actuel
-                          </label>
+                          <div className="import-merge-previews import-merge-previews--compare">
+                            <div className="change-current import-merge-preview import-merge-preview--current"><span className="import-merge-preview-tag">Actuel</span><span className="import-merge-preview-text">{formatScalarPreviewForPrivacy(key, currentVal, 60)}</span></div>
+                            <div className="change-new import-merge-preview import-merge-preview--import"><span className="import-merge-preview-tag">Import</span><span className="import-merge-preview-text">{formatScalarPreviewForPrivacy(key, importMergeParsed[key], 60)}</span></div>
+                          </div>
+                          <div className="import-merge-choice-group" role="group" aria-label={`Choix pour ${label}`}>
+                            <label className="import-merge-choice">
+                              <input type="radio" name={`import-merge-${key}`} checked={choice === 'replace'} onChange={() => setImportMergeChoices((p) => ({ ...p, [key]: 'replace' }))} />
+                              Remplacer
+                            </label>
+                            <label className="import-merge-choice">
+                              <input type="radio" name={`import-merge-${key}`} checked={choice === 'keep'} onChange={() => setImportMergeChoices((p) => ({ ...p, [key]: 'keep' }))} />
+                              Garder l’actuel
+                            </label>
+                          </div>
                         </>
                       )}
                     </div>
@@ -1459,23 +1473,26 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
               }).map(({ key, label }) => {
                 const choice = importMergeChoices[key];
                 return (
-                  <li key={key} className="linkedin-sync-change import-merge-row">
-                    <span className="change-label">{label}</span>
-                    <div className="change-values">
-                      <label className="import-merge-choice">
-                        <input type="radio" checked={choice === 'replace'} onChange={() => setImportMergeChoices((p) => ({ ...p, [key]: 'replace' }))} />
-                        Remplacer par l’import
-                      </label>
-                      <label className="import-merge-choice">
-                        <input type="radio" checked={choice === 'keep'} onChange={() => setImportMergeChoices((p) => ({ ...p, [key]: 'keep' }))} />
-                        Garder l’actuel
-                      </label>
+                  <li key={key} className="linkedin-sync-change import-merge-row import-merge-row--section">
+                    <span className="change-label import-merge-field-label">{label}</span>
+                    <div className="change-values import-merge-field-body">
+                      <p className="import-merge-section-note">Section complète (plusieurs entrées). Tu choisis si tout le bloc importé remplace le tien.</p>
+                      <div className="import-merge-choice-group" role="group" aria-label={`Choix pour ${label}`}>
+                        <label className="import-merge-choice">
+                          <input type="radio" name={`import-merge-${key}`} checked={choice === 'replace'} onChange={() => setImportMergeChoices((p) => ({ ...p, [key]: 'replace' }))} />
+                          Remplacer par l’import
+                        </label>
+                        <label className="import-merge-choice">
+                          <input type="radio" name={`import-merge-${key}`} checked={choice === 'keep'} onChange={() => setImportMergeChoices((p) => ({ ...p, [key]: 'keep' }))} />
+                          Garder l’actuel
+                        </label>
+                      </div>
                     </div>
                   </li>
                 );
               })}
             </ul>
-            <div className="linkedin-sync-actions">
+            <div className="linkedin-sync-actions import-merge-actions">
               <button type="button" className="btn btn-primary" onClick={applyImportMerge}>
                 Appliquer les choix
               </button>

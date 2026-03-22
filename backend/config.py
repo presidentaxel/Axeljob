@@ -99,8 +99,38 @@ SUPPORT_ADMIN_EMAILS = [e.strip().lower() for e in _env("SUPPORT_ADMIN_EMAILS", 
 METRICS_AUTH_TOKEN = _env("METRICS_AUTH_TOKEN")
 
 
+def _float_env(key: str, default: float) -> float:
+    try:
+        return float(os.environ.get(key, str(default)).strip())
+    except ValueError:
+        return default
+
+
+def _int_env(key: str, default: int) -> int:
+    try:
+        return int(os.environ.get(key, str(default)).strip())
+    except ValueError:
+        return default
+
+
 def _truthy_env(key: str) -> bool:
     return os.environ.get(key, "").strip().lower() in ("1", "true", "yes", "on")
+
+
+# --- Monitoring / alertes (Resend) ---
+MONITORING_ALERT_ENABLED = _truthy_env("MONITORING_ALERT_ENABLED")
+MONITORING_ALERT_EMAILS = [e.strip() for e in _env("MONITORING_ALERT_EMAILS", "").split(",") if e.strip()]
+MONITORING_ALERT_CPU_PCT = _float_env("MONITORING_ALERT_CPU_PCT", 85.0)
+MONITORING_ALERT_MEM_PCT = _float_env("MONITORING_ALERT_MEM_PCT", 88.0)
+MONITORING_ALERT_MIN_INTERVAL_SEC = _float_env("MONITORING_ALERT_MIN_INTERVAL_SEC", 900.0)
+MONITORING_ALERT_5XX_WINDOW_SEC = _float_env("MONITORING_ALERT_5XX_WINDOW_SEC", 300.0)
+MONITORING_ALERT_5XX_THRESHOLD = _int_env("MONITORING_ALERT_5XX_THRESHOLD", 15)
+MONITORING_ALERT_SLOW_REQUEST_SEC = _float_env("MONITORING_ALERT_SLOW_REQUEST_SEC", 8.0)
+MONITORING_ALERT_SLOW_COUNT_THRESHOLD = _int_env("MONITORING_ALERT_SLOW_COUNT_THRESHOLD", 25)
+MONITORING_ALERT_SPIKE_CPU_RATIO = _float_env("MONITORING_ALERT_SPIKE_CPU_RATIO", 1.45)
+MONITORING_ALERT_SPIKE_MIN_CPU = _float_env("MONITORING_ALERT_SPIKE_MIN_CPU", 70.0)
+MONITORING_ACTIVE_USER_TTL_SEC = _float_env("MONITORING_ACTIVE_USER_TTL_SEC", 600.0)
+MONITORING_CAPACITY_TARGET_CPU_PCT = _float_env("MONITORING_CAPACITY_TARGET_CPU_PCT", 70.0)
 
 
 # En production, sans Supabase, refuser le démarrage sauf opt-in explicite (données locales partagées = risque)

@@ -1,6 +1,7 @@
 """Configuration backend : chemins, env, Supabase."""
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -137,16 +138,44 @@ MONITORING_CAPACITY_TARGET_CPU_PCT = _float_env("MONITORING_CAPACITY_TARGET_CPU_
 ALLOW_LOCAL_DATA_IN_PRODUCTION = _truthy_env("ALLOW_LOCAL_DATA_IN_PRODUCTION")
 
 
+def _hostname_from_public_url(url: str) -> str | None:
+    """Extrait le hostname d’une URL (ou d’un domaine seul) pour TrustedHost."""
+    u = (url or "").strip()
+    if not u:
+        return None
+    if "://" not in u:
+        u = "https://" + u
+    try:
+        h = (urlparse(u).hostname or "").strip().lower()
+        return h or None
+    except ValueError:
+        return None
+
+
 def trusted_host_names() -> list[str]:
     """Hôtes HTTP autorisés (Host / X-Forwarded-Host). Vide = pas de filtre TrustedHost."""
     raw = _env("TRUSTED_HOSTS")
     if not raw:
         return []
-    hosts = [h.strip().lower() for h in raw.split(",") if h.strip()]
-    # Healthcheck Docker et outils locaux utilisent Host localhost / 127.0.0.1
+    hosts: list[str] = []
+    seen: set[str] = set()
+
+    def add(name: str | None) -> None:
+        if not name or name in seen:
+            return
+        seen.add(name)
+        hosts.append(name)
+
+    for h in raw.split(","):
+        if h.strip():
+            add(h.strip().lower())
+    # Même origine : le proxy envoie souvent Host = domaine du front, pas le sous-domaine « api » seul
+    for segment in (FRONTEND_URL or "").split(","):
+        add(_hostname_from_public_url(segment.strip()))
+    add(_hostname_from_public_url(API_BASE_URL))
+    # Healthcheck Docker et outils locaux
     for loopback in ("localhost", "127.0.0.1", "[::1]"):
-        if loopback not in hosts:
-            hosts.append(loopback)
+        add(loopback)
     return hosts
 
 # Budget Gemini par compte (€) - dépassement = blocage soft (pas affiché à l'utilisateur)

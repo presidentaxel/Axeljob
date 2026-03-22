@@ -705,37 +705,9 @@ def _decode_supabase_jwt(token: str) -> dict:
     Vérifie et décode le access token Supabase (HS256 ou ES256 via JWKS).
     leeway sur iat/exp : évite les rejets si l’horloge locale est en retard (ex. Windows sans sync NTP).
     """
-    import jwt
-    from jwt import PyJWKClient
+    from backend.supabase_jwt import decode_supabase_access_token
 
-    if not token:
-        raise ValueError("empty token")
-    header = jwt.get_unverified_header(token)
-    alg = header.get("alg", "HS256")
-    leeway = JWT_LEEWAY_SECONDS
-    if alg == "HS256":
-        if not SUPABASE_JWT_SECRET:
-            raise ValueError("SUPABASE_JWT_SECRET manquant pour JWT HS256")
-        return jwt.decode(
-            token,
-            SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            audience="authenticated",
-            leeway=leeway,
-        )
-    if not SUPABASE_URL:
-        raise ValueError("SUPABASE_URL manquant pour JWKS")
-    jwks_url = f"{SUPABASE_URL.rstrip('/')}/auth/v1/.well-known/jwks.json"
-    if not hasattr(_decode_supabase_jwt, "_jwks_client"):
-        _decode_supabase_jwt._jwks_client = PyJWKClient(jwks_url, cache_keys=True)
-    signing_key = _decode_supabase_jwt._jwks_client.get_signing_key_from_jwt(token)
-    return jwt.decode(
-        token,
-        signing_key.key,
-        algorithms=[alg],
-        audience="authenticated",
-        leeway=leeway,
-    )
+    return decode_supabase_access_token(token)
 
 
 def _bearer_token_nonempty(request: Request) -> bool:

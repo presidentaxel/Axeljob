@@ -16,13 +16,11 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
 
-import jwt
 from prometheus_client import Counter, Gauge, Histogram
 from starlette.requests import Request
 from starlette.responses import Response
 
 from backend.config import (
-    JWT_LEEWAY_SECONDS,
     MONITORING_ACTIVE_USER_TTL_SEC,
     MONITORING_ALERT_5XX_THRESHOLD,
     MONITORING_ALERT_5XX_WINDOW_SEC,
@@ -38,11 +36,11 @@ from backend.config import (
     MONITORING_CAPACITY_TARGET_CPU_PCT,
     RESEND_API_KEY,
     RESEND_FROM_EMAIL,
-    SUPABASE_JWT_SECRET,
     SUPPORT_ADMIN_EMAILS,
     SUPPORT_EMAIL,
     USE_SUPABASE_PG,
 )
+from backend.supabase_jwt import decode_supabase_access_token
 
 logger = logging.getLogger("cv_bot.monitoring")
 
@@ -164,8 +162,7 @@ def _status_class(code: int) -> str:
 
 
 def _jwt_sub(request: Request) -> Optional[str]:
-    if not SUPABASE_JWT_SECRET:
-        return None
+    """Même logique que l’API (HS256 ou JWKS) pour compter les subs distincts."""
     auth = request.headers.get("Authorization") or ""
     if not auth.startswith("Bearer "):
         return None
@@ -173,12 +170,7 @@ def _jwt_sub(request: Request) -> Optional[str]:
     if not token:
         return None
     try:
-        payload = jwt.decode(
-            token,
-            SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            leeway=JWT_LEEWAY_SECONDS,
-        )
+        payload = decode_supabase_access_token(token)
         sub = payload.get("sub")
         return str(sub) if sub else None
     except Exception:

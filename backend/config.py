@@ -152,6 +152,24 @@ def _hostname_from_public_url(url: str) -> str | None:
         return None
 
 
+def _normalize_trusted_host_token(token: str) -> str | None:
+    """Hostname seul, host:port ou URL complète → hostname (Starlette compare sans port)."""
+    t = token.strip().lower()
+    if not t:
+        return None
+    if "://" in t or t.startswith("//"):
+        return _hostname_from_public_url(t)
+    if t.startswith("["):
+        if "]:" in t:
+            return t[: t.index("]") + 1]
+        return t
+    if ":" in t:
+        host, _, maybe_port = t.rpartition(":")
+        if maybe_port.isdigit() and host:
+            return host
+    return t
+
+
 def trusted_host_names() -> list[str]:
     """Hôtes HTTP autorisés (Host / X-Forwarded-Host). Vide = pas de filtre TrustedHost."""
     raw = _env("TRUSTED_HOSTS")
@@ -166,9 +184,10 @@ def trusted_host_names() -> list[str]:
         seen.add(name)
         hosts.append(name)
 
-    for h in raw.split(","):
-        if h.strip():
-            add(h.strip().lower())
+    for part in raw.split(","):
+        norm = _normalize_trusted_host_token(part)
+        if norm:
+            add(norm)
     # Même origine : le proxy envoie souvent Host = domaine du front, pas le sous-domaine « api » seul
     for segment in (FRONTEND_URL or "").split(","):
         add(_hostname_from_public_url(segment.strip()))

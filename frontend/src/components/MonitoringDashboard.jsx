@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { apiGet } from '../api';
 import { HiChartBarSquare } from 'react-icons/hi2';
 
@@ -17,6 +17,7 @@ function formatBytes(n) {
  */
 export default function MonitoringDashboard({ usage }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [days, setDays] = useState(7);
   const [summary, setSummary] = useState(null);
   const [news, setNews] = useState(null);
@@ -51,11 +52,13 @@ export default function MonitoringDashboard({ usage }) {
     load();
   }, [usage?.is_support, load]);
 
+  // Ne rediriger que si l’URL est vraiment /app/monitoring : le composant est monté sur toutes les vues
+  // (panneau display:none), sinon chaque setUsage(…) renvoyait les non-admins vers /app/cv.
   useEffect(() => {
-    if (usage && !usage.is_support) {
-      navigate('/app/cv', { replace: true });
-    }
-  }, [usage, navigate]);
+    if (!usage || usage.is_support) return;
+    if (!location.pathname.startsWith('/app/monitoring')) return;
+    navigate('/app/cv', { replace: true });
+  }, [usage, navigate, location.pathname]);
 
   if (!usage?.is_support) {
     return null;

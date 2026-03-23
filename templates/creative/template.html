@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="template.css">
 </head>
 <body class="{% if for_preview %}cv-preview{% endif %}">
-  <article class="cv">
+  <article class="cv{% if for_pdf %} cv-pdf-dual-column{% endif %}">
     <div class="cv-sidebar">
       {% if photo_url %}
       <div class="sidebar-photo">

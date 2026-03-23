@@ -794,6 +794,14 @@ export default function App() {
     return () => clearTimeout(t);
   }, [session, templateId, templateOptions]);
 
+  /** Compte gratuit + template Pro encore en localStorage / état : évite 402 sur render-html avant que GET /api/cv ait répondu. */
+  useEffect(() => {
+    if (!session || !usage || !templatesList.length) return;
+    if (usage.plan === 'pro' || usage.paywall_disabled) return;
+    const meta = templatesList.find((t) => t.id === templateId);
+    if (meta?.premium) setTemplateId('classic');
+  }, [session, usage, templatesList, templateId]);
+
   const templateParams = { template_id: templateId, template_options: templateOptions };
   const templateKey = templateId + '|' + JSON.stringify(templateOptions);
 

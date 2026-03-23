@@ -1111,6 +1111,8 @@ def api_cv(request: Request, profile: bool = False):
                         cv_out["photo_url"] = url
                 except Exception:
                     pass
+        if cv_out.get("template_id") is not None:
+            cv_out["template_id"] = _effective_template_id_for_user(user_id, cv_out.get("template_id"))
         return cv_out
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -1144,6 +1146,9 @@ def api_cv_put(request: Request, body: dict):
     """Enregistre le CV de base (JSON). Utilisé par la section Profil. Avec auth : stocké par user_id ; sans : id 'default'."""
     user_id = _get_user_id(request)
     try:
+        body = dict(body)
+        if body.get("template_id") is not None:
+            body["template_id"] = _effective_template_id_for_user(user_id, body.get("template_id"))
         save_cv_base(body, user_id)
         try:
             p_metrics = profile_metrics(body)
@@ -1588,6 +1593,20 @@ def api_render_html(request: Request, body: RenderHtmlBody):
 
 FREE_ADAPTATIONS_LIMIT = 3
 FREE_APPLICATIONS_LIMIT = 5
+
+
+def _effective_template_id_for_user(user_id: str | None, template_id: str | None) -> str:
+    """Compte gratuit : remplace un template premium par le modèle par défaut (évite 402 sur render-html / PATCH)."""
+    from backend.template_registry import DEFAULT_TEMPLATE_ID, get_template
+
+    tid = (template_id or "").strip() or DEFAULT_TEMPLATE_ID
+    meta = get_template(tid)
+    if not meta.get("premium"):
+        return tid
+    uid = (user_id or "default").strip() or "default"
+    if get_user_plan(uid) == "pro" or get_paywall_disabled(uid):
+        return tid
+    return DEFAULT_TEMPLATE_ID
 
 
 def _check_premium_template(user_id: str | None, template_id: str | None):

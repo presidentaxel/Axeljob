@@ -5,6 +5,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Georgia&family=Inter:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
 
 :root {
+  --cv-pdf-sidebar-w: 200px;
   --cv-header-color: #0f172a;
   --cv-sidebar-color: #f8f6f0;
   --cv-accent-color: #b8860b;

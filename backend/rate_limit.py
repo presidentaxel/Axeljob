@@ -20,9 +20,15 @@ _RATE_LIMIT_MAX_DEFAULT = 30
 _RATE_LIMIT_MAX_KEYS = 5000
 
 
-def check_rate_limit(user_id: str | None, max_requests: int = _RATE_LIMIT_MAX_DEFAULT) -> None:
-    """Lève HTTP 429 si la fenêtre glissante est dépassée pour cette clé."""
-    key = (user_id or "anon").strip() or "anon"
+def check_rate_limit(
+    user_id: str | None,
+    max_requests: int = _RATE_LIMIT_MAX_DEFAULT,
+    *,
+    scope: str = "default",
+) -> None:
+    """Lève HTTP 429 si la fenêtre glissante est dépassée pour cette clé (user + scope)."""
+    base = (user_id or "anon").strip() or "anon"
+    key = f"{base}\0{scope}"
     now = time.time()
     if key not in _RATE_LIMIT_BUCKETS:
         if len(_RATE_LIMIT_BUCKETS) >= _RATE_LIMIT_MAX_KEYS:

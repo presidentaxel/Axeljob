@@ -34,7 +34,9 @@ from backend.config import (
     MONITORING_ALERT_SPIKE_CPU_RATIO,
     MONITORING_ALERT_SPIKE_MIN_CPU,
     MONITORING_CAPACITY_EMA_ALPHA,
+    MONITORING_CAPACITY_IDLE_CPU_BASELINE_PCT,
     MONITORING_CAPACITY_MIN_CPU_SAMPLE_PCT,
+    MONITORING_CAPACITY_MIN_MARGINAL_CPU_SAMPLE_PCT,
     MONITORING_CAPACITY_SAMPLE_MAX,
     MONITORING_CAPACITY_TARGET_CPU_PCT,
     RESEND_API_KEY,
@@ -427,21 +429,40 @@ def _median_sorted(values: list[float]) -> Optional[float]:
     return (s[mid - 1] + s[mid]) / 2.0
 
 
-def _record_capacity_sample() -> None:
+def _capacity_baseline_and_marginal(sys_cpu: float) -> tuple[float, float]:
+    """Plateau idle (config) et CPU marginal = mesure − plateau (>= 0)."""
+    baseline = max(0.0, min(60.0, float(MONITORING_CAPACITY_IDLE_CPU_BASELINE_PCT)))
+    marginal = max(0.0, float(sys_cpu) - baseline)
+    return baseline, marginal
+
+
+def _capacity_point_from_observation(active: int, sys_cpu: float) -> Optional[float]:
     """
-    Un point par tick (~45 s) : actifs JWT × (CPU cible / CPU mesuré), seulement si la charge
-    est assez lisible (évite extrapolation à l’idle).
+    Modèle : CPU_total ≈ baseline + k × actifs → à la cible, actifs × (cible − baseline) / marginal.
+    Retourne None si l’extrapolation n’est pas fiable.
     """
-    global _capacity_ema
     target = max(10.0, min(95.0, float(MONITORING_CAPACITY_TARGET_CPU_PCT)))
     min_cpu = max(1.0, float(MONITORING_CAPACITY_MIN_CPU_SAMPLE_PCT))
+    min_marginal = max(0.25, float(MONITORING_CAPACITY_MIN_MARGINAL_CPU_SAMPLE_PCT))
+    baseline, marginal = _capacity_baseline_and_marginal(sys_cpu)
+    headroom = target - baseline
+    if active < 1 or sys_cpu < min_cpu or marginal < min_marginal or headroom <= 1.0:
+        return None
+    return float(active) * (headroom / marginal)
+
+
+def _record_capacity_sample() -> None:
+    """
+    Un point par tick (~45 s) : extrapolation linéaire sur le CPU marginal (mesure − plateau idle).
+    """
+    global _capacity_ema
     alpha = max(0.05, min(0.5, float(MONITORING_CAPACITY_EMA_ALPHA)))
     with _lock:
         active = len(_active_sub_last_seen)
         sys_cpu = float(_last_snap["system_cpu"])
-        if active < 1 or sys_cpu < min_cpu:
+        point = _capacity_point_from_observation(active, sys_cpu)
+        if point is None:
             return
-        point = float(active) * (target / sys_cpu)
         _capacity_point_estimates.append(point)
         if _capacity_ema is None:
             _capacity_ema = point
@@ -451,50 +472,66 @@ def _record_capacity_sample() -> None:
 
 def capacity_estimate(active_users: int, system_cpu: float) -> dict[str, Any]:
     """
-    Capacité indicative : pas seulement l’instantané. Moyenne bien stabilisée = EMA des points
-    échantillonnés + médiane sur la fenêtre quand assez de données (robuste aux pics).
+    Capacité indicative : EMA + médiane sur fenêtre ; modèle baseline + charge marginale par actif.
     """
     target = max(10.0, min(95.0, float(MONITORING_CAPACITY_TARGET_CPU_PCT)))
     min_cpu = max(1.0, float(MONITORING_CAPACITY_MIN_CPU_SAMPLE_PCT))
+    min_marginal = max(0.25, float(MONITORING_CAPACITY_MIN_MARGINAL_CPU_SAMPLE_PCT))
     alpha_cfg = max(0.05, min(0.5, float(MONITORING_CAPACITY_EMA_ALPHA)))
-    cpu_now = max(0.1, float(system_cpu))
+    cpu_now = float(system_cpu)
+    baseline, marginal_now = _capacity_baseline_and_marginal(cpu_now)
+    headroom = target - baseline
 
     instant: Optional[int] = None
-    if active_users > 0:
-        instant = int(active_users * (target / cpu_now))
+    if (
+        active_users > 0
+        and marginal_now >= min_marginal
+        and cpu_now >= min_cpu
+        and headroom > 1.0
+    ):
+        instant = int(round(active_users * (headroom / marginal_now)))
 
     with _lock:
         points = list(_capacity_point_estimates)
         ema_val = _capacity_ema
 
+    common_meta = {
+        "idle_cpu_baseline_percent": round(baseline, 2),
+        "target_marginal_headroom_percent": round(headroom, 2),
+        "min_marginal_cpu_sample_percent": min_marginal,
+    }
+
     if not points and ema_val is None:
         if active_users <= 0:
             return {
-                "method": "linear_smoothed_window",
+                "method": "baseline_marginal_linear",
                 "note": (
-                    f"Aucun échantillon encore : besoin d’au moins 1 actif JWT et de CPU système >= {min_cpu:.0f}% "
-                    "pendant les ticks monitoring (~45 s)."
+                    f"Aucun échantillon encore : besoin d’au moins 1 actif JWT, CPU système >= {min_cpu:.0f}% "
+                    f"et marge CPU (mesure − plateau ~{baseline:.0f}%) >= {min_marginal:.1f}%."
                 ),
                 "estimated_max_active_users_at_target_cpu": None,
                 "target_cpu_percent": target,
                 "samples_in_window": 0,
                 "min_cpu_sample_percent": min_cpu,
+                **common_meta,
             }
         return {
-            "method": "linear_smoothed_window",
+            "method": "baseline_marginal_linear",
             "note": (
-                f"Valeur instantanée seule (historique vide). L’estimation se stabilise après quelques mesures "
-                f"quand CPU >= {min_cpu:.0f}% et >= 1 actif."
+                f"Valeur instantanée seule (historique vide). Modèle : ~{baseline:.0f}% plateau idle retiré ; "
+                f"extrapolation jusqu’à {target:.0f}% CPU total. Stabilisation après quelques ticks."
             ),
             "inputs": {
                 "active_users_with_jwt": active_users,
                 "system_cpu_percent": round(cpu_now, 2),
+                "marginal_cpu_percent": round(marginal_now, 2),
             },
             "target_cpu_percent": target,
             "estimated_max_active_users_at_target_cpu": instant,
             "instant_estimate": instant,
             "samples_in_window": 0,
             "min_cpu_sample_percent": min_cpu,
+            **common_meta,
         }
 
     if ema_val is None:
@@ -509,7 +546,7 @@ def capacity_estimate(active_users: int, system_cpu: float) -> dict[str, Any]:
     note = (
         f"Lissage EMA (α={alpha_cfg:.2f}) sur {len(points)} mesures"
         + (" + médiane (>= 5 pts)" if len(points) >= 5 and med is not None else "")
-        + f" ; échantillons si >= 1 actif JWT et CPU >= {min_cpu:.0f}%."
+        + f" ; plateau idle ~{baseline:.0f}% retiré, marge CPU >= {min_marginal:.1f}% pour échantillonner."
     )
     if active_users <= 0:
         note += " Aucun actif dans la fenêtre TTL : chiffre basé sur l’historique récent."
@@ -517,11 +554,12 @@ def capacity_estimate(active_users: int, system_cpu: float) -> dict[str, Any]:
         note += f" Instantané courant ~{instant}."
 
     out: dict[str, Any] = {
-        "method": "linear_smoothed_window",
+        "method": "baseline_marginal_linear",
         "note": note,
         "inputs": {
             "active_users_with_jwt": active_users,
             "system_cpu_percent": round(cpu_now, 2),
+            "marginal_cpu_percent": round(marginal_now, 2),
         },
         "target_cpu_percent": target,
         "estimated_max_active_users_at_target_cpu": refined,
@@ -529,6 +567,7 @@ def capacity_estimate(active_users: int, system_cpu: float) -> dict[str, Any]:
         "samples_in_window": len(points),
         "ema_estimate": round(ema_val, 1),
         "min_cpu_sample_percent": min_cpu,
+        **common_meta,
     }
     if med is not None and len(points) >= 3:
         out["window_median_estimate"] = int(round(med))

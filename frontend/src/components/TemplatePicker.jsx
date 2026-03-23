@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { apiGet } from '../api';
+import { applyA4PageFramesToDocument, suppressCvPreviewIframeInnerScroll } from '../lib/cvPreviewA4Pages';
 import TemplateModal, { FAVORITES_STORAGE_KEY } from './TemplateModal';
 
 const TYPO_DEFAULTS = {
@@ -81,13 +82,17 @@ function resizeOptionsPreviewIframe(iframe) {
   try {
     const doc = iframe.contentDocument;
     if (!doc || !doc.documentElement) return;
+    applyA4PageFramesToDocument(doc);
     const height = Math.max(
       doc.documentElement.scrollHeight,
       doc.documentElement.offsetHeight,
       doc.body?.scrollHeight ?? 0,
       doc.body?.offsetHeight ?? 0
     );
-    if (height > 0) iframe.style.height = `${height}px`;
+    if (height > 0) {
+      iframe.style.height = `${Math.ceil(height)}px`;
+      suppressCvPreviewIframeInnerScroll(doc);
+    }
   } catch (_) { /* not ready */ }
 }
 

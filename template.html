@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="template.css">
 </head>
 <body class="{% if for_preview %}cv-preview{% endif %}">
-  <article class="cv">
+  <article class="cv cv-print-split">
     <header class="cv-header">
       <div class="header-top-row">
         {% if photo_url %}
@@ -90,6 +90,7 @@
     </div>
 
     <div class="cv-sidebar">
+      {% if for_pdf %}<div class="cv-sidebar-pdf-stack">{% endif %}
       {% set competences = competences or {} %}
       {% if competences.techniques %}
       {% set tech_filtered = competences.techniques | select() | list %}
@@ -151,6 +152,10 @@
         <h3 class="sidebar-category mots-cles-ats-titre">Mots-clés ATS</h3>
         <p class="mots-cles-ats-invisible" aria-hidden="true">{{ mots_cles_cache }}</p>
       </section>
+      {% endif %}
+      {% if for_pdf %}
+      <div class="cv-pdf-sidebar-fill" aria-hidden="true"></div>
+      </div>
       {% endif %}
     </div>
     </div>

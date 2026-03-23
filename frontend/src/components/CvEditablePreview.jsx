@@ -1,7 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { HiPhone, HiEnvelope, HiLink } from 'react-icons/hi2';
 import { apiUrl, apiGet } from '../api';
+import { applyA4PageFramesInHost, teardownA4PageFramesInHost } from '../lib/cvPreviewA4Pages';
 import './CvEditablePreview.css';
+
+/** Aligné sur le rendu serveur sans selection_a4 (main.py max_exp). */
+const EDITABLE_PREVIEW_MAX_EXPERIENCES = 15;
 
 /** Met à jour une propriété dans un objet par chemin "a.b.0.c" */
 function setByPath(obj, path, value) {
@@ -103,7 +107,18 @@ function extractStylesFromHtml(html) {
   return parts.filter(Boolean).join('\n');
 }
 
-export default function CvEditablePreview({ cv, baseCv, onChange, templateId = 'classic', templateOptions, showPhoto = true, showMotsClesAts = true, onPhotoSessionExpired, previewHtmlWithInlineCss }) {
+export default function CvEditablePreview({
+  cv,
+  baseCv,
+  onChange,
+  templateId = 'classic',
+  templateOptions,
+  showPhoto = true,
+  showMotsClesAts = true,
+  onPhotoSessionExpired,
+  previewHtmlWithInlineCss,
+  layoutRefreshKey = '',
+}) {
   const containerRef = useRef(null);
   const [templateCss, setTemplateCss] = useState('');
   const cssVarOverrides = optionsToCssVars(templateOptions);
@@ -124,6 +139,28 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
       .catch(() => {});
     return () => { cancelled = true; };
   }, [templateId, cssFromHtml]);
+
+  useLayoutEffect(() => {
+    const wrap = containerRef.current;
+    if (!wrap) return undefined;
+    applyA4PageFramesInHost(wrap);
+    return () => teardownA4PageFramesInHost(wrap);
+  }, [templateId, effectiveCss, contentDensity, cv, previewHtmlWithInlineCss, layoutRefreshKey]);
+
+  // Même rythme que l’iframe (App.jsx) : HTML / polices / layout peuvent se stabiliser après le premier paint.
+  useEffect(() => {
+    const wrap = containerRef.current;
+    if (!wrap) return undefined;
+    const run = () => applyA4PageFramesInHost(wrap);
+    const t0 = window.setTimeout(run, 0);
+    const t1 = window.setTimeout(run, 120);
+    const t2 = window.setTimeout(run, 380);
+    return () => {
+      window.clearTimeout(t0);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [templateId, effectiveCss, contentDensity, cv, previewHtmlWithInlineCss, layoutRefreshKey]);
 
   const handleBlur = useCallback(() => {
     if (!containerRef.current || !onChange) return;
@@ -217,7 +254,7 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
         {experiences.length > 0 && (
           <section className="section">
             <h2 className="section-title">Expérience professionnelle</h2>
-            {experiences.slice(0, 6).map((exp, i) => {
+            {experiences.slice(0, EDITABLE_PREVIEW_MAX_EXPERIENCES).map((exp, i) => {
               const oi = experiencesAll.indexOf(exp);
               return (
                 <div key={exp.id || i} className="experience-item">
@@ -410,7 +447,7 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
           <section className="main-section section-experiences">
             <h2 className="main-section-title">EXPÉRIENCE PROFESSIONNELLE</h2>
             <div className="experiences-list">
-              {experiences.slice(0, 6).map((exp, i) => {
+              {experiences.slice(0, EDITABLE_PREVIEW_MAX_EXPERIENCES).map((exp, i) => {
                 const oi = experiencesAll.indexOf(exp);
                 return (
                   <div key={exp.id || i} className="experience-item">
@@ -480,9 +517,10 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
   return (
     <div
       ref={containerRef}
-      className={`cv-editable-preview cv-editable-preview--${contentDensity}`}
+      className={`cv-editable-preview cv-preview cv-editable-preview--${contentDensity}`}
       style={cssVarOverrides}
       data-content-density={contentDensity}
+      spellCheck={false}
       onBlur={handleBlur}
     >
       {rootVarsStyle ? <style dangerouslySetInnerHTML={{ __html: rootVarsStyle }} /> : null}
@@ -561,7 +599,7 @@ export default function CvEditablePreview({ cv, baseCv, onChange, templateId = '
             <section className="section-experiences">
               <h2 className="section-title">EXPÉRIENCE PROFESSIONNELLE</h2>
               <div className="experiences-list">
-                {(experiences.slice(0, 6)).map((exp, i) => {
+                {experiences.slice(0, EDITABLE_PREVIEW_MAX_EXPERIENCES).map((exp, i) => {
                   const origIndex = experiencesAll.indexOf(exp);
                   return (
                   <div key={exp.id || i} className="experience-item">

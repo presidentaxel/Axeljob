@@ -132,6 +132,12 @@ MONITORING_ALERT_SPIKE_CPU_RATIO = _float_env("MONITORING_ALERT_SPIKE_CPU_RATIO"
 MONITORING_ALERT_SPIKE_MIN_CPU = _float_env("MONITORING_ALERT_SPIKE_MIN_CPU", 70.0)
 MONITORING_ACTIVE_USER_TTL_SEC = _float_env("MONITORING_ACTIVE_USER_TTL_SEC", 600.0)
 MONITORING_CAPACITY_TARGET_CPU_PCT = _float_env("MONITORING_CAPACITY_TARGET_CPU_PCT", 70.0)
+# Plateau CPU (OS + VM + processus au repos) retiré avant extrapolation — ex. ~2 % sur DO sans trafic
+MONITORING_CAPACITY_IDLE_CPU_BASELINE_PCT = _float_env("MONITORING_CAPACITY_IDLE_CPU_BASELINE_PCT", 2.0)
+# CPU marginal minimal (mesuré − baseline) pour enregistrer un point — évite division / bruit près du idle
+MONITORING_CAPACITY_MIN_MARGINAL_CPU_SAMPLE_PCT = _float_env(
+    "MONITORING_CAPACITY_MIN_MARGINAL_CPU_SAMPLE_PCT", 1.0
+)
 # Capacité indicative : lissage (0.05–0.5, défaut 0.14 ≈ demi-vie ~5 ticks à 45 s)
 MONITORING_CAPACITY_EMA_ALPHA = _float_env("MONITORING_CAPACITY_EMA_ALPHA", 0.14)
 # N’enregistre un échantillon que si CPU système ≥ ce % (évite extrapolation folle à l’idle)

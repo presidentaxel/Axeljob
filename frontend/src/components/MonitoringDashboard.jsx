@@ -172,6 +172,8 @@ export default function MonitoringDashboard({ usage }) {
                       {cap.ema_estimate != null && ` · EMA ~${cap.ema_estimate}`}
                       {cap.window_median_estimate != null && ` · médiane ~${cap.window_median_estimate}`}
                       {cap.instant_estimate != null && ` · instantané ~${cap.instant_estimate}`}
+                      {cap.idle_cpu_baseline_percent != null &&
+                        ` · plateau idle ~${cap.idle_cpu_baseline_percent}% retiré`}
                     </p>
                   )}
                   <p className="monitoring-muted">{cap?.note}</p>

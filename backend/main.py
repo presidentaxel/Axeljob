@@ -313,9 +313,7 @@ def _build_cv_pdf_for_application(payload: dict, user_id: str | None) -> tuple[b
         template_options=template_options,
         selection_a4=selection_a4,
     )
-    from generator import generer_pdf_bytes_from_html, PDF_EXPORT_LAYOUT_CSS, PDF_EXPORT_PREVIEW_ALIGN_CSS
-    if "</head>" in html:
-        html = html.replace("</head>", PDF_EXPORT_LAYOUT_CSS + PDF_EXPORT_PREVIEW_ALIGN_CSS + "</head>", 1)
+    from generator import generer_pdf_bytes_from_html
     if template_id and str(template_id).strip().startswith("custom_") and "</head>" in html:
         custom_pdf_fix = (
             "<style>@page{margin:0}body{background:#fff!important;margin:0!important;padding:0!important}.cv{margin:0!important}</style>"
@@ -376,6 +374,159 @@ def snapshot_application_pdfs_to_storage(
 def _apply_tweaks(cv_base: dict, tweaks: dict) -> dict:
     from adapter import apply_tweaks_to_cv
     return apply_tweaks_to_cv(cv_base, tweaks)
+
+
+_ATS_STOPWORDS = frozenset({
+    "de", "la", "le", "les", "des", "du", "et", "en", "un", "une", "aux", "au", "à", "a",
+    "pour", "avec", "sans", "sur", "par", "dans", "est", "son", "sa", "ses", "ce", "cette", "ces",
+    "qui", "que", "dont", "où", "plus", "pas", "ne", "nous", "vous", "ils", "elles", "elle",
+    "the", "and", "for", "with", "from", "to", "of", "in", "on", "at", "or", "as", "by",
+})
+
+
+def _keywords_from_mots_cles_cache(cache: str) -> list[str]:
+    """Tokens + bigrammes (+ trigrammes utiles) issus de mots_cles_cache, triés par longueur décroissante."""
+    import re
+
+    s = (cache or "").strip()
+    if not s:
+        return []
+    tokens = [t.strip() for t in re.split(r"\s+", s) if t.strip()]
+    seen: set[str] = set()
+    phrases: list[str] = []
+
+    def add_phrase(p: str) -> None:
+        pl = p.lower().strip(".,;:")
+        if len(pl) < 2:
+            return
+        if pl in seen:
+            return
+        seen.add(pl)
+        phrases.append(p)
+
+    for t in tokens:
+        tl = t.lower().strip(".,;:")
+        if len(tl) < 2 or tl in _ATS_STOPWORDS:
+            continue
+        add_phrase(t)
+
+    for i in range(len(tokens) - 1):
+        a, b = tokens[i], tokens[i + 1]
+        pair = f"{a} {b}"
+        pl = pair.lower().strip(".,;:")
+        if len(pl.replace(" ", "")) < 4:
+            continue
+        add_phrase(pair)
+
+    for i in range(len(tokens) - 2):
+        b = tokens[i + 1].lower().strip(".,;:")
+        if b in _ATS_STOPWORDS:
+            continue
+        tri = f"{tokens[i]} {tokens[i + 1]} {tokens[i + 2]}"
+        tl = tri.lower().strip(".,;:")
+        if len(tl.replace(" ", "")) < 5:
+            continue
+        add_phrase(tri)
+
+    phrases.sort(key=len, reverse=True)
+    return phrases
+
+
+def _ats_kw_boundary_ok(plain: str, start: int, end: int) -> bool:
+    """Évite les sous-chaînes dans les mots (ex. « en » dans « Entreprise »)."""
+    left = plain[start - 1] if start > 0 else ""
+    right = plain[end] if end < len(plain) else ""
+
+    def is_word_char(c: str) -> bool:
+        return bool(c) and (c.isalnum() or c == "_")
+
+    if is_word_char(left):
+        return False
+    if is_word_char(right):
+        return False
+    return True
+
+
+def _ats_next_match(plain: str, i: int, kws: list[str]) -> tuple[int, int] | None:
+    best_len = 0
+    best: tuple[int, int] | None = None
+    n = len(plain)
+    for kw in kws:
+        L = len(kw)
+        if L == 0 or i + L > n:
+            continue
+        if plain[i : i + L].lower() != kw.lower():
+            continue
+        if not _ats_kw_boundary_ok(plain, i, i + L):
+            continue
+        if L > best_len:
+            best_len = L
+            best = (i, i + L)
+    return best
+
+
+def _ats_wrap_plain_text_segment(segment: str, kws: list[str]) -> str:
+    """Segment HTML sans balise : entités décodées, mots-clés enveloppés, ré-échappé."""
+    if not segment or not kws:
+        return segment
+    plain = html_module.unescape(segment)
+    n = len(plain)
+    out_parts: list[str] = []
+    pos = 0
+    while pos < n:
+        m = _ats_next_match(plain, pos, kws)
+        if m is None:
+            out_parts.append(html_module.escape(plain[pos]))
+            pos += 1
+            continue
+        s, e = m
+        out_parts.append(html_module.escape(plain[pos:s]))
+        out_parts.append(f'<span class="cv-ats-kw">{html_module.escape(plain[s:e])}</span>')
+        pos = e
+    return "".join(out_parts)
+
+
+def _ats_highlight_preview_body(html: str, kws: list[str]) -> str:
+    """Surligne les mots-clés ATS dans le body (aperçu seulement), hors <style> et <script>."""
+    import re
+
+    if not kws:
+        return html
+    low = html.lower()
+    i = low.find("<body")
+    if i < 0:
+        return html
+    m = re.search(r"<body[^>]*>", html[i : i + 300], re.I)
+    if not m:
+        return html
+    start = i + m.end()
+    j = low.rfind("</body>")
+    if j < 0 or j <= start:
+        return html
+    before = html[:start]
+    body = html[start:j]
+    after = html[j:]
+
+    protected: list[str] = []
+
+    def _stash_block(match: re.Match) -> str:
+        protected.append(match.group(0))
+        return f"__AXEL_ATS_PROT_{len(protected) - 1}__"
+
+    body = re.sub(r"<style[^>]*>[\s\S]*?</style>", _stash_block, body, flags=re.I)
+    body = re.sub(r"<script[^>]*>[\s\S]*?</script>", _stash_block, body, flags=re.I)
+
+    pieces = re.split(r"(<[^>]+>)", body)
+    out: list[str] = []
+    for p in pieces:
+        if p.startswith("<"):
+            out.append(p)
+        else:
+            out.append(_ats_wrap_plain_text_segment(p, kws))
+    result = "".join(out)
+    for idx, block in enumerate(protected):
+        result = result.replace(f"__AXEL_ATS_PROT_{idx}__", block)
+    return before + result + after
 
 
 def _diff_highlight_html(base: str, current: str) -> str:
@@ -443,6 +594,7 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
 
     ctx = dict(cv)
     ctx["for_preview"] = for_preview
+    ctx["for_pdf"] = bool(for_pdf)
     base = base_cv or {}
     titre_cv = _strip_h_f((cv.get("titre_professionnel") or "").strip())
     titre_base = _strip_h_f((base.get("titre_professionnel") or "").strip())
@@ -456,12 +608,13 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
         ctx["titre_professionnel_display"] = html_module.escape(titre_cv)
         ctx["resume_display"] = html_module.escape((cv.get("resume") or "").strip())
 
-    # Objectif : toujours 1 page. Avec selection_a4 (adaptation) on affiche la sélection IA ; sinon limites strictes.
+    # Avec selection_a4 (adaptation) : plafonds larges (sélection IA). Sinon : plafonds pour éviter des CV infinis,
+    # mais assez hauts pour que le profil complet (plusieurs expériences) s’affiche à l’aperçu / PDF HTML.
     use_selection = bool(selection_a4)
-    max_exp = 20 if use_selection else 5
-    max_bullets = 3 if use_selection else 2
-    max_form = 10 if use_selection else 4
-    max_proj = 10 if use_selection else 2
+    max_exp = 20 if use_selection else 15
+    max_bullets = 3 if use_selection else 3
+    max_form = 10 if use_selection else 8
+    max_proj = 10 if use_selection else 5
 
     by_id = {e.get("id"): e for e in (base.get("experiences") or []) if e.get("id")}
     experiences_raw = (cv.get("experiences") or [])[:max_exp]
@@ -643,6 +796,17 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
         )
         html_str = html_str.replace("</head>", highlight_styles + "</head>", 1)
     if for_preview and not for_pdf:
+        preview_ats_keywords = _keywords_from_mots_cles_cache((cv.get("mots_cles_cache") or "").strip())
+        ats_kw_css = ""
+        if preview_ats_keywords:
+            ats_kw_css = (
+                ".cv-preview span.cv-ats-kw{background-color:#86efac;padding:0 2px;border-radius:2px;box-decoration-break:clone;-webkit-box-decoration-break:clone}"
+                ".cv-preview .cv-header span.cv-ats-kw,.cv-preview .cv-sidebar span.cv-ats-kw{background-color:#166534;color:#bbf7d1}"
+                ".cv-preview span.cv-changed span.cv-ats-kw{background-color:#4ade80;color:#14532d}"
+                ".cv-preview .cv-header span.cv-changed span.cv-ats-kw,.cv-preview .cv-sidebar span.cv-changed span.cv-ats-kw{background-color:#22c55e;color:#052e16}"
+                ".cv-preview .header-titre-inline span.cv-ats-kw,.cv-preview .resume-text span.cv-ats-kw{white-space:normal!important;overflow-wrap:break-word!important;word-break:break-word}"
+                "@media print{.cv-preview span.cv-ats-kw{background:transparent!important;color:inherit!important;padding:0}}"
+            )
         scrollbar_style = (
             "html,body{scrollbar-width:thin;scrollbar-color:rgba(107,70,193,0.45) transparent}"
             "html::-webkit-scrollbar,body::-webkit-scrollbar{width:2px;height:2px}"
@@ -652,7 +816,8 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
         )
         preview_responsive = (
             "<style>"
-            "html,body{margin:0!important;padding:0!important;}html{overflow-x:hidden!important;}body.cv-preview{overflow-x:hidden!important;}"
+            + ats_kw_css
+            + "html,body{margin:0!important;padding:0!important;}html{overflow-x:hidden!important;}body.cv-preview{overflow-x:hidden!important;}"
             ".cv-preview .cv{width:210mm!important;max-width:100%!important;min-height:297mm!important;height:auto!important;max-height:none!important;overflow-x:hidden!important;overflow-y:visible!important}"
             ".cv-preview .cv-body{min-height:0}"
             ".cv-preview body{overflow-x:hidden}"
@@ -680,6 +845,8 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
             + scrollbar_style + "</style>"
         )
         html_str = html_str.replace("</head>", preview_responsive + "</head>", 1)
+        if preview_ats_keywords:
+            html_str = _ats_highlight_preview_body(html_str, preview_ats_keywords)
     return html_str
 
 
@@ -2359,12 +2526,14 @@ def api_adapt_refine(request: Request, body: AdaptRefineBody):
         raise HTTPException(status_code=500, detail="Erreur interne. Réessaie ou contacte le support.")
 
 
-@app.post("/api/pdf")
-def api_pdf(request: Request, body: PdfBody):
+def _cv_pdf_bytes_same_as_download(
+    request: Request,
+    body: PdfBody,
+) -> tuple[bytes, str]:
+    """
+    Même rendu que POST /api/pdf (WeasyPrint + injections), pour comptage de pages ou téléchargement.
+    """
     user_id = _get_user_id(request)
-    check_rate_limit(user_id, 10)
-    _check_premium_template(user_id, body.template_id)
-    _check_custom_template_access(user_id, body.template_id)
     offre = {"titre": body.titre, "entreprise": body.entreprise}
     cv = body.cv or {}
     if USE_SUPABASE and user_id:
@@ -2379,26 +2548,33 @@ def api_pdf(request: Request, body: PdfBody):
             except Exception:
                 pass
     selection_a4 = body.selection_a4
-    try:
-        # for_pdf=True : pas d'injection "preview_responsive" (overflow/height qui font disparaître tout sous WeasyPrint).
-        # On garde for_preview=True pour la classe .cv-preview et le template, puis on force layout + couleurs via le CSS d'export.
-        html = _render_cv_html(
-            cv,
-            for_preview=True,
-            for_pdf=True,
-            template_id=body.template_id,
-            template_options=body.template_options,
-            selection_a4=selection_a4,
+    # for_pdf=True : pas d'injection "preview_responsive" (overflow/height qui font disparaître tout sous WeasyPrint).
+    # On garde for_preview=True pour la classe .cv-preview et le template, puis on force layout + couleurs via le CSS d'export.
+    html = _render_cv_html(
+        cv,
+        for_preview=True,
+        for_pdf=True,
+        template_id=body.template_id,
+        template_options=body.template_options,
+        selection_a4=selection_a4,
+    )
+    from generator import generer_pdf_bytes_from_html
+    if body.template_id and str(body.template_id).strip().startswith("custom_") and "</head>" in html:
+        custom_pdf_fix = (
+            "<style>@page{margin:0}body{background:#fff!important;margin:0!important;padding:0!important}.cv{margin:0!important}</style>"
         )
-        from generator import generer_pdf_bytes_from_html, PDF_EXPORT_LAYOUT_CSS, PDF_EXPORT_PREVIEW_ALIGN_CSS
-        if "</head>" in html:
-            html = html.replace("</head>", PDF_EXPORT_LAYOUT_CSS + PDF_EXPORT_PREVIEW_ALIGN_CSS + "</head>", 1)
-        if body.template_id and str(body.template_id).strip().startswith("custom_") and "</head>" in html:
-            custom_pdf_fix = (
-                "<style>@page{margin:0}body{background:#fff!important;margin:0!important;padding:0!important}.cv{margin:0!important}</style>"
-            )
-            html = html.replace("</head>", custom_pdf_fix + "</head>", 1)
-        pdf_bytes, filename = generer_pdf_bytes_from_html(html, BASE_DIR, cv, offre)
+        html = html.replace("</head>", custom_pdf_fix + "</head>", 1)
+    return generer_pdf_bytes_from_html(html, BASE_DIR, cv, offre)
+
+
+@app.post("/api/pdf")
+def api_pdf(request: Request, body: PdfBody):
+    user_id = _get_user_id(request)
+    check_rate_limit(user_id, 10, scope="pdf_download")
+    _check_premium_template(user_id, body.template_id)
+    _check_custom_template_access(user_id, body.template_id)
+    try:
+        pdf_bytes, filename = _cv_pdf_bytes_same_as_download(request, body)
     except Exception as e:
         logger.exception(e)
         err_msg = str(e).strip() or repr(e)
@@ -2477,9 +2653,6 @@ def api_export_dossier_zip(request: Request, body: ExportDossierZipBody):
             template_options=body.template_options,
             selection_a4=body.selection_a4,
         )
-        from generator import PDF_EXPORT_LAYOUT_CSS, PDF_EXPORT_PREVIEW_ALIGN_CSS
-        if "</head>" in html:
-            html = html.replace("</head>", PDF_EXPORT_LAYOUT_CSS + PDF_EXPORT_PREVIEW_ALIGN_CSS + "</head>", 1)
         if body.template_id and str(body.template_id).strip().startswith("custom_") and "</head>" in html:
             custom_pdf_fix = (
                 "<style>@page{margin:0}body{background:#fff!important;margin:0!important;padding:0!important}.cv{margin:0!important}</style>"
@@ -2816,6 +2989,7 @@ def api_application_download_cv(request: Request, adaptation_id: str):
     html = _render_cv_html(
         full_cv,
         for_preview=False,
+        for_pdf=True,
         template_id=payload.get("template_id"),
         template_options=payload.get("template_options"),
         selection_a4=selection_a4,

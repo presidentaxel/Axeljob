@@ -22,6 +22,11 @@ import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquar
 import { lazyWithChunkReload, clearChunkErrorReloadKey } from './lib/lazyChunkReload';
 import { getViewFromPathname } from './lib/appRoutes';
 import { syncRobotsMeta } from './lib/seoHead';
+import './App.css';
+import './styles/TemplatePicker.css';
+import './styles/GuidedTour.css';
+import { formatApplicationDateLabel } from './lib/applicationDates';
+import { applyA4PageFramesToDocument, suppressCvPreviewIframeInnerScroll } from './lib/cvPreviewA4Pages';
 
 const ProfileView = lazyWithChunkReload(() => import('./components/ProfileView'));
 const LandingPage = lazyWithChunkReload(() => import('./components/LandingPage'));
@@ -36,10 +41,6 @@ const TemplatePicker = lazyWithChunkReload(() => import('./components/TemplatePi
 const GuidedTour = lazyWithChunkReload(() => import('./components/GuidedTour'));
 const SupportHighlight = lazyWithChunkReload(() => import('./components/SupportHighlight'));
 const MonitoringDashboard = lazyWithChunkReload(() => import('./components/MonitoringDashboard'));
-import './App.css';
-import './styles/TemplatePicker.css';
-import './styles/GuidedTour.css';
-import { formatApplicationDateLabel } from './lib/applicationDates';
 
 function shouldShowExportAtsBlockModal() {
   try {
@@ -957,20 +958,54 @@ export default function App() {
     iframe.addEventListener('load', onLoad);
   };
 
-  // Une seule zone de scroll (.preview-wrap) : l’iframe s’adapte à la hauteur du contenu
-  const resizeIframeToContent = (iframe) => {
+  // Hauteur = document complet : un seul scroll sur .preview-wrap (pas de scroll dans l’iframe)
+  const resizeIframeToContent = useCallback((iframe) => {
     try {
       const doc = iframe.contentDocument;
       if (!doc || !doc.documentElement) return;
+      applyA4PageFramesToDocument(doc);
       const height = Math.max(
         doc.documentElement.scrollHeight,
         doc.documentElement.offsetHeight,
         doc.body?.scrollHeight ?? 0,
         doc.body?.offsetHeight ?? 0
       );
-      if (height > 0) iframe.style.height = `${height}px`;
+      if (height > 0) {
+        iframe.style.height = `${Math.ceil(height)}px`;
+        suppressCvPreviewIframeInnerScroll(doc);
+      }
     } catch (_) { /* cross-origin or not loaded */ }
-  };
+  }, []);
+
+  // Changement de template / options / HTML : réappliquer cadres A4 + hauteur (load sur srcdoc pas toujours fiable)
+  useEffect(() => {
+    if (!isCvView) return;
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    const run = () => {
+      try {
+        if (!iframe.contentDocument?.body) return;
+        resizeIframeToContent(iframe);
+      } catch (_) { /* ignore */ }
+    };
+    const t0 = window.setTimeout(run, 0);
+    const t1 = window.setTimeout(run, 120);
+    const t2 = window.setTimeout(run, 380);
+    return () => {
+      window.clearTimeout(t0);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [
+    isCvView,
+    templateKey,
+    previewVariant,
+    modifiedPreviewHtml,
+    originalPreviewHtml,
+    tourHighlightStepActive,
+    tourDemoPreviewHtml,
+    resizeIframeToContent,
+  ]);
 
   const showError = (msg) => {
     setError(msg);
@@ -1738,31 +1773,37 @@ export default function App() {
   // Quand on switch sur "original", afficher le HTML de base dans l'iframe
   useEffect(() => {
     if (!isCvView || previewVariant !== 'original') return;
-    if (!iframeRef.current) return;
+    const iframe = iframeRef.current;
+    if (!iframe) return;
     if (originalPreviewHtml) {
-      iframeRef.current.srcdoc = originalPreviewHtml;
+      iframe.srcdoc = originalPreviewHtml;
       return;
     }
     if (lastBaseCv) {
-      apiPost('/api/render-html', { cv: lastBaseCv, ...templateParams })
+      apiPost('/api/render-html', {
+        cv: lastBaseCv,
+        template_id: templateId,
+        template_options: templateOptions,
+      })
         .then((html) => {
           setOriginalPreviewHtml(html);
           if (iframeRef.current) iframeRef.current.srcdoc = html;
         })
         .catch(() => {});
     }
-  }, [previewVariant, isCvView, originalPreviewHtml, lastBaseCv]);
+  }, [previewVariant, isCvView, originalPreviewHtml, lastBaseCv, templateId, templateOptions]);
 
   // Quand on switch sur "modified", afficher le HTML modifié dans l'iframe
   useEffect(() => {
     if (!isCvView || previewVariant !== 'modified') return;
-    if (!iframeRef.current) return;
+    const iframe = iframeRef.current;
+    if (!iframe) return;
     if (tourHighlightStepActive && tourDemoPreviewHtml) {
-      iframeRef.current.srcdoc = tourDemoPreviewHtml;
+      iframe.srcdoc = tourDemoPreviewHtml;
       return;
     }
     if (modifiedPreviewHtml) {
-      iframeRef.current.srcdoc = modifiedPreviewHtml;
+      iframe.srcdoc = modifiedPreviewHtml;
     }
   }, [previewVariant, isCvView, modifiedPreviewHtml, tourDemoPreviewHtml, tourHighlightStepActive]);
 
@@ -2242,6 +2283,7 @@ export default function App() {
                     }}
                     baseCv={lastBaseCv}
                     templateId={templateId}
+                    layoutRefreshKey={templateKey}
                     templateOptions={templateOptions}
                     showPhoto={templateOptions?.show_photo !== false}
                     showMotsClesAts={templateOptions?.show_mots_cles_ats !== false}
@@ -2257,7 +2299,12 @@ export default function App() {
                   />
                 ) : (
                   <div className="preview-iframe-wrap">
-                    <iframe ref={iframeRef} title="Aperçu du CV" onLoad={(e) => resizeIframeToContent(e.target)} />
+                    <iframe
+                      ref={iframeRef}
+                      key={`adapt-preview-${previewVariant}-${templateKey}`}
+                      title="Aperçu du CV"
+                      onLoad={(e) => resizeIframeToContent(e.target)}
+                    />
                   </div>
                 )}
                 </div>

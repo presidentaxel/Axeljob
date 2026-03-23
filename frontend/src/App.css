@@ -1935,10 +1935,11 @@ body {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 25px rgba(0, 0, 0, 0.08);
 }
 
-/* Preview éditable : hauteur = contenu du CV (pas de bloc 297mm fixe) */
+/* Preview éditable : hauteur = contenu du CV (min-height:auto sur l’item flex pour inclure tout le flux + marge A4) */
 .preview-a4-sheet .cv-editable-preview {
   width: 100%;
-  min-height: 0;
+  min-height: auto;
+  align-self: flex-start;
   box-sizing: border-box;
 }
 
@@ -1963,7 +1964,8 @@ body {
 .preview-wrap .preview-iframe-wrap iframe {
   width: 100%;
   min-height: 0;
-  /* height fixé par JS (resizeIframeToContent) pour une seule zone de scroll */
+  /* hauteur = document complet ; scroll uniquement sur .preview-wrap */
+  overflow: hidden;
   border: none;
   transition: opacity 0.15s ease;
   background: #fff;
@@ -2892,7 +2894,7 @@ textarea::placeholder {
 .application-detail-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: 6000;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;

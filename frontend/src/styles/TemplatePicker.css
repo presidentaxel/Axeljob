@@ -1388,6 +1388,7 @@
   min-height: 200px;
   vertical-align: top;
   background: #fff;
+  overflow: hidden;
 }
 
 .tpl-options-modal-preview-loading,

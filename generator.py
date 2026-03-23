@@ -160,12 +160,11 @@ def _content_scale_css(content_score: int) -> str:
     return ""
 
 # Minimal : garder la min-height pour que la grid .cv ne collapse pas (1fr ait de l'espace), sans toucher overflow.
-# Sidebar en position absolute : limiter à la hauteur d'une page pour éviter qu'elle descende sur les pages suivantes (Classic, Impact, Executive).
+# cv-print-split : voir PDF_EXPORT_PREVIEW_ALIGN_CSS (table-row + 2 cellules pour fragmentation PDF proche du « virtuel par page »).
 PDF_EXPORT_LAYOUT_CSS = (
     "<style>"
     ".cv-preview .cv{min-height:297mm!important;}"
     ".cv-preview .cv-body{min-height:0!important;}"
-    ".cv-preview .cv-sidebar{max-height:250mm!important;}"
     "</style>"
 )
 
@@ -178,15 +177,49 @@ PDF_EXPORT_CUSTOM_TEMPLATE_FIX = (
     "</style>"
 )
 
+# Réserve bas de page (mm) pour l’aperçu navigateur : frontend cvPreviewA4Pages.js (CV_PREVIEW_A4_BOTTOM_RESERVE_MM, ex. 5).
+# cv-print-split : .cv-body en table (main|sidebar) pour que WeasyPrint fragmente la ligne sur plusieurs pages avec colonnes alignées.
+# Si tu ajoutes un pied de page PDF (@page margin-bottom ou bloc fixe), aligne cette valeur.
 # Export : uniquement @page + print-color-adjust pour WeasyPrint. Le template (couleurs, layout, options) reste maître.
 # Ne pas forcer font-size:0 sur .mots-cles-ats-invisible : WeasyPrint omet souvent ce texte de la couche texte du PDF,
 # donc les ATS et la copie depuis le PDF ne voient pas les mots-clés. Le template.css (@media print, ~5pt, couleur = sidebar) suffit.
+# Layout cv-print-split : hors @media print aussi — WeasyPrint applique bien le média print, mais le .cv du template
+# reste grid+297mm si for_pdf (pas d’injection preview main.py) ; ces règles doivent gagner en spécificité.
 PDF_EXPORT_PREVIEW_ALIGN_CSS = (
-    "<style>"
+    "<style>/*cv-bot-pdf-export*/"
     "@page{size:A4;margin:0}"
     "body.cv-preview,.cv-preview .cv-header,.cv-preview .cv-sidebar{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}"
+    "article.cv.cv-print-split,.cv.cv-print-split{display:flex!important;flex-direction:column!important;"
+    "height:auto!important;max-height:none!important;overflow:visible!important;"
+    "grid-template-columns:initial!important;grid-template-rows:initial!important;grid-template-areas:none!important;}"
+    ".cv.cv-print-split .cv-header{grid-area:unset!important;flex:0 0 auto!important;}"
+    ".cv.cv-print-split .cv-body{display:table!important;width:100%!important;table-layout:fixed!important;"
+    "border-collapse:collapse!important;border-spacing:0!important;"
+    "background-image:linear-gradient(to left,var(--cv-sidebar-color,#f4f4f2) 0,var(--cv-sidebar-color,#f4f4f2) 200px,#ffffff 200px,#ffffff 100%)!important;"
+    "background-repeat:no-repeat!important;background-size:100% 100%!important;"
+    "grid-area:unset!important;position:relative!important;overflow:visible!important;"
+    "min-height:0!important;max-height:none!important;height:auto!important;}"
+    ".cv.cv-print-split .cv-body>.cv-main{display:table-cell!important;width:auto!important;vertical-align:top!important;"
+    "min-width:0!important;margin-right:0!important;height:auto!important;max-height:none!important;"
+    "overflow:visible!important;background-color:#fff!important;}"
+    ".cv.cv-print-split .cv-body>.cv-sidebar{display:table-cell!important;width:200px!important;min-width:200px!important;"
+    "max-width:200px!important;vertical-align:top!important;"
+    "position:static!important;top:auto!important;right:auto!important;bottom:auto!important;left:auto!important;"
+    "height:auto!important;min-height:0!important;overflow:visible!important;max-height:none!important;"
+    "background-color:transparent!important;"
+    "-webkit-box-decoration-break:clone!important;box-decoration-break:clone!important;"
+    "break-inside:auto!important;page-break-inside:auto!important;break-before:auto!important;page-break-before:auto!important;}"
+    ".cv.cv-print-split .cv-body>.cv-sidebar .cv-sidebar-pdf-stack{display:flex!important;flex-direction:column!important;"
+    "min-height:100%!important;height:100%!important;width:100%!important;box-sizing:border-box!important;}"
+    ".cv.cv-print-split .cv-body>.cv-sidebar .cv-pdf-sidebar-fill{flex:1 1 auto!important;min-height:1px!important;"
+    "width:100%!important;visibility:hidden!important;pointer-events:none!important;}"
+    ".cv.cv-print-split .cv-body>.cv-sidebar .section-sidebar{break-inside:auto!important;page-break-inside:auto!important;}"
     "@media print{"
     ".cv-preview .section-mots-cles-ats .mots-cles-ats-titre{display:none!important;}"
+    ".cv .experience-item,.cv .formation-item,.cv .projet-item,.cv .sidebar-section,"
+    ".cv .sidebar-contact,.cv .sidebar-identity,.cv .sidebar-photo,.cv .section-mots-cles-ats,"
+    ".cv-header,header.cv-header,.cv .cert-item,.cv .lang-item,"
+    ".cv section.cv-section:has(.skills-grid),.cv .skills-grid{break-inside:avoid!important;page-break-inside:avoid!important;}"
     "}"
     "</style>"
 )
@@ -273,6 +306,12 @@ def generer_pdf_bytes_from_html(html_str: str, base_dir: Path, cv: dict, offre: 
         html_str,
         flags=re.IGNORECASE,
     )
+    if "</head>" in html_str and "cv-bot-pdf-export" not in html_str:
+        html_str = html_str.replace(
+            "</head>",
+            PDF_EXPORT_LAYOUT_CSS + PDF_EXPORT_PREVIEW_ALIGN_CSS + "</head>",
+            1,
+        )
     base_dir = Path(base_dir).resolve()
     html_doc = HTML(string=html_str, base_url=str(base_dir))
     buffer = __import__("io").BytesIO()
@@ -317,6 +356,7 @@ def generer_pdf_bytes(cv_adapte: dict, offre: dict, base_dir: str | Path | None 
     cv_adapte["resume_display"] = html_module.escape(cv_adapte.get("resume") or "")
     # Export = même rendu que la preview (couleurs, tailles, mots-clés ATS visibles)
     cv_adapte["for_preview"] = True
+    cv_adapte["for_pdf"] = True
     show_mots_cles_ats = resolved_opts.get("show_mots_cles_ats", True)
     css_vars = options_to_css_vars(resolved_opts)
 

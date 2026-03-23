@@ -16,6 +16,14 @@
   height: 100%;
 }
 
+/* Desktop 2 colonnes : une ligne dont la hauteur suit le parent flex, pas le contenu (iframe 2+ pages).
+   Sinon la grille dépasse le viewport et .view-profil .page-content (overflow:hidden) coupe le scroll. */
+@media (min-width: 901px) {
+  .profile-view-with-preview {
+    grid-template-rows: minmax(0, 1fr);
+  }
+}
+
 .profile-form-pane {
   border-right: 1px solid var(--border);
   padding-right: 1.5rem;
@@ -31,6 +39,10 @@
   }
   .profile-preview-pane {
     position: static;
+    max-height: none;
+  }
+
+  .profile-preview-pane-scroll {
     max-height: none;
   }
 }
@@ -60,6 +72,7 @@
 }
 
 .profile-form-pane {
+  min-height: 0;
   max-height: calc(100vh - 140px);
   overflow-y: auto;
   overflow-x: hidden;
@@ -71,12 +84,27 @@
   top: 0;
   width: 100%;
   max-height: calc(100vh - 140px);
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   padding: 1rem 1rem 2rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+/* Titre + barre template : fixes ; pas de scroll ici */
+.profile-preview-pane-top {
+  flex-shrink: 0;
+}
+
+/* Seul le bloc aperçu CV défile (comme « Adapter le CV » : une barre de scroll pour tout le document) */
+.profile-preview-pane-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .profile-preview-title {
@@ -95,7 +123,8 @@
   width: 210mm;
   max-width: 100%;
   min-height: 297mm;
-  overflow: visible;
+  overflow-x: hidden;
+  overflow-y: visible;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg);
@@ -115,6 +144,7 @@
   width: 100%;
   min-height: 297mm;
   display: block;
+  overflow: hidden;
 }
 
 .profile-preview-iframe--pdf {
@@ -493,7 +523,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
-  z-index: 200;
+  z-index: 6000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -548,7 +578,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
-  z-index: 210;
+  z-index: 6100;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -618,7 +648,7 @@
 .linkedin-sync-overlay {
   position: fixed;
   inset: 0;
-  z-index: 200;
+  z-index: 6000;
   display: flex;
   align-items: center;
   justify-content: center;

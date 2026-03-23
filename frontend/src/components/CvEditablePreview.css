@@ -1,4 +1,5 @@
-/* Wrapper : même rendu que l’iframe, scroll vertical uniquement */
+/* Wrapper : même rendu que l’iframe, scroll vertical uniquement.
+   .cv-preview : ancêtre requis pour que le CSS injecté render-html (.cv-preview .cv, .cv-body…) s’applique comme dans l’iframe (body.cv-preview). */
 .cv-editable-preview {
   width: 100%;
   max-width: 100%;
@@ -8,6 +9,10 @@
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 25px rgba(0, 0, 0, 0.08);
   overflow: visible;
   box-sizing: border-box;
+}
+
+.cv-editable-preview.cv-preview {
+  display: flow-root;
 }
 
 /* Réappliquer les polices/typo du template (éviter héritage depuis l'app) */
@@ -37,24 +42,29 @@
   outline: none;
 }
 
-.cv-editable-preview .cv.cv-editable {
-  width: 100% !important;
-  max-width: 100% !important;
-  min-height: auto !important;
-  height: auto !important;
-  max-height: none !important;
-  overflow: visible !important;
+/* Fallback si le style extrait du HTML ne contient pas le bloc preview (!important) du backend */
+.cv-editable-preview.cv-preview .cv.cv-editable {
+  outline: none;
+  width: 210mm;
+  max-width: 100%;
+  min-height: 297mm;
+  height: auto;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: visible;
 }
 
-/* Zones éditables : léger surlignage au focus pour montrer qu’on peut modifier */
+/* Zones éditables : contour au focus (pas de fond, pour ne pas confondre avec vert = modifié / ATS) */
 .cv-editable-preview [data-cv-field][contenteditable="true"] {
   outline: none;
   border-radius: 2px;
 }
 
 .cv-editable-preview [data-cv-field][contenteditable="true"]:focus {
-  background: rgba(79, 70, 229, 0.04);
-  box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.18);
+  background: transparent;
+  outline: 2px solid rgba(79, 70, 229, 0.42);
+  outline-offset: 1px;
+  box-shadow: none;
 }
 
 .cv-editable-preview .cv-editable-empty {
@@ -92,6 +102,29 @@
 .cv-editable-preview .cv-header .cv-changed {
   background-color: #3d6b4a;
   color: #b8e0c0;
+}
+
+/* ATS + modifié : aligné sur main.py (preview_ats_keywords) pour une seule palette */
+.cv-editable-preview.cv-preview span.cv-ats-kw {
+  background-color: #86efac;
+  padding: 0 2px;
+  border-radius: 2px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.cv-editable-preview.cv-preview .cv-header span.cv-ats-kw,
+.cv-editable-preview.cv-preview .cv-sidebar span.cv-ats-kw {
+  background-color: #166534;
+  color: #bbf7d1;
+}
+.cv-editable-preview.cv-preview span.cv-changed span.cv-ats-kw {
+  background-color: #4ade80;
+  color: #14532d;
+}
+.cv-editable-preview.cv-preview .cv-header span.cv-changed span.cv-ats-kw,
+.cv-editable-preview.cv-preview .cv-sidebar span.cv-changed span.cv-ats-kw {
+  background-color: #22c55e;
+  color: #052e16;
 }
 
 /* Adaptation pour CV courts (étudiants) : police plus grande pour éviter l'effet "vide" */

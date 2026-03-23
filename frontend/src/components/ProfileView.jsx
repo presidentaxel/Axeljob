@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { defaultCv, newExpId, newFormId, newCertId, newProjId } from '../data/cvDefault';
 import TemplatePicker from './TemplatePicker';
 import ReauthModal from './ReauthModal';
+import { applyA4PageFramesToDocument, suppressCvPreviewIframeInnerScroll } from '../lib/cvPreviewA4Pages';
 import '../styles/ProfileView.css';
 import '../styles/TemplatePicker.css';
 
@@ -223,19 +224,23 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
   // Auto-trigger LinkedIn sync/photo after OAuth redirect
   const linkedinAutoTriggeredRef = useRef(false);
 
-  // Une seule zone de scroll (profile-preview-pane) : l’iframe s’adapte à la hauteur du contenu
+  // Hauteur = document complet : scroll sur .profile-preview-pane-scroll (pas de barre dans l’iframe)
   const resizeProfilePreviewIframe = useCallback((iframe) => {
     if (!iframe) return;
     try {
       const doc = iframe.contentDocument;
       if (!doc?.documentElement) return;
+      applyA4PageFramesToDocument(doc);
       const height = Math.max(
         doc.documentElement.scrollHeight,
         doc.documentElement.offsetHeight,
         doc.body?.scrollHeight ?? 0,
         doc.body?.offsetHeight ?? 0
       );
-      if (height > 0) iframe.style.height = `${height}px`;
+      if (height > 0) {
+        iframe.style.height = `${Math.ceil(height)}px`;
+        suppressCvPreviewIframeInnerScroll(doc);
+      }
     } catch (_) { /* ignore */ }
   }, []);
 
@@ -317,6 +322,27 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
       clearTimeout(t);
     };
   }, [cv, loading, templateKey]);
+
+  // Template / HTML : réappliquer cadres A4 (onLoad parfois insuffisant après changement de srcDoc)
+  useEffect(() => {
+    if (!profilePreviewHtml) return;
+    const iframe = profilePreviewIframeRef.current;
+    if (!iframe) return;
+    const run = () => {
+      try {
+        if (!iframe.contentDocument?.body) return;
+        resizeProfilePreviewIframe(iframe);
+      } catch (_) { /* ignore */ }
+    };
+    const t0 = window.setTimeout(run, 0);
+    const t1 = window.setTimeout(run, 120);
+    const t2 = window.setTimeout(run, 380);
+    return () => {
+      window.clearTimeout(t0);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [profilePreviewHtml, templateKey, resizeProfilePreviewIframe]);
 
   const update = (path, value) => {
     if (path.includes('.')) {
@@ -1343,34 +1369,40 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
       </div>
 
       <div className="profile-preview-pane">
-        <h2 className="profile-preview-title">Aperçu du CV</h2>
-        <TemplatePicker
-          templates={templatesList}
-          templateId={templateId}
-          templateOptions={templateOptions}
-          onChangeTemplate={(id) => { setTemplateId(id); setTemplateOptions({}); }}
-          onChangeOptions={setTemplateOptions}
-          userPlan={usage?.plan}
-          onUpgradeClick={onUpgradeClick}
-          optionsPreviewHtml={profilePreviewHtml}
-          optionsPreviewLoading={profilePreviewLoading}
-        />
-        <div className="profile-preview-wrap profile-preview-a4">
-          {profilePreviewLoading && (
-            <p className="profile-preview-empty">Génération de l&apos;aperçu…</p>
-          )}
-          {!profilePreviewLoading && !profilePreviewHtml && (
-            <p className="profile-preview-empty">Modifiez le formulaire pour voir l&apos;aperçu.</p>
-          )}
-          {!profilePreviewLoading && profilePreviewHtml && (
-            <iframe
-              ref={(el) => { profilePreviewIframeRef.current = el; }}
-              title="Aperçu du CV"
-              srcDoc={profilePreviewHtml}
-              className="profile-preview-iframe"
-              onLoad={(e) => resizeProfilePreviewIframe(e.target)}
-            />
-          )}
+        <div className="profile-preview-pane-top">
+          <h2 className="profile-preview-title">Aperçu du CV</h2>
+          <TemplatePicker
+            templates={templatesList}
+            templateId={templateId}
+            templateOptions={templateOptions}
+            onChangeTemplate={(id) => { setTemplateId(id); setTemplateOptions({}); }}
+            onChangeOptions={setTemplateOptions}
+            userPlan={usage?.plan}
+            onUpgradeClick={onUpgradeClick}
+            optionsPreviewHtml={profilePreviewHtml}
+            optionsPreviewLoading={profilePreviewLoading}
+          />
+        </div>
+        <div className="profile-preview-pane-scroll">
+          <div className="profile-preview-wrap profile-preview-a4">
+            {profilePreviewLoading && (
+              <p className="profile-preview-empty">Génération de l&apos;aperçu…</p>
+            )}
+            {!profilePreviewLoading && !profilePreviewHtml && (
+              <p className="profile-preview-empty">Modifiez le formulaire pour voir l&apos;aperçu.</p>
+            )}
+            {!profilePreviewLoading && profilePreviewHtml && (
+              <iframe
+                key={templateKey}
+                ref={(el) => { profilePreviewIframeRef.current = el; }}
+                title="Aperçu du CV"
+                srcDoc={profilePreviewHtml}
+                className="profile-preview-iframe"
+                scrolling="no"
+                onLoad={(e) => resizeProfilePreviewIframe(e.target)}
+              />
+            )}
+          </div>
         </div>
       </div>
 

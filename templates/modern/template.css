@@ -105,13 +105,14 @@ body {
   margin-bottom: 8px;
 }
 
+/* Titres de blocs sidebar : clair sur fond sombre (pas --cv-color-section-title, souvent trop sombre sur la colonne) */
 .sidebar-section-title {
   font-family: var(--cv-font-heading);
   font-size: var(--cv-fs-sidebar-title, 8pt);
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: var(--cv-color-section-title, var(--cv-accent-color));
-  border-bottom: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255, 255, 255, 0.94);
+  border-bottom: 1px solid rgba(186, 230, 253, 0.35);
   padding-bottom: 2px;
   margin: 0 0 6px 0;
 }
@@ -312,5 +313,9 @@ body.cv-preview .cv-sidebar .mots-cles-ats-invisible {
     color: var(--cv-sidebar-color) !important;
     font-size: 5pt;
     line-height: 1.15;
+  }
+  /* WeasyPrint : grille + flex + hauteur .cv fixe — sans ça les blocs sidebar se compriment et se chevauchent */
+  .cv-sidebar > * {
+    flex-shrink: 0;
   }
 }

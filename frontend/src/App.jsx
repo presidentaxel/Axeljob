@@ -17,7 +17,7 @@ import AuthForm from './components/AuthForm';
 import AppTopbar from './components/AppTopbar';
 import CompanyLogo from './components/CompanyLogo';
 import { NotFoundPage } from './components/ErrorPages';
-import { CONTACT_EMAIL, STORAGE_EXPORT_DIR, STORAGE_EXPORT_ATS_BLOCK_SNOOZE, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
+import { CONTACT_EMAIL, STORAGE_EXPORT_DIR, STORAGE_EXPORT_ATS_BLOCK_SNOOZE, STORAGE_PRE_EXPORT_TEMPLATE_OPTIONS_DONE, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
 import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiCheck, HiSwatch } from 'react-icons/hi2';
 import { lazyWithChunkReload, clearChunkErrorReloadKey } from './lib/lazyChunkReload';
 import { getViewFromPathname } from './lib/appRoutes';
@@ -49,6 +49,14 @@ function shouldShowExportAtsBlockModal() {
     return Date.now() >= until;
   } catch {
     return true;
+  }
+}
+
+function shouldShowPreExportTemplateOptions() {
+  try {
+    return localStorage.getItem(STORAGE_PRE_EXPORT_TEMPLATE_OPTIONS_DONE) !== '1';
+  } catch {
+    return false;
   }
 }
 
@@ -673,6 +681,8 @@ export default function App() {
   const [exportAtsBlockModalShowMotsCles, setExportAtsBlockModalShowMotsCles] = useState(true);
   const [exportAtsBlockReminderMode, setExportAtsBlockReminderMode] = useState('every');
   const pendingExportTemplateOptionsRef = useRef(null);
+  const preExportPendingActionRef = useRef(null);
+  const [exportPrepTemplateOptionsNonce, setExportPrepTemplateOptionsNonce] = useState(0);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [cvEditPanelOpen, setCvEditPanelOpen] = useState(false);
@@ -1730,6 +1740,41 @@ export default function App() {
     }
   };
 
+  const handleTemplateOptionsModalAfterClose = () => {
+    const pending = preExportPendingActionRef.current;
+    if (!pending) return;
+    preExportPendingActionRef.current = null;
+    try {
+      localStorage.setItem(STORAGE_PRE_EXPORT_TEMPLATE_OPTIONS_DONE, '1');
+    } catch (_) { /* ignore */ }
+    const opts = templateOptions;
+    if (pending === 'pdf') {
+      if (shouldShowExportAtsBlockModal()) {
+        setExportAtsBlockModalShowMotsCles(opts?.show_mots_cles_ats !== false);
+        setExportAtsBlockReminderMode('every');
+        setExportAtsBlockPendingAction('pdf');
+        setExportAtsBlockModalOpen(true);
+      } else {
+        const count = parseInt(localStorage.getItem('pdf_export_count') || '0', 10);
+        if (count < 3) {
+          setPendingPdfAction('pdf');
+          setAtsDisclaimerVisible(true);
+        } else {
+          doDownloadPdf();
+        }
+      }
+    } else if (pending === 'dossier') {
+      if (shouldShowExportAtsBlockModal()) {
+        setExportAtsBlockModalShowMotsCles(opts?.show_mots_cles_ats !== false);
+        setExportAtsBlockReminderMode('every');
+        setExportAtsBlockPendingAction('dossier');
+        setExportAtsBlockModalOpen(true);
+      } else {
+        void runExportDossier();
+      }
+    }
+  };
+
   const closeExportAtsBlockModal = () => {
     setExportAtsBlockModalOpen(false);
     setExportAtsBlockPendingAction(null);
@@ -1762,6 +1807,12 @@ export default function App() {
 
   const handlePdf = () => {
     if (!lastAdaptedCv) return;
+    if (preExportPendingActionRef.current) return;
+    if (shouldShowPreExportTemplateOptions()) {
+      preExportPendingActionRef.current = 'pdf';
+      setExportPrepTemplateOptionsNonce((n) => n + 1);
+      return;
+    }
     if (shouldShowExportAtsBlockModal()) {
       setExportAtsBlockModalShowMotsCles(templateOptions?.show_mots_cles_ats !== false);
       setExportAtsBlockReminderMode('every');
@@ -1819,6 +1870,12 @@ export default function App() {
     if (!lastAdaptedCv) return;
     if (!posteNom.trim()) {
       showError("Indiquez l'intitulé du poste.");
+      return;
+    }
+    if (preExportPendingActionRef.current) return;
+    if (shouldShowPreExportTemplateOptions()) {
+      preExportPendingActionRef.current = 'dossier';
+      setExportPrepTemplateOptionsNonce((n) => n + 1);
       return;
     }
     if (shouldShowExportAtsBlockModal()) {
@@ -2232,6 +2289,8 @@ export default function App() {
                   userPlan={usage?.plan}
                   onUpgradeClick={handleUpgradeClick}
                   openOptionsFromSupport={location.state?.supportHighlight?.openTemplateOptions}
+                  openOptionsNonce={exportPrepTemplateOptionsNonce}
+                  onOptionsModalClosed={handleTemplateOptionsModalAfterClose}
                   openModalToTab={new URLSearchParams(location.search || '').get('open') === 'template-perso' ? 'mine' : null}
                   onOpenFromUrlConsumed={() => navigate(location.pathname, { replace: true })}
                   optionsPreviewHtml={previewVariant === 'original' ? (originalPreviewHtml || previewHtmlFallback) : (modifiedPreviewHtml || previewHtmlFallback)}

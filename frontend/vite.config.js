@@ -82,6 +82,19 @@ function cssNonBlockingPlugin() {
         html = html.replace(/__APP_CSS_FILENAME__/g, appCssFilename)
         writeFileSync(indexPath, html)
       } catch (_) {}
+
+      const gtmId = (process.env.VITE_AXEL_GTM_ID || '').trim()
+      const analyticsPath = join(process.cwd(), outDir, 'analytics-config.js')
+      try {
+        if (existsSync(analyticsPath)) {
+          const header =
+            '/**\n * ID GTM injecté au build (variable VITE_AXEL_GTM_ID).\n * Documentation : voir public/analytics-config.js à la racine du frontend.\n */\n'
+          writeFileSync(
+            analyticsPath,
+            header + 'window.__AXEL_GTM_ID__ = ' + JSON.stringify(gtmId) + ';\n',
+          )
+        }
+      } catch (_) {}
     },
   }
 }

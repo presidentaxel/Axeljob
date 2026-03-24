@@ -7,6 +7,7 @@
  *    avec l’ID de mesure G-7524WTRGSY, et activez le mode consentement (Consent Mode v2)
  *    pour que les balises ne s’exécutent qu’après consentement analytics_storage / ad_*.
  *
- * Tant que l’ID n’est pas un vrai GTM-…, le script ne charge pas GTM (évite les erreurs en dev).
+ * En local : laisser vide ou mettre votre GTM-… ici pour tester.
+ * En production (Docker) : définir VITE_AXEL_GTM_ID au build — injecté dans ce fichier dans dist/.
  */
-window.__AXEL_GTM_ID__ = 'GTM-XXXXXXX';
+window.__AXEL_GTM_ID__ = '';

@@ -543,6 +543,8 @@ export default function TemplatePicker({
   userPlan,
   onUpgradeClick,
   openOptionsFromSupport,
+  openOptionsNonce = 0,
+  onOptionsModalClosed,
   openModalToTab,
   onOpenFromUrlConsumed,
   optionsPreviewHtml = '',
@@ -572,6 +574,15 @@ export default function TemplatePicker({
     if (openOptionsFromSupport) setOptionsModalOpen(true);
   }, [openOptionsFromSupport]);
 
+  const lastOpenOptionsNonceRef = useRef(0);
+  useEffect(() => {
+    const n = typeof openOptionsNonce === 'number' ? openOptionsNonce : 0;
+    if (n > lastOpenOptionsNonceRef.current) {
+      lastOpenOptionsNonceRef.current = n;
+      setOptionsModalOpen(true);
+    }
+  }, [openOptionsNonce]);
+
   const openedFromUrlRef = useRef(false);
   useEffect(() => {
     if (openModalToTab !== 'mine' || openedFromUrlRef.current || modalOpen) return;
@@ -588,6 +599,11 @@ export default function TemplatePicker({
       return next;
     });
   }, []);
+
+  const handleOptionsModalClose = useCallback(() => {
+    setOptionsModalOpen(false);
+    onOptionsModalClosed?.();
+  }, [onOptionsModalClosed]);
 
   if (loading && templates.length === 0) return null;
 
@@ -625,7 +641,7 @@ export default function TemplatePicker({
         </button>
         <TemplateOptionsModal
           open={optionsModalOpen}
-          onClose={() => setOptionsModalOpen(false)}
+          onClose={handleOptionsModalClose}
           options={options}
           templateOptions={templateOptions}
           onChangeOptions={onChangeOptions}

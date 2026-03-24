@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run build:brand-assets && vite build",
+    "build:brand-assets": "node scripts/generate-brand-assets.mjs",
     "build:favicon-webp": "node scripts/favicon-webp.mjs",
     "lint": "eslint .",
     "preview": "vite preview",

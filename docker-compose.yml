@@ -28,6 +28,8 @@ services:
         VITE_API_URL: ""
         VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
         VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
+        # Conteneur GTM (tagmanager.google.com) — sans cela, aucune balise Google n’est chargée en prod
+        VITE_AXEL_GTM_ID: ${VITE_AXEL_GTM_ID:-}
     restart: unless-stopped
     ports:
       - "3000:80"

@@ -24,7 +24,13 @@
   });
 
   function validGtmId(id) {
-    return typeof id === 'string' && /^GTM-[A-Z0-9]+$/i.test(id);
+    if (typeof id !== 'string') return false;
+    var t = id.trim();
+    if (!/^GTM-[A-Z0-9]+$/i.test(t)) return false;
+    // Placeholder du dépôt (ex. GTM-XXXXXXX) : sinon gtm.js est appelé avec un faux ID.
+    var suf = t.slice(4);
+    if (/^X+$/i.test(suf)) return false;
+    return true;
   }
 
   if (validGtmId(GTM_ID)) {

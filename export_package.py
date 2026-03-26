@@ -81,7 +81,7 @@ def export_dossier(
 ) -> dict:
     """
     Crée le dossier 'Entreprise - Poste' dans output_base (ou CV_BOT_EXPORT_BASE si non fourni), y place :
-    - CV : {Prenom} {Nom} - {Poste}.pdf
+    - CV : CV - {Nom} {Prenom} - {Poste}.pdf (parties omises si vides)
     - Lettre de motivation, Fiche de poste (noms avec poste).
     Retourne { "folder": chemin_absolu, "files": [ noms des fichiers ] }
     """
@@ -148,6 +148,7 @@ def export_dossier_as_zip(
     template_options: dict | None = None,
     cv_html: str | None = None,
     base_dir: "str | Path | None" = None,
+    selection_a4: dict | None = None,
 ) -> tuple[bytes, str, list[str], str]:
     """
     Génère les 3 PDFs en mémoire et les renvoie dans un ZIP.
@@ -165,10 +166,20 @@ def export_dossier_as_zip(
     # 1) CV : même HTML que le profil si fourni, sinon ancienne génération
     if cv_html and base_dir is not None:
         from generator import generer_pdf_bytes_from_html
-        cv_bytes, cv_filename = generer_pdf_bytes_from_html(cv_html, Path(base_dir).resolve(), cv, offre)
+
+        cv_bytes, cv_filename = generer_pdf_bytes_from_html(
+            cv_html, Path(base_dir).resolve(), cv, offre, template_id=template_id
+        )
     else:
         from generator import generer_pdf_bytes
-        cv_bytes, cv_filename = generer_pdf_bytes(cv, offre, template_id=template_id, template_options=template_options)
+
+        cv_bytes, cv_filename = generer_pdf_bytes(
+            cv,
+            offre,
+            template_id=template_id,
+            template_options=template_options,
+            selection_a4=selection_a4,
+        )
     files_created.append(cv_filename)
 
     # 2) Fiche de poste

@@ -8,6 +8,6 @@
  *    pour que les balises ne s’exécutent qu’après consentement analytics_storage / ad_*.
  *
  * En local : laisser vide ou mettre votre GTM-… ici pour tester.
- * En production (Docker) : définir VITE_AXEL_GTM_ID au build — injecté dans ce fichier dans dist/.
+ * En production (Docker) : définir VITE_AXEL_GTM_ID au build - injecté dans ce fichier dans dist/.
  */
 window.__AXEL_GTM_ID__ = '';

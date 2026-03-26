@@ -5,8 +5,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=Inter:wght@400;600;700&display=swap');
 
 :root {
-  /* Grille 210px — aligner le bandeau PDF (generator.py) */
-  --cv-pdf-sidebar-w: 210px;
+  /* 200px comme Moderne + WeasyPrint (@page, grille PDF) */
+  --cv-pdf-sidebar-w: 200px;
   --cv-header-color: #6366f1;
   --cv-sidebar-color: #6366f1;
   --cv-accent-color: #f59e0b;
@@ -36,7 +36,7 @@ body {
 
 .cv {
   display: grid;
-  grid-template-columns: 210px 1fr;
+  grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
   width: 210mm;
   height: 297mm;
   max-height: 297mm;
@@ -44,17 +44,22 @@ body {
   overflow: hidden;
 }
 
-/* Sidebar - bold color */
+/* Sidebar : même logique que Moderne (padding global, flux stable preview/PDF) */
 .cv-sidebar {
   background: var(--cv-sidebar-color);
   color: #fff;
-  padding: 0;
+  padding: 20px 14px;
   display: flex;
   flex-direction: column;
+  gap: 0;
   overflow: hidden;
 }
 
-.sidebar-photo { padding: 20px 20px 10px; text-align: center; }
+.sidebar-photo {
+  padding: 0;
+  margin: 0 auto 10px;
+  text-align: center;
+}
 .sidebar-photo img {
   width: var(--cv-photo-size, 80px); height: var(--cv-photo-size, 80px);
   border-radius: 50%;
@@ -63,7 +68,16 @@ body {
   border: 3px solid var(--cv-accent-color);
 }
 
-.sidebar-identity { padding: 0 16px 12px; text-align: center; }
+.sidebar-identity {
+  text-align: center;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.cv-sidebar > .sidebar-identity:first-child {
+  padding-top: 0;
+}
 .sidebar-nom {
   font-family: var(--cv-font-heading);
   font-size: var(--cv-fs-name, 14pt);
@@ -80,10 +94,12 @@ body {
   font-style: italic;
 }
 
+/* Une seule ligne de séparation : .sidebar-identity a déjà border-bottom */
 .sidebar-contact {
-  padding: 10px 16px;
-  border-top: 1px solid rgba(255,255,255,0.2);
-  border-bottom: 1px solid rgba(255,255,255,0.2);
+  margin-bottom: 10px;
+  padding: 10px 0;
+  border-top: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .sidebar-section-title {
@@ -94,10 +110,13 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin: 0 0 6px 0;
+  padding-bottom: 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.28);
 }
 
 .sidebar-section {
-  padding: 8px 16px 4px;
+  margin-bottom: 8px;
+  padding: 0;
 }
 
 .sidebar-item {
@@ -107,19 +126,27 @@ body {
   color: rgba(255,255,255,0.92);
 }
 
-.section-mots-cles-ats { padding: 4px 16px; }
-.mots-cles-ats-invisible { font-size: 5pt; line-height: 1.15; color: var(--cv-sidebar-color); margin: 0; }
-body.cv-preview .mots-cles-ats-invisible { color: rgba(255,255,255,0.6); font-size: 7pt; }
-
-/* Main */
-.cv-main {
+.section-mots-cles-ats {
+  margin-top: 6px;
   padding: 0;
+}
+.section-mots-cles-ats .mots-cles-ats-invisible { font-size: 5pt; line-height: 1.15; color: var(--cv-sidebar-color); margin: 0; }
+body.cv-preview .section-mots-cles-ats .mots-cles-ats-invisible { color: rgba(255,255,255,0.6); font-size: 7pt; }
+
+/* Main : même gouttière que Moderne (export/preview alignés sur la grille PDF) */
+.cv-main {
+  padding: 16px 18px;
   overflow: hidden;
   background: #fff;
 }
 
 .main-section {
-  padding: 8px 20px;
+  padding: 0;
+  margin-bottom: 10px;
+}
+
+.main-section:last-child {
+  margin-bottom: 0;
 }
 
 .main-section-title {
@@ -134,7 +161,7 @@ body.cv-preview .mots-cles-ats-invisible { color: rgba(255,255,255,0.6); font-si
   text-transform: uppercase;
 }
 
-.section-resume { padding-top: 14px; }
+.section-resume { padding-top: 0; }
 
 .resume-text {
   font-size: 9pt;
@@ -171,14 +198,40 @@ body.cv-preview .mots-cles-ats-invisible { color: rgba(255,255,255,0.6); font-si
 /* PDF compact */
 body:not(.cv-preview) .sidebar-photo img { width: var(--cv-photo-size, 64px); height: var(--cv-photo-size, 64px); }
 body:not(.cv-preview) .sidebar-nom { font-size: 12pt; }
-body:not(.cv-preview) .cv { grid-template-columns: 190px 1fr; }
+body:not(.cv-preview) .cv { grid-template-columns: minmax(0, 200px) minmax(0, 1fr); }
 
 /* Preview */
 html.cv-preview, body.cv-preview { width: 100%; min-width: 210mm; }
-.cv-changed { background-color: #b8d4be; padding: 0 1px; border-radius: 1px; }
-.cv-sidebar .cv-changed { background-color: #3d6b4a; color: #b8e0c0; }
+.cv-changed { background-color: #c5e3cd; padding: 0 1px; border-radius: 1px; }
+.cv-header .cv-changed,
+.cv-sidebar .cv-changed { background-color: #9dc6ae; color: #0f2418; }
 @media print {
-  .mots-cles-ats-invisible { color: var(--cv-sidebar-color) !important; }
-  .cv-changed, .cv-sidebar .cv-changed { background-color: transparent; color: inherit; }
+  .section-mots-cles-ats .mots-cles-ats-invisible { color: var(--cv-sidebar-color) !important; }
+  .cv-changed {
+    background-color: transparent;
+    padding: 0;
+  }
+  .cv-header .cv-changed {
+    color: #ffffff !important;
+  }
+  .cv-main .cv-changed {
+    color: var(--cv-color-body, #1e293b) !important;
+  }
+  .cv-sidebar .cv-changed {
+    background-color: transparent;
+    color: inherit;
+  }
   .cv-sidebar > * { flex-shrink: 0; }
+  .cv-pdf-dual-column .cv-sidebar > * {
+    flex-shrink: 1;
+    min-height: 0;
+  }
+  .cv-pdf-dual-column .cv-sidebar > .sidebar-photo,
+  .cv-pdf-dual-column .cv-sidebar > .sidebar-identity {
+    flex-shrink: 0;
+    min-height: auto;
+  }
+  .cv-pdf-dual-column .cv-sidebar > .section-mots-cles-ats {
+    flex-shrink: 0;
+  }
 }

@@ -91,6 +91,26 @@ def count_auth_users() -> Optional[int]:
         return None
 
 
+def auth_user_id_exists(uid: str) -> Optional[bool]:
+    """
+    True si une ligne auth.users existe pour cet id, False sinon.
+    None si pool PG indisponible ou erreur (l’appelant peut retenter via REST).
+    """
+    if not uid or not uid.strip():
+        return False
+    pool = get_pool()
+    if not pool:
+        return None
+    try:
+        with pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1 FROM auth.users WHERE id = %s::uuid LIMIT 1", (uid.strip(),))
+                return cur.fetchone() is not None
+    except Exception as e:
+        logger.warning("auth_user_id_exists failed: %s", e)
+        return None
+
+
 def aggregate_events_recent_days(days: int = 7) -> Optional[dict[str, Any]]:
     """
     Compte les lignes public.events par type sur les N derniers jours (requête admin).

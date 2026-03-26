@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import html
 import logging
+import os
 import re
 import threading
 import time
@@ -70,6 +71,22 @@ _HTTP_BUCKETS = (
     float("inf"),
 )
 
+# Tailles corps HTTP (octets) — utile pour corréler charge réseau / parsing avec la latence.
+_BYTES_BUCKETS = (
+    0.0,
+    256,
+    1024,
+    4096,
+    16_384,
+    65_536,
+    262_144,
+    1_048_576,
+    4_194_304,
+    16_777_216,
+    67_108_864,
+    float("inf"),
+)
+
 HTTP_REQUESTS = Counter(
     "cv_bot_http_requests_total",
     "Requêtes HTTP (toutes routes)",
@@ -80,6 +97,18 @@ HTTP_DURATION = Histogram(
     "Durée de traitement HTTP par route (template)",
     ["route"],
     buckets=_HTTP_BUCKETS,
+)
+HTTP_REQUEST_CONTENT_LENGTH = Histogram(
+    "cv_bot_http_request_content_length_bytes",
+    "Content-Length entrant quand présent (0 si absent ou invalide)",
+    ["route"],
+    buckets=_BYTES_BUCKETS,
+)
+HTTP_RESPONSE_CONTENT_LENGTH = Histogram(
+    "cv_bot_http_response_content_length_bytes",
+    "Content-Length sortant quand présent (réponses chunked sans en-tête omises)",
+    ["route"],
+    buckets=_BYTES_BUCKETS,
 )
 HTTP_INFLIGHT = Gauge("cv_bot_http_inflight_requests", "Requêtes en cours (ce worker)")
 HTTP_CONCURRENT_MAX = Gauge(
@@ -102,7 +131,27 @@ SLOW_REQUESTS = Counter(
 PROCESS_CPU = Gauge("cv_bot_process_cpu_percent", "CPU processus uvicorn (%)")
 SYSTEM_CPU = Gauge("cv_bot_system_cpu_percent", "CPU système (tout le droplet / VM) (%)")
 PROCESS_RSS = Gauge("cv_bot_process_resident_memory_bytes", "RSS processus (octets)")
+PROCESS_VMS = Gauge("cv_bot_process_virtual_memory_bytes", "Mémoire virtuelle processus (octets)")
 SYSTEM_MEM_PCT = Gauge("cv_bot_system_memory_used_percent", "RAM système utilisée (%)")
+SYSTEM_SWAP_PCT = Gauge("cv_bot_system_swap_used_percent", "Swap utilisé (%) si disponible")
+SYSTEM_LOAD1 = Gauge("cv_bot_system_load1", "Charge moyenne 1 min (Unix) ; 0 si non disponible")
+PROCESS_THREADS = Gauge("cv_bot_process_threads", "Nombre de threads du processus API")
+PROCESS_OPEN_FDS = Gauge(
+    "cv_bot_process_open_fds",
+    "Descripteurs de fichiers ouverts (Unix) ; absent / 0 sous Windows",
+)
+PROCESS_UPTIME_SECONDS = Gauge(
+    "cv_bot_process_uptime_seconds",
+    "Durée depuis le démarrage du processus (secondes)",
+)
+CAPACITY_ESTIMATED_MAX_ACTIVE_USERS = Gauge(
+    "cv_bot_capacity_estimated_max_active_users",
+    "Estimation EMA du nombre max d’utilisateurs JWT actifs @ CPU cible (voir MONITORING_CAPACITY_*) ; 0 si pas encore d’historique",
+)
+CAPACITY_INSTANT_MAX_ACTIVE_USERS = Gauge(
+    "cv_bot_capacity_instant_max_active_users",
+    "Dernière extrapolation instantanée (tick) depuis actifs JWT + CPU ; 0 si non fiable",
+)
 DB_UP = Gauge("cv_bot_dependency_database_up", "1 si le ping DB récent a réussi")
 DB_LATENCY_MS = Gauge("cv_bot_dependency_database_latency_ms", "Latence dernier ping DB (ms)")
 
@@ -123,6 +172,11 @@ _last_snap: dict[str, float] = {
     "process_cpu": 0.0,
     "system_mem_pct": 0.0,
     "process_rss": 0.0,
+    "process_vms": 0.0,
+    "system_swap_pct": 0.0,
+    "system_load1": 0.0,
+    "process_threads": 0.0,
+    "process_open_fds": 0.0,
 }
 # Estimations « max actifs @ CPU cible » : fenêtre glissante + EMA (rempli par tick_system_and_db)
 _capacity_point_estimates: deque[float] = deque(maxlen=max(8, MONITORING_CAPACITY_SAMPLE_MAX))
@@ -155,6 +209,18 @@ def route_template(request: Request) -> str:
     raw = re.sub(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", "{uuid}", raw, flags=re.I)
     raw = re.sub(r"/\d+", "/{id}", raw)
     return raw[:200] or "/"
+
+
+def _parse_content_length(value: Optional[str]) -> Optional[int]:
+    if not value:
+        return None
+    try:
+        n = int(value.strip())
+    except (TypeError, ValueError):
+        return None
+    if n < 0 or n > 256 * 1024 * 1024:
+        return None
+    return n
 
 
 def _status_class(code: int) -> str:
@@ -207,10 +273,16 @@ def _record_request(
     route: str,
     status_code: int,
     elapsed: float,
+    request_content_length: Optional[int] = None,
+    response_content_length: Optional[int] = None,
 ) -> None:
     sc = _status_class(status_code)
     HTTP_REQUESTS.labels(method=method, route=route, status_class=sc).inc()
     HTTP_DURATION.labels(route=route).observe(elapsed)
+    if request_content_length is not None:
+        HTTP_REQUEST_CONTENT_LENGTH.labels(route=route).observe(float(request_content_length))
+    if response_content_length is not None:
+        HTTP_RESPONSE_CONTENT_LENGTH.labels(route=route).observe(float(response_content_length))
     with _lock:
         st = _route_stats[route]
         st["count"] += 1
@@ -233,6 +305,7 @@ async def observe_http_request(request: Request, call_next: Callable) -> Respons
 
     method = request.method.upper()
     route = route_template(request)
+    req_cl = _parse_content_length(request.headers.get("content-length"))
     global _inflight_local, _max_inflight_seen
     with _lock:
         _inflight_local += 1
@@ -243,6 +316,7 @@ async def observe_http_request(request: Request, call_next: Callable) -> Respons
 
     t0 = time.perf_counter()
     status_code = 500
+    response: Optional[Response] = None
     try:
         _maybe_touch_user(request)
         response = await call_next(request)
@@ -256,7 +330,10 @@ async def observe_http_request(request: Request, call_next: Callable) -> Respons
         with _lock:
             _inflight_local = max(0, _inflight_local - 1)
             HTTP_INFLIGHT.set(_inflight_local)
-        _record_request(method, route, status_code, elapsed)
+        resp_cl = None
+        if response is not None:
+            resp_cl = _parse_content_length(response.headers.get("content-length"))
+        _record_request(method, route, status_code, elapsed, req_cl, resp_cl)
 
 
 def _alert_can_send(key: str) -> bool:
@@ -317,19 +394,54 @@ def tick_system_and_db() -> None:
         try:
             import psutil
 
-            rss = int(proc.memory_info().rss)
+            mem_info = proc.memory_info()
+            rss = int(mem_info.rss)
+            vms = int(getattr(mem_info, "vms", 0) or 0)
             PROCESS_RSS.set(rss)
+            PROCESS_VMS.set(vms)
             cpu_p = proc.cpu_percent(interval=None)
             PROCESS_CPU.set(cpu_p)
             sys_cpu = psutil.cpu_percent(interval=0.15)
             mem_pct = psutil.virtual_memory().percent
             SYSTEM_CPU.set(sys_cpu)
             SYSTEM_MEM_PCT.set(mem_pct)
+            try:
+                sw = psutil.swap_memory()
+                swap_pct = float(sw.percent)
+            except Exception:
+                swap_pct = 0.0
+            SYSTEM_SWAP_PCT.set(swap_pct)
+            try:
+                if hasattr(os, "getloadavg"):
+                    load1 = float(os.getloadavg()[0])
+                else:
+                    load1 = 0.0
+            except Exception:
+                load1 = 0.0
+            SYSTEM_LOAD1.set(load1)
+            try:
+                PROCESS_THREADS.set(int(proc.num_threads()))
+            except Exception:
+                PROCESS_THREADS.set(0)
+            try:
+                nfd = int(proc.num_fds()) if hasattr(proc, "num_fds") else 0
+            except Exception:
+                nfd = 0
+            PROCESS_OPEN_FDS.set(nfd)
+            PROCESS_UPTIME_SECONDS.set(time.time() - _PROCESS_START)
             with _lock:
                 _last_snap["system_cpu"] = sys_cpu
                 _last_snap["process_cpu"] = cpu_p
                 _last_snap["system_mem_pct"] = mem_pct
                 _last_snap["process_rss"] = float(rss)
+                _last_snap["process_vms"] = float(vms)
+                _last_snap["system_swap_pct"] = swap_pct
+                _last_snap["system_load1"] = load1
+                try:
+                    _last_snap["process_threads"] = float(proc.num_threads())
+                except Exception:
+                    _last_snap["process_threads"] = 0.0
+                _last_snap["process_open_fds"] = float(nfd)
             _cpu_samples.append(sys_cpu)
             _record_capacity_sample()
         except Exception as e:
@@ -457,17 +569,24 @@ def _record_capacity_sample() -> None:
     """
     global _capacity_ema
     alpha = max(0.05, min(0.5, float(MONITORING_CAPACITY_EMA_ALPHA)))
+    instant_out = 0.0
+    ema_out = 0.0
     with _lock:
         active = len(_active_sub_last_seen)
         sys_cpu = float(_last_snap["system_cpu"])
         point = _capacity_point_from_observation(active, sys_cpu)
         if point is None:
-            return
-        _capacity_point_estimates.append(point)
-        if _capacity_ema is None:
-            _capacity_ema = point
+            ema_out = float(_capacity_ema) if _capacity_ema is not None else 0.0
         else:
-            _capacity_ema = alpha * point + (1.0 - alpha) * _capacity_ema
+            instant_out = float(point)
+            _capacity_point_estimates.append(point)
+            if _capacity_ema is None:
+                _capacity_ema = point
+            else:
+                _capacity_ema = alpha * point + (1.0 - alpha) * _capacity_ema
+            ema_out = float(_capacity_ema)
+    CAPACITY_INSTANT_MAX_ACTIVE_USERS.set(instant_out)
+    CAPACITY_ESTIMATED_MAX_ACTIVE_USERS.set(ema_out)
 
 
 def capacity_estimate(active_users: int, system_cpu: float) -> dict[str, Any]:
@@ -651,7 +770,12 @@ def get_admin_snapshot() -> dict[str, Any]:
             "system_cpu_percent": round(snap["system_cpu"], 2),
             "process_cpu_percent": round(snap["process_cpu"], 2),
             "system_memory_used_percent": round(snap["system_mem_pct"], 2),
+            "system_swap_used_percent": round(snap.get("system_swap_pct", 0.0), 2),
+            "system_load1": round(snap.get("system_load1", 0.0), 3),
             "process_rss_bytes": int(snap["process_rss"]),
+            "process_virtual_memory_bytes": int(snap.get("process_vms", 0.0)),
+            "process_threads": int(snap.get("process_threads", 0.0)),
+            "process_open_fds": int(snap.get("process_open_fds", 0.0)),
         },
         "database_ping": {
             "ok": bool(_last_db_check.get("ok")) if USE_SUPABASE_PG else None,

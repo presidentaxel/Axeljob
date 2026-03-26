@@ -49,7 +49,7 @@
 
 @media (max-width: 600px) {
   .profile-view {
-    padding: 0.75rem 0.75rem 2rem;
+    padding: 0.5rem 0 1.5rem;
   }
   .profile-grid {
     grid-template-columns: 1fr;
@@ -69,6 +69,61 @@
     width: 100%;
     justify-content: center;
   }
+  .profile-completion {
+    padding: 0.75rem 0.85rem;
+  }
+  .profile-completion-checks {
+    gap: 0.35rem 0.65rem;
+  }
+  .profile-preview-pane {
+    padding: 0.75rem 0 1.5rem;
+  }
+  .profile-section-toggle {
+    padding: 0.65rem 0.85rem;
+  }
+  .profile-section-body {
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+  }
+  .profile-form-pane input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+  .profile-form-pane textarea,
+  .profile-form-pane select {
+    font-size: 1rem;
+  }
+  .profile-grid input,
+  .profile-grid textarea,
+  .profile-full input,
+  .profile-full textarea {
+    min-height: 44px;
+    padding: 0.55rem 0.7rem;
+  }
+  .profile-grid textarea,
+  .profile-full textarea,
+  .profile-bullet-row textarea {
+    min-height: 5.5rem;
+  }
+  .profile-comp-row input,
+  .profile-langue-row input {
+    min-height: 44px;
+    padding: 0.55rem 0.7rem;
+  }
+
+  .profile-toast {
+    right: 0.75rem;
+    left: 0.75rem;
+    max-width: none;
+    text-align: center;
+  }
+}
+
+@media (max-width: 380px) {
+  .profile-header h1 {
+    font-size: 1rem;
+  }
+  .profile-card-head {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
 }
 
 .profile-form-pane {
@@ -77,6 +132,14 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding-bottom: 2rem;
+}
+
+/* Après la règle de base : sur tablette / téléphone, un seul scroll page (pas de zone formulaire tronquée). */
+@media (max-width: 900px) {
+  .profile-form-pane {
+    max-height: none;
+    overflow-y: visible;
+  }
 }
 
 .profile-preview-pane {
@@ -189,8 +252,10 @@
 
 .profile-toast {
   position: fixed;
-  bottom: 1.25rem;
-  right: 1.25rem;
+  bottom: max(1.25rem, env(safe-area-inset-bottom, 0px));
+  right: max(1rem, env(safe-area-inset-right, 0px));
+  left: auto;
+  max-width: calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
   z-index: 100;
   padding: 0.6rem 0.85rem;
   border-radius: var(--radius-xs);

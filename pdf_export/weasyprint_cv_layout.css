@@ -1,0 +1,20 @@
+/*
+  PDF WeasyPrint - mise en page globale (min-height A4).
+  Le détail layout cv-print-split / sidebar est dans weasyprint_cv_export.css.
+
+  Grille PDF cv-print-split : la 2e ligne est en « auto » (plus de 1fr) car WeasyPrint gère mal 1fr + hauteur auto.
+  Hauteur .cv-body = contenu uniquement (pas de min-height quasi pleine page, sinon header + corps > A4).
+*/
+
+.cv-preview .cv {
+  min-height: 297mm !important;
+}
+
+/* A4 même sans body.cv-preview (export HTML sans for_preview) */
+.cv.cv-print-split {
+  min-height: 297mm !important;
+}
+
+.cv-preview .cv:not(.cv-print-split) .cv-body {
+  min-height: 0 !important;
+}

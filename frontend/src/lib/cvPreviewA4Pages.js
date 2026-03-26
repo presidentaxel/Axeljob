@@ -1,7 +1,7 @@
 /**
- * Aperçu pages A4 : espacements anti-coupe de blocs + cadres (hauteur page − réserve pied).
- * Nombre de pages : 1 si le contenu tient (hors artefacts min-height / sous-pixel),
- * pages suivantes seulement si le flux dépasse vraiment (ex. Adapter le CV).
+ * Aperçu pages A4 : cadres « Page 1 / 2 » calés sur l’export PDF.
+ * Hauteur page = 297 mm mesurée dans le document ; recalcul après fonts.ready.
+ * (Les anciens « spacers » anti-coupe sont retirés : ils créaient des sauts visibles absents du PDF.)
  */
 
 export const CV_PREVIEW_A4_LAYER_CLASS = 'cv-preview-a4-page-layer';
@@ -11,31 +11,10 @@ const RESIZE_OBSERVER_KEY = '__cvPreviewA4ResizeObserver';
 
 /**
  * Réserve bas de page (mm), même échelle que la largeur du .cv (210 mm).
- * À garder cohérent avec une future @page { margin-bottom } PDF (generator.py) ou pied généré.
+ * 0 = aligné sur l’export PDF (@page { margin: 0 } et Chromium). Une réserve > 0 raccourcit la « page »
+ * dans l’aperçu → moins de pages affichées que dans le PDF (ex. Classique : 1 vs 2).
  */
-export const CV_PREVIEW_A4_BOTTOM_RESERVE_MM = 5;
-
-/** Blocs à ne pas couper (cohérent avec le PDF : items + section.cv-section élégant, etc.). */
-const SECTION_SELECTOR = [
-  '.experience-item',
-  '.formation-header',
-  '.formation-mention',
-  '.projet-nom',
-  '.projet-description',
-  '.sidebar-section',
-  '.section-sidebar',
-  '.sidebar-contact',
-  '.sidebar-identity',
-  '.sidebar-photo',
-  '.section-mots-cles-ats',
-  '.cert-item',
-  '.lang-item',
-  '.cv-header',
-  'header.cv-header',
-  'section.main-section',
-  'section.section',
-  'section.cv-section',
-].join(',');
+export const CV_PREVIEW_A4_BOTTOM_RESERVE_MM = 0;
 
 export function removeA4PageSpacers(cv) {
   if (!cv?.querySelectorAll) return;
@@ -57,6 +36,31 @@ export function suppressCvPreviewIframeInnerScroll(doc) {
     if (doc.body) {
       doc.body.style.setProperty('overflow', 'hidden', 'important');
     }
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+/** Ajuste la hauteur de l’iframe au document (scroll = conteneur externe). À rappeler après chaque recalcul A4 (ResizeObserver). */
+export function syncCvPreviewIframeHeight(iframe) {
+  if (!iframe) return;
+  try {
+    const doc = iframe.contentDocument;
+    if (!doc?.documentElement) return;
+    const height = Math.max(
+      doc.documentElement.scrollHeight,
+      doc.documentElement.offsetHeight,
+      doc.body?.scrollHeight ?? 0,
+      doc.body?.offsetHeight ?? 0
+    );
+    if (height <= 0) return;
+    const h = Math.ceil(height);
+    const prev = iframe.getAttribute('data-cv-preview-sync-h');
+    if (prev !== String(h)) {
+      iframe.setAttribute('data-cv-preview-sync-h', String(h));
+      iframe.style.height = `${h}px`;
+    }
+    suppressCvPreviewIframeInnerScroll(doc);
   } catch (_) {
     /* ignore */
   }
@@ -90,83 +94,35 @@ function disconnectDocObserver(doc) {
   }
 }
 
-function topRelativeToAncestor(el, ancestor) {
-  const ra = ancestor.getBoundingClientRect();
-  const re = el.getBoundingClientRect();
-  return re.top - ra.top;
-}
-
-/** Éléments « atomiques », ordre document (querySelectorAll). */
-function getAtomicSectionElements(cv) {
-  let nodes = Array.from(cv.querySelectorAll(SECTION_SELECTOR));
-  nodes = nodes.filter((el) => (el.offsetHeight || 0) >= 6);
-  nodes = nodes.filter((el) => !nodes.some((o) => o !== el && o.contains(el)));
-  return nodes;
-}
-
 /**
- * Grille 2 colonnes sur .cv (ex. créatif/moderne) : ne pas insérer de spacers (sinon une colonne bouge seule).
+ * Convertit mm → px avec le moteur CSS du document (même référence que pour le rendu du CV / PDF Chromium).
  */
-function shouldApplyPageSpacers(cv, win) {
+function cssMmToPx(doc, win, mm) {
+  const fallback = Math.max(1, Math.round((mm * 96) / 25.4));
+  if (!doc?.documentElement) return fallback;
   try {
-    const s = win.getComputedStyle(cv);
-    if (s.display !== 'grid') return true;
-    const cols = (s.gridTemplateColumns || '').trim();
-    if (!cols) return true;
-    const parts = cols.split(/\s+/).filter(Boolean);
-    return parts.length < 2;
+    const p = doc.createElement('div');
+    p.setAttribute('data-cv-mm-probe', '1');
+    p.style.cssText = [
+      'position:absolute',
+      'left:-99999px',
+      'top:0',
+      'width:1px',
+      'margin:0',
+      'padding:0',
+      'border:0',
+      'visibility:hidden',
+      'pointer-events:none',
+      'box-sizing:border-box',
+      'height:0',
+    ].join(';');
+    p.style.height = `${mm}mm`;
+    doc.documentElement.appendChild(p);
+    const h = Math.round(p.getBoundingClientRect().height);
+    p.remove();
+    return Math.max(1, h || fallback);
   } catch (_) {
-    return true;
-  }
-}
-
-/**
- * Insère des blocs vides avant les sections qui seraient coupées par y = k×pageH.
- */
-function applyA4PageSpacers(cv, doc, pageH, win) {
-  removeA4PageSpacers(cv);
-  if (pageH < 40 || !shouldApplyPageSpacers(cv, win)) return;
-
-  const EPS = 3;
-  let iterations = 0;
-  let changed = true;
-
-  while (changed && iterations < 40) {
-    iterations += 1;
-    changed = false;
-    const elements = getAtomicSectionElements(cv);
-
-    for (const el of elements) {
-      if (!el.isConnected || !el.parentNode) continue;
-      const top = topRelativeToAncestor(el, cv);
-      const eh = el.offsetHeight;
-
-      for (let k = 1; k * pageH < top + eh + pageH; k += 1) {
-        const B = k * pageH;
-        if (top < B - EPS && top + eh > B + EPS) {
-          const pad = B - top;
-          if (pad <= EPS) break;
-          const spacer = doc.createElement('div');
-          spacer.className = CV_PREVIEW_A4_SPACER_CLASS;
-          spacer.setAttribute('aria-hidden', 'true');
-          spacer.style.cssText = [
-            'width:100%',
-            'flex-shrink:0',
-            'flex-grow:0',
-            'pointer-events:none',
-            `height:${pad}px`,
-            'margin:0',
-            'padding:0',
-            'border:0',
-            'box-sizing:border-box',
-          ].join(';');
-          el.parentNode.insertBefore(spacer, el);
-          changed = true;
-          break;
-        }
-      }
-      if (changed) break;
-    }
+    return fallback;
   }
 }
 
@@ -203,30 +159,32 @@ function appendSheet(layer, doc, index, topPx, heightPx) {
 }
 
 /**
- * @param {Document} doc — document pour createElement (iframe ou window.document)
- * @param {Window} win — pour getComputedStyle / ResizeObserver
+ * @param {Document} doc - document pour createElement (iframe ou window.document)
+ * @param {Window} win - pour getComputedStyle / ResizeObserver
  * @param {{ zIndex?: number }} [opts]
  */
 function placeA4PageFrames(cv, scope, doc, win, opts = {}) {
-  // Sous les modales plein écran (App.css ~6000), au-dessus du flux du CV.
-  const zIndex = opts.zIndex ?? 400;
+  // Sous les modales (ex. choix de template z-index ~100), au-dessus du flux du CV.
+  const zIndex = opts.zIndex ?? 8;
   if (!cv.isConnected || !scope.isConnected) return;
   removeA4PageFrames(scope);
   clearCvPreviewA4Layout(cv);
+  removeA4PageSpacers(cv);
 
-  const w = Math.max(cv.scrollWidth, cv.getBoundingClientRect().width, 1);
-  const reservePx = (w * CV_PREVIEW_A4_BOTTOM_RESERVE_MM) / 210;
-  const pageH = Math.max((w * 297) / 210 - reservePx, 48);
+  const wMm = cssMmToPx(doc, win, 210);
+  const w = Math.max(cv.scrollWidth, cv.offsetWidth, cv.getBoundingClientRect().width, wMm, 1);
+  const reservePx =
+    CV_PREVIEW_A4_BOTTOM_RESERVE_MM > 0 ? cssMmToPx(doc, win, CV_PREVIEW_A4_BOTTOM_RESERVE_MM) : 0;
+  const pageH = Math.max(cssMmToPx(doc, win, 297) - reservePx, 48);
   if (pageH < 24) return;
-
-  applyA4PageSpacers(cv, doc, pageH, win);
 
   const hContent = Math.max(cv.scrollHeight, cv.offsetHeight, 1);
   /**
    * Nb de pages « utiles » : évite une 2e (ou 3e) page fantôme quand le flux ne dépasse
    * qu’à cause du min-height A4, des bordures ou du sous-pixel (Adapter le CV / iframe).
    */
-  const PAGE_SLACK_PX = 28;
+  /* Tolérance sous-pixel uniquement : un slack trop large masquait une 2e page alors que le PDF en a une. */
+  const PAGE_SLACK_PX = 4;
   let n = Math.max(1, Math.ceil(hContent / pageH - 1e-9));
   while (n > 1) {
     const hOnLast = hContent - (n - 1) * pageH;
@@ -271,10 +229,12 @@ function placeA4PageFrames(cv, scope, doc, win, opts = {}) {
 }
 
 /**
- * @param {Document} doc — document de l’iframe srcdoc
+ * @param {Document} doc - document de l’iframe srcdoc
+ * @param {{ onLayout?: () => void }} [opts] - appelé après chaque `placeA4PageFrames` (ex. resync hauteur iframe quand le .cv change)
  */
-export function applyA4PageFramesToDocument(doc) {
+export function applyA4PageFramesToDocument(doc, opts = {}) {
   if (!doc?.body || !doc.defaultView) return;
+  const { onLayout } = opts;
   disconnectDocObserver(doc);
   removeA4PageFrames(doc.body);
 
@@ -284,9 +244,38 @@ export function applyA4PageFramesToDocument(doc) {
   const scope = doc.body;
   const win = doc.defaultView;
 
-  const run = () => placeA4PageFrames(cv, scope, doc, win, { zIndex: 400 });
+  const run = () => {
+    placeA4PageFrames(cv, scope, doc, win, { zIndex: 8 });
+    try {
+      onLayout?.();
+    } catch (_) {
+      /* ignore */
+    }
+  };
+
+  const scheduleRun = () => {
+    win.requestAnimationFrame(() => {
+      win.requestAnimationFrame(run);
+    });
+  };
+
+  const kickStable = () => {
+    scheduleRun();
+    win.setTimeout(scheduleRun, 280);
+    win.setTimeout(scheduleRun, 750);
+  };
 
   run();
+
+  try {
+    if (doc.fonts && typeof doc.fonts.ready?.then === 'function') {
+      doc.fonts.ready.then(() => kickStable()).catch(() => kickStable());
+    } else {
+      kickStable();
+    }
+  } catch (_) {
+    kickStable();
+  }
 
   try {
     const ro = new win.ResizeObserver(() => {
@@ -294,14 +283,14 @@ export function applyA4PageFramesToDocument(doc) {
     });
     ro.observe(cv);
     doc[RESIZE_OBSERVER_KEY] = ro;
-    win.setTimeout(() => win.requestAnimationFrame(run), 350);
+    win.setTimeout(scheduleRun, 320);
   } catch (_) {
-    win.setTimeout(() => win.requestAnimationFrame(run), 400);
+    win.setTimeout(scheduleRun, 400);
   }
 }
 
 /**
- * @param {HTMLElement} container — enfant direct ou ancêtre du .cv (ex. CvEditablePreview)
+ * @param {HTMLElement} container - enfant direct ou ancêtre du .cv (ex. CvEditablePreview)
  */
 export function applyA4PageFramesInHost(container) {
   if (!container?.querySelector) return;
@@ -321,9 +310,31 @@ export function applyA4PageFramesInHost(container) {
     container.style.position = 'relative';
   }
 
-  const run = () => placeA4PageFrames(cv, container, document, window, { zIndex: 400 });
+  const run = () => placeA4PageFrames(cv, container, document, window, { zIndex: 8 });
+
+  const scheduleRun = () => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(run);
+    });
+  };
+
+  const kickStable = () => {
+    scheduleRun();
+    window.setTimeout(scheduleRun, 280);
+    window.setTimeout(scheduleRun, 750);
+  };
 
   run();
+
+  try {
+    if (document.fonts && typeof document.fonts.ready?.then === 'function') {
+      document.fonts.ready.then(() => kickStable()).catch(() => kickStable());
+    } else {
+      kickStable();
+    }
+  } catch (_) {
+    kickStable();
+  }
 
   try {
     const ro = new ResizeObserver(() => {
@@ -331,8 +342,8 @@ export function applyA4PageFramesInHost(container) {
     });
     ro.observe(cv);
     container[RESIZE_OBSERVER_KEY] = ro;
-    window.setTimeout(() => window.requestAnimationFrame(run), 350);
+    window.setTimeout(scheduleRun, 320);
   } catch (_) {
-    window.setTimeout(() => window.requestAnimationFrame(run), 400);
+    window.setTimeout(scheduleRun, 400);
   }
 }

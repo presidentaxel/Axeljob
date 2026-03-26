@@ -90,6 +90,10 @@ export default function OnboardingWizard({ session, onComplete }) {
 
   const handleLaunch = () => {
     trackEvent('onboarding_completed', { method: method || 'unknown' });
+    try {
+      const uid = session?.user?.id;
+      if (uid) sessionStorage.setItem(`cv_bot_post_onb_bridge_${uid}`, '1');
+    } catch (_) { /* ignore */ }
     onComplete('candidatures');
   };
 

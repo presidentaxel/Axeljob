@@ -196,10 +196,29 @@ export default function MonitoringDashboard({ usage }) {
                 <div className="monitoring-card">
                   <h3>RAM système</h3>
                   <p className="monitoring-card-metric">{sys?.system_memory_used_percent != null ? `${sys.system_memory_used_percent}%` : '-'}</p>
+                  {sys?.system_swap_used_percent != null && sys.system_swap_used_percent > 0 && (
+                    <p className="monitoring-muted">Swap {sys.system_swap_used_percent}%</p>
+                  )}
+                </div>
+                <div className="monitoring-card">
+                  <h3>Load (1 min)</h3>
+                  <p className="monitoring-card-metric">
+                    {sys?.system_load1 != null && sys.system_load1 > 0 ? sys.system_load1 : '-'}
+                  </p>
+                  <p className="monitoring-muted">Unix uniquement · Prometheus : cv_bot_system_load1</p>
                 </div>
                 <div className="monitoring-card">
                   <h3>RSS processus</h3>
                   <p className="monitoring-card-metric">{formatBytes(sys?.process_rss_bytes)}</p>
+                </div>
+                <div className="monitoring-card">
+                  <h3>Threads / FDs</h3>
+                  <p className="monitoring-card-metric">
+                    {sys?.process_threads != null ? sys.process_threads : '-'}
+                    <span className="monitoring-muted"> · </span>
+                    {sys?.process_open_fds != null ? sys.process_open_fds : '-'}
+                  </p>
+                  <p className="monitoring-muted">Mémoire virtuelle {formatBytes(sys?.process_virtual_memory_bytes)}</p>
                 </div>
                 <div className="monitoring-card">
                   <h3>Uptime worker</h3>
@@ -226,9 +245,11 @@ export default function MonitoringDashboard({ usage }) {
             <section className="monitoring-section">
               <h2 className="support-section-title">HTTP par route (depuis redémarrage)</h2>
               <p className="monitoring-muted">
-                Durée moyenne par endpoint (template FastAPI). Pour l’historique et les graphiques : exporter Prometheus (
-                <code className="monitoring-code">cv_bot_http_request_duration_seconds</code>
-                ).
+                Durée moyenne par endpoint (template FastAPI). Prometheus :{' '}
+                <code className="monitoring-code">cv_bot_http_request_duration_seconds</code>, tailles{' '}
+                <code className="monitoring-code">cv_bot_http_request_content_length_bytes</code> /{' '}
+                <code className="monitoring-code">cv_bot_http_response_content_length_bytes</code>, capacité{' '}
+                <code className="monitoring-code">cv_bot_capacity_estimated_max_active_users</code>.
               </p>
               <div className="monitoring-table-wrap">
                 <table className="monitoring-table">

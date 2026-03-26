@@ -42,6 +42,8 @@ EVENT_ATS_DETAILS_OPENED = "ats_details_opened"
 EVENT_ADAPTATION_RATED = "adaptation_rated"
 EVENT_CV_IMPORT = "cv_import"
 EVENT_TEMPLATE_CHANGED = "template_changed"
+EVENT_PAGE_ENGAGEMENT = "page_engagement"
+EVENT_ADAPT_CTA_CLICKED = "adapt_cta_clicked"
 
 
 def _anon_user_id(user_id: Optional[str]) -> str:

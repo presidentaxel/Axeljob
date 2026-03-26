@@ -1,3 +1,6 @@
+# Après modification du Python (ex. generator.py, main.py) : reconstruire le backend pour que le conteneur
+# embarque le nouveau code (pas de bind-mount du dépôt) :
+#   docker compose build backend && docker compose up -d
 services:
   backend:
     build:
@@ -10,7 +13,16 @@ services:
       - UVICORN_WORKERS=${UVICORN_WORKERS:-1}
       - THREAD_POOL_MAX_WORKERS=${THREAD_POOL_MAX_WORKERS:-4}
       - USER_PLAN_CACHE_TTL_SEC=${USER_PLAN_CACHE_TTL_SEC:-30}
+      # PDF : injectés depuis le .env à la racine (interpolation compose). Sans ça, un vieux conteneur peut
+      # garder l’ancienne valeur jusqu’à --force-recreate.
+      - CV_BOT_PDF_ENGINE=${CV_BOT_PDF_ENGINE:-weasyprint}
+      - CV_BOT_PDF_CHROMIUM_TIMEOUT_MS=${CV_BOT_PDF_CHROMIUM_TIMEOUT_MS:-90000}
+      - CV_BOT_PDF_CHROMIUM_NO_SANDBOX=${CV_BOT_PDF_CHROMIUM_NO_SANDBOX:-}
+      - CV_BOT_PDF_CHROMIUM_ARGS=${CV_BOT_PDF_CHROMIUM_ARGS:-}
+      - CV_BOT_PDF_CHROMIUM_VIEWPORT_HEIGHT=${CV_BOT_PDF_CHROMIUM_VIEWPORT_HEIGHT:-}
     restart: unless-stopped
+    # Si CV_BOT_PDF_ENGINE=chromium et plantages aléatoires : décommenter
+    # shm_size: "256mb"
     expose:
       - "8000"
     healthcheck:
@@ -28,7 +40,7 @@ services:
         VITE_API_URL: ""
         VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
         VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
-        # Conteneur GTM (tagmanager.google.com) — sans cela, aucune balise Google n’est chargée en prod
+        # Conteneur GTM (tagmanager.google.com) - sans cela, aucune balise Google n’est chargée en prod
         VITE_AXEL_GTM_ID: ${VITE_AXEL_GTM_ID:-}
     restart: unless-stopped
     ports:

@@ -1,0 +1,507 @@
+/*cv-bot-pdf-export*/
+
+/*
+  Réserve bas de page (mm) pour l’aperçu : cvPreviewA4Pages.js (0 = comme PDF sans marge).
+  cv-print-split : .cv-body position relative + .cv-sidebar absolute (pas display:table/table-cell sous WeasyPrint).
+
+  Ne pas forcer font-size:0 sur .mots-cles-ats-invisible : WeasyPrint omet souvent ce texte de la couche texte du PDF.
+  Layout cv-print-split : hors @media print aussi - WeasyPrint applique bien le média print.
+
+  Grille : garder grid-template-areas "header" / "body" (ne pas mettre "none").
+  cv-print-split : .cv-body en block + .cv-sidebar en absolute (pas de grille 2 col sur .cv-body) : sous WeasyPrint
+  une grille sur .cv-body a tronqué le document sur une page (2e page absente) et le z-index du .cv-main masquait
+  la colonne droite (texte « invisible »). Le décalage sidebar page 2 vs bande @page reste un cas limite WeasyPrint.
+
+  Reprise du texte pages 2+ : padding sur .cv-main / .cv-body (box-decoration-break: clone), pas margin @page —
+  sinon une marge @page crée une bande « trou » au-dessus du fond sidebar (stripe_*).
+*/
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+/*
+  Élégant / Minimal : le template fixe .cv à height + max-height 297 mm et overflow hidden,
+  et .cv-body en overflow hidden → une seule page exportée, contenu suivant coupé.
+*/
+.cv-preview article.cv:not(.cv-print-split):not(.cv-pdf-dual-column),
+.cv-preview .cv:not(.cv-print-split):not(.cv-pdf-dual-column) {
+  height: auto !important;
+  max-height: none !important;
+  min-height: 297mm !important;
+  overflow-x: hidden !important;
+  overflow-y: visible !important;
+}
+
+.cv-preview article.cv:not(.cv-print-split):not(.cv-pdf-dual-column) .cv-body,
+.cv-preview .cv:not(.cv-print-split):not(.cv-pdf-dual-column) .cv-body {
+  overflow: visible !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+}
+
+/* PDF multi-pages : bandeau sidebar sur chaque page (WeasyPrint). Activé via body.cv-pdf-page-stripe-* + :root (injecté avant ce bloc). */
+@page stripe_sidebar_left {
+  size: A4;
+  margin: 0;
+  background: linear-gradient(
+    to right,
+    var(--cv-sidebar-color, #2d3748) 0,
+    var(--cv-sidebar-color, #2d3748) var(--cv-pdf-sidebar-w, 200px),
+    #ffffff var(--cv-pdf-sidebar-w, 200px),
+    #ffffff 100%
+  );
+}
+
+@page stripe_sidebar_right {
+  size: A4;
+  margin: 0;
+  background: linear-gradient(
+    to left,
+    var(--cv-sidebar-color, #f4f4f2) 0,
+    var(--cv-sidebar-color, #f4f4f2) var(--cv-pdf-sidebar-w, 200px),
+    #ffffff var(--cv-pdf-sidebar-w, 200px),
+    #ffffff 100%
+  );
+}
+
+body.cv-preview.cv-pdf-page-stripe-left,
+body.cv-pdf-page-stripe-left {
+  page: stripe_sidebar_left;
+}
+
+body.cv-preview.cv-pdf-page-stripe-right,
+body.cv-pdf-page-stripe-right {
+  page: stripe_sidebar_right;
+}
+
+html,
+body {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+/* Ancrés sous .section-mots-cles-ats : évite qu’une classe copiée ailleurs ne camoufle du texte par erreur */
+body.cv-preview .section-mots-cles-ats .mots-cles-ats-invisible,
+.cv .section-mots-cles-ats .mots-cles-ats-invisible {
+  color: var(--cv-sidebar-color, #f4f4f2) !important;
+  font-size: 5pt !important;
+  line-height: 1.15 !important;
+}
+
+body.cv-preview .section-mots-cles-ats .mots-cles-ats-titre,
+.section-mots-cles-ats .mots-cles-ats-titre {
+  display: none !important;
+}
+
+/*
+  ATS : bloc atomique (pas de coupure entre pages) + plafond + overflow pour rester en page 1
+  sans forcer une 2e page ; le texte est tronqué côté serveur en for_pdf si besoin.
+*/
+.cv-preview .section-mots-cles-ats,
+.cv .section-mots-cles-ats {
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+  break-before: avoid !important;
+  page-break-before: avoid !important;
+}
+
+/*
+  Print-split : pas de margin-top:auto sur l’ATS (sidebar hauteur = tout le document → bas = dernière page).
+  Plafond large en sidebar pour remplir la zone basse de la 1re page tant que le texte tient (overflow hidden).
+*/
+.cv-preview .cv.cv-print-split .cv-sidebar .section-mots-cles-ats,
+.cv.cv-print-split .cv-sidebar .section-mots-cles-ats {
+  margin-top: 8px !important;
+  flex-shrink: 0 !important;
+  max-height: 52mm !important;
+  overflow: hidden !important;
+  min-height: 0 !important;
+  align-self: stretch !important;
+}
+
+/* Moderne / Créatif PDF : même logique (grille 2 col). */
+.cv-preview article.cv.cv-pdf-dual-column > .cv-sidebar .section-mots-cles-ats,
+.cv-preview .cv.cv-pdf-dual-column > .cv-sidebar .section-mots-cles-ats {
+  margin-top: 0 !important;
+  flex-shrink: 0 !important;
+  max-height: 52mm !important;
+  overflow: hidden !important;
+  min-height: 0 !important;
+  align-self: stretch !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.cv-preview article.cv.cv-pdf-dual-column > .cv-sidebar .section-mots-cles-ats .mots-cles-ats-invisible,
+.cv-preview .cv.cv-pdf-dual-column > .cv-sidebar .section-mots-cles-ats .mots-cles-ats-invisible {
+  max-width: 100% !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  box-sizing: border-box !important;
+}
+
+.cv-preview article.cv:not(.cv-print-split):not(.cv-pdf-dual-column) .section-mots-cles-ats,
+.cv-preview .cv:not(.cv-print-split):not(.cv-pdf-dual-column) .section-mots-cles-ats,
+article.cv:not(.cv-print-split):not(.cv-pdf-dual-column) .section-mots-cles-ats,
+.cv:not(.cv-print-split):not(.cv-pdf-dual-column) .section-mots-cles-ats {
+  max-height: 14mm !important;
+  overflow: hidden !important;
+}
+
+.cv-preview .cv-header,
+.cv-preview .cv-sidebar,
+.cv.cv-print-split .cv-header,
+.cv.cv-print-split .cv-sidebar {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+/*
+  WeasyPrint : une ligne grid en 1fr sous hauteur auto du conteneur ne se comporte pas comme Chrome
+  (lignes tronquées / corps « vide » visuellement alors que le texte reste dans le PDF).
+  Deux lignes en auto : hauteur du corps = contenu. Pas de min-height quasi pleine page sur .cv-body :
+  le header réel dépasse souvent 22mm ; calc(297mm − 22mm) + header dépassait A4 et forçait une 2e page.
+*/
+article.cv.cv-print-split,
+.cv.cv-print-split {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto auto !important;
+  grid-template-areas: "header" "body" !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.cv.cv-print-split .cv-header {
+  grid-column: 1 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  background-color: var(--cv-header-color, #1e2a3a) !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.cv.cv-print-split .cv-body {
+  display: block !important;
+  grid-area: body !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  align-self: stretch !important;
+  position: relative !important;
+  overflow: visible !important;
+  box-sizing: border-box !important;
+  min-height: 0 !important;
+  /* Fond dégradé : @page stripe_sidebar_right (multi-pages) ; évite doublon lourd sur la 1re page */
+  background-image: none !important;
+  background-color: transparent !important;
+}
+
+.cv.cv-print-split .cv-main {
+  display: block !important;
+  width: auto !important;
+  margin-right: var(--cv-pdf-sidebar-w, 200px) !important;
+  min-width: 0 !important;
+  position: relative !important;
+  z-index: 1 !important;
+  overflow: visible !important;
+  height: auto !important;
+  min-height: 0 !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  /* Ne pas hériter d’un body/.cv en couleur très claire (options typo) : texte illisible sur fond blanc. */
+  color: #1e293b !important;
+  box-sizing: border-box !important;
+  -webkit-box-decoration-break: clone !important;
+  box-decoration-break: clone !important;
+  padding-top: var(--cv-pdf-main-continuation-pad, 9mm) !important;
+}
+
+/* Annule le padding page 1 uniquement (le 1er fragment) ; les fragments suivants gardent la reprise. */
+.cv.cv-print-split .cv-main > :first-child {
+  margin-top: calc(-1 * var(--cv-pdf-main-continuation-pad, 9mm)) !important;
+}
+
+/*
+  Sidebar = hauteur du .cv-body (tout le corps, toutes les pages). Le fond descend donc jusqu’en bas
+  de chaque page vis à vis du flux principal ; le bandeau @page (stripe_*) complète si besoin.
+*/
+.cv.cv-print-split .cv-sidebar {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: auto !important;
+  width: var(--cv-pdf-sidebar-w, 200px) !important;
+  min-width: var(--cv-pdf-sidebar-w, 200px) !important;
+  max-width: var(--cv-pdf-sidebar-w, 200px) !important;
+  max-height: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  z-index: 2 !important;
+  background-color: var(--cv-sidebar-color, #f4f4f2) !important;
+  background-image: none !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  color: #334155 !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  -webkit-box-decoration-break: clone !important;
+  box-decoration-break: clone !important;
+}
+
+/* Colonne flex : stack PDF (cv-sidebar-pdf-stack) ; ATS sans margin-top:auto (voir bloc ci-dessus) */
+.cv.cv-print-split .cv-body > .cv-sidebar .cv-sidebar-pdf-stack {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  /* Couleur explicite : évite héritage cassé / texte illisible sur fond sidebar (options --cv-color-*) */
+  color: #334155 !important;
+}
+
+/* Remplit le bas de la sidebar (fond = parent) quand la sidebar a une hauteur > au contenu (PDF multi-pages). */
+.cv.cv-print-split .cv-body > .cv-sidebar .cv-pdf-sidebar-fill {
+  display: block !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.cv.cv-print-split .cv-body > .cv-sidebar .section-sidebar {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  break-inside: auto !important;
+  page-break-inside: auto !important;
+}
+
+/* Couleurs fixes en PDF : les variables --cv-color-body / section peuvent être blanches ou trop claires (réglages utilisateur). */
+.cv.cv-print-split .cv-sidebar .section-title {
+  color: #1e293b !important;
+  border-bottom-color: var(--cv-accent-color, #1e2a3a) !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.cv.cv-print-split .cv-sidebar .sidebar-category {
+  color: #1e293b !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.cv.cv-print-split .cv-sidebar .sidebar-item {
+  color: #334155 !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.cv.cv-print-split .cv-main .section-title {
+  color: #1e293b !important;
+  border-bottom-color: var(--cv-accent-color, #1e2a3a) !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+/* Template Impact (bold) : border-left sur titres ; forcer peinture PDF si var() ou grille posait problème */
+.cv.cv-print-split.cv-template-bold .cv-main .section-title,
+.cv.cv-print-split.cv-template-bold .cv-sidebar .section-title {
+  border-left-width: 4px !important;
+  border-left-style: solid !important;
+  border-left-color: var(--cv-accent-color, #dc2626) !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.cv.cv-print-split.cv-template-bold .cv-sidebar .sidebar-category {
+  border-left-width: 3px !important;
+  border-left-style: solid !important;
+  border-left-color: var(--cv-accent-color, #dc2626) !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.cv.cv-print-split .cv-main .exp-dates {
+  color: var(--cv-accent-color, #dc2626) !important;
+}
+
+.cv.cv-print-split .cv-main .ats-label {
+  color: #64748b !important;
+}
+
+.cv.cv-print-split .cv-main .exp-entreprise,
+.cv.cv-print-split .cv-main .bullet,
+.cv.cv-print-split .cv-main .formation-diplome,
+.cv.cv-print-split .cv-main .formation-date,
+.cv.cv-print-split .cv-main .formation-mention,
+.cv.cv-print-split .cv-main .projet-nom,
+.cv.cv-print-split .cv-main .projet-description,
+.cv.cv-print-split .cv-main .exp-clients {
+  color: #1e293b !important;
+}
+
+.cv.cv-print-split .cv-main .exp-poste {
+  color: #64748b !important;
+}
+
+/*
+  Moderne / Créatif (cv-pdf-dual-column) : grille 2 colonnes, colonnes étirées sur toute la hauteur du flux
+  (= 100 % × nombre de pages A4). Chromium PDF : hauteur explicite synchronisée sur .cv-main (cv_pdf_chromium.py).
+*/
+.cv-preview article.cv.cv-pdf-dual-column,
+.cv-preview .cv.cv-pdf-dual-column {
+  display: grid !important;
+  /* minmax(0, …) : le min-content des mots-clés ATS ne doit pas élargir la colonne (sinon bandeau / fond décalés de quelques px). */
+  grid-template-columns: minmax(0, var(--cv-pdf-sidebar-w, 200px)) minmax(0, 1fr) !important;
+  grid-template-rows: minmax(min-content, auto) !important;
+  column-gap: 0 !important;
+  align-items: stretch !important;
+  position: relative !important;
+  width: 210mm !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: none !important;
+  min-height: 297mm !important;
+  overflow-x: hidden !important;
+  overflow-y: visible !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+}
+
+.cv-preview article.cv.cv-pdf-dual-column > .cv-sidebar,
+.cv-preview .cv.cv-pdf-dual-column > .cv-sidebar {
+  position: static !important;
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  align-self: stretch !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  box-sizing: border-box !important;
+  background-color: var(--cv-sidebar-color, #2d3748) !important;
+  background-clip: border-box !important;
+  background-image: none !important;
+  overflow: hidden !important;
+  z-index: 2 !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.cv-preview .cv.cv-pdf-dual-column > .cv-sidebar > * {
+  flex-shrink: 0 !important;
+  min-height: auto !important;
+}
+
+/*
+  Colonne principale : marges comme template.css Moderne/Créatif (.cv-main { padding: 16px 18px }).
+  Pas de compensation :first-child (contrairement au print-split) : sans en-tête pleine largeur,
+  le margin négatif annulait le padding-top d’export et collait le texte en haut.
+  box-decoration-break: clone : chaque fragment de page garde le même encadrement (reprise).
+*/
+.cv-preview article.cv.cv-pdf-dual-column > .cv-main,
+.cv-preview .cv.cv-pdf-dual-column > .cv-main {
+  display: block !important;
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  margin-left: 0 !important;
+  width: auto !important;
+  min-width: 0 !important;
+  vertical-align: top !important;
+  background-color: #fff !important;
+  background-clip: border-box !important;
+  background-image: none !important;
+  height: auto !important;
+  align-self: stretch !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+  position: relative !important;
+  z-index: 1 !important;
+  -webkit-box-decoration-break: clone !important;
+  box-decoration-break: clone !important;
+  padding: 16px 18px !important;
+}
+
+/*
+  Élégant / Minimal (une colonne) : reprise sur .cv-body, pas @page.
+*/
+article.cv:not(.cv-print-split):not(.cv-pdf-dual-column) .cv-body,
+.cv:not(.cv-print-split):not(.cv-pdf-dual-column) .cv-body {
+  box-sizing: border-box !important;
+  -webkit-box-decoration-break: clone !important;
+  box-decoration-break: clone !important;
+  padding-top: var(--cv-pdf-main-continuation-pad, 9mm) !important;
+}
+
+article.cv:not(.cv-print-split):not(.cv-pdf-dual-column) .cv-body > :first-child,
+.cv:not(.cv-print-split):not(.cv-pdf-dual-column) .cv-body > :first-child {
+  margin-top: calc(-1 * var(--cv-pdf-main-continuation-pad, 9mm)) !important;
+}
+
+/*
+  Puces : --cv-fs-bullet (options / :root template) = source unique ; évite écarts export vs aperçu
+  et conflits avec .experience-item .bullet ou ::before en pt fixes (Moderne, Créatif, etc.).
+*/
+.cv-preview .cv .bullet,
+.cv-preview .cv p.bullet,
+.cv .experience-item .bullet,
+article.cv .bullet {
+  font-size: var(--cv-fs-bullet, 9pt) !important;
+  line-height: 1.45 !important;
+}
+
+.cv-preview .cv .bullet::before,
+.cv .experience-item .bullet::before,
+article.cv .bullet::before {
+  font-size: 0.92em !important;
+  line-height: inherit !important;
+}
+
+@media print {
+  .cv-preview .section-mots-cles-ats .mots-cles-ats-titre {
+    display: none !important;
+  }
+
+  .section-mots-cles-ats {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    break-before: avoid !important;
+    page-break-before: avoid !important;
+  }
+
+  .cv .experience-item,
+  .cv .formation-item,
+  .cv .projet-item,
+  .cv .sidebar-section:not(.section-mots-cles-ats),
+  .cv .sidebar-contact,
+  .cv .sidebar-identity,
+  .cv .sidebar-photo,
+  .cv-header,
+  header.cv-header,
+  .cv .cert-item,
+  .cv .lang-item,
+  .cv section.cv-section:has(.skills-grid),
+  .cv .skills-grid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}

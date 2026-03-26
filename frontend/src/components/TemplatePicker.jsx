@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { apiGet } from '../api';
-import { applyA4PageFramesToDocument, suppressCvPreviewIframeInnerScroll } from '../lib/cvPreviewA4Pages';
+import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from '../lib/cvPreviewA4Pages';
 import TemplateModal, { FAVORITES_STORAGE_KEY } from './TemplateModal';
 
 const TYPO_DEFAULTS = {
@@ -82,17 +82,10 @@ function resizeOptionsPreviewIframe(iframe) {
   try {
     const doc = iframe.contentDocument;
     if (!doc || !doc.documentElement) return;
-    applyA4PageFramesToDocument(doc);
-    const height = Math.max(
-      doc.documentElement.scrollHeight,
-      doc.documentElement.offsetHeight,
-      doc.body?.scrollHeight ?? 0,
-      doc.body?.offsetHeight ?? 0
-    );
-    if (height > 0) {
-      iframe.style.height = `${Math.ceil(height)}px`;
-      suppressCvPreviewIframeInnerScroll(doc);
-    }
+    applyA4PageFramesToDocument(doc, {
+      onLayout: () => syncCvPreviewIframeHeight(iframe),
+    });
+    syncCvPreviewIframeHeight(iframe);
   } catch (_) { /* not ready */ }
 }
 
@@ -193,7 +186,10 @@ function TypoSliderRow({ field, getTypoValue, setTypoValue }) {
   );
 }
 
-function OptionsPanel({ options, templateOptions, onChangeOptions }) {
+const MINIMAL_NO_PHOTO_TEMPLATE_ID = 'minimal';
+
+function OptionsPanel({ templateId, options, templateOptions, onChangeOptions }) {
+  const isMinimalTemplate = (templateId || '').trim() === MINIMAL_NO_PHOTO_TEMPLATE_ID;
   const defaultOptions = getDefaultOptions(options);
   const colorOpts = options.filter((o) => o.type === 'color');
   const selectOpts = options.filter((o) => o.type === 'select');
@@ -295,23 +291,29 @@ function OptionsPanel({ options, templateOptions, onChangeOptions }) {
             </span>
           </summary>
           <div className="tpl-settings-details-panel">
-            {TYPO_GROUPS.map((group) => (
-              <div key={group.id} className="tpl-typo-group">
-                <h4 className="tpl-typo-group-title">{group.title}</h4>
-                {group.keys.map((key) => {
-                  const field = TYPO_FIELD_BY_KEY[key];
-                  if (!field) return null;
-                  return (
-                    <TypoSliderRow
-                      key={key}
-                      field={field}
-                      getTypoValue={getTypoValue}
-                      setTypoValue={setTypoValue}
-                    />
-                  );
-                })}
-              </div>
-            ))}
+            {TYPO_GROUPS.map((group) => {
+              const keys = isMinimalTemplate ? group.keys.filter((k) => k !== 'photo_size') : group.keys;
+              const title =
+                isMinimalTemplate && group.id === 'header' ? 'En-tête' : group.title;
+              if (keys.length === 0) return null;
+              return (
+                <div key={group.id} className="tpl-typo-group">
+                  <h4 className="tpl-typo-group-title">{title}</h4>
+                  {keys.map((key) => {
+                    const field = TYPO_FIELD_BY_KEY[key];
+                    if (!field) return null;
+                    return (
+                      <TypoSliderRow
+                        key={key}
+                        field={field}
+                        getTypoValue={getTypoValue}
+                        setTypoValue={setTypoValue}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })}
             <div className="tpl-typo-group">
               <h4 className="tpl-typo-group-title">Couleurs du texte</h4>
               <TypoColorRow
@@ -374,6 +376,7 @@ function OptionsPanel({ options, templateOptions, onChangeOptions }) {
 function TemplateOptionsModal({
   open,
   onClose,
+  templateId,
   options,
   templateOptions,
   onChangeOptions,
@@ -464,7 +467,7 @@ function TemplateOptionsModal({
         </header>
         <div className="tpl-options-modal-body">
           <aside className="tpl-options-modal-settings">
-            <OptionsPanel options={options} templateOptions={templateOptions} onChangeOptions={onChangeOptions} />
+            <OptionsPanel templateId={templateId} options={options} templateOptions={templateOptions} onChangeOptions={onChangeOptions} />
           </aside>
           <div className="tpl-options-modal-preview">
             <div className="tpl-options-modal-preview-bar">
@@ -642,6 +645,7 @@ export default function TemplatePicker({
         <TemplateOptionsModal
           open={optionsModalOpen}
           onClose={handleOptionsModalClose}
+          templateId={templateId}
           options={options}
           templateOptions={templateOptions}
           onChangeOptions={onChangeOptions}

@@ -5,6 +5,7 @@ Données : Supabase (cv_base, applications) ou fallback fichiers.
 """
 import json
 import logging
+import re
 import sys
 import time as _time
 import uuid as uuid_module
@@ -59,6 +60,8 @@ from backend.config import (
     trusted_host_names,
 )
 from backend.rate_limit import check_rate_limit, rate_limit_max_adapt
+from backend.template_registry import DEFAULT_TEMPLATE_ID
+from backend.cv_html_render import render_cv_html as _render_cv_html
 
 _thread_pool = ThreadPoolExecutor(max_workers=thread_pool_max_workers())
 
@@ -83,7 +86,12 @@ from backend.db import (
     invite_user_by_email as db_invite_user_by_email,
 )
 from backend import event_log
-from backend.cv_analytics import profile_metrics, cv_content_metrics, adaptation_metrics
+from backend.cv_analytics import (
+    adaptation_metrics,
+    cv_content_metrics,
+    cv_import_completeness,
+    profile_metrics,
+)
 from backend.gemini_usage import GeminiQuotaExceeded, ensure_budget, record_and_check, usage_from_response
 from backend.security import check_user_input_for_injection
 
@@ -136,6 +144,17 @@ def _set_thread_pool():
         thread_pool_max_workers(),
         mode,
     )
+    import os as _os
+
+    from backend.cv_pdf_dispatch import cv_pdf_engine
+
+    _pdf_eng = cv_pdf_engine()
+    _pdf_raw = _os.environ.get("CV_BOT_PDF_ENGINE", "")
+    logger.info("Moteur PDF CV: %s (CV_BOT_PDF_ENGINE=%r)", _pdf_eng, _pdf_raw)
+    print(
+        f"[cv-bot] startup: PDF engine={_pdf_eng} CV_BOT_PDF_ENGINE={_pdf_raw!r}",
+        flush=True,
+    )
     from backend.monitoring_ops import start_monitoring_background
 
     start_monitoring_background()
@@ -157,6 +176,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept", "Stripe-Signature"],
+    expose_headers=["X-CV-PDF-Engine"],
 )
 
 _trusted = trusted_host_names()
@@ -314,12 +334,9 @@ def _build_cv_pdf_for_application(payload: dict, user_id: str | None) -> tuple[b
         selection_a4=selection_a4,
     )
     from generator import generer_pdf_bytes_from_html
-    if template_id and str(template_id).strip().startswith("custom_") and "</head>" in html:
-        custom_pdf_fix = (
-            "<style>@page{margin:0}body{background:#fff!important;margin:0!important;padding:0!important}.cv{margin:0!important}</style>"
-        )
-        html = html.replace("</head>", custom_pdf_fix + "</head>", 1)
-    return generer_pdf_bytes_from_html(html, BASE_DIR, full_cv, {"titre": poste, "entreprise": entreprise})
+    return generer_pdf_bytes_from_html(
+        html, BASE_DIR, full_cv, {"titre": poste, "entreprise": entreprise}, template_id=template_id
+    )
 
 
 def snapshot_application_pdfs_to_storage(
@@ -430,6 +447,14 @@ def _keywords_from_mots_cles_cache(cache: str) -> list[str]:
 
     phrases.sort(key=len, reverse=True)
     return phrases
+
+
+def _mots_cles_cache_for_pdf_export(raw: str, max_chars: int = 900) -> str:
+    """Troncature export PDF : limite la hauteur du bloc ATS pour éviter un saut en page 2."""
+    s = (raw or "").strip()
+    if len(s) <= max_chars:
+        return s
+    return s[: max_chars - 1].rstrip() + "…"
 
 
 def _ats_kw_boundary_ok(plain: str, start: int, end: int) -> bool:
@@ -584,10 +609,24 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
     show_photo = resolved_opts.get("show_photo", True)
 
     if not cv.get("__example__"):
-        ensure_compressed_photo(BASE_DIR, cv.get("photo_url"), cv.get("prenom"), cv.get("nom"))
-        photo_url = get_photo_url_for_cv(BASE_DIR, cv.get("photo_url"), cv.get("prenom"), cv.get("nom"))
+        ensure_compressed_photo(
+            BASE_DIR,
+            cv.get("photo_url"),
+            cv.get("prenom"),
+            cv.get("nom"),
+            allow_assets_fallback=False,
+        )
+        photo_url = get_photo_url_for_cv(
+            BASE_DIR,
+            cv.get("photo_url"),
+            cv.get("prenom"),
+            cv.get("nom"),
+            allow_assets_fallback=False,
+        )
         if photo_url:
             cv = {**cv, "photo_url": photo_url}
+        else:
+            cv = {**cv, "photo_url": None}
 
     if not show_photo:
         cv = {**cv, "photo_url": None}
@@ -684,9 +723,10 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
 
     # Mots-clés ATS : affichés si show_mots_cles_ats (template : {% if show_mots_cles_ats %} … {{ mots_cles_cache }})
     ctx["show_mots_cles_ats"] = resolved_opts.get("show_mots_cles_ats", True)
-    ctx["mots_cles_cache"] = (cv.get("mots_cles_cache") or "").strip()
+    _raw_mots = (cv.get("mots_cles_cache") or "").strip()
+    ctx["mots_cles_cache"] = _mots_cles_cache_for_pdf_export(_raw_mots) if for_pdf else _raw_mots
 
-    actual_tid = tmpl_meta.get("id") or "classic"
+    actual_tid = tmpl_meta.get("id") or DEFAULT_TEMPLATE_ID
     if tmpl_meta.get("_custom"):
         env = Environment(autoescape=select_autoescape(("html", "xml")))
         html_str = env.from_string(tmpl_meta.get("_html_content") or "").render(**ctx)
@@ -779,20 +819,30 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
         _proj_ref = len([p for p in (_ref.get("projets") or [])[:5] if (p.get("nom") or p.get("description"))])
         content_score = len(_exp_ref) * 3 + _bullet_ref + _form_ref + _proj_ref
         if content_score <= 6:
-            scale_css = "<style>body{font-size:11pt;line-height:1.55}.resume-text{font-size:10.5pt;line-height:1.6}.bullet{font-size:10.5pt;line-height:1.5}.sidebar-item{font-size:9.5pt;line-height:1.4}.section-title{font-size:10.5pt}.exp-poste{font-size:11pt}</style>"
+            scale_css = "<style>body{font-size:11pt;line-height:1.55}.resume-text{font-size:10.5pt;line-height:1.6}.sidebar-item{font-size:9.5pt;line-height:1.4}.section-title{font-size:10.5pt}.exp-poste{font-size:11pt}</style>"
             html_str = html_str.replace("</head>", scale_css + "</head>", 1)
         elif content_score <= 10:
-            scale_css = "<style>body{font-size:10pt;line-height:1.5}.resume-text{font-size:10pt;line-height:1.55}.bullet{font-size:9.5pt;line-height:1.45}.sidebar-item{font-size:9pt;line-height:1.35}</style>"
+            scale_css = "<style>body{font-size:10pt;line-height:1.5}.resume-text{font-size:10pt;line-height:1.55}.sidebar-item{font-size:9pt;line-height:1.35}</style>"
             html_str = html_str.replace("</head>", scale_css + "</head>", 1)
         elif content_score > 15:
-            scale_css = "<style>body{font-size:9pt;line-height:1.45}.resume-text{font-size:9pt;line-height:1.5}.bullet{font-size:8.5pt;line-height:1.4}.sidebar-item{font-size:8pt;line-height:1.3}.section-title{font-size:9.5pt}.exp-poste{font-size:9.5pt}</style>"
+            scale_css = "<style>body{font-size:9pt;line-height:1.45}.resume-text{font-size:9pt;line-height:1.5}.sidebar-item{font-size:8pt;line-height:1.3}.section-title{font-size:9.5pt}.exp-poste{font-size:9.5pt}</style>"
             html_str = html_str.replace("</head>", scale_css + "</head>", 1)
 
     if highlight_changes and base_cv:
+        # Deux verts de la même famille : zone claire vs bandeau / sidebar foncés.
+        # Les mots-clés ATS imbriqués dans .cv-changed héritent du surlignage parent (pas une 3e teinte dans la phrase).
         highlight_styles = (
-            "<style>.cv-changed{background-color:#b8d4be;padding:0 1px;border-radius:1px}"
-            ".cv-header .cv-changed,.cv-sidebar .cv-changed{background-color:#3d6b4a;color:#b8e0c0}"
-            "@media print{.cv-changed,.cv-header .cv-changed,.cv-sidebar .cv-changed{background-color:transparent;color:inherit;padding:0}}</style>"
+            "<style>"
+            ".cv-changed{background-color:#c5e3cd;padding:0 1px;border-radius:1px}"
+            ".cv-header .cv-changed,.cv-sidebar .cv-changed{background-color:#9dc6ae;color:#0f2418}"
+            "span.cv-changed span.cv-ats-kw{background-color:transparent!important;color:inherit!important;padding:0!important;border-radius:0!important;box-shadow:none!important}"
+            "@media print{"
+            ".cv-changed{background-color:transparent;padding:0}"
+            ".cv-header .cv-changed{color:#ffffff!important}"
+            ".cv-main .cv-changed{color:var(--cv-color-body,#1e293b)!important}"
+            ".cv-sidebar .cv-changed{background-color:transparent;color:inherit}"
+            "}"
+            "</style>"
         )
         html_str = html_str.replace("</head>", highlight_styles + "</head>", 1)
     if for_preview and not for_pdf:
@@ -802,9 +852,8 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
             ats_kw_css = (
                 ".cv-preview span.cv-ats-kw{background-color:#86efac;padding:0 2px;border-radius:2px;box-decoration-break:clone;-webkit-box-decoration-break:clone}"
                 ".cv-preview .cv-header span.cv-ats-kw,.cv-preview .cv-sidebar span.cv-ats-kw{background-color:#166534;color:#bbf7d1}"
-                ".cv-preview span.cv-changed span.cv-ats-kw{background-color:#4ade80;color:#14532d}"
-                ".cv-preview .cv-header span.cv-changed span.cv-ats-kw,.cv-preview .cv-sidebar span.cv-changed span.cv-ats-kw{background-color:#22c55e;color:#052e16}"
-                ".cv-preview .header-titre-inline span.cv-ats-kw,.cv-preview .resume-text span.cv-ats-kw{white-space:normal!important;overflow-wrap:break-word!important;word-break:break-word}"
+                ".cv-preview span.cv-changed span.cv-ats-kw{background-color:transparent!important;color:inherit!important;padding:0!important;border-radius:0!important}"
+                ".cv-preview .header-titre-inline span.cv-ats-kw,.cv-preview .header-titre span.cv-ats-kw,.cv-preview .sidebar-titre span.cv-ats-kw,.cv-preview .resume-text span.cv-ats-kw{white-space:normal!important;overflow-wrap:break-word!important;word-break:break-word}"
                 "@media print{.cv-preview span.cv-ats-kw{background:transparent!important;color:inherit!important;padding:0}}"
             )
         scrollbar_style = (
@@ -817,19 +866,25 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
         preview_responsive = (
             "<style>"
             + ats_kw_css
+            + ".cv-preview .cv.cv-print-split .cv-sidebar .section-mots-cles-ats{max-height:52mm!important;overflow:hidden!important;flex-shrink:0!important;min-height:0!important;break-inside:avoid!important;page-break-inside:avoid!important;}"
+            + ".cv-preview .cv:not(.cv-print-split) .cv-sidebar .section-mots-cles-ats{max-height:52mm!important;overflow:hidden!important;flex-shrink:0!important;margin-top:8px!important;break-inside:avoid!important;page-break-inside:avoid!important;}"
+            + ".cv-preview .cv:not(.cv-print-split):not(.cv-pdf-dual-column) .section-mots-cles-ats{max-height:14mm!important;overflow:hidden!important;break-inside:avoid!important;page-break-inside:avoid!important;}"
             + "html,body{margin:0!important;padding:0!important;}html{overflow-x:hidden!important;}body.cv-preview{overflow-x:hidden!important;}"
+            + "html.cv-preview,body.cv-preview{min-width:210mm!important;}"
             ".cv-preview .cv{width:210mm!important;max-width:100%!important;min-height:297mm!important;height:auto!important;max-height:none!important;overflow-x:hidden!important;overflow-y:visible!important}"
-            ".cv-preview .cv-body{min-height:0}"
+            ".cv-preview .cv:not(.cv-print-split):not(.cv-pdf-dual-column){max-height:none!important}"
+            ".cv-preview .cv:not(.cv-print-split):not(.cv-pdf-dual-column) .cv-body{overflow:visible!important;flex:1 1 auto!important}"
+            ".cv-preview .cv-body{min-height:0!important;overflow-x:hidden!important;overflow-y:visible!important}"
             ".cv-preview body{overflow-x:hidden}"
             ".cv-preview .resume-text{white-space:pre-line}"
             ".cv-preview .cv>.cv-header,.cv-preview .cv>.cv-body{min-width:0}"
-            ".cv-preview .cv-body{overflow-x:hidden}"
             ".cv-preview .cv-main{min-width:0;overflow-wrap:break-word}"
-            ".cv-preview .cv-sidebar{min-width:0;max-width:200px;box-sizing:border-box}"
+            ".cv-preview .cv.cv-print-split .cv-sidebar{min-width:0;max-width:200px;box-sizing:border-box;top:0!important;bottom:0!important;max-height:none!important;overflow:hidden!important}"
             ".cv-preview .header-top-row{min-width:0}"
-            ".cv-preview .header-nom{white-space:normal!important;flex-shrink:1!important;overflow-wrap:break-word}"
+            ".cv-preview .header-nom{display:block!important;min-width:0!important;flex-shrink:1!important}"
+            ".cv-preview .header-nom-part{display:inline!important;white-space:nowrap!important}"
             ".cv-preview .header-titre-inline{overflow-wrap:break-word;white-space:normal!important}"
-            ".cv-preview .header-titre-inline .cv-changed,.cv-preview .cv-header .cv-changed{white-space:normal!important;overflow-wrap:break-word!important;word-break:break-word}"
+            ".cv-preview .header-titre-inline .cv-changed,.cv-preview .cv-header .cv-changed,.cv-preview .header-titre .cv-changed,.cv-preview .sidebar-titre .cv-changed{white-space:normal!important;overflow-wrap:break-word!important;word-break:break-word}"
             ".cv-preview .cv-header .resume-text .cv-changed{white-space:normal!important;overflow-wrap:break-word!important}"
             ".cv-preview .exp-header{min-width:0}"
             ".cv-preview .exp-entreprise,.cv-preview .exp-dates{min-width:0;overflow-wrap:break-word}"
@@ -839,7 +894,7 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
             ".cv-preview .exp-poste{white-space:normal!important;min-width:0}"
             ".cv-preview .exp-poste span,.cv-preview .exp-poste .ats-label{white-space:normal!important}"
             ".cv-preview .exp-poste-inline{white-space:normal!important;overflow-wrap:break-word}"
-            ".cv-preview .cv p,.cv-preview .cv span,.cv-preview .cv h1,.cv-preview .cv h2,.cv-preview .cv h3,.cv-preview .cv li,.cv-preview .cv td{overflow-wrap:break-word!important;word-break:break-word;white-space:normal!important}"
+            ".cv-preview .cv p,.cv-preview .cv h1,.cv-preview .cv h2,.cv-preview .cv h3,.cv-preview .cv li,.cv-preview .cv td{overflow-wrap:break-word!important;word-break:break-word;white-space:normal!important}"
             ".cv-preview .cv .resume-text{white-space:pre-line!important}"
             ".cv-preview .cv .section-title,.cv-preview .cv .sidebar-section-title,.cv-preview .cv .main-section-title,.cv-preview .cv .sidebar-category,.cv-preview .cv .formation-diplome,.cv-preview .cv .formation-date,.cv-preview .cv .projet-nom,.cv-preview .cv .projet-description,.cv-preview .cv .sidebar-item,.cv-preview .cv .skill-tag,.cv-preview .cv .cert-item,.cv-preview .cv .lang-item,.cv-preview .cv .skills-line,.cv-preview .cv .exp-left,.cv-preview .cv .header-titre,.cv-preview .cv .sidebar-titre,.cv-preview .cv .header-text{overflow-wrap:break-word!important;word-break:break-word;white-space:normal!important}"
             + scrollbar_style + "</style>"
@@ -892,7 +947,14 @@ def _get_user_id(request: Request) -> str | None:
         return None
     try:
         payload = _decode_supabase_jwt(token)
-        return (payload.get("sub") or "").strip() or None
+        user_id = (payload.get("sub") or "").strip() or None
+        if user_id and USE_SUPABASE:
+            from backend.auth_user_verify import ensure_supabase_user_still_exists
+
+            ensure_supabase_user_still_exists(user_id)
+        return user_id
+    except HTTPException:
+        raise
     except Exception as e:
         hint = ""
         if "not yet valid" in str(e).lower() or "iat" in str(e).lower():
@@ -912,6 +974,39 @@ def _require_user_id(request: Request) -> str:
     if USE_SUPABASE and user_id is None:
         raise HTTPException(status_code=401, detail="Authentification requise. Connecte-toi pour continuer.")
     return user_id or "default"
+
+
+_ANALYTICS_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+
+
+def _parse_analytics_session_id(raw: str | None) -> str | None:
+    """Valide session_id client (UUID ou préfixe sess_ du fallback navigateur)."""
+    if not raw:
+        return None
+    s = raw.strip()
+    if not s or len(s) > 128:
+        return None
+    if _ANALYTICS_UUID_RE.match(s):
+        return s
+    if s.startswith("sess_") and re.match(r"^[\w.-]+$", s):
+        return s
+    return None
+
+
+def _analytics_session_id_from_request(request: Request) -> str | None:
+    return _parse_analytics_session_id(request.headers.get("X-Analytics-Session-Id"))
+
+
+def _track_analytics(request: Request, event_type: str, user_id: str | None, context: dict | None = None) -> None:
+    event_log.log_event(
+        event_type,
+        user_id,
+        context if context is not None else {},
+        session_id=_analytics_session_id_from_request(request),
+    )
 
 
 def _get_user_email_from_jwt(request: Request) -> str | None:
@@ -1153,9 +1248,9 @@ def api_cv_put(request: Request, body: dict):
         try:
             p_metrics = profile_metrics(body)
             c_metrics = cv_content_metrics(body)
-            event_log.log_event(event_log.EVENT_PROFILE_SAVED, user_id, {**p_metrics, **c_metrics})
+            _track_analytics(request, event_log.EVENT_PROFILE_SAVED, user_id, {**p_metrics, **c_metrics})
         except Exception:
-            event_log.log_event(event_log.EVENT_PROFILE_SAVED, user_id, {})
+            _track_analytics(request, event_log.EVENT_PROFILE_SAVED, user_id, {})
         return {"ok": True}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -1484,7 +1579,17 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
     except GeminiQuotaExceeded:
         raise HTTPException(status_code=429, detail="Quota temporairement atteint. Réessaie plus tard.")
     file_ext = (file.filename or "").rsplit(".", 1)[-1].lower() if file.filename else "unknown"
-    event_log.log_event(event_log.EVENT_CV_IMPORT, user_id, {"method": "file", "file_type": file_ext, "text_length": len(text)})
+    _track_analytics(
+        request,
+        event_log.EVENT_CV_IMPORT,
+        user_id,
+        {
+            "method": "file",
+            "file_type": file_ext,
+            "text_length": len(text),
+            "import_profile": cv_import_completeness(cv),
+        },
+    )
     return {"cv": cv}
 
 
@@ -1506,7 +1611,16 @@ def api_cv_import_text(request: Request, body: ImportTextBody):
         cv = _parse_cv_text_with_ai(text, user_id)
     except GeminiQuotaExceeded:
         raise HTTPException(status_code=429, detail="Quota temporairement atteint. Réessaie plus tard.")
-    event_log.log_event(event_log.EVENT_CV_IMPORT, user_id, {"method": "text_paste", "text_length": len(text)})
+    _track_analytics(
+        request,
+        event_log.EVENT_CV_IMPORT,
+        user_id,
+        {
+            "method": "text_paste",
+            "text_length": len(text),
+            "import_profile": cv_import_completeness(cv),
+        },
+    )
     return {"cv": cv}
 
 
@@ -2422,7 +2536,7 @@ def api_adapt(request: Request, body: AdaptBody):
                 status_code=402,
                 detail="Vous avez épuisé vos 3 adaptations gratuites. Passez en Pro pour des adaptations illimitées.",
             )
-    event_log.log_event(event_log.EVENT_ADAPTATION_STARTED, user_id, {"description_length": len(description)})
+    _track_analytics(request, event_log.EVENT_ADAPTATION_STARTED, user_id, {"description_length": len(description)})
     try:
         cv_base = load_cv_base(user_id)
     except FileNotFoundError as e:
@@ -2444,13 +2558,30 @@ def api_adapt(request: Request, body: AdaptBody):
         raise HTTPException(status_code=429, detail="Quota temporairement atteint. Réessaie plus tard.")
     except Exception as e:
         logger.exception(e)
-        event_log.log_event(event_log.EVENT_ADAPTATION_FAILED, user_id, {"error": str(e)})
+        _track_analytics(request, event_log.EVENT_ADAPTATION_FAILED, user_id, {"error": str(e)})
         raise HTTPException(status_code=500, detail="Erreur lors de l'adaptation. Réessaie.")
 
     merged = _apply_tweaks(cv_base, tweaks)
     adaptation_id = _adaptation_id_from_description(description)
     poste_offre = (tweaks.get("poste_offre") or "").strip()
     entreprise_offre = (offre.get("entreprise") or "").strip()
+    user_titre = (body.titre or "").strip()
+    user_ent = (body.entreprise or "").strip()
+    resolved_poste = user_titre or poste_offre
+    offre_rapport_final = {**offre, **({"titre": resolved_poste} if resolved_poste.strip() else {})}
+    if user_ent:
+        suggested_ent = user_ent
+        ent_confidence = 1.0
+    else:
+        from offre_infer import infer_entreprise_from_annonce
+
+        suggested_ent, ent_raw = infer_entreprise_from_annonce(description)
+        ent_confidence = round(float(ent_raw), 2)
+    export_hints = {
+        "poste": resolved_poste,
+        "entreprise": suggested_ent,
+        "entreprise_confidence": ent_confidence,
+    }
 
     # Toujours sélectionner le contenu pour tenir sur 1 page A4 à l'adaptation (preview / export / PDF cohérents).
     selection_a4 = None
@@ -2460,10 +2591,10 @@ def api_adapt(request: Request, body: AdaptBody):
     except Exception:
         pass
 
-    tid = body.template_id or cv_base.get("template_id") or "classic"
-    tid = str(tid).strip() if tid else "classic"
+    tid = body.template_id or cv_base.get("template_id") or DEFAULT_TEMPLATE_ID
+    tid = str(tid).strip() if tid else DEFAULT_TEMPLATE_ID
     if not tid:
-        tid = "classic"
+        tid = DEFAULT_TEMPLATE_ID
     topt = body.template_options if body.template_options is not None else (cv_base.get("template_options") or {})
     _check_premium_template(user_id, tid)
     _check_custom_template_access(user_id, tid)
@@ -2473,8 +2604,9 @@ def api_adapt(request: Request, body: AdaptBody):
         "experiences": tweaks.get("experiences", []),
         "mots_cles_cache": tweaks.get("mots_cles_cache", ""),
         "poste_offre": poste_offre,
-        "poste": poste_offre,
+        "poste": resolved_poste,
         "entreprise": entreprise_offre,
+        "export_hints": export_hints,
         "rapport": rapport,
         "description_preview": description[:200] + "..." if len(description) > 200 else description,
         "description_full": description,
@@ -2494,7 +2626,7 @@ def api_adapt(request: Request, body: AdaptBody):
         save_adaptation(adaptation_id, {**initial_payload, **snap}, user_id=user_id)
     ADAPT_COUNT.inc()
     try:
-        rapport_after_cv = appliquer_regles(merged, offre)
+        rapport_after_cv = appliquer_regles(merged, offre_rapport_final)
         rapport_after = rapport_after_cv.get("rapport", {})
     except Exception:
         rapport_after = None
@@ -2505,9 +2637,9 @@ def api_adapt(request: Request, body: AdaptBody):
         content_after = cv_content_metrics(merged)
         a_metrics["content_before"] = content_before
         a_metrics["content_after"] = content_after
-        event_log.log_event(event_log.EVENT_ADAPTATION_COMPLETED, user_id, a_metrics)
+        _track_analytics(request, event_log.EVENT_ADAPTATION_COMPLETED, user_id, a_metrics)
     except Exception:
-        event_log.log_event(event_log.EVENT_ADAPTATION_COMPLETED, user_id, {"adaptation_id": adaptation_id})
+        _track_analytics(request, event_log.EVENT_ADAPTATION_COMPLETED, user_id, {"adaptation_id": adaptation_id})
     return {
         "cv": merged,
         "rapport": rapport_after or rapport,
@@ -2515,6 +2647,7 @@ def api_adapt(request: Request, body: AdaptBody):
         "tweaks": tweaks,
         "adaptation_id": adaptation_id,
         "selection_a4": selection_a4,
+        "export_hints": export_hints,
     }
 
 
@@ -2578,12 +2711,8 @@ def _cv_pdf_bytes_same_as_download(
         selection_a4=selection_a4,
     )
     from generator import generer_pdf_bytes_from_html
-    if body.template_id and str(body.template_id).strip().startswith("custom_") and "</head>" in html:
-        custom_pdf_fix = (
-            "<style>@page{margin:0}body{background:#fff!important;margin:0!important;padding:0!important}.cv{margin:0!important}</style>"
-        )
-        html = html.replace("</head>", custom_pdf_fix + "</head>", 1)
-    return generer_pdf_bytes_from_html(html, BASE_DIR, cv, offre)
+
+    return generer_pdf_bytes_from_html(html, BASE_DIR, cv, offre, template_id=body.template_id)
 
 
 @app.post("/api/pdf")
@@ -2599,11 +2728,21 @@ def api_pdf(request: Request, body: PdfBody):
         err_msg = str(e).strip() or repr(e)
         raise HTTPException(status_code=500, detail=f"Erreur PDF: {err_msg}")
     PDF_COUNT.inc()
-    event_log.log_event(event_log.EVENT_PDF_GENERATED, user_id, {"titre": body.titre or "", "entreprise": body.entreprise or "", "template_id": body.template_id or "classic"})
+    _track_analytics(
+        request,
+        event_log.EVENT_PDF_GENERATED,
+        user_id,
+        {"titre": body.titre or "", "entreprise": body.entreprise or "", "template_id": body.template_id or DEFAULT_TEMPLATE_ID},
+    )
+    from backend.cv_pdf_dispatch import cv_pdf_engine
+
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-CV-PDF-Engine": cv_pdf_engine(),
+        },
     )
 
 
@@ -2630,7 +2769,12 @@ def api_export_dossier(request: Request, body: ExportDossierBody):
             template_options=body.template_options,
             selection_a4=body.selection_a4,
         )
-        event_log.log_event(event_log.EVENT_EXPORT_DOSSIER, user_id, {"titre": body.titre or "", "entreprise": body.entreprise or ""})
+        _track_analytics(
+            request,
+            event_log.EVENT_EXPORT_DOSSIER,
+            user_id,
+            {"titre": body.titre or "", "entreprise": body.entreprise or ""},
+        )
         return result
     except Exception as e:
         logger.exception(e)
@@ -2672,18 +2816,17 @@ def api_export_dossier_zip(request: Request, body: ExportDossierZipBody):
             template_options=body.template_options,
             selection_a4=body.selection_a4,
         )
-        if body.template_id and str(body.template_id).strip().startswith("custom_") and "</head>" in html:
-            custom_pdf_fix = (
-                "<style>@page{margin:0}body{background:#fff!important;margin:0!important;padding:0!important}.cv{margin:0!important}</style>"
-            )
-            html = html.replace("</head>", custom_pdf_fix + "</head>", 1)
         zip_bytes, folder_name, files_created, lettre_corps = export_dossier_as_zip(
-            cv, body.titre, body.entreprise, body.description,
+            cv,
+            body.titre,
+            body.entreprise,
+            body.description,
             lettre_corps=lettre_corps_existant,
             template_id=body.template_id,
             template_options=body.template_options,
             cv_html=html,
             base_dir=BASE_DIR,
+            selection_a4=body.selection_a4,
         )
         if body.adaptation_id and _safe_adaptation_id(body.adaptation_id) and lettre_corps:
             payload = get_adaptation(body.adaptation_id, user_id=user_id or "default")
@@ -2713,7 +2856,12 @@ def api_export_dossier_zip(request: Request, body: ExportDossierZipBody):
             )
             if snap:
                 save_adaptation(body.adaptation_id, {**snap_payload, **snap}, user_id=user_id)
-        event_log.log_event(event_log.EVENT_EXPORT_DOSSIER, user_id, {"titre": body.titre or "", "entreprise": body.entreprise or ""})
+        _track_analytics(
+            request,
+            event_log.EVENT_EXPORT_DOSSIER,
+            user_id,
+            {"titre": body.titre or "", "entreprise": body.entreprise or ""},
+        )
         return Response(
             content=zip_bytes,
             media_type="application/zip",
@@ -2821,18 +2969,20 @@ _ALLOWED_FRONTEND_EVENTS = {
     event_log.EVENT_ONBOARDING_COMPLETED,
     event_log.EVENT_ONBOARDING_SKIPPED,
     event_log.EVENT_PAGE_VIEW,
+    event_log.EVENT_PAGE_ENGAGEMENT,
     event_log.EVENT_JOB_DESCRIPTION_PASTED,
     event_log.EVENT_CV_MANUALLY_EDITED,
     event_log.EVENT_ATS_DETAILS_OPENED,
     event_log.EVENT_ADAPTATION_RATED,
-    event_log.EVENT_CV_IMPORT,
     event_log.EVENT_TEMPLATE_CHANGED,
+    event_log.EVENT_ADAPT_CTA_CLICKED,
 }
 
 
 class TrackEventBody(BaseModel):
     event_type: str
     context: dict = {}
+    session_id: str | None = None
 
 
 class InviteBody(BaseModel):
@@ -2848,7 +2998,8 @@ def api_events_track(request: Request, body: TrackEventBody):
     ctx = body.context or {}
     if len(json.dumps(ctx, ensure_ascii=False)) > 4000:
         ctx = {"_truncated": True}
-    event_log.log_event(body.event_type, user_id, ctx)
+    sid = _analytics_session_id_from_request(request) or _parse_analytics_session_id(body.session_id)
+    event_log.log_event(body.event_type, user_id, ctx, session_id=sid)
     return {"ok": True}
 
 
@@ -2894,24 +3045,24 @@ def api_application_update(request: Request, adaptation_id: str, body: Applicati
                 delay_days = (datetime.now(timezone.utc) - created).days
             except Exception:
                 pass
-        event_log.log_event(event_log.EVENT_STATUT_CHANGED, user_id, {
+        _track_analytics(request, event_log.EVENT_STATUT_CHANGED, user_id, {
             "adaptation_id": adaptation_id,
             "statut_prev": statut_prev,
             "statut_new": updates["statut"],
             "delay_days": delay_days,
         })
     if updates.get("refus_raison") or updates.get("refus_raison_type"):
-        event_log.log_event(event_log.EVENT_REFUS_REASON_SUBMITTED, user_id, {
+        _track_analytics(request, event_log.EVENT_REFUS_REASON_SUBMITTED, user_id, {
             "adaptation_id": adaptation_id,
             "refus_raison_type": updates.get("refus_raison_type"),
         })
     if updates.get("interview_type") or updates.get("interview_feedback") or updates.get("interview_date"):
-        event_log.log_event(event_log.EVENT_INTERVIEW_FEEDBACK_SUBMITTED, user_id, {
+        _track_analytics(request, event_log.EVENT_INTERVIEW_FEEDBACK_SUBMITTED, user_id, {
             "adaptation_id": adaptation_id,
             "interview_type": updates.get("interview_type"),
         })
     if updates.get("source_offre"):
-        event_log.log_event(event_log.EVENT_SOURCE_OFFRE_SUBMITTED, user_id, {
+        _track_analytics(request, event_log.EVENT_SOURCE_OFFRE_SUBMITTED, user_id, {
             "adaptation_id": adaptation_id,
             "source_offre": updates["source_offre"],
         })
@@ -2993,11 +3144,16 @@ def api_application_download_cv(request: Request, adaptation_id: str):
         if raw:
             poste = (payload.get("poste") or "").strip()
             entreprise = (payload.get("entreprise") or "").strip()
-            safe = "".join(c for c in f"{poste}_{entreprise}" if c.isalnum() or c in "._- ")[:80] or "cv"
+            full_cv_stored = payload.get("full_cv") or {}
+            from generator import _nom_fichier_pdf
+
+            cv_filename = _nom_fichier_pdf(
+                full_cv_stored, {"titre": poste, "entreprise": entreprise}
+            )
             return Response(
                 content=raw,
                 media_type="application/pdf",
-                headers={"Content-Disposition": f'attachment; filename="cv-{safe}.pdf"'},
+                headers={"Content-Disposition": f'attachment; filename="{cv_filename}"'},
             )
     full_cv = payload.get("full_cv")
     if not full_cv:
@@ -3005,20 +3161,34 @@ def api_application_download_cv(request: Request, adaptation_id: str):
     poste = (payload.get("poste") or "").strip()
     entreprise = (payload.get("entreprise") or "").strip()
     selection_a4 = payload.get("selection_a4")
+    # Même HTML que POST /api/pdf (for_preview=True → body.cv-preview + règles min-height / export) pour ne pas
+    # générer un PDF sans les injections de layout (sidebar grise tronquée).
     html = _render_cv_html(
         full_cv,
-        for_preview=False,
+        for_preview=True,
         for_pdf=True,
         template_id=payload.get("template_id"),
         template_options=payload.get("template_options"),
         selection_a4=selection_a4,
     )
     from generator import generer_pdf_bytes_from_html
-    pdf_bytes, filename = generer_pdf_bytes_from_html(html, BASE_DIR, full_cv, {"titre": poste, "entreprise": entreprise})
+
+    pdf_bytes, filename = generer_pdf_bytes_from_html(
+        html,
+        BASE_DIR,
+        full_cv,
+        {"titre": poste, "entreprise": entreprise},
+        template_id=payload.get("template_id"),
+    )
+    from backend.cv_pdf_dispatch import cv_pdf_engine
+
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-CV-PDF-Engine": cv_pdf_engine(),
+        },
     )
 
 
@@ -3366,9 +3536,12 @@ def metrics(request: Request):
 
 @app.get("/health")
 def health():
+    from backend.cv_pdf_dispatch import cv_pdf_engine
+
     return {
         "status": "ok",
         "supabase": supabase_data_mode_info(),
+        "cv_pdf_engine": cv_pdf_engine(),
         "thread_pool_max_workers": thread_pool_max_workers(),
         "rate_limit": "memory_per_process",
         "rate_limit_note": "Plusieurs workers/instances : limiter aussi au proxy (nginx) ou Redis si besoin.",

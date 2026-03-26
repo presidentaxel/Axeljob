@@ -78,6 +78,13 @@ body {
   color: #fff;
   line-height: 1.15;
   letter-spacing: 0.02em;
+  display: block;
+  min-width: 0;
+}
+
+.header-nom-part {
+  display: inline;
+  white-space: nowrap;
 }
 
 .header-titre-sep { font-weight: 400; opacity: 0.5; margin: 0 6px; }
@@ -87,6 +94,9 @@ body {
   font-weight: 400;
   font-style: italic;
   opacity: 0.9;
+  color: #fff;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .resume-text {
@@ -184,11 +194,14 @@ body {
 
 /* ATS keywords */
 .section-mots-cles-ats { margin-top: 10px; }
-.mots-cles-ats-titre { font-size: 6pt; font-weight: bold; }
-.mots-cles-ats-invisible { font-size: 5pt; line-height: 1.15; color: var(--cv-sidebar-color); margin: 0; padding: 0; }
-body.cv-preview .mots-cles-ats-titre { color: #000; font-size: 8pt; }
-body.cv-preview .mots-cles-ats-invisible { color: #000; font-size: 7pt; }
-@media print { .mots-cles-ats-titre { display: none; } .mots-cles-ats-invisible { color: var(--cv-sidebar-color) !important; } }
+.section-mots-cles-ats .mots-cles-ats-titre { font-size: 6pt; font-weight: bold; }
+.section-mots-cles-ats .mots-cles-ats-invisible { font-size: 5pt; line-height: 1.15; color: var(--cv-sidebar-color); margin: 0; padding: 0; }
+body.cv-preview .section-mots-cles-ats .mots-cles-ats-titre { color: #000; font-size: 8pt; }
+body.cv-preview .section-mots-cles-ats .mots-cles-ats-invisible { color: #000; font-size: 7pt; }
+@media print {
+  .section-mots-cles-ats .mots-cles-ats-titre { display: none; }
+  .section-mots-cles-ats .mots-cles-ats-invisible { color: var(--cv-sidebar-color) !important; }
+}
 
 /* PDF compact */
 body:not(.cv-preview) .cv-header { padding: 12px 16px 10px; }
@@ -201,6 +214,22 @@ body:not(.cv-preview) .sidebar-item { font-size: 8pt; line-height: 1.3; }
 
 /* Preview */
 html.cv-preview, body.cv-preview { width: 100%; min-width: 210mm; }
-.cv-changed { background-color: #b8d4be; padding: 0 1px; border-radius: 1px; }
-.cv-header .cv-changed { background-color: #3d6b4a; color: #b8e0c0; }
-@media print { .cv-changed, .cv-header .cv-changed { background-color: transparent; color: inherit; } }
+.cv-changed { background-color: #c5e3cd; padding: 0 1px; border-radius: 1px; }
+.cv-header .cv-changed,
+.cv-sidebar .cv-changed { background-color: #9dc6ae; color: #0f2418; }
+@media print {
+  .cv-changed {
+    background-color: transparent;
+    padding: 0;
+  }
+  .cv-header .cv-changed {
+    color: #ffffff !important;
+  }
+  .cv-main .cv-changed {
+    color: var(--cv-color-body, #1e293b) !important;
+  }
+  .cv-sidebar .cv-changed {
+    background-color: transparent;
+    color: inherit;
+  }
+}

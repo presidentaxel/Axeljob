@@ -16,18 +16,45 @@ function clampLeftCenteredUnder(elRect) {
   return Math.max(MARGIN, Math.min(ideal, vw - tw - MARGIN));
 }
 
-export default function GuidedTour({ steps, onComplete, onStepChange, tourKey = 'main' }) {
+export default function GuidedTour({
+  steps,
+  onComplete,
+  onStepChange,
+  tourKey = 'main',
+  /** Si false, pas d’ouverture automatique après délai (tours déclenchés par le parent). */
+  enableAutoOpen = true,
+  /** Délai avant d’afficher le tour (ms), ex. 0 dès l’arrivée sur la page CV. */
+  autoOpenDelayMs = 800,
+  /** Incrémenter pour ouvrir le tour (une fois le tour pas encore terminé dans localStorage). */
+  openTrigger = 0,
+}) {
   const [currentStep, setCurrentStep] = useState(0);
   const [visible, setVisible] = useState(false);
   const [spotlightRect, setSpotlightRect] = useState(null);
   const tooltipRef = useRef(null);
+  const prevOpenTriggerRef = useRef(0);
 
   useEffect(() => {
+    if (!enableAutoOpen) return;
     const done = localStorage.getItem(TOUR_STORAGE_KEY + '_' + tourKey);
     if (done) return;
-    const timer = setTimeout(() => setVisible(true), 800);
+    const timer = setTimeout(() => setVisible(true), Math.max(0, autoOpenDelayMs));
     return () => clearTimeout(timer);
-  }, [tourKey]);
+  }, [tourKey, enableAutoOpen, autoOpenDelayMs]);
+
+  useEffect(() => {
+    if (enableAutoOpen) return;
+    if (!openTrigger || openTrigger <= prevOpenTriggerRef.current) return;
+    prevOpenTriggerRef.current = openTrigger;
+    try {
+      const done = localStorage.getItem(TOUR_STORAGE_KEY + '_' + tourKey);
+      if (done) return;
+    } catch (_) {
+      return;
+    }
+    setCurrentStep(0);
+    setVisible(true);
+  }, [openTrigger, tourKey, enableAutoOpen]);
 
   const updateSpotlight = useCallback(() => {
     if (!visible || currentStep >= steps.length) return;

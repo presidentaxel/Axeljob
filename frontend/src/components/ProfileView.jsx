@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
-import { apiGet, apiPut, apiPost, apiPostFile, apiPostBlob, apiUrl } from '../api';
+import { apiGet, apiPut, apiPost, apiPostFile, apiUrl } from '../api';
 import { supabase } from '../lib/supabase';
 import { defaultCv, newExpId, newFormId, newCertId, newProjId } from '../data/cvDefault';
 import TemplatePicker from './TemplatePicker';
 import ReauthModal from './ReauthModal';
-import { applyA4PageFramesToDocument, suppressCvPreviewIframeInnerScroll } from '../lib/cvPreviewA4Pages';
+import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from '../lib/cvPreviewA4Pages';
 import '../styles/ProfileView.css';
 import '../styles/TemplatePicker.css';
 
@@ -123,7 +123,7 @@ function formatScalarPreviewForPrivacy(fieldKey, value, maxLen) {
 
 export default function ProfileView({ onSaveSuccess, session, refreshKey, usage, onUpgradeClick, onUsageRefresh, onBillingPortalClick, templatesList, templateId: templateIdProp, templateOptions: templateOptionsProp, onTemplateIdChange, onTemplateOptionsChange, onPhotoSessionExpired }) {
   const [cv, setCv] = useState(defaultCv());
-  const [localTemplateId, setLocalTemplateId] = useState(() => localStorage.getItem('cv_template_id') || 'classic');
+  const [localTemplateId, setLocalTemplateId] = useState(() => localStorage.getItem('cv_template_id') || 'minimal');
   const [localTemplateOptions, setLocalTemplateOptions] = useState(() => {
     try {
       const stored = localStorage.getItem('cv_template_options');
@@ -224,23 +224,17 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
   // Auto-trigger LinkedIn sync/photo after OAuth redirect
   const linkedinAutoTriggeredRef = useRef(false);
 
-  // Hauteur = document complet : scroll sur .profile-preview-pane-scroll (pas de barre dans l’iframe)
+  // Hauteur = document complet : scroll sur .profile-preview-pane-scroll (pas de barre dans l’iframe).
+  // Recalcul après chaque passe A4 (ResizeObserver dans applyA4PageFramesToDocument), sinon 2e page coupée.
   const resizeProfilePreviewIframe = useCallback((iframe) => {
     if (!iframe) return;
     try {
       const doc = iframe.contentDocument;
       if (!doc?.documentElement) return;
-      applyA4PageFramesToDocument(doc);
-      const height = Math.max(
-        doc.documentElement.scrollHeight,
-        doc.documentElement.offsetHeight,
-        doc.body?.scrollHeight ?? 0,
-        doc.body?.offsetHeight ?? 0
-      );
-      if (height > 0) {
-        iframe.style.height = `${Math.ceil(height)}px`;
-        suppressCvPreviewIframeInnerScroll(doc);
-      }
+      applyA4PageFramesToDocument(doc, {
+        onLayout: () => syncCvPreviewIframeHeight(iframe),
+      });
+      syncCvPreviewIframeHeight(iframe);
     } catch (_) { /* ignore */ }
   }, []);
 

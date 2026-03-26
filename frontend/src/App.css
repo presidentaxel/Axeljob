@@ -104,6 +104,75 @@ body {
   font-size: 0.9375rem;
 }
 
+/* Blocage /app sur petit écran (production) : message + liens site public / déconnexion */
+.app-mobile-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(1.25rem, env(safe-area-inset-top, 0px)) max(1.25rem, env(safe-area-inset-right, 0px))
+    max(1.25rem, env(safe-area-inset-bottom, 0px)) max(1.25rem, env(safe-area-inset-left, 0px));
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.app-mobile-gate-card {
+  width: 100%;
+  max-width: 26rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 1.5rem 1.35rem 1.35rem;
+  text-align: center;
+}
+
+.app-mobile-gate-logo {
+  display: block;
+  margin: 0 auto 1rem;
+  border-radius: 10px;
+}
+
+.app-mobile-gate-card h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.app-mobile-gate-lead,
+.app-mobile-gate-hint {
+  margin: 0 0 0.85rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.app-mobile-gate-hint {
+  margin-bottom: 1.15rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.app-mobile-gate-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.app-mobile-gate-actions .btn {
+  width: 100%;
+  justify-content: center;
+}
+
 .app-onboarding-boot-spinner {
   width: 36px;
   height: 36px;
@@ -409,10 +478,20 @@ body {
   .topbar-nav {
     margin-left: 0.5rem;
     gap: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    min-width: 0;
+  }
+  .topbar-nav::-webkit-scrollbar {
+    display: none;
   }
   .topbar-link {
     padding: 0.35rem 0.45rem;
     font-size: 0.75rem;
+    flex-shrink: 0;
   }
   .topbar-link span {
     display: none;
@@ -420,6 +499,14 @@ body {
   .topbar-upgrade-btn {
     font-size: 0.72rem;
     padding: 0.25rem 0.6rem;
+  }
+  .topbar-pro-badge {
+    padding: 0.22rem 0.55rem;
+    font-size: 0.7rem;
+  }
+  .topbar-user-btn {
+    width: 36px;
+    height: 36px;
   }
 }
 
@@ -479,6 +566,14 @@ body {
   padding-bottom: 2rem;
   display: flex;
   flex-direction: column;
+}
+
+@media (max-width: 900px) {
+  .view-profil .page-content {
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 .view-profil .profile-view-with-preview {
   flex: 1;
@@ -1007,6 +1102,54 @@ body {
   padding: 0.3rem 0.75rem;
 }
 
+/* Rappel discret tant qu’aucune candidature / adaptation enregistrée */
+.zero-adapt-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.45rem 1rem;
+  background: rgba(99, 102, 241, 0.06);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--text-muted, var(--muted));
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.zero-adapt-banner--compact {
+  justify-content: flex-start;
+  text-align: left;
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.view-profil .page-header .zero-adapt-banner--compact {
+  width: 100%;
+  max-width: 42rem;
+}
+
+.zero-adapt-banner-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent, #6366f1);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.zero-adapt-banner-link:hover {
+  opacity: 0.9;
+}
+
 /* ----- Zone principale (sous la topbar) ----- */
 .app-main {
   flex: 1;
@@ -1212,6 +1355,14 @@ body {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr auto;
   }
+  .cv-chat-area {
+    border-right: none;
+  }
+  .cv-chat-preview {
+    border-left: none;
+    border-top: 1px solid var(--border);
+    min-height: min(420px, 70vh);
+  }
 }
 
 /* Zone aperçu CV : fond gris clair + feuille A4 avec ombre portée */
@@ -1231,7 +1382,7 @@ body {
   position: relative;
 }
 
-.ats-score-trigger {
+button.ats-score-trigger {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -1239,10 +1390,12 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+  font: inherit;
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--accent);
   cursor: pointer;
+  text-align: left;
   transition: background 0.15s, border-color 0.15s;
 }
 
@@ -1251,9 +1404,20 @@ body {
   border-color: var(--accent);
 }
 
-.ats-score-label {
-  color: var(--muted);
+.ats-score-pill-label {
+  margin: 0;
+  padding: 0;
   font-weight: 500;
+  color: var(--muted);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+  transition: color 0.15s, text-decoration-color 0.15s;
+}
+
+.ats-score-trigger:hover .ats-score-pill-label {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
 }
 
 .ats-score-value {
@@ -1274,6 +1438,89 @@ body {
   z-index: 10;
   max-height: 400px;
   overflow-y: auto;
+}
+
+.ats-score-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.ats-score-modal {
+  width: 100%;
+  max-width: 420px;
+  max-height: min(85vh, 520px);
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg, 0 20px 50px rgba(0, 0, 0, 0.2));
+  padding: 1rem 1.15rem 1.1rem;
+}
+
+.ats-score-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.ats-score-modal-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.ats-score-modal-close {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  margin: -0.25rem -0.35rem 0 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.ats-score-modal-close:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.ats-score-modal-intro {
+  margin: 0 0 1rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.ats-score-modal strong {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--text);
+  margin-bottom: 0.35rem;
+}
+
+.ats-score-modal .ats-score-section {
+  margin-bottom: 0.85rem;
+}
+
+.ats-score-modal .ats-score-section:last-child {
+  margin-bottom: 0;
 }
 
 .ats-score-dropdown strong {
@@ -3469,14 +3716,10 @@ textarea::placeholder {
     padding: 0.75rem;
   }
 
-  /* CV Chat layout */
+  /* CV Chat : chat + aperçu empilés (l’aperçu ne doit pas disparaître sur téléphone) */
   .cv-chat-page .cv-chat-layout {
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr;
-  }
-
-  .cv-chat-preview {
-    display: none;
+    grid-template-rows: minmax(240px, 52vh) auto;
   }
 
   .cv-chat-panel {
@@ -3484,23 +3727,63 @@ textarea::placeholder {
   }
 
   .cv-chat-messages {
-    padding: 0.5rem 0;
+    padding: 0.75rem 1rem;
+  }
+
+  .cv-chat-placeholder {
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
   }
 
   .cv-chat-msg {
     max-width: 96%;
-    font-size: 0.82rem;
-    padding: 0.55rem 0.75rem;
+  }
+
+  .cv-chat-msg-content {
+    font-size: 0.875rem;
   }
 
   .cv-chat-input-bar {
-    padding: 0.4rem;
-    gap: 0.3rem;
+    align-items: flex-end;
+    padding: 0.5rem 0.75rem;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+    gap: 0.5rem;
   }
 
   .cv-chat-input {
-    font-size: 0.85rem;
-    padding: 0.5rem 0.6rem;
+    /* 16px évite le zoom automatique iOS au focus */
+    font-size: 1rem;
+    line-height: 1.45;
+    padding: 0.65rem 0.75rem;
+    min-height: 44px;
+  }
+
+  .cv-chat-input-send {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+  }
+
+  .cv-chat-page .page-title-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .cv-chat-page .btn-new-adapt-session {
+    width: 100%;
+    white-space: normal;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .cv-chat-page .page-subtitle {
+    line-height: 1.5;
+  }
+
+  .cv-chat-error {
+    margin-left: 1rem;
+    margin-right: 1rem;
   }
 
   /* Kanban / Candidatures */

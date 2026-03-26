@@ -9,8 +9,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="template.css">
 </head>
-<body class="{% if for_preview %}cv-preview{% endif %}">
-  <article class="cv cv-print-split">
+<body class="{% if for_preview %}cv-preview{% endif %}{% if for_pdf %} cv-pdf-page-stripe-right{% endif %}">
+  <article class="cv cv-print-split cv-template-bold">
     <header class="cv-header">
       <div class="header-top-row">
         {% if photo_url %}
@@ -18,7 +18,7 @@
           <img src="{{ photo_url }}" alt="">
         </div>
         {% endif %}
-        <h1 class="header-nom">{{ prenom }} {{ nom }}{% if titre_professionnel_display %}<span class="header-titre-sep"> - </span><span class="header-titre-inline">{{ titre_professionnel_display|safe }}</span>{% endif %}</h1>
+        <h1 class="header-nom"><span class="header-nom-part">{{ prenom }} {{ nom }}</span>{% if titre_professionnel_display %}<span class="header-titre-sep"> - </span><span class="header-titre-inline">{{ titre_professionnel_display|safe }}</span>{% endif %}</h1>
       </div>
       {% if resume_display %}
       <p class="resume-text">{{ resume_display|safe }}</p>

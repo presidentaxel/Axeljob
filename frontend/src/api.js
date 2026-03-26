@@ -1,6 +1,8 @@
 /**
  * Base URL de l'API backend (FastAPI). En dev : http://localhost:8000
  */
+import { getOrCreateAnalyticsSessionId, ANALYTICS_SESSION_HEADER } from './analyticsSession';
+
 const getApiUrl = () => import.meta.env.VITE_API_URL || '';
 
 let authToken = null;
@@ -18,6 +20,10 @@ export function setUnauthorizedCallback(fn) {
 function getHeaders(extra = {}) {
   const h = { ...extra };
   if (authToken) h.Authorization = `Bearer ${authToken}`;
+  try {
+    const sid = getOrCreateAnalyticsSessionId();
+    if (sid) h[ANALYTICS_SESSION_HEADER] = sid;
+  } catch {}
   return h;
 }
 
@@ -146,7 +152,25 @@ export async function apiPostBlob(path, body) {
     const msg = Array.isArray(detail) ? (detail[0]?.msg || JSON.stringify(detail)) : (detail || data.error || r.statusText);
     throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
   }
-  return r.blob();
+  const engine = r.headers.get('X-CV-PDF-Engine');
+  if (path.includes('pdf')) {
+    if (engine) {
+      // console.warn : visible avec les filtres par défaut (souvent pas le cas de console.info)
+      console.warn('[cv-bot] Export PDF — moteur serveur:', engine, '(CV_BOT_PDF_ENGINE)');
+    } else {
+      console.warn(
+        '[cv-bot] Export PDF — en-tête X-CV-PDF-Engine absente. Rebuild backend+frontend, ou onglet Réseau > réponse POST /api/pdf.',
+      );
+    }
+  }
+  const blob = await r.blob();
+  const disposition = r.headers.get('Content-Disposition');
+  let filename = null;
+  if (disposition) {
+    const m = disposition.match(/filename="?([^";\n]+)"?/);
+    if (m) filename = m[1].trim();
+  }
+  return { blob, filename };
 }
 
 /** GET request that returns blob + optional filename from Content-Disposition (for PDF downloads). */
@@ -161,6 +185,14 @@ export async function apiGetBlob(path) {
       msg = data.detail || msg;
     } catch {}
     throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+  }
+  const engine = r.headers.get('X-CV-PDF-Engine');
+  if (path.includes('pdf') || path.includes('download/cv')) {
+    if (engine) {
+      console.warn('[cv-bot] Export PDF — moteur serveur:', engine, '(CV_BOT_PDF_ENGINE)');
+    } else {
+      console.warn('[cv-bot] Export PDF — en-tête X-CV-PDF-Engine absente (rebuild backend ?).');
+    }
   }
   const blob = await r.blob();
   const disposition = r.headers.get('Content-Disposition');
@@ -178,10 +210,14 @@ export async function apiGetBlob(path) {
  */
 export function trackEvent(eventType, context = {}) {
   try {
+    let session_id = null;
+    try {
+      session_id = getOrCreateAnalyticsSessionId();
+    } catch {}
     fetch(apiUrl('/api/events/track'), {
       method: 'POST',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ event_type: eventType, context }),
+      body: JSON.stringify({ event_type: eventType, context, session_id }),
       keepalive: true,
     }).catch(() => {});
   } catch {}

@@ -52,7 +52,8 @@ body {
   display: flex;
   align-items: center;
   gap: 14px;
-  border-bottom: 2px solid var(--cv-accent-color);
+  /* Pas de barre épaisse ici : la séparation suit les titres de section (.section-title), ligne sous le titre. */
+  border-bottom: none;
 }
 
 .header-photo {
@@ -105,6 +106,15 @@ body {
 
 .section {
   margin-bottom: 10px;
+}
+
+/* Résumé / profil : marge sous le bloc avant la section suivante. */
+.section.section-resume {
+  margin-bottom: 14px;
+}
+
+.section.section-resume .section-title {
+  margin-top: 0;
 }
 
 .section-title {
@@ -217,7 +227,7 @@ body {
 
 /* ATS keywords (invisible) */
 .section-mots-cles-ats { margin-top: 8px; }
-.mots-cles-ats-invisible {
+.section-mots-cles-ats .mots-cles-ats-invisible {
   font-size: 5pt;
   line-height: 1.15;
   color: #fff;
@@ -230,6 +240,13 @@ body {
 body:not(.cv-preview) .cv-header { padding: 14px 24px 10px; }
 body:not(.cv-preview) .cv-body { padding: 8px 24px 12px; }
 body:not(.cv-preview) .section { margin-bottom: 6px; }
+body:not(.cv-preview) .section.section-resume {
+  margin-bottom: 16px;
+}
+body:not(.cv-preview) .section.section-resume .resume-text {
+  margin-top: 6px;
+  padding-bottom: 0;
+}
 body:not(.cv-preview) .experience-item { margin-bottom: 4px; }
 body:not(.cv-preview) .header-nom { font-size: 16pt; }
 
@@ -248,7 +265,7 @@ body.cv-preview .section-mots-cles-ats .mots-cles-ats-invisible {
 
 /* Surlignage modifications */
 .cv-changed {
-  background-color: #b8d4be;
+  background-color: #c5e3cd;
   padding: 0 1px;
   border-radius: 1px;
 }
@@ -259,7 +276,7 @@ body.cv-preview .section-mots-cles-ats .mots-cles-ats-invisible {
     padding: 0;
   }
   /* Export PDF : cachés (blanc sur blanc) */
-  .mots-cles-ats-invisible {
+  .section-mots-cles-ats .mots-cles-ats-invisible {
     color: #fff !important;
     font-size: 5pt;
     line-height: 1.15;

@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
 """
-Génération du PDF à partir du CV adapté et du template HTML/CSS.
-Jinja2 pour l'injection, WeasyPrint pour le PDF.
+Génération du PDF CV.
+
+Moteur au choix (env CV_BOT_PDF_ENGINE) :
+  - weasyprint (défaut) : render_cv_html → bundle pdf_export → WeasyPrint (voir backend/cv_pdf_weasyprint.py)
+  - chromium : render_cv_html → Chromium headless / Playwright (voir backend/cv_pdf_chromium.py)
 """
 
 import os
 import re
+import sys
 from pathlib import Path
 
-# Windows : ajouter les dossiers des DLL (Pango/GTK) avant d'importer WeasyPrint
+_GENERATOR_ROOT = Path(__file__).resolve().parent
+if str(_GENERATOR_ROOT) not in sys.path:
+    sys.path.insert(0, str(_GENERATOR_ROOT))
+
+# Windows : ajouter les dossiers des DLL (Pango/GTK) avant tout import WeasyPrint (direct ou transitif)
 if os.name == "nt":
     dll_dirs = os.environ.get("WEASYPRINT_DLL_DIRECTORIES", "").strip()
     if dll_dirs:
@@ -21,9 +29,14 @@ if os.name == "nt":
                 except OSError:
                     pass
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape
-
-from photo_assets import ensure_compressed_photo, get_photo_url_for_cv
+# Réexports pour tests (test_pdf_export_assets) et compatibilité
+from backend.cv_pdf_weasyprint import (
+    PDF_EXPORT_ALIGN_STYLE as _PDF_EXPORT_ALIGN_STYLE,
+    PDF_EXPORT_CUSTOM_BASE_STYLE as _PDF_EXPORT_CUSTOM_TEMPLATE_STYLE,
+    PDF_EXPORT_LAYOUT_STYLE as _PDF_EXPORT_LAYOUT_STYLE,
+    PDF_FROM_HTML_FINAL_CSS as _PDF_FROM_HTML_FINAL_CSS,
+    WEASYPRINT_CV_MEDIA,
+)
 
 
 def _strip_h_f(text: str) -> str:
@@ -46,374 +59,106 @@ def _sanitize_filename(s: str, max_len: int = 80) -> str:
 
 
 def _nom_fichier_pdf(cv: dict, offre: dict) -> str:
-    """Nomme le fichier : 'Prenom Nom - Poste.pdf' si titre fourni, sinon Prenom_Nom_CV.pdf ou ancien format."""
-    prenom = (cv.get("prenom") or "").strip()
-    nom = (cv.get("nom") or "").strip()
-    poste = (offre.get("titre") or "").strip()
-    entreprise = (offre.get("entreprise") or "").strip()
+    """Nom du PDF CV : « CV - NOM PRENOM - POSTE » ; chaque partie absente est omise (ex. « CV.pdf », « CV - Dupont - Poste »)."""
+    nom = _sanitize_filename((cv.get("nom") or "").strip())
+    prenom = _sanitize_filename((cv.get("prenom") or "").strip())
+    poste = _sanitize_filename((offre.get("titre") or "").strip())
 
-    prenom_ok = prenom.title() if prenom else "CV"
-    nom_ok = nom.title() if nom else "Sortie"
-
-    # Format demandé : "Prenom Nom - Poste.pdf"
+    parts: list[str] = ["CV"]
+    identite = " ".join(x for x in (nom, prenom) if x)
+    if identite:
+        parts.append(identite)
     if poste:
-        poste_ok = _sanitize_filename(poste) or "CV"
-        return f"{prenom_ok} {nom_ok} - {poste_ok}.pdf"
+        parts.append(poste)
 
-    # Export PDF seul (sans offre) → Prenom Nom - CV.pdf
-    if not entreprise:
-        return f"{prenom_ok} {nom_ok} - CV.pdf"
-
-    # Ancien format avec entreprise si besoin
-    def clean(s: str) -> str:
-        s = re.sub(r"[^\w\s\-]", "", s)
-        s = re.sub(r"\s+", "_", s).strip("_")
-        return s.lower()
-
-    poste_ok = clean(poste).title().replace("_", " ") or "Poste"
-    poste_ok = re.sub(r"\s+", "_", poste_ok)
-    entreprise_ok = clean(entreprise).title().replace("_", " ") or "Entreprise"
-    entreprise_ok = re.sub(r"\s+", "_", entreprise_ok)
-    return f"{prenom_ok}_{nom_ok}_{poste_ok}_{entreprise_ok}.pdf"
+    return " - ".join(parts) + ".pdf"
 
 
-def generer_pdf(cv_adapte: dict, offre: dict, output_dir: str = ".", template_id: str | None = None, template_options: dict | None = None) -> str:
+def generer_pdf_bytes_from_html(
+    html_str: str,
+    base_dir: Path,
+    cv: dict,
+    offre: dict,
+    template_id: str | None = None,
+) -> tuple[bytes, str]:
     """
-    Charge template.html, injecte cv_adapte, compile en PDF avec WeasyPrint.
-    Même logique que generer_pdf_bytes : si la version compacte tient sur 1 page, on ajoute une 7e exp et un 2e projet.
-    Retourne le chemin absolu du fichier PDF généré.
+    PDF à partir du HTML déjà rendu par render_cv_html().
+
+    template_id : pour WeasyPrint, bundle custom_* ; ignoré par Chromium.
     """
+    from backend.cv_pdf_dispatch import cv_pdf_engine, html_to_cv_pdf_bytes
+
+    if cv_pdf_engine() == "weasyprint":
+        try:
+            import weasyprint  # noqa: F401
+        except ImportError:
+            raise ImportError(
+                "WeasyPrint est requis pour CV_BOT_PDF_ENGINE=weasyprint.\n"
+                "Installation : pip install weasyprint"
+            ) from None
+
+    base_resolved = Path(base_dir).resolve()
+    pdf_bytes = html_to_cv_pdf_bytes(html_str, base_resolved, template_id=template_id)
+    return pdf_bytes, _nom_fichier_pdf(cv, offre)
+
+
+def generer_pdf_bytes(
+    cv_adapte: dict,
+    offre: dict,
+    base_dir: str | Path | None = None,
+    template_id: str | None = None,
+    template_options: dict | None = None,
+    selection_a4: dict | None = None,
+) -> tuple[bytes, str]:
+    """
+    PDF en mémoire : render_cv_html + moteur choisi par CV_BOT_PDF_ENGINE.
+
+    selection_a4 : filtre optionnel du CV (comme export dossier / adaptation A4).
+    """
+    from backend.cv_html_render import render_cv_html
+    from backend.cv_pdf_dispatch import cv_pdf_engine, html_to_cv_pdf_bytes
+
+    if cv_pdf_engine() == "weasyprint":
+        try:
+            import weasyprint  # noqa: F401
+        except ImportError:
+            raise ImportError(
+                "WeasyPrint est requis pour CV_BOT_PDF_ENGINE=weasyprint.\n"
+                "Installation : pip install weasyprint"
+            ) from None
+
+    base_resolved = Path(base_dir).resolve() if base_dir else Path(__file__).resolve().parent
+    html = render_cv_html(
+        dict(cv_adapte),
+        for_preview=True,
+        for_pdf=True,
+        template_id=template_id,
+        template_options=template_options,
+        selection_a4=selection_a4,
+    )
+    pdf_bytes = html_to_cv_pdf_bytes(html, base_resolved, template_id=template_id)
+    return pdf_bytes, _nom_fichier_pdf(cv_adapte, offre)
+
+
+def generer_pdf(
+    cv_adapte: dict,
+    offre: dict,
+    output_dir: str = ".",
+    template_id: str | None = None,
+    template_options: dict | None = None,
+    selection_a4: dict | None = None,
+) -> str:
+    """Écrit le PDF sur disque (même logique que generer_pdf_bytes)."""
     pdf_bytes, nom_pdf = generer_pdf_bytes(
-        cv_adapte, offre, base_dir=Path(__file__).resolve().parent,
-        template_id=template_id, template_options=template_options,
+        cv_adapte,
+        offre,
+        base_dir=Path(__file__).resolve().parent,
+        template_id=template_id,
+        template_options=template_options,
+        selection_a4=selection_a4,
     )
     out = Path(output_dir).resolve()
     out.mkdir(parents=True, exist_ok=True)
     path_pdf = out / nom_pdf
     path_pdf.write_bytes(pdf_bytes)
     return str(path_pdf)
-
-
-def _build_cv_display(cv_adapte: dict, html_module, n_experiences: int = 6, n_projets: int = 1) -> dict:
-    """Construit le contexte d’affichage : n_experiences (6 ou 7), n_projets (1 ou 2), 2 bullets par exp."""
-    experiences_for_display = []
-    for exp in (cv_adapte.get("experiences") or [])[:n_experiences]:
-        if not (exp.get("poste") or exp.get("entreprise") or any((exp.get("bullet_points") or []))):
-            continue
-        bullets = (exp.get("bullet_points") or [])[:2]
-        escape = html_module.escape
-        exp_display = {
-            **exp,
-            "bullet_points": [{"text": b, "html": escape(b)} for b in bullets],
-            "poste_display": escape((exp.get("poste") or "").strip()),
-            "entreprise_display": escape((exp.get("entreprise") or "").strip()),
-            "date_debut_display": escape((exp.get("date_debut") or "").strip()),
-            "date_fin_display": escape((exp.get("date_fin") or "").strip()),
-            "lieu_display": escape((exp.get("lieu") or "").strip()),
-            "secteur_display": escape((exp.get("secteur") or "").strip()),
-            "clients_display": escape((exp.get("clients") or "").strip()),
-        }
-        experiences_for_display.append(exp_display)
-
-    formations_all = cv_adapte.get("formations") or []
-    formations_for_display = [
-        f for f in formations_all[:5]
-        if (f.get("diplome") or f.get("etablissement") or f.get("date") or f.get("mention"))
-    ]
-
-    certs_all = cv_adapte.get("certifications") or []
-    certifications_for_display = [
-        c for c in certs_all
-        if (c.get("nom") or c.get("organisme") or c.get("date"))
-    ]
-
-    projs_all = cv_adapte.get("projets") or []
-    projets_for_display = [
-        p for p in projs_all[:n_projets]
-        if (p.get("nom") or p.get("description"))
-    ]
-
-    comp = cv_adapte.get("competences") or {}
-    langues_all = comp.get("langues") or []
-    langues_for_display = [
-        l for l in langues_all
-        if (l.get("langue") if isinstance(l, dict) else None) or (l.get("niveau") if isinstance(l, dict) else None)
-    ]
-
-    return {
-        "experiences_for_display": experiences_for_display,
-        "formations_for_display": formations_for_display,
-        "certifications_for_display": certifications_for_display,
-        "projets_for_display": projets_for_display,
-        "langues_for_display": langues_for_display,
-    }
-
-
-def _content_scale_css(content_score: int) -> str:
-    """Retourne du CSS pour adapter la taille de police à la quantité de contenu (aligné avec la preview)."""
-    if content_score <= 6:
-        return "<style>body{font-size:11pt;line-height:1.55}.resume-text{font-size:10.5pt;line-height:1.6}.bullet{font-size:10.5pt;line-height:1.5}.sidebar-item{font-size:9.5pt;line-height:1.4}.section-title{font-size:10.5pt}.exp-poste{font-size:11pt}</style>"
-    if content_score <= 10:
-        return "<style>body{font-size:10pt;line-height:1.5}.resume-text{font-size:10pt;line-height:1.55}.bullet{font-size:9.5pt;line-height:1.45}.sidebar-item{font-size:9pt;line-height:1.35}</style>"
-    if content_score > 15:
-        return "<style>body{font-size:9pt;line-height:1.45}.resume-text{font-size:9pt;line-height:1.5}.bullet{font-size:8.5pt;line-height:1.4}.sidebar-item{font-size:8pt;line-height:1.3}.section-title{font-size:9.5pt}.exp-poste{font-size:9.5pt}</style>"
-    return ""
-
-# Minimal : garder la min-height pour que la grid .cv ne collapse pas (1fr ait de l'espace), sans toucher overflow.
-# cv-print-split : voir PDF_EXPORT_PREVIEW_ALIGN_CSS (table-row + 2 cellules pour fragmentation PDF proche du « virtuel par page »).
-PDF_EXPORT_LAYOUT_CSS = (
-    "<style>"
-    ".cv-preview .cv{min-height:297mm!important;}"
-    ".cv-preview .cv-body{min-height:0!important;}"
-    "</style>"
-)
-
-# Templates personnalisés (Supabase) : supprimer marges (WeasyPrint 2cm par défaut + .cv) et fond gris.
-PDF_EXPORT_CUSTOM_TEMPLATE_FIX = (
-    "<style>"
-    "@page{margin:0}"
-    "body{background:#fff!important;margin:0!important;padding:0!important}"
-    ".cv{margin:0!important}"
-    "</style>"
-)
-
-# Réserve bas de page (mm) pour l’aperçu navigateur : frontend cvPreviewA4Pages.js (CV_PREVIEW_A4_BOTTOM_RESERVE_MM, ex. 5).
-# cv-print-split : .cv-body en table (main|sidebar) pour que WeasyPrint fragmente la ligne sur plusieurs pages avec colonnes alignées.
-# Si tu ajoutes un pied de page PDF (@page margin-bottom ou bloc fixe), aligne cette valeur.
-# Export : uniquement @page + print-color-adjust pour WeasyPrint. Le template (couleurs, layout, options) reste maître.
-# Ne pas forcer font-size:0 sur .mots-cles-ats-invisible : WeasyPrint omet souvent ce texte de la couche texte du PDF,
-# donc les ATS et la copie depuis le PDF ne voient pas les mots-clés. Le template.css (@media print, ~5pt, couleur = sidebar) suffit.
-# Layout cv-print-split : hors @media print aussi — WeasyPrint applique bien le média print, mais le .cv du template
-# reste grid+297mm si for_pdf (pas d’injection preview main.py) ; ces règles doivent gagner en spécificité.
-PDF_EXPORT_PREVIEW_ALIGN_CSS = (
-    "<style>/*cv-bot-pdf-export*/"
-    "@page{size:A4;margin:0}"
-    "body.cv-preview,.cv-preview .cv-header,.cv-preview .cv-sidebar{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}"
-    "article.cv.cv-print-split,.cv.cv-print-split{display:flex!important;flex-direction:column!important;"
-    "height:auto!important;max-height:none!important;overflow:visible!important;"
-    "grid-template-columns:initial!important;grid-template-rows:initial!important;grid-template-areas:none!important;}"
-    ".cv.cv-print-split .cv-header{grid-area:unset!important;flex:0 0 auto!important;}"
-    ".cv.cv-print-split .cv-body{display:table!important;width:100%!important;table-layout:fixed!important;"
-    "border-collapse:collapse!important;border-spacing:0!important;"
-    "background-image:linear-gradient(to left,var(--cv-sidebar-color,#f4f4f2) 0,var(--cv-sidebar-color,#f4f4f2) var(--cv-pdf-sidebar-w,200px),#ffffff var(--cv-pdf-sidebar-w,200px),#ffffff 100%)!important;"
-    "background-repeat:no-repeat!important;background-size:100% 100%!important;"
-    "grid-area:unset!important;position:relative!important;overflow:visible!important;"
-    "min-height:0!important;max-height:none!important;height:auto!important;}"
-    ".cv.cv-print-split .cv-body>.cv-main{display:table-cell!important;width:auto!important;vertical-align:top!important;"
-    "min-width:0!important;margin-right:0!important;height:auto!important;max-height:none!important;"
-    "overflow:visible!important;background-color:#fff!important;}"
-    ".cv.cv-print-split .cv-body>.cv-sidebar{display:table-cell!important;width:var(--cv-pdf-sidebar-w,200px)!important;min-width:var(--cv-pdf-sidebar-w,200px)!important;"
-    "max-width:var(--cv-pdf-sidebar-w,200px)!important;vertical-align:top!important;"
-    "position:static!important;top:auto!important;right:auto!important;bottom:auto!important;left:auto!important;"
-    "height:auto!important;min-height:0!important;overflow:visible!important;max-height:none!important;"
-    "background-color:transparent!important;"
-    "-webkit-box-decoration-break:clone!important;box-decoration-break:clone!important;"
-    "break-inside:auto!important;page-break-inside:auto!important;break-before:auto!important;page-break-before:auto!important;}"
-    ".cv.cv-print-split .cv-body>.cv-sidebar .cv-sidebar-pdf-stack{display:flex!important;flex-direction:column!important;"
-    "min-height:100%!important;height:100%!important;width:100%!important;box-sizing:border-box!important;}"
-    ".cv.cv-print-split .cv-body>.cv-sidebar .cv-pdf-sidebar-fill{flex:1 1 auto!important;min-height:1px!important;"
-    "width:100%!important;visibility:hidden!important;pointer-events:none!important;}"
-    ".cv.cv-print-split .cv-body>.cv-sidebar .section-sidebar{break-inside:auto!important;page-break-inside:auto!important;}"
-    ".cv-preview article.cv.cv-pdf-dual-column,.cv-preview .cv.cv-pdf-dual-column{"
-    "display:table!important;width:100%!important;table-layout:fixed!important;"
-    "border-collapse:collapse!important;border-spacing:0!important;"
-    "grid-template-columns:initial!important;grid-template-rows:initial!important;"
-    "height:auto!important;max-height:none!important;min-height:297mm!important;"
-    "overflow:visible!important;"
-    "background-image:linear-gradient(to right,var(--cv-sidebar-color,#2d3748) 0,var(--cv-sidebar-color,#2d3748) var(--cv-pdf-sidebar-w,200px),#ffffff var(--cv-pdf-sidebar-w,200px),#ffffff 100%)!important;"
-    "background-repeat:no-repeat!important;background-size:100% 100%!important;}"
-    ".cv-preview article.cv.cv-pdf-dual-column>.cv-sidebar,.cv-preview .cv.cv-pdf-dual-column>.cv-sidebar{"
-    "display:table-cell!important;width:var(--cv-pdf-sidebar-w,200px)!important;min-width:var(--cv-pdf-sidebar-w,200px)!important;"
-    "max-width:var(--cv-pdf-sidebar-w,200px)!important;vertical-align:top!important;"
-    "background-color:transparent!important;height:auto!important;min-height:0!important;overflow:visible!important;"
-    "position:static!important;}"
-    ".cv-preview article.cv.cv-pdf-dual-column>.cv-main,.cv-preview .cv.cv-pdf-dual-column>.cv-main{"
-    "display:table-cell!important;width:auto!important;vertical-align:top!important;"
-    "background-color:#fff!important;min-width:0!important;height:auto!important;overflow:visible!important;}"
-    "@media print{"
-    ".cv-preview .section-mots-cles-ats .mots-cles-ats-titre{display:none!important;}"
-    ".cv .experience-item,.cv .formation-item,.cv .projet-item,.cv .sidebar-section,"
-    ".cv .sidebar-contact,.cv .sidebar-identity,.cv .sidebar-photo,.cv .section-mots-cles-ats,"
-    ".cv-header,header.cv-header,.cv .cert-item,.cv .lang-item,"
-    ".cv section.cv-section:has(.skills-grid),.cv .skills-grid{break-inside:avoid!important;page-break-inside:avoid!important;}"
-    "}"
-    "</style>"
-)
-
-
-def _render_pdf_bytes_from_ctx(cv_ctx: dict, template_dir: Path, css, css_vars_style: str = "", scale_css: str = "") -> bytes:
-    """Génère les bytes PDF à partir d’un contexte CV déjà prêt (photo, display, etc.)."""
-    from weasyprint import HTML
-    env = Environment(
-        loader=FileSystemLoader(str(template_dir)),
-        autoescape=select_autoescape(("html", "xml")),
-    )
-    template = env.get_template("template.html")
-    html_str = template.render(**cv_ctx)
-    inject = PDF_EXPORT_LAYOUT_CSS + PDF_EXPORT_PREVIEW_ALIGN_CSS + (css_vars_style or "") + (scale_css or "")
-    if inject:
-        html_str = html_str.replace("</head>", inject + "</head>", 1)
-    html_doc = HTML(string=html_str, base_url=str(template_dir))
-    buffer = __import__("io").BytesIO()
-    html_doc.write_pdf(buffer, stylesheets=[css])
-    return buffer.getvalue()
-
-
-def _render_pdf_bytes_from_custom_ctx(
-    cv_ctx: dict,
-    tmpl_meta: dict,
-    base_dir: Path,
-    css_vars_style: str = "",
-    scale_css: str = "",
-) -> bytes:
-    """Génère les bytes PDF pour un template personnalisé (HTML/CSS en base)."""
-    from weasyprint import HTML
-    html_content = tmpl_meta.get("_html_content") or ""
-    custom_css = (tmpl_meta.get("_css_content") or "").strip()
-    env = Environment(autoescape=select_autoescape(("html", "xml")))
-    html_str = env.from_string(html_content).render(**cv_ctx)
-    style_block = f"<style>{custom_css}</style>" if custom_css else ""
-    if style_block:
-        html_str = re.sub(
-            r"<link\s[^>]*href\s*=\s*['\"]?template\.css['\"]?[^>]*>",
-            style_block,
-            html_str,
-            count=0,
-            flags=re.IGNORECASE,
-        )
-        if style_block not in html_str:
-            if "</head>" in html_str:
-                html_str = html_str.replace("</head>", style_block + "\n</head>", 1)
-            elif "<body" in html_str:
-                html_str = re.sub(r"(<body[^>]*>)", r"\1" + style_block, html_str, count=1)
-            else:
-                html_str = style_block + html_str
-    inject = PDF_EXPORT_CUSTOM_TEMPLATE_FIX + PDF_EXPORT_LAYOUT_CSS + PDF_EXPORT_PREVIEW_ALIGN_CSS + (css_vars_style or "") + (scale_css or "")
-    if inject:
-        html_str = html_str.replace("</head>", inject + "</head>", 1)
-    html_doc = HTML(string=html_str, base_url=str(base_dir))
-    buffer = __import__("io").BytesIO()
-    html_doc.write_pdf(buffer)
-    return buffer.getvalue()
-
-
-def _pdf_page_count(pdf_bytes: bytes) -> int:
-    """Retourne le nombre de pages du PDF."""
-    try:
-        from pypdf import PdfReader
-        return len(PdfReader(__import__("io").BytesIO(pdf_bytes)).pages)
-    except Exception:
-        return 1
-
-
-def generer_pdf_bytes_from_html(html_str: str, base_dir: Path, cv: dict, offre: dict) -> tuple[bytes, str]:
-    """
-    Génère le PDF à partir du HTML déjà rendu (même HTML que la preview iframe).
-    Garantit que l'export PDF est identique à l'aperçu.
-    """
-    import re
-    from weasyprint import HTML
-    # Ne jamais laisser WeasyPrint charger template.css depuis base_dir (racine) :
-    # un template.css à la racine casserait le rendu (règle CSS invalide, layout différent).
-    # Le CSS doit déjà être inliné dans le HTML par _render_cv_html.
-    html_str = re.sub(
-        r'<link\s[^>]*href\s*=\s*["\']?(?:[^"\'>\s]*/)?template\.css["\']?[^>]*>\s*',
-        '',
-        html_str,
-        flags=re.IGNORECASE,
-    )
-    if "</head>" in html_str and "cv-bot-pdf-export" not in html_str:
-        html_str = html_str.replace(
-            "</head>",
-            PDF_EXPORT_LAYOUT_CSS + PDF_EXPORT_PREVIEW_ALIGN_CSS + "</head>",
-            1,
-        )
-    base_dir = Path(base_dir).resolve()
-    html_doc = HTML(string=html_str, base_url=str(base_dir))
-    buffer = __import__("io").BytesIO()
-    html_doc.write_pdf(buffer)
-    return buffer.getvalue(), _nom_fichier_pdf(cv, offre)
-
-
-def generer_pdf_bytes(cv_adapte: dict, offre: dict, base_dir: str | Path | None = None, template_id: str | None = None, template_options: dict | None = None) -> tuple[bytes, str]:
-    """
-    Génère le PDF en mémoire. Retourne (bytes_du_pdf, nom_fichier).
-    Si la version « compacte » (6 exp, 2 bullets, 1 projet) tient sur une page A4,
-    on tente d’ajouter une 7e expérience et un 2e projet pour remplir la page.
-    """
-    try:
-        from weasyprint import HTML, CSS
-    except ImportError:
-        raise ImportError(
-            "WeasyPrint est requis pour générer le PDF.\n"
-            "Installation : pip install weasyprint"
-        )
-
-    base_dir = Path(base_dir).resolve() if base_dir else Path(__file__).resolve().parent
-
-    from backend.template_registry import get_template, get_template_dir, resolve_options, options_to_css_vars
-    tmpl_meta = get_template(template_id)
-    is_custom = tmpl_meta.get("_custom")
-    tmpl_dir = None if is_custom else get_template_dir(template_id)
-    resolved_opts = resolve_options(template_id, template_options)
-    show_photo = resolved_opts.get("show_photo", True)
-
-    cv_adapte = dict(cv_adapte)
-    ensure_compressed_photo(base_dir, cv_adapte.get("photo_url"), cv_adapte.get("prenom"), cv_adapte.get("nom"))
-    photo_url = get_photo_url_for_cv(base_dir, cv_adapte.get("photo_url"), cv_adapte.get("prenom"), cv_adapte.get("nom"))
-    if photo_url:
-        cv_adapte["photo_url"] = photo_url
-
-    if not show_photo:
-        cv_adapte["photo_url"] = None
-
-    import html as html_module
-    cv_adapte["titre_professionnel_display"] = html_module.escape(_strip_h_f(cv_adapte.get("titre_professionnel") or ""))
-    cv_adapte["resume_display"] = html_module.escape(cv_adapte.get("resume") or "")
-    # Export = même rendu que la preview (couleurs, tailles, mots-clés ATS visibles)
-    cv_adapte["for_preview"] = True
-    cv_adapte["for_pdf"] = True
-    show_mots_cles_ats = resolved_opts.get("show_mots_cles_ats", True)
-    css_vars = options_to_css_vars(resolved_opts)
-
-    # Version compacte : 6 exp, 1 projet
-    display_compact = _build_cv_display(cv_adapte, html_module, n_experiences=6, n_projets=1)
-    ctx_compact = {**cv_adapte, **display_compact, "show_mots_cles_ats": show_mots_cles_ats}
-    exp_count = len(display_compact["experiences_for_display"])
-    bullet_count = sum(len(e.get("bullet_points") or []) for e in display_compact["experiences_for_display"])
-    form_count = len(display_compact.get("formations_for_display") or [])
-    proj_count = len(display_compact.get("projets_for_display") or [])
-    content_score = exp_count * 3 + bullet_count + form_count + proj_count
-    scale_css = _content_scale_css(content_score)
-
-    if is_custom:
-        pdf_compact = _render_pdf_bytes_from_custom_ctx(
-            ctx_compact, tmpl_meta, base_dir,
-            css_vars_style=css_vars, scale_css=scale_css,
-        )
-        n_pages = _pdf_page_count(pdf_compact)
-    else:
-        css = CSS(filename=tmpl_dir / "template.css")
-        pdf_compact = _render_pdf_bytes_from_ctx(ctx_compact, tmpl_dir, css, css_vars, scale_css=scale_css)
-        n_pages = _pdf_page_count(pdf_compact)
-
-    # S’il reste de la place (1 page), tenter d’ajouter une 7e exp et un 2e projet
-    if n_pages == 1:
-        display_optional = _build_cv_display(cv_adapte, html_module, n_experiences=7, n_projets=2)
-        ctx_optional = {**cv_adapte, **display_optional, "show_mots_cles_ats": show_mots_cles_ats}
-        exp_count_o = len(display_optional["experiences_for_display"])
-        bullet_count_o = sum(len(e.get("bullet_points") or []) for e in display_optional["experiences_for_display"])
-        content_score_o = exp_count_o * 3 + bullet_count_o + len(display_optional.get("formations_for_display") or []) + len(display_optional.get("projets_for_display") or [])
-        scale_css_o = _content_scale_css(content_score_o)
-        if is_custom:
-            pdf_optional = _render_pdf_bytes_from_custom_ctx(
-                ctx_optional, tmpl_meta, base_dir,
-                css_vars_style=css_vars, scale_css=scale_css_o,
-            )
-        else:
-            pdf_optional = _render_pdf_bytes_from_ctx(ctx_optional, tmpl_dir, css, css_vars, scale_css=scale_css_o)
-        if _pdf_page_count(pdf_optional) == 1:
-            pdf_compact = pdf_optional
-
-    nom_pdf = _nom_fichier_pdf(cv_adapte, offre)
-    return pdf_compact, nom_pdf

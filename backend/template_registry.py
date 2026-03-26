@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
-DEFAULT_TEMPLATE_ID = "classic"
+DEFAULT_TEMPLATE_ID = "minimal"
 
 _cache: dict[str, dict] | None = None
 
@@ -53,7 +53,7 @@ def list_templates(user_id: str | None = None) -> list[dict]:
 
 
 def get_template(template_id: str | None = None) -> dict:
-    """Retourne le meta + _dir (ou _html_content/_css_content pour custom) du template. Fallback sur classic."""
+    """Retourne le meta + _dir (ou _html_content/_css_content pour custom) du template. Fallback sur DEFAULT_TEMPLATE_ID."""
     tid = (template_id or "").strip() or DEFAULT_TEMPLATE_ID
     try:
         from backend.db import get_custom_template_by_id, CUSTOM_TEMPLATE_ID_PREFIX
@@ -126,12 +126,33 @@ def resolve_options(template_id: str | None, user_options: dict | None) -> dict:
         for k, v in user_options.items():
             if v is not None and (k in defaults or k in _MERGE_OPTION_KEYS):
                 final[k] = v
+    # Minimal : pas de zone photo (template ni export).
+    if (template_id or "").strip() == "minimal":
+        final["show_photo"] = False
     return final
 
 
 import re as _re
 
 _COLOR_RE = _re.compile(r'^#[0-9a-fA-F]{3,8}$')
+
+
+def _is_near_white_hex(val: str) -> bool:
+    """Couleur texte quasi blanche sur fond blanc = illisible ; on ignore l'override."""
+    h = (val or "").strip().lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    if len(h) not in (6, 8):
+        return False
+    try:
+        r = int(h[0:2], 16)
+        g = int(h[2:4], 16)
+        b = int(h[4:6], 16)
+    except ValueError:
+        return False
+    return (r + g + b) / (3 * 255) > 0.92
+
+
 _FONT_SAFE = {
     "Plus Jakarta Sans": "'Plus Jakarta Sans', Arial, sans-serif",
     "Inter": "'Inter', Arial, sans-serif",
@@ -175,6 +196,8 @@ def options_to_css_vars(options: dict) -> str:
             except (TypeError, ValueError):
                 pass
         elif key.startswith("color_") and val and isinstance(val, str) and _COLOR_RE.match(val):
+            if key in ("color_body", "color_section_title") and _is_near_white_hex(val):
+                continue
             parts.append(f"  {css_var}: {val};")
     val = options.get("photo_size")
     if val is not None:

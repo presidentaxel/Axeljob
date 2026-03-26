@@ -75,13 +75,21 @@ def ensure_compressed_photo(
     existing_photo_url: str | None = None,
     prenom: str | None = None,
     nom: str | None = None,
+    *,
+    allow_assets_fallback: bool = True,
 ) -> str | None:
     """
     Crée photo_cv.jpg à partir de la photo source dans assets/ si elle n'existe pas encore
     (ou si la source est plus récente). À appeler avant export ou preview.
     Retourne le path relatif (assets/photo_cv.jpg) à utiliser, ou None si pas de source.
     """
-    return get_photo_url_for_cv(base_dir, existing_photo_url, prenom=prenom, nom=nom)
+    return get_photo_url_for_cv(
+        base_dir,
+        existing_photo_url,
+        prenom=prenom,
+        nom=nom,
+        allow_assets_fallback=allow_assets_fallback,
+    )
 
 
 def get_photo_url_for_cv(
@@ -89,6 +97,8 @@ def get_photo_url_for_cv(
     existing_photo_url: str | None,
     prenom: str | None = None,
     nom: str | None = None,
+    *,
+    allow_assets_fallback: bool = True,
 ) -> str | None:
     """
     Retourne l'URL/path de la photo à utiliser pour le CV.
@@ -96,6 +106,8 @@ def get_photo_url_for_cv(
     - Sinon on cherche dans assets/ (y compris ProfilPicture - {{prenom}} {{nom}} ou avec prenom/nom),
       on produit une version compressée (photo_cv.jpg) si besoin et on retourne le path.
     Retourne None si aucune photo à utiliser.
+    Si allow_assets_fallback est False et qu'aucune URL/path explicite n'est fourni ou valide,
+    on n'utilise pas une image « au hasard » dans assets/ (aperçu / PDF alignés sur le CV sans photo).
     """
     if existing_photo_url and (
         existing_photo_url.startswith("http://")
@@ -111,7 +123,7 @@ def get_photo_url_for_cv(
         if candidate.is_file():
             return existing_photo_url
 
-    if source is None:
+    if source is None and allow_assets_fallback:
         source = _find_source_photo(assets_dir, prenom=prenom, nom=nom)
 
     if source is None:

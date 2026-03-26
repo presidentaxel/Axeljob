@@ -1,0 +1,18 @@
+/*
+  Templates personnalisés (Supabase) : marges WeasyPrint par défaut + fond gris body.
+  Injecté avec le bundle d’export, avant les variables :root utilisateur.
+*/
+
+@page {
+  margin: 0;
+}
+
+body {
+  background: #fff !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.cv {
+  margin: 0 !important;
+}

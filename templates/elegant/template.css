@@ -157,9 +157,9 @@ body {
 
 /* ATS */
 .section-mots-cles-ats { margin-top: 8px; }
-.mots-cles-ats-invisible { font-size: 5pt; line-height: 1.15; color: #fff; margin: 0; }
-body.cv-preview .mots-cles-ats-invisible { color: #000; font-size: 7pt; }
-@media print { .mots-cles-ats-invisible { color: #fff !important; } }
+.section-mots-cles-ats .mots-cles-ats-invisible { font-size: 5pt; line-height: 1.15; color: #fff; margin: 0; }
+body.cv-preview .section-mots-cles-ats .mots-cles-ats-invisible { color: #000; font-size: 7pt; }
+@media print { .section-mots-cles-ats .mots-cles-ats-invisible { color: #fff !important; } }
 
 /* PDF compact */
 body:not(.cv-preview) .cv-header { padding: 14px 24px 10px; }
@@ -168,5 +168,5 @@ body:not(.cv-preview) .header-photo, body:not(.cv-preview) .header-photo img { w
 
 /* Preview */
 html.cv-preview, body.cv-preview { width: 100%; min-width: 210mm; }
-.cv-changed { background-color: #b8d4be; padding: 0 1px; border-radius: 1px; }
+.cv-changed { background-color: #c5e3cd; padding: 0 1px; border-radius: 1px; }
 @media print { .cv-changed { background-color: transparent; } }

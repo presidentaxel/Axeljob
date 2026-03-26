@@ -12,6 +12,8 @@ import {
   setUnauthorizedCallback,
   trackEvent,
 } from './api';
+import { ensureAnalyticsFirstTouch } from './analyticsSession';
+import { useViewAnalytics } from './useViewAnalytics';
 import { supabase } from './lib/supabase';
 import AuthForm from './components/AuthForm';
 import AppTopbar from './components/AppTopbar';
@@ -26,7 +28,7 @@ import './App.css';
 import './styles/TemplatePicker.css';
 import './styles/GuidedTour.css';
 import { formatApplicationDateLabel } from './lib/applicationDates';
-import { applyA4PageFramesToDocument, suppressCvPreviewIframeInnerScroll } from './lib/cvPreviewA4Pages';
+import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from './lib/cvPreviewA4Pages';
 
 const ProfileView = lazyWithChunkReload(() => import('./components/ProfileView'));
 const LandingPage = lazyWithChunkReload(() => import('./components/LandingPage'));
@@ -59,6 +61,9 @@ function shouldShowPreExportTemplateOptions() {
     return false;
   }
 }
+
+/** Seuil de confiance sur le nom d'entreprise déduit de la fiche : en dessous, modale avant export PDF. */
+const EXPORT_ENTREPRISE_CONFIDENCE_OK = 0.62;
 
 /** URL logo entreprise (Clearbit, open source). Fallback: pas d’image. */
 
@@ -258,7 +263,8 @@ function CvEditPanel({ cv, onSave, onClose }) {
   );
 }
 
-const TOUR_STEPS = [
+/** Étapes complètes du tutoriel (référence unique). */
+const TOUR_STEPS_ALL = [
   {
     selector: '.cv-chat-input',
     title: 'Colle une offre d\'emploi',
@@ -304,7 +310,27 @@ const TOUR_STEPS = [
   },
 ];
 
+/** Phase 1 (après onboarding) : étapes 1, 2 et 5 du parcours complet. */
+const TOUR_STEPS_PHASE1 = [TOUR_STEPS_ALL[0], TOUR_STEPS_ALL[1], TOUR_STEPS_ALL[4]];
+
+/** Phase 2 (première adaptation, chargement IA) : étapes 3, 6 et 7. */
+const TOUR_STEPS_PHASE2 = [TOUR_STEPS_ALL[2], TOUR_STEPS_ALL[5], TOUR_STEPS_ALL[6]];
+
 const TOUR_STEP_PREVIEW_AI_HIGHLIGHT = 'preview-ai-highlight';
+
+/** Aperçu démo vert instantané (pas d’appel API) si le profil est encore vide à l’étape 3 du tutoriel. */
+const TOUR_INSTANT_GREEN_DEMO_HTML = `<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<style>
+  body{font-family:Plus Jakarta Sans,system-ui,sans-serif;padding:1.5rem;max-width:520px;margin:0 auto;background:#fafafa;color:#1e293b;line-height:1.55;font-size:15px;}
+  .fake-h{font-size:1.05rem;font-weight:700;margin:0 0 0.75rem;}
+  .fake-p{margin:0.4rem 0;font-size:0.88rem;color:#475569;}
+  .cv-changed{background:rgba(34,197,94,0.38);padding:0 3px;border-radius:3px;}
+</style></head><body>
+  <p class="fake-h">Exemple : surlignage vert</p>
+  <p class="fake-p">Après une vraie annonce, les passages <span class="cv-changed">adaptés par l’IA</span> apparaissent en vert dans ton CV.</p>
+  <p class="fake-p">Ceci est une <span class="cv-changed">démo immédiate</span> - dès que ton CV est importé, l’aperçu utilisera tes données.</p>
+</body></html>`;
 
 /** Profil minimal pour afficher une démo surlignée sans adaptation en cours */
 function hasProfilMinContent(cv) {
@@ -607,9 +633,12 @@ export default function App() {
   const navigate = useNavigate();
   const pathname = location.pathname;
   const view = getViewFromPathname(pathname);
+  const analyticsView = pathname.startsWith('/app') ? view : null;
   const isCvView = view === 'cv';
   const [annonce, setAnnonce] = useState('');
   const [lastAdaptedCv, setLastAdaptedCv] = useState(null);
+  const lastAdaptedCvRef = useRef(null);
+  lastAdaptedCvRef.current = lastAdaptedCv;
   const [lastBaseCv, setLastBaseCv] = useState(null);
   /** URL photo fraîche (GET /api/cv) pour la preview CV, évite URL signée expirée */
   const [freshPreviewPhotoUrl, setFreshPreviewPhotoUrl] = useState(undefined);
@@ -682,6 +711,13 @@ export default function App() {
   const [exportAtsBlockReminderMode, setExportAtsBlockReminderMode] = useState('every');
   const pendingExportTemplateOptionsRef = useRef(null);
   const preExportPendingActionRef = useRef(null);
+  /** Indices export (poste / entreprise / confiance) alignés sur lastAdaptationId. */
+  const exportHintsRef = useRef(null);
+  const entrepriseFieldTouchedRef = useRef(false);
+  const pdfEntrepriseModalMergedPosteRef = useRef('');
+  const pdfEntrepriseModalPendingOptsRef = useRef(null);
+  const [pdfEntrepriseModalOpen, setPdfEntrepriseModalOpen] = useState(false);
+  const [pdfEntrepriseModalValue, setPdfEntrepriseModalValue] = useState('');
   const [exportPrepTemplateOptionsNonce, setExportPrepTemplateOptionsNonce] = useState(0);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
@@ -705,26 +741,75 @@ export default function App() {
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [profileRefreshKey, setProfileRefreshKey] = useState(0);
+  /** Évite de repasser onboardingChecked à false (écran « Chargement… ») sur un simple refresh profil / même user. */
+  const profileGateIdentityRef = useRef('');
   const [userDisplayName, setUserDisplayName] = useState('');
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [mfaChallengeRequired, setMfaChallengeRequired] = useState(false);
   const [mfaChallengeChecked, setMfaChallengeChecked] = useState(false);
-  const [templateId, setTemplateId] = useState(() => localStorage.getItem('cv_template_id') || 'classic');
+  const [templateId, setTemplateId] = useState(() => localStorage.getItem('cv_template_id') || 'minimal');
   const [templateOptions, setTemplateOptions] = useState(() => {
     try { return JSON.parse(localStorage.getItem('cv_template_options') || '{}'); } catch { return {}; }
   });
   const [templatesList, setTemplatesList] = useState([]);
   const [tourRestartKey, setTourRestartKey] = useState(0);
+  /** Incrémenté pour démonter le tour phase 1 si l’utilisateur lance la 1re adapt sans avoir cliqué « Terminer » (le spotlight laisse passer les clics). */
+  const [phase1DismissForAdaptKey, setPhase1DismissForAdaptKey] = useState(0);
+  const [phase2TourOpenTrigger, setPhase2TourOpenTrigger] = useState(0);
   const [tourHighlightStepActive, setTourHighlightStepActive] = useState(false);
   const [tourDemoPreviewHtml, setTourDemoPreviewHtml] = useState('');
   const prevTourHighlightRef = useRef(false);
+  const cvChatInputRef = useRef(null);
+  /** Après la 1re adaptation réussie (chat), ouvre le tutoriel phase 2 — pas au début (évite conflit avec le modal « en cours »). */
+  const openPhase2AfterFirstAdaptRef = useRef(false);
+
+  const guidedTourUid = session?.user?.id || '';
+  const tourKeyPhase1 = guidedTourUid ? `main_phase1_${guidedTourUid}` : 'main_phase1';
+  const tourKeyPhase2 = guidedTourUid ? `main_phase2_${guidedTourUid}` : 'main_phase2';
+
+  // Hauteur auto du textarea : après envoi / reset, enlever le style inline sinon il reste « grand ».
+  useEffect(() => {
+    if (chatInput !== '') return;
+    const el = cvChatInputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.removeProperty('height');
+  }, [chatInput]);
 
   const handleTourStepChange = useCallback((step) => {
     setTourHighlightStepActive(step?.id === TOUR_STEP_PREVIEW_AI_HIGHLIGHT);
   }, []);
 
+  const handleTourPhase2StepChange = useCallback(() => {
+    setTourHighlightStepActive(false);
+  }, []);
+
+  const bumpPostFirstAdaptTour = useCallback(() => {
+    if (!guidedTourUid) return;
+    try {
+      const p2Key = `cv_bot_tour_done_${tourKeyPhase2}`;
+      const p1Key = `cv_bot_tour_done_${tourKeyPhase1}`;
+      if (localStorage.getItem(p2Key) === '1') return;
+      if (localStorage.getItem(p1Key) !== '1') {
+        localStorage.setItem(p1Key, '1');
+        setPhase1DismissForAdaptKey((k) => k + 1);
+      }
+      setPhase2TourOpenTrigger((n) => n + 1);
+    } catch (_) { /* ignore */ }
+  }, [guidedTourUid, tourKeyPhase1, tourKeyPhase2]);
+
   const handleRestartTour = () => {
-    try { localStorage.removeItem('cv_bot_tour_done_main'); } catch (_) {}
+    try {
+      localStorage.removeItem('cv_bot_tour_done_main');
+      localStorage.removeItem('cv_bot_tour_done_main_phase1');
+      localStorage.removeItem('cv_bot_tour_done_main_phase2');
+      if (guidedTourUid) {
+        localStorage.removeItem(`cv_bot_tour_done_main_phase1_${guidedTourUid}`);
+        localStorage.removeItem(`cv_bot_tour_done_main_phase2_${guidedTourUid}`);
+      }
+    } catch (_) { /* ignore */ }
+    setPhase2TourOpenTrigger(0);
+    setPhase1DismissForAdaptKey(0);
     setTourRestartKey((k) => k + 1);
   };
 
@@ -809,7 +894,7 @@ export default function App() {
     if (!session || !usage || !templatesList.length) return;
     if (usage.plan === 'pro' || usage.paywall_disabled) return;
     const meta = templatesList.find((t) => t.id === templateId);
-    if (meta?.premium) setTemplateId('classic');
+    if (meta?.premium) setTemplateId('minimal');
   }, [session, usage, templatesList, templateId]);
 
   const templateParams = { template_id: templateId, template_options: templateOptions };
@@ -828,6 +913,8 @@ export default function App() {
   const prevWantHighlightRef = useRef(wantHighlight);
   const prevLastBaseCvRef = useRef(lastBaseCv);
   const prevLastSelectionA4Ref = useRef(lastSelectionA4);
+  /** Pour déclencher un rendu preview immédiat quand le template sync (API / profil) sans attendre le debounce. */
+  const prevCvPreviewTemplateKeyRef = useRef(null);
 
   useEffect(() => {
     if (!supabase) {
@@ -852,6 +939,32 @@ export default function App() {
     return () => subscription?.unsubscribe();
   }, []);
 
+  // Compte supprimé côté Supabase : le JWT peut rester valide un moment — getUser() interroge Auth et déclenche une déconnexion si l’utilisateur n’existe plus.
+  useEffect(() => {
+    if (!supabase || !session?.user?.id) return undefined;
+    const kickIfGone = () => {
+      supabase.auth.getUser().then(({ data, error }) => {
+        if (error || !data?.user) {
+          setAuthToken(null);
+          supabase.auth.signOut({ scope: 'local' });
+        }
+      });
+    };
+    kickIfGone();
+    const intervalMs = 90_000;
+    const id = setInterval(kickIfGone, intervalMs);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') kickIfGone();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('focus', kickIfGone);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('focus', kickIfGone);
+    };
+  }, [supabase, session?.user?.id]);
+
   // Si l'utilisateur a activé la MFA (optionnel), demander le code TOTP après connexion
   useEffect(() => {
     if (!session || authLoading || recoveryMode || !supabase?.auth?.mfa?.getAuthenticatorAssuranceLevel) return;
@@ -867,9 +980,26 @@ export default function App() {
 
   // Check if profile is empty → show onboarding + display name (prénom + nom) ; sync template_id / template_options depuis l’API pour persistance entre sessions
   useEffect(() => {
-    if (!session || authLoading) return;
-    setUserDisplayName(session.user?.email?.split('@')[0] || 'Compte');
-    setOnboardingChecked(false);
+    ensureAnalyticsFirstTouch();
+  }, []);
+
+  useViewAnalytics({ view: analyticsView, pathname, session });
+
+  useEffect(() => {
+    if (!session) {
+      profileGateIdentityRef.current = '';
+      return;
+    }
+    if (authLoading) return;
+    const uid = session.user?.id || '';
+    const email = (session.user?.email || '').trim();
+    const identity = `${uid}|${email}`;
+    const identityChanged = profileGateIdentityRef.current !== identity;
+    if (identityChanged) {
+      profileGateIdentityRef.current = identity;
+      setOnboardingChecked(false);
+    }
+    setUserDisplayName(email.split('@')[0] || 'Compte');
     apiGet('/api/cv?profile=1')
       .then((data) => {
         const empty = !data || (typeof data === 'object' && Object.keys(data).length === 0);
@@ -879,18 +1009,42 @@ export default function App() {
         if (prenom || nom) {
           setUserDisplayName([prenom, nom].filter(Boolean).join(' '));
         }
-        if (data?.template_id !== undefined && (data.template_id || '').trim()) setTemplateId((data.template_id || '').trim() || 'classic');
+        if (data?.template_id !== undefined && (data.template_id || '').trim()) setTemplateId((data.template_id || '').trim() || 'minimal');
         if (data?.template_options !== undefined && typeof data.template_options === 'object') setTemplateOptions(data.template_options || {});
       })
       .catch(() => {
         setNeedsOnboarding(true);
       })
       .finally(() => setOnboardingChecked(true));
-  }, [session?.user?.id, session?.user?.email, authLoading]);
+  }, [session?.user?.id, session?.user?.email, authLoading, profileRefreshKey]);
 
+  // Ancienne clé tutoriel unique → marquer les deux phases comme vues pour ce compte (évite de re-montrer le tour aux anciens utilisateurs).
   useEffect(() => {
-    if (session && view) trackEvent('page_view', { view });
-  }, [session, view]);
+    const uid = session?.user?.id;
+    if (!uid) return;
+    try {
+      if (localStorage.getItem('cv_bot_tour_done_main') === '1') {
+        const p1k = `cv_bot_tour_done_main_phase1_${uid}`;
+        const p2k = `cv_bot_tour_done_main_phase2_${uid}`;
+        if (localStorage.getItem(p1k) !== '1') localStorage.setItem(p1k, '1');
+        if (localStorage.getItem(p2k) !== '1') localStorage.setItem(p2k, '1');
+      }
+    } catch (_) { /* ignore */ }
+  }, [session?.user?.id]);
+
+  // Pont onboarding : focus sur le champ offre une fois sur la page CV (clic « Lancer ma première candidature »).
+  useEffect(() => {
+    if (!session?.user?.id || !isCvView || needsOnboarding || !onboardingChecked) return;
+    try {
+      const k = `cv_bot_post_onb_bridge_${session.user.id}`;
+      if (sessionStorage.getItem(k) !== '1') return;
+      sessionStorage.removeItem(k);
+      const id = requestAnimationFrame(() => {
+        cvChatInputRef.current?.focus();
+      });
+      return () => cancelAnimationFrame(id);
+    } catch (_) { /* ignore */ }
+  }, [session?.user?.id, isCvView, needsOnboarding, onboardingChecked]);
 
   // Détecter erreur lien expiré (ex. réinitialisation mot de passe) sur /login
   useEffect(() => {
@@ -963,17 +1117,26 @@ export default function App() {
   }, [session, authLoading, pathname, navigate]);
 
   const setPreviewHtml = (html) => {
-    setPreviewHtmlFallback(typeof html === 'string' ? html : '');
-    if (!iframeRef.current) return;
-    const iframe = iframeRef.current;
-    iframe.style.opacity = '0';
-    iframe.srcdoc = html;
-    const onLoad = () => {
-      iframe.style.opacity = '1';
-      iframe.removeEventListener('load', onLoad);
-      resizeIframeToContent(iframe);
+    const s = typeof html === 'string' ? html : '';
+    setPreviewHtmlFallback(s);
+    const apply = () => {
+      if (!iframeRef.current || !s) return false;
+      const iframe = iframeRef.current;
+      iframe.style.opacity = '0';
+      iframe.srcdoc = s;
+      const onLoad = () => {
+        iframe.style.opacity = '1';
+        iframe.removeEventListener('load', onLoad);
+        resizeIframeToContent(iframe);
+      };
+      iframe.addEventListener('load', onLoad);
+      return true;
     };
-    iframe.addEventListener('load', onLoad);
+    if (!apply()) {
+      requestAnimationFrame(() => {
+        if (!apply()) requestAnimationFrame(() => { apply(); });
+      });
+    }
   };
 
   // Hauteur = document complet : un seul scroll sur .preview-wrap (pas de scroll dans l’iframe)
@@ -981,17 +1144,10 @@ export default function App() {
     try {
       const doc = iframe.contentDocument;
       if (!doc || !doc.documentElement) return;
-      applyA4PageFramesToDocument(doc);
-      const height = Math.max(
-        doc.documentElement.scrollHeight,
-        doc.documentElement.offsetHeight,
-        doc.body?.scrollHeight ?? 0,
-        doc.body?.offsetHeight ?? 0
-      );
-      if (height > 0) {
-        iframe.style.height = `${Math.ceil(height)}px`;
-        suppressCvPreviewIframeInnerScroll(doc);
-      }
+      applyA4PageFramesToDocument(doc, {
+        onLayout: () => syncCvPreviewIframeHeight(iframe),
+      });
+      syncCvPreviewIframeHeight(iframe);
     } catch (_) { /* cross-origin or not loaded */ }
   }, []);
 
@@ -1071,7 +1227,17 @@ export default function App() {
     prevLastBaseCvRef.current = lastBaseCv;
     prevLastSelectionA4Ref.current = lastSelectionA4;
 
-    const immediate = sessionBecameActive || adaptChanged || highlightChanged || baseChanged || selectionChanged;
+    const templateKeyChanged =
+      prevCvPreviewTemplateKeyRef.current != null && prevCvPreviewTemplateKeyRef.current !== templateKey;
+    prevCvPreviewTemplateKeyRef.current = templateKey;
+
+    const immediate =
+      sessionBecameActive
+      || adaptChanged
+      || highlightChanged
+      || baseChanged
+      || selectionChanged
+      || templateKeyChanged;
 
     const run = () => {
       const tid = templateIdForPreviewRef.current;
@@ -1126,6 +1292,10 @@ export default function App() {
           if (!cancelled) setModifiedPreviewHtml(html);
           return;
         }
+        if (!lastAdaptedCv && (!lastBaseCv || !hasProfilMinContent(lastBaseCv))) {
+          if (!cancelled) setTourDemoPreviewHtml(TOUR_INSTANT_GREEN_DEMO_HTML);
+          return;
+        }
         if (lastBaseCv && hasProfilMinContent(lastBaseCv)) {
           const adapted = buildTourDemoAdaptedFromBase(lastBaseCv);
           const html = await apiPost('/api/render-html', {
@@ -1147,7 +1317,7 @@ export default function App() {
         });
         if (!cancelled) setTourDemoPreviewHtml(html);
       } catch {
-        if (!cancelled) setTourDemoPreviewHtml('');
+        if (!cancelled) setTourDemoPreviewHtml(TOUR_INSTANT_GREEN_DEMO_HTML);
       }
     };
     void run();
@@ -1228,6 +1398,8 @@ export default function App() {
     setSourceOffreValue('');
     setEntrepriseNom('');
     setPosteNom('');
+    exportHintsRef.current = null;
+    entrepriseFieldTouchedRef.current = false;
     setError('');
     setCvEditPanelOpen(false);
     setAdaptStepIndex(0);
@@ -1255,32 +1427,65 @@ export default function App() {
     resetAdaptationWorkspace();
   };
 
-  useEffect(() => {
-    if (!session) return;
-    loadInitialPreview();
-  }, [session?.user?.id]);
-
+  // Vue CV : charger le CV depuis l’API puis l’aperçu (évite la course loadInitialPreview avant que le CV soit en base, ex. fin d’onboarding sur /app/cv).
   useEffect(() => {
     if (!session) return;
     if (view !== 'cv') return;
-    // Toujours récupérer le CV (photo URL fraîche pour la preview)
-    apiGet('/api/cv').then((cv) => {
-      if (cv) {
-        setLastBaseCv(cv);
-        setFreshPreviewPhotoUrl(cv.photo_url ?? null);
-      }
-    }).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- on veut la valeur courante de lastAdaptedCv au retour sur l’onglet CV, pas une re-exécution à chaque changement de référence
-    if (lastAdaptedCv) {
-      apiPost('/api/render-html', { cv: lastAdaptedCv, highlight_changes: false, selection_a4: lastSelectionA4 || undefined, ...templateParams })
-        .then((html) => { setPreviewHtml(html); setModifiedPreviewHtml(html); })
-        .catch(() => loadInitialPreview());
-    } else {
-      loadInitialPreview();
+    if (!onboardingChecked || needsOnboarding) return;
+    let cancelled = false;
+    apiGet('/api/cv')
+      .then((cv) => {
+        if (cancelled) return;
+        if (cv) {
+          setLastBaseCv(cv);
+          setFreshPreviewPhotoUrl(cv.photo_url ?? null);
+        }
+      })
+      .catch(() => {})
+      .then(() => {
+        if (cancelled) return;
+        const adapted = lastAdaptedCvRef.current;
+        const tid = templateIdForPreviewRef.current;
+        const opts = templateOptionsForPreviewRef.current;
+        if (adapted) {
+          apiPost('/api/render-html', {
+            cv: adapted,
+            highlight_changes: false,
+            selection_a4: lastSelectionA4 || undefined,
+            template_id: tid,
+            template_options: opts,
+          })
+            .then((html) => {
+              if (cancelled) return;
+              setPreviewHtml(html);
+              setModifiedPreviewHtml(html);
+            })
+            .catch(() => loadInitialPreview(tid, opts));
+        } else {
+          loadInitialPreview(tid, opts);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [view, session?.user?.id, onboardingChecked, needsOnboarding, profileRefreshKey, !!lastAdaptedCv, lastSelectionA4]);
+
+  useEffect(() => {
+    if (usage && usage.adaptations_used > 0) setFirstOfferNudgeOpen(false);
+  }, [usage?.adaptations_used]);
+
+  // Rappel modale : pas d’adaptation après un délai (navigation sous /app relance le compteur).
+  useEffect(() => {
+    if (!session?.user?.id || !onboardingChecked || needsOnboarding) return;
+    if (!usage || usage.adaptations_used !== 0) return;
+    try {
+      if (localStorage.getItem(`cv_bot_first_offer_nudge_dismissed_${session.user.id}`) === '1') return;
+    } catch (_) {
+      return;
     }
-    // Ne pas mettre lastAdaptedCv en dépendance : au retour sur l’onglet CV on affiche
-    // la dernière version adaptée (valeur à l’exécution), sans recharger le CV de base.
-  }, [view, session?.user?.id]);
+    if (!pathname.startsWith('/app')) return;
+    const delayMs = 3 * 60 * 1000;
+    const t = window.setTimeout(() => setFirstOfferNudgeOpen(true), delayMs);
+    return () => window.clearTimeout(t);
+  }, [session?.user?.id, onboardingChecked, needsOnboarding, usage?.adaptations_used, pathname]);
 
   // Synchroniser template/options depuis le localStorage en passant sur l'onglet CV (au cas où modifié depuis Profil)
   useEffect(() => {
@@ -1362,12 +1567,33 @@ export default function App() {
       if (pending.modifiedPreviewHtml) setModifiedPreviewHtml(pending.modifiedPreviewHtml);
       setChatMessages((prev) => [...prev, { role: 'assistant', content: pending.summary }]);
       if (pending.baseCv != null) setLastBaseCv(pending.baseCv);
+      if (pending.export_hints != null && pending.adaptation_id != null) {
+        exportHintsRef.current = { ...pending.export_hints, adaptation_id: pending.adaptation_id };
+      } else if (pending.adaptation_id != null) {
+        exportHintsRef.current = {
+          adaptation_id: pending.adaptation_id,
+          poste: '',
+          entreprise: '',
+          entreprise_confidence: 0,
+        };
+      }
+      entrepriseFieldTouchedRef.current = false;
+      if (pending.export_hints) {
+        setPosteNom((p) => ((p && p.trim()) ? p : (pending.export_hints.poste || '')));
+        setEntrepriseNom((e) => ((e && e.trim()) ? e : (pending.export_hints.entreprise || '')));
+      }
       loadApplications();
       loadUsage();
       pendingAdaptResultRef.current = null;
+      if (openPhase2AfterFirstAdaptRef.current) {
+        openPhase2AfterFirstAdaptRef.current = false;
+        bumpPostFirstAdaptTour();
+      }
+    } else {
+      openPhase2AfterFirstAdaptRef.current = false;
     }
     setAdapting(false);
-  }, [apiAdaptDone, adaptStepIndex, adapting]);
+  }, [apiAdaptDone, adaptStepIndex, adapting, bumpPostFirstAdaptTour]);
 
   // Scroll vers la réponse / animation quand on lance un prompt
   useEffect(() => {
@@ -1381,12 +1607,11 @@ export default function App() {
 
   useEffect(() => {
     if (!atsScoreOpen) return;
-    const close = (e) => {
-      if (e.target.closest('.ats-score-bar')) return;
-      setAtsScoreOpen(false);
+    const onKey = (e) => {
+      if (e.key === 'Escape') setAtsScoreOpen(false);
     };
-    document.addEventListener('click', close);
-    return () => document.removeEventListener('click', close);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
   }, [atsScoreOpen]);
 
   // Ajuster l’échelle du preview CV pour tout voir sans scroll horizontal
@@ -1472,6 +1697,13 @@ export default function App() {
     setChatInput('');
     setChatMessages((prev) => [...prev, { role: 'user', content: text }]);
     hideError();
+    if (!lastAdaptedCv) {
+      openPhase2AfterFirstAdaptRef.current = true;
+      trackEvent('adapt_cta_clicked', {
+        source: 'chat_send',
+        desc_word_count: text.split(/\s+/).filter(Boolean).length,
+      });
+    }
     setAdapting(true);
     try {
       if (!lastAdaptedCv) {
@@ -1489,11 +1721,11 @@ export default function App() {
           baseCv = await apiGet('/api/cv');
         } catch {}
         const html = await apiPost('/api/render-html', {
+          ...templateParams,
           cv: data.cv,
           base_cv: baseCv ?? lastBaseCv ?? undefined,
           highlight_changes: true,
           selection_a4: data.selection_a4 || undefined,
-          ...templateParams,
         });
         const summary = data.rapport?.score_global != null
           ? `CV adapté (score ATS : ${data.rapport.score_global}/100). Tu peux affiner en envoyant un autre message ou modifier le texte avant téléchargement.`
@@ -1505,6 +1737,7 @@ export default function App() {
           selection_a4: data.selection_a4 || null,
           rapport: data.rapport || {},
           rapportBefore: data.rapport_before || null,
+          export_hints: data.export_hints || null,
           exportBlockVisible: true,
           previewHtml: html,
           modifiedPreviewHtml: html,
@@ -1514,7 +1747,13 @@ export default function App() {
         setApiAdaptDone(true);
       } else {
         const data = await apiPost('/api/adapt-refine', { cv: lastAdaptedCv, instruction: text });
-        const html = await apiPost('/api/render-html', { cv: data.cv, highlight_changes: false, selection_a4: undefined, ...templateParams });
+        const html = await apiPost('/api/render-html', {
+          ...templateParams,
+          cv: data.cv,
+          base_cv: lastBaseCv || undefined,
+          highlight_changes: false,
+          selection_a4: undefined,
+        });
         pendingAdaptResultRef.current = {
           cv: data.cv,
           adaptation_id: lastAdaptationId,
@@ -1532,6 +1771,7 @@ export default function App() {
     } catch (e) {
       setApiAdaptDone(false);
       pendingAdaptResultRef.current = null;
+      openPhase2AfterFirstAdaptRef.current = false;
       if (e.status === 402 || (e.message && e.message.includes('épuisé'))) {
         setUpgradeModalVisible(true);
       } else {
@@ -1545,7 +1785,13 @@ export default function App() {
   const handleSaveCvEdits = (editedCv) => {
     if (!editedCv) return;
     setLastAdaptedCv(editedCv);
-    apiPost('/api/render-html', { cv: editedCv, highlight_changes: false, selection_a4: lastSelectionA4 || undefined, ...templateParams })
+    apiPost('/api/render-html', {
+      ...templateParams,
+      cv: editedCv,
+      base_cv: lastBaseCv || undefined,
+      highlight_changes: false,
+      selection_a4: lastSelectionA4 || undefined,
+    })
       .then((html) => { setPreviewHtml(html); setModifiedPreviewHtml(html); })
       .catch(() => {});
     setCvEditPanelOpen(false);
@@ -1631,26 +1877,35 @@ export default function App() {
     setPreviewVariant(v);
   };
 
-  const doDownloadPdf = async (templateOptsOverride) => {
+  const executePdfDownload = async (templateOptsOverride, titreForPdf, entrepriseForPdf) => {
     if (!lastAdaptedCv) return;
     const opts = templateOptsOverride ?? templateOptions;
     try {
       const pdfTemplateOptions = { ...opts, show_mots_cles_ats: opts?.show_mots_cles_ats !== false };
-      const blob = await apiPostBlob('/api/pdf', {
+      const titre = (titreForPdf || '').trim();
+      const ent = (entrepriseForPdf || '').trim();
+      const { blob, filename } = await apiPostBlob('/api/pdf', {
         cv: lastAdaptedCv,
-        titre: posteNom || undefined,
+        titre: titre || undefined,
+        entreprise: ent || undefined,
         selection_a4: lastSelectionA4 || undefined,
         template_id: templateId,
         template_options: pdfTemplateOptions,
       });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'CV.pdf';
+      a.download = filename || 'CV.pdf';
       a.click();
       URL.revokeObjectURL(a.href);
       const count = parseInt(localStorage.getItem('pdf_export_count') || '0', 10) + 1;
       localStorage.setItem('pdf_export_count', String(count));
       if (lastAdaptationId) {
+        try {
+          await apiPatch(`/api/applications/${encodeURIComponent(lastAdaptationId)}`, {
+            poste: titre,
+            entreprise: ent,
+          });
+        } catch (_) { /* suivi optionnel */ }
         loadApplications().then(() => {
           setJustAddedAppId(lastAdaptationId);
           navigate('/app/postule');
@@ -1662,8 +1917,53 @@ export default function App() {
     }
   };
 
+  const doDownloadPdf = async (templateOptsOverride) => {
+    if (!lastAdaptedCv) return;
+    const h = exportHintsRef.current;
+    const hintsOk = !!(h && lastAdaptationId && h.adaptation_id === lastAdaptationId);
+    const mergedPoste = (posteNom || '').trim() || (hintsOk ? (h.poste || '').trim() : '');
+    const mergedEnt = (entrepriseNom || '').trim() || (hintsOk ? (h.entreprise || '').trim() : '');
+    const conf = hintsOk && typeof h.entreprise_confidence === 'number' ? h.entreprise_confidence : 0;
+    const needEntrepriseModal = !entrepriseFieldTouchedRef.current
+      && (mergedEnt === '' || conf < EXPORT_ENTREPRISE_CONFIDENCE_OK);
+    if (needEntrepriseModal) {
+      pdfEntrepriseModalPendingOptsRef.current = templateOptsOverride;
+      pdfEntrepriseModalMergedPosteRef.current = mergedPoste;
+      setPdfEntrepriseModalValue(mergedEnt);
+      setPdfEntrepriseModalOpen(true);
+      return;
+    }
+    await executePdfDownload(templateOptsOverride, mergedPoste, mergedEnt);
+  };
+
+  const closePdfEntrepriseModal = () => {
+    setPdfEntrepriseModalOpen(false);
+    pdfEntrepriseModalPendingOptsRef.current = null;
+  };
+
+  const confirmPdfEntrepriseModal = async () => {
+    const v = pdfEntrepriseModalValue.trim();
+    setEntrepriseNom(v);
+    entrepriseFieldTouchedRef.current = true;
+    setPdfEntrepriseModalOpen(false);
+    const opts = pdfEntrepriseModalPendingOptsRef.current;
+    pdfEntrepriseModalPendingOptsRef.current = null;
+    const posteEff = pdfEntrepriseModalMergedPosteRef.current;
+    await executePdfDownload(opts, posteEff, v);
+  };
+
   const runExportDossier = async (templateOptsOverride) => {
     if (!lastAdaptedCv) return;
+    const h = exportHintsRef.current;
+    const hintsOk = !!(h && lastAdaptationId && h.adaptation_id === lastAdaptationId);
+    const posteEff = (posteNom || '').trim() || (hintsOk ? (h.poste || '').trim() : '');
+    const entEff = (entrepriseNom || '').trim() || (hintsOk ? (h.entreprise || '').trim() : '');
+    if (!posteEff) {
+      showError("Indiquez l'intitulé du poste.");
+      return;
+    }
+    if (!(posteNom || '').trim() && posteEff) setPosteNom(posteEff);
+    if (!(entrepriseNom || '').trim() && entEff) setEntrepriseNom(entEff);
     const params = { template_id: templateId, template_options: templateOptsOverride ?? templateOptions };
     hideError();
     setExporting(true);
@@ -1672,8 +1972,8 @@ export default function App() {
       if (lastAdaptationId) {
         try {
           await apiPatch(`/api/applications/${encodeURIComponent(lastAdaptationId)}`, {
-            poste: posteNom,
-            entreprise: entrepriseNom,
+            poste: posteEff,
+            entreprise: entEff,
           });
           loadApplications();
         } catch {}
@@ -1685,12 +1985,12 @@ export default function App() {
       const usePicker = pickerAvailable;
       if (usePicker) {
         const rootHandle = await showDirectoryPicker();
-        const folderName = getExportFolderName(entrepriseNom, posteNom);
+        const folderName = getExportFolderName(entEff, posteEff);
         const subDir = await rootHandle.getDirectoryHandle(folderName, { create: true });
-        const blob = await apiPostBlob('/api/export-dossier-zip', {
+        const { blob } = await apiPostBlob('/api/export-dossier-zip', {
           cv: lastAdaptedCv,
-          titre: posteNom,
-          entreprise: entrepriseNom,
+          titre: posteEff,
+          entreprise: entEff,
           description: annonce,
           adaptation_id: lastAdaptationId || undefined,
           selection_a4: lastSelectionA4 || undefined,
@@ -1718,8 +2018,8 @@ export default function App() {
       } else {
         const data = await apiPost('/api/export-dossier', {
           cv: lastAdaptedCv,
-          titre: posteNom,
-          entreprise: entrepriseNom,
+          titre: posteEff,
+          entreprise: entEff,
           description: annonce,
           dossier: exportDossierPath.trim() || undefined,
           selection_a4: lastSelectionA4 || undefined,
@@ -1850,7 +2150,7 @@ export default function App() {
         })
         .catch(() => {});
     }
-  }, [previewVariant, isCvView, originalPreviewHtml, lastBaseCv, templateId, templateOptions]);
+  }, [previewVariant, isCvView, originalPreviewHtml, lastBaseCv, templateId, templateOptions, templateKey]);
 
   // Quand on switch sur "modified", afficher le HTML modifié dans l'iframe
   useEffect(() => {
@@ -1863,12 +2163,19 @@ export default function App() {
     }
     if (modifiedPreviewHtml) {
       iframe.srcdoc = modifiedPreviewHtml;
+      return;
     }
-  }, [previewVariant, isCvView, modifiedPreviewHtml, tourDemoPreviewHtml, tourHighlightStepActive]);
+    if (!lastAdaptedCv && previewHtmlFallback) {
+      iframe.srcdoc = previewHtmlFallback;
+    }
+  }, [previewVariant, isCvView, modifiedPreviewHtml, tourDemoPreviewHtml, tourHighlightStepActive, previewHtmlFallback, lastAdaptedCv, templateKey]);
 
   const handleExportDossier = async () => {
     if (!lastAdaptedCv) return;
-    if (!posteNom.trim()) {
+    const h = exportHintsRef.current;
+    const hintsOk = !!(h && lastAdaptationId && h.adaptation_id === lastAdaptationId);
+    const mergedPoste = (posteNom || '').trim() || (hintsOk ? (h.poste || '').trim() : '');
+    if (!mergedPoste) {
       showError("Indiquez l'intitulé du poste.");
       return;
     }
@@ -1993,6 +2300,7 @@ export default function App() {
   };
 
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
+  const [firstOfferNudgeOpen, setFirstOfferNudgeOpen] = useState(false);
   const [manageSubscriptionModalOpen, setManageSubscriptionModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelReasonText, setCancelReasonText] = useState('');
@@ -2001,6 +2309,36 @@ export default function App() {
     setSignOutConfirmOpen(false);
     if (supabase) await supabase.auth.signOut();
   };
+
+  /** En production : bloque l’espace /app sur petit écran (l’app vaut mieux sur PC). Désactiver avec VITE_ALLOW_MOBILE_APP=true */
+  const MOBILE_APP_GATE_MAX_PX = 768;
+  const mobileAppGateActive =
+    import.meta.env.PROD &&
+    import.meta.env.VITE_ALLOW_MOBILE_APP !== 'true' &&
+    import.meta.env.VITE_ALLOW_MOBILE_APP !== '1';
+  const [mobileViewportTooNarrow, setMobileViewportTooNarrow] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia(`(max-width: ${MOBILE_APP_GATE_MAX_PX}px)`).matches;
+  });
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_APP_GATE_MAX_PX}px)`);
+    const sync = () => setMobileViewportTooNarrow(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+
+  const showMobileAppGate = mobileAppGateActive && mobileViewportTooNarrow && pathname.startsWith('/app');
+
+  useEffect(() => {
+    if (!showMobileAppGate) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [showMobileAppGate]);
 
   const handleProfileSaveSuccess = () => {
     if (!lastAdaptedCv) loadInitialPreview();
@@ -2148,6 +2486,34 @@ export default function App() {
   return (
     <Suspense fallback={<div className="app-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}>
     <div className="app-shell">
+      {showMobileAppGate && (
+        <div className="app-mobile-gate" role="dialog" aria-modal="true" aria-labelledby="app-mobile-gate-title">
+          <div className="app-mobile-gate-card">
+            <img src="/favicon.svg" alt="" className="app-mobile-gate-logo" width={48} height={48} />
+            <h1 id="app-mobile-gate-title">L’app AxeL Job sur téléphone, c’est pour bientôt</h1>
+            <p className="app-mobile-gate-lead">
+              La version mobile du tableau de bord arrive. En attendant, les <strong>pages du site</strong> (guides, FAQ, articles) restent accessibles sur ton téléphone.
+            </p>
+            <p className="app-mobile-gate-hint">
+              Pour adapter ton CV, l’aperçu et le suivi des candidatures, ça fonctionne <strong>beaucoup mieux sur ordinateur</strong> — repasse depuis un PC ou une grande tablette.
+            </p>
+            <div className="app-mobile-gate-actions">
+              <button type="button" className="btn btn-primary" onClick={() => navigate('/faq')}>
+                Voir le site (FAQ, guides…)
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={async () => {
+                  if (supabase) await supabase.auth.signOut();
+                }}
+              >
+                Se déconnecter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showOnboardingBoot && (
         <div className="app-onboarding-boot" role="status" aria-live="polite" aria-busy="true">
           <span className="app-onboarding-boot-spinner" aria-hidden />
@@ -2172,7 +2538,13 @@ export default function App() {
             session={session}
             onComplete={(target) => {
               setNeedsOnboarding(false);
+              setOnboardingChecked(true);
               setProfileRefreshKey((k) => k + 1);
+              if (target !== 'profil' && session?.user?.id) {
+                try {
+                  localStorage.removeItem(`cv_bot_tour_done_main_phase1_${session.user.id}`);
+                } catch (_) { /* ignore */ }
+              }
               if (target === 'profil') navigate('/app/profil');
               else navigate('/app/cv');
             }}
@@ -2207,8 +2579,15 @@ export default function App() {
               </button>
             </div>
           )}
-          <div className="cv-chat-layout">
-            <div className="cv-chat-area">
+          {usage && usage.adaptations_used === 0 && (
+            <div className="zero-adapt-banner" role="status">
+              <span>
+                Prochaine étape : colle une offre dans le champ ci-dessous et envoie (Entrée). C’est ce qui déclenche l’adaptation et crée ta candidature.
+              </span>
+            </div>
+          )}
+          <div className="cv-chat-layout" data-analytics-section="cv_workspace">
+            <div className="cv-chat-area" data-analytics-section="chat">
               <div className="cv-chat-messages" role="log">
                 {chatMessages.length === 0 && (
                   <div className="cv-chat-placeholder">
@@ -2258,6 +2637,7 @@ export default function App() {
               {error && <div className="error cv-chat-error">{error}</div>}
               <div className="cv-chat-input-bar">
                 <textarea
+                  ref={cvChatInputRef}
                   className="cv-chat-input"
                   placeholder="Colle une offre d'emploi ou décris ce que tu veux modifier..."
                   value={chatInput}
@@ -2266,6 +2646,10 @@ export default function App() {
                     setChatInput(el.value);
                     requestAnimationFrame(() => {
                       el.style.height = 'auto';
+                      if (!el.value.trim()) {
+                        el.style.removeProperty('height');
+                        return;
+                      }
                       el.style.height = `${Math.min(el.scrollHeight, 150)}px`;
                     });
                   }}
@@ -2278,7 +2662,7 @@ export default function App() {
                 </button>
               </div>
             </div>
-            <div className="cv-chat-preview">
+            <div className="cv-chat-preview" data-analytics-section="preview">
               <div className="cv-tpl-scope" style={{ ['--cv-font-heading']: templateOptions?.font && TPL_FONT_SAFE[templateOptions.font] ? TPL_FONT_SAFE[templateOptions.font] : undefined }}>
                 <TemplatePicker
                   templates={templatesList}
@@ -2342,7 +2726,7 @@ export default function App() {
               )}
               <div className="preview-wrap" ref={previewWrapRef}>
                 <div className="preview-a4-sheet">
-                {previewVariant === 'modified' && lastAdaptedCv && !(templateId || '').startsWith('custom_') && ['classic', 'minimal', 'modern'].includes((templateId || '').trim()) ? (
+                {previewVariant === 'modified' && lastAdaptedCv && !(templateId || '').startsWith('custom_') && ['classic', 'minimal', 'modern', 'bold', 'creative', 'elegant', 'executive'].includes((templateId || '').trim()) ? (
                   <CvEditablePreview
                     cv={{
                       ...lastAdaptedCv,
@@ -2352,14 +2736,19 @@ export default function App() {
                     templateId={templateId}
                     layoutRefreshKey={templateKey}
                     templateOptions={templateOptions}
-                    showPhoto={templateOptions?.show_photo !== false}
+                    showPhoto={(templateId || '').trim() !== 'minimal' && templateOptions?.show_photo !== false}
                     showMotsClesAts={templateOptions?.show_mots_cles_ats !== false}
                     onPhotoSessionExpired={handlePhotoSessionExpired}
                     previewHtmlWithInlineCss={modifiedPreviewHtml}
                     onChange={(updatedCv) => {
                       setLastAdaptedCv(updatedCv);
                       trackEvent('cv_manually_edited', { adaptation_id: lastAdaptationId });
-                      apiPost('/api/render-html', { cv: updatedCv, highlight_changes: false, ...templateParams })
+                      apiPost('/api/render-html', {
+                        ...templateParams,
+                        cv: updatedCv,
+                        base_cv: lastBaseCv || undefined,
+                        highlight_changes: false,
+                      })
                         .then((html) => { setPreviewHtml(html); setModifiedPreviewHtml(html); })
                         .catch(() => {});
                     }}
@@ -2377,8 +2766,17 @@ export default function App() {
                 </div>
               </div>
               {exportBlockVisible && lastAdaptedCv && (
-                <div className="cv-chat-export">
-                  <input type="text" className="input-field" placeholder="Entreprise" value={entrepriseNom} onChange={(e) => setEntrepriseNom(e.target.value)} />
+                <div className="cv-chat-export" data-analytics-section="export">
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="Entreprise"
+                    value={entrepriseNom}
+                    onChange={(e) => {
+                      entrepriseFieldTouchedRef.current = true;
+                      setEntrepriseNom(e.target.value);
+                    }}
+                  />
                   <input type="text" className="input-field" placeholder="Intitulé du poste" value={posteNom} onChange={(e) => setPosteNom(e.target.value)} />
                   {lastAdaptationId && (
                     <select className="input-field" value={sourceOffreValue} onChange={(e) => {
@@ -2402,76 +2800,84 @@ export default function App() {
                     </select>
                   )}
                   {rapport?.score_global != null && (
-                    <div className="ats-score-inline">
-                      <button
-                        type="button"
-                        className="ats-score-trigger"
-                        onClick={() => { setAtsScoreOpen((v) => { if (!v) trackEvent('ats_details_opened', { score: rapport?.score_global }); return !v; }); }}
-                        aria-expanded={atsScoreOpen}
-                        aria-haspopup="dialog"
-                      >
-                        <span className="ats-score-label">Score ATS</span>
-                        {rapportBefore?.score_global != null && rapportBefore.score_global !== rapport.score_global ? (
-                          <span className="ats-score-value">
-                            <span className="ats-score-before">{rapportBefore.score_global}</span>
-                            <span className="ats-score-arrow">&rarr;</span>
-                            <span className="ats-score-after">{rapport.score_global}/100</span>
-                          </span>
-                        ) : (
-                          <span className="ats-score-value">{rapport.score_global}/100</span>
-                        )}
-                      </button>
+                    <>
+                      <div className="ats-score-inline">
+                        <button
+                          type="button"
+                          className="ats-score-trigger"
+                          onClick={() => {
+                            setAtsScoreOpen(true);
+                            trackEvent('ats_details_opened', { score: rapport?.score_global });
+                          }}
+                          aria-expanded={atsScoreOpen}
+                          aria-haspopup="dialog"
+                          aria-controls="ats-score-modal"
+                        >
+                          <span className="ats-score-pill-label">Score ATS</span>
+                          {rapportBefore?.score_global != null && rapportBefore.score_global !== rapport.score_global ? (
+                            <span className="ats-score-value">
+                              <span className="ats-score-before">{rapportBefore.score_global}</span>
+                              <span className="ats-score-arrow">&rarr;</span>
+                              <span className="ats-score-after">{rapport.score_global}/100</span>
+                            </span>
+                          ) : (
+                            <span className="ats-score-value">{rapport.score_global}/100</span>
+                          )}
+                        </button>
+                      </div>
                       {atsScoreOpen && (
-                        <div className="ats-score-dropdown ats-score-dropdown--export" role="dialog" aria-label="Détails du score ATS">
-                          {rapport.detail && (
-                            <div className="ats-score-section ats-detail-bars">
-                              <strong>Détail du score</strong>
-                              {[
-                                { key: 'keyword_coverage', label: 'Mots-clés', weight: 35 },
-                                { key: 'ats_section', label: 'Section ATS', weight: 15 },
-                                { key: 'structure', label: 'Structure', weight: 20 },
-                                { key: 'title_match', label: 'Titre', weight: 15 },
-                                { key: 'skills_match', label: 'Compétences', weight: 15 },
-                              ].map(({ key, label, weight }) => (
-                                <div key={key} className="ats-bar-row">
-                                  <span className="ats-bar-label">{label} <span className="ats-bar-weight">({weight}%)</span></span>
-                                  <div className="ats-bar-track">
-                                    <div className="ats-bar-fill" style={{ width: `${rapport.detail[key] || 0}%` }} />
+                        <div
+                          className="ats-score-modal-overlay"
+                          role="presentation"
+                          onClick={() => setAtsScoreOpen(false)}
+                        >
+                          <div
+                            id="ats-score-modal"
+                            className="ats-score-modal"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="ats-score-modal-title"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="ats-score-modal-header">
+                              <h3 id="ats-score-modal-title">Score ATS — {rapport.score_global}/100</h3>
+                              <button
+                                type="button"
+                                className="ats-score-modal-close"
+                                onClick={() => setAtsScoreOpen(false)}
+                                aria-label="Fermer"
+                              >
+                                ×
+                              </button>
+                            </div>
+                            <p className="ats-score-modal-intro">
+                              Indicatif sur 100, calculé à partir de l&apos;offre : chaque ligne ci-dessous est une note sur 100,
+                              pondérée (pourcentage indiqué) pour former le score global. Ce n&apos;est pas le score d&apos;un logiciel de recrutement précis.
+                            </p>
+                            {rapport.detail && (
+                              <div className="ats-score-section ats-detail-bars">
+                                <strong>Détail par catégorie</strong>
+                                {[
+                                  { key: 'keyword_coverage', label: 'Mots-clés', weight: 35 },
+                                  { key: 'ats_section', label: 'Section ATS', weight: 15 },
+                                  { key: 'structure', label: 'Structure', weight: 20 },
+                                  { key: 'title_match', label: 'Titre', weight: 15 },
+                                  { key: 'skills_match', label: 'Compétences', weight: 15 },
+                                ].map(({ key, label, weight }) => (
+                                  <div key={key} className="ats-bar-row">
+                                    <span className="ats-bar-label">{label} <span className="ats-bar-weight">({weight}%)</span></span>
+                                    <div className="ats-bar-track">
+                                      <div className="ats-bar-fill" style={{ width: `${rapport.detail[key] || 0}%` }} />
+                                    </div>
+                                    <span className="ats-bar-value">{rapport.detail[key] ?? 0}</span>
                                   </div>
-                                  <span className="ats-bar-value">{rapport.detail[key] || 0}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          {(rapport.strengths || []).length > 0 && (
-                            <div className="ats-score-section">
-                              <strong>Points forts</strong>
-                              <ul>
-                                {rapport.strengths.map((s, i) => <li key={i}>{s}</li>)}
-                              </ul>
-                            </div>
-                          )}
-                          <div className="ats-score-section">
-                            <strong>Points d&apos;amélioration</strong>
-                            <ul>
-                              {(rapport.weaknesses || []).map((w, i) => <li key={i}>{w}</li>)}
-                              {(rapport.zones_a_adapter || []).includes('titre') && (
-                                <li>Titre professionnel à aligner avec l&apos;offre</li>
-                              )}
-                              {(rapport.zones_a_adapter || []).includes('resume') && (
-                                <li>Résumé / accroche à enrichir avec des mots-clés de l&apos;offre</li>
-                              )}
-                              {(rapport.mots_cles_manquants || []).length > 5 && (
-                                <li>Intégrer davantage de mots-clés de l&apos;offre (ex. : {(rapport.mots_cles_manquants || []).slice(0, 5).join(', ')}…)</li>
-                              )}
-                              {(rapport.weaknesses || []).length === 0 && (rapport.zones_a_adapter || []).length === 0 && (rapport.mots_cles_manquants || []).length <= 5 && (
-                                <li>Aucun point critique, tu peux affiner le style.</li>
-                              )}
-                            </ul>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
-                    </div>
+                    </>
                   )}
                   <div className="cv-chat-export-btns">
                     <button type="button" className="btn btn-success" onClick={handlePdf} disabled={exporting}>Télécharger le PDF</button>
@@ -2523,8 +2929,15 @@ export default function App() {
               </button>
             </div>
           </header>
-          <div className="page-content applications-full">
-            <div className="applications-stats">
+          {usage && usage.adaptations_used === 0 && (
+            <div className="zero-adapt-banner zero-adapt-banner--compact" role="status">
+              <span>Tes candidatures apparaîtront ici après une adaptation. Commence par coller une offre sur </span>
+              <button type="button" className="zero-adapt-banner-link" onClick={() => navigate('/app/cv')}>Adapter un CV</button>
+              <span>.</span>
+            </div>
+          )}
+          <div className="page-content applications-full" data-analytics-section="candidatures_board">
+            <div className="applications-stats" data-analytics-section="candidatures_stats">
               <div className="stat-card">
                 <span className="stat-value">{applicationStats.countToday}</span>
                 <span className="stat-label">Aujourd'hui</span>
@@ -2811,6 +3224,10 @@ export default function App() {
                   const fiche = setupFiche.trim();
                   const ent = setupEntreprise.trim();
                   const pos = setupPoste.trim();
+                  trackEvent('adapt_cta_clicked', {
+                    source: 'setup_modal',
+                    desc_word_count: fiche.split(/\s+/).filter(Boolean).length,
+                  });
                   setSetupModalOpen(false);
                   setSetupEntreprise('');
                   setSetupPoste('');
@@ -2822,6 +3239,7 @@ export default function App() {
                   setPosteNom(pos);
                   setAnnonce(fiche);
                   setAdaptRating(null);
+                  openPhase2AfterFirstAdaptRef.current = true;
                   setAdapting(true);
                   const userPreview = fiche.slice(0, 300) + (fiche.length > 300 ? '…' : '');
                   setChatMessages([{ role: 'user', content: userPreview }]);
@@ -2829,6 +3247,21 @@ export default function App() {
                     const data = await apiPost('/api/adapt', { description: fiche, titre: pos || undefined, entreprise: ent || undefined, ...templateParams });
                     setLastAdaptedCv(data.cv);
                     setLastAdaptationId(data.adaptation_id || null);
+                    if (data.export_hints && data.adaptation_id) {
+                      exportHintsRef.current = { ...data.export_hints, adaptation_id: data.adaptation_id };
+                    } else if (data.adaptation_id) {
+                      exportHintsRef.current = {
+                        adaptation_id: data.adaptation_id,
+                        poste: '',
+                        entreprise: '',
+                        entreprise_confidence: 0,
+                      };
+                    }
+                    entrepriseFieldTouchedRef.current = false;
+                    if (data.export_hints) {
+                      setPosteNom((p) => ((p && p.trim()) ? p : (data.export_hints.poste || '')));
+                      setEntrepriseNom((e) => ((e && e.trim()) ? e : (data.export_hints.entreprise || '')));
+                    }
                     setLastSelectionA4(data.selection_a4 || null);
                     setRapport(data.rapport || {});
                     setRapportBefore(data.rapport_before || null);
@@ -2839,14 +3272,25 @@ export default function App() {
                     let baseCv = null;
                     try { baseCv = await apiGet('/api/cv'); } catch {}
                     if (baseCv) setLastBaseCv(baseCv);
-                    const html = await apiPost('/api/render-html', { cv: data.cv, base_cv: baseCv ?? undefined, highlight_changes: true, selection_a4: data.selection_a4 || undefined, ...templateParams });
+                    const html = await apiPost('/api/render-html', {
+                      ...templateParams,
+                      cv: data.cv,
+                      base_cv: baseCv ?? undefined,
+                      highlight_changes: true,
+                      selection_a4: data.selection_a4 || undefined,
+                    });
                     setPreviewHtml(html);
                     setModifiedPreviewHtml(html);
                     const summary = data.rapport?.score_global != null
                       ? `CV adapté (score ${data.rapport.score_global}/100). Tu peux affiner en envoyant un autre message.`
                       : 'CV adapté. Envoie un message pour affiner ou clique sur le texte pour éditer.';
                     setChatMessages([{ role: 'user', content: userPreview }, { role: 'assistant', content: summary }]);
+                    if (openPhase2AfterFirstAdaptRef.current) {
+                      openPhase2AfterFirstAdaptRef.current = false;
+                      bumpPostFirstAdaptTour();
+                    }
                   } catch (e) {
+                    openPhase2AfterFirstAdaptRef.current = false;
                     if (e.status === 402 || (e.message && e.message.includes('épuisé'))) {
                       setUpgradeModalVisible(true);
                     } else {
@@ -2872,13 +3316,20 @@ export default function App() {
           <header className="page-header">
             <h1 className="page-title">Profil</h1>
             <p className="page-subtitle">Ton CV de base. Modifications enregistrées automatiquement.</p>
+            {usage && usage.adaptations_used === 0 && (
+              <div className="zero-adapt-banner zero-adapt-banner--compact" role="status">
+                <span>Pour adapter ton CV à une offre, va sur </span>
+                <button type="button" className="zero-adapt-banner-link" onClick={() => navigate('/app/cv')}>Adapter un CV</button>
+                <span> et colle l’annonce.</span>
+              </div>
+            )}
           </header>
-          <div className="page-content">
+          <div className="page-content" data-analytics-section="profil_editor">
             <ProfileView onSaveSuccess={handleProfileSaveSuccess} session={session} refreshKey={profileRefreshKey} usage={usage} onUpgradeClick={handleUpgradeClick} onUsageRefresh={loadUsage} onBillingPortalClick={() => setManageSubscriptionModalOpen(true)} templatesList={templatesList} templateId={templateId} templateOptions={templateOptions} onTemplateIdChange={setTemplateId} onTemplateOptionsChange={setTemplateOptions} onPhotoSessionExpired={handlePhotoSessionExpired} />
           </div>
         </div>
 
-        <div id="viewSupport" className={`view-panel app-page view-support ${view === 'support' ? 'active' : ''}`} style={{ display: view === 'support' ? 'flex' : 'none' }}>
+        <div id="viewSupport" className={`view-panel app-page view-support ${view === 'support' ? 'active' : ''}`} style={{ display: view === 'support' ? 'flex' : 'none' }} data-analytics-section="support_page">
           <div className="support-hero">
             <h1 className="support-hero-title">Support</h1>
             <p className="support-hero-subtitle">
@@ -2918,6 +3369,7 @@ export default function App() {
           id="viewMonitoring"
           className={`view-panel app-page view-monitoring ${view === 'monitoring' ? 'active' : ''}`}
           style={{ display: view === 'monitoring' ? 'flex' : 'none' }}
+          data-analytics-section="monitoring_dashboard"
         >
           <MonitoringDashboard usage={usage} />
         </div>
@@ -3062,6 +3514,44 @@ export default function App() {
           </div>
         )}
 
+        {firstOfferNudgeOpen && session?.user?.id && usage?.adaptations_used === 0 && (
+          <div className="application-detail-overlay linkedin-sync-overlay" onClick={() => setFirstOfferNudgeOpen(false)} role="dialog" aria-modal="true" aria-labelledby="first-offer-nudge-title">
+            <div className="linkedin-sync-modal" onClick={(e) => e.stopPropagation()}>
+              <h3 id="first-offer-nudge-title">Colle une première offre</h3>
+              <p className="profile-subtitle" style={{ marginTop: 0 }}>
+                C’est l’étape qui adapte ton CV à un poste réel. Va sur « Adapter un CV », colle le texte de l’annonce (ou le lien) dans le champ en bas, puis envoie.
+              </p>
+              <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setFirstOfferNudgeOpen(false);
+                    navigate('/app/cv');
+                    requestAnimationFrame(() => cvChatInputRef.current?.focus());
+                    trackEvent('first_offer_nudge_cta', { action: 'go_cv' });
+                  }}
+                >
+                  Coller une offre
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setFirstOfferNudgeOpen(false);
+                    try {
+                      localStorage.setItem(`cv_bot_first_offer_nudge_dismissed_${session.user.id}`, '1');
+                    } catch (_) { /* ignore */ }
+                    trackEvent('first_offer_nudge_cta', { action: 'dismiss' });
+                  }}
+                >
+                  Plus tard
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {manageSubscriptionModalOpen && (
           <div className="application-detail-overlay linkedin-sync-overlay" onClick={() => setManageSubscriptionModalOpen(false)} role="dialog" aria-modal="true" aria-labelledby="manage-sub-title">
             <div className="linkedin-sync-modal" onClick={(e) => e.stopPropagation()}>
@@ -3114,8 +3604,18 @@ export default function App() {
           </div>
         )}
 
-        {session && !needsOnboarding && isCvView && (
-          <GuidedTour key={`tour-${tourRestartKey}`} steps={TOUR_STEPS} tourKey="main" onStepChange={handleTourStepChange} />
+        {session && onboardingChecked && !needsOnboarding && isCvView && (
+          <>
+            <GuidedTour key={`tour-p1-${guidedTourUid}-${tourRestartKey}-${phase1DismissForAdaptKey}`} steps={TOUR_STEPS_PHASE1} tourKey={tourKeyPhase1} autoOpenDelayMs={0} onStepChange={handleTourStepChange} />
+            <GuidedTour
+              key={`tour-p2-${guidedTourUid}-${tourRestartKey}`}
+              steps={TOUR_STEPS_PHASE2}
+              tourKey={tourKeyPhase2}
+              enableAutoOpen={false}
+              openTrigger={phase2TourOpenTrigger}
+              onStepChange={handleTourPhase2StepChange}
+            />
+          </>
         )}
 
         {session && location.state?.supportHighlight && (pathname === location.state.supportHighlight.route || pathname.startsWith(location.state.supportHighlight.route + '/')) && (
@@ -3193,6 +3693,37 @@ export default function App() {
                   Valider et continuer
                 </button>
                 <button type="button" className="btn btn-secondary" onClick={closeExportAtsBlockModal}>
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {pdfEntrepriseModalOpen && (
+          <div className="application-detail-overlay linkedin-sync-overlay" onClick={closePdfEntrepriseModal} role="dialog" aria-modal="true" aria-labelledby="pdf-entreprise-modal-title">
+            <div className="linkedin-sync-modal export-ats-block-modal" onClick={(e) => e.stopPropagation()}>
+              <h3 id="pdf-entreprise-modal-title">Nom de l&apos;entreprise</h3>
+              <p className="export-ats-block-muted" style={{ marginTop: '0.5rem' }}>
+                Pour retrouver cette candidature dans ton suivi, un nom d&apos;entreprise clair aide beaucoup.
+                Nous ne sommes pas sûrs de l&apos;avoir bien détecté depuis l&apos;annonce : vérifie ou complète ci-dessous (tu peux aussi laisser vide).
+              </p>
+              <label className="setup-field" style={{ marginTop: '1rem', display: 'block' }}>
+                <span>Entreprise</span>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={pdfEntrepriseModalValue}
+                  onChange={(e) => setPdfEntrepriseModalValue(e.target.value)}
+                  placeholder="ex. Société recruteuse"
+                  autoFocus
+                />
+              </label>
+              <div className="linkedin-sync-actions export-ats-block-actions" style={{ marginTop: '1.25rem' }}>
+                <button type="button" className="btn btn-primary" onClick={() => void confirmPdfEntrepriseModal()}>
+                  Télécharger le PDF
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={closePdfEntrepriseModal}>
                   Annuler
                 </button>
               </div>

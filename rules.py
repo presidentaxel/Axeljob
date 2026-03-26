@@ -60,6 +60,32 @@ def _tokenize(text: str) -> set[str]:
     return set(re.findall(r"\w+", text.lower())) if text else set()
 
 
+def _strip_hf_suffix(text: str) -> str:
+    """Retire (H/F) et (F/H) du titre (aligné sur generator._strip_h_f)."""
+    if not text or not isinstance(text, str):
+        return text or ""
+    return re.sub(r"\s*\([HhFf]/[HhFf]\)", "", text).strip()
+
+
+def _titre_offre_effectif_lower(offre: dict) -> str:
+    """
+    Titre du poste pour comparaison : champ « intitulé » si renseigné,
+    sinon 1re ligne courte de l'annonce (souvent le titre quand le champ est vide).
+    """
+    explicit = (offre.get("titre") or "").strip()
+    if explicit:
+        return explicit.lower()
+    desc = (offre.get("description_brute") or "").strip()
+    if not desc:
+        return ""
+    first_line = desc.split("\n", 1)[0].strip()
+    if not first_line:
+        return ""
+    if len(first_line) > 120 or len(first_line.split()) > 14:
+        return ""
+    return first_line.lower()
+
+
 def _texte_plat(obj) -> str:
     if isinstance(obj, str):
         return obj.lower()
@@ -264,8 +290,8 @@ def _score_structure(cv: dict) -> tuple[float, list[str], list[str]]:
 
 def _score_title_match(cv: dict, offre: dict) -> float:
     """How well the CV title matches the job title (0-100)."""
-    titre_offre = (offre.get("titre") or "").lower()
-    titre_cv = (cv.get("titre_professionnel") or "").lower()
+    titre_offre = _titre_offre_effectif_lower(offre)
+    titre_cv = _strip_hf_suffix((cv.get("titre_professionnel") or "").strip()).lower()
 
     offre_tokens = {t for t in re.findall(r"\w+", titre_offre) if len(t) > 2 and t not in _FR_STOPWORDS}
     if not offre_tokens:
@@ -349,8 +375,8 @@ def appliquer_regles(cv: dict, offre: dict) -> dict:
     """
     cv_enrichi = deepcopy(cv)
     mots = _mots_offre(offre)
-    titre_offre = (offre.get("titre") or "").lower()
-    titre_cv = (cv.get("titre_professionnel") or "").lower()
+    titre_offre = _titre_offre_effectif_lower(offre)
+    titre_cv = _strip_hf_suffix((cv.get("titre_professionnel") or "").strip()).lower()
     resume_cv = (cv.get("resume") or "").lower()
 
     for exp in cv_enrichi.get("experiences", []):

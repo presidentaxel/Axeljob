@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="template.css">
 </head>
-<body class="{% if for_preview %}cv-preview{% endif %}">
+<body class="{% if for_preview %}cv-preview{% endif %}{% if for_pdf %} cv-pdf-page-stripe-left{% endif %}">
   <article class="cv{% if for_pdf %} cv-pdf-dual-column{% endif %}">
     <div class="cv-sidebar">
       {% if photo_url %}

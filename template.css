@@ -496,7 +496,7 @@
     font-weight: bold;
   }
 
-  .mots-cles-ats-invisible {
+  .section-mots-cles-ats .mots-cles-ats-invisible {
     font-size: 5pt;
     line-height: 1.15;
     color: #f4f4f2;
@@ -512,15 +512,15 @@
     min-width: 210mm;
   }
 
-  body.cv-preview .mots-cles-ats-invisible {
+  body.cv-preview .section-mots-cles-ats .mots-cles-ats-invisible {
     color: #1a1a1a;
   }
 
   @media print {
-    .mots-cles-ats-titre {
+    .section-mots-cles-ats .mots-cles-ats-titre {
       display: none;
     }
-    .mots-cles-ats-invisible {
+    .section-mots-cles-ats .mots-cles-ats-invisible {
       color: #f4f4f2;
       font-size: 5pt;
       line-height: 1.15;
@@ -529,14 +529,15 @@
 
   /* Surlignage des parties modifiées (aperçu uniquement ; pas d’effet à l’impression) */
   .cv-changed {
-    background-color: #b8d4be;
+    background-color: #c5e3cd;
     padding: 0 1px;
     border-radius: 1px;
   }
 
-  .cv-header .cv-changed {
-    background-color: #3d6b4a;
-    color: #b8e0c0;
+  .cv-header .cv-changed,
+  .cv-sidebar .cv-changed {
+    background-color: #9dc6ae;
+    color: #0f2418;
   }
 
   @media print {
@@ -544,7 +545,8 @@
       background-color: transparent;
       padding: 0;
     }
-    .cv-header .cv-changed {
+    .cv-header .cv-changed,
+    .cv-sidebar .cv-changed {
       color: inherit;
       background-color: transparent;
     }

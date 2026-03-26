@@ -1,197 +1,179 @@
 """
-Métriques structurelles et qualitatives calculées sur un CV pour le mémoire.
-Toutes les fonctions sont pures (pas d'I/O) et retournent des dicts sérialisables.
+Métriques CV pour analytics : profil sauvegardé, import, adaptation.
 """
-import re
+from __future__ import annotations
+
 from typing import Any
 
-VERBES_ACTION_FR = {
-    "géré", "développé", "créé", "piloté", "animé", "coordonné", "optimisé",
-    "conçu", "dirigé", "réalisé", "analysé", "implémenté", "mis", "amélioré",
-    "organisé", "supervisé", "lancé", "établi", "contribué", "accompagné",
-    "négocié", "formé", "encadré", "déployé", "restructuré", "conduit",
-    "élaboré", "défini", "assuré", "réduit", "augmenté", "automatisé",
-    "suivi", "participé", "identifié", "résolu", "proposé", "livré",
-    "managed", "developed", "created", "led", "coordinated", "optimized",
-    "designed", "implemented", "improved", "organized", "launched", "built",
-    "analyzed", "delivered", "reduced", "increased", "automated", "resolved",
-}
 
-
-def _words(text: str) -> list[str]:
-    if not text:
-        return []
-    return re.findall(r"\w+", text.lower())
-
-
-def _has_quantification(text: str) -> bool:
-    return bool(re.search(r"\d+[%€$kKmM]?|\d+\s*%|\d+\s*€", text or ""))
-
-
-def _starts_with_action_verb(text: str) -> bool:
-    words = _words(text)
-    return bool(words and words[0] in VERBES_ACTION_FR)
-
-
-def profile_metrics(cv: dict) -> dict[str, Any]:
-    """Métriques de complétion et structure du profil."""
-    experiences = cv.get("experiences") or []
-    formations = cv.get("formations") or []
-    projets = cv.get("projets") or []
-    competences = cv.get("competences") or {}
-    comp_tech = competences.get("techniques") or []
-    comp_soft = competences.get("soft_skills") or competences.get("transversales") or []
-    langues = competences.get("langues") or cv.get("langues") or []
-
-    has_name = bool((cv.get("prenom") or "").strip() and (cv.get("nom") or "").strip())
-    has_title = bool((cv.get("titre_professionnel") or "").strip())
-    has_email = bool((cv.get("email") or "").strip())
-    has_phone = bool((cv.get("telephone") or "").strip())
-    has_photo = bool((cv.get("photo_url") or "").strip())
-    has_resume = bool((cv.get("resume") or "").strip())
-    has_linkedin = bool((cv.get("linkedin") or "").strip())
-
-    all_bullets = []
-    for exp in experiences:
-        for bp in exp.get("bullet_points") or []:
-            if isinstance(bp, str) and bp.strip():
-                all_bullets.append(bp.strip())
-
-    resume_words = _words(cv.get("resume") or "")
-
-    checks = [has_name, has_title, has_email,
-              any(e.get("poste", "").strip() for e in experiences),
-              any(f.get("diplome", "").strip() for f in formations),
-              bool([c for c in comp_tech if isinstance(c, str) and c.strip()])]
-    completion_pct = round(sum(checks) / max(len(checks), 1) * 100)
-
+def profile_metrics(cv: dict[str, Any] | None) -> dict[str, Any]:
+    """Champs « profil / template » (PUT /api/cv), léger pour les logs."""
+    if not isinstance(cv, dict):
+        return {}
+    tid = cv.get("template_id")
+    opts = cv.get("template_options")
     return {
-        "completion_pct": completion_pct,
-        "has_name": has_name,
-        "has_title": has_title,
-        "has_email": has_email,
-        "has_phone": has_phone,
-        "has_photo": has_photo,
-        "has_resume": has_resume,
-        "has_linkedin": has_linkedin,
-        "nb_experiences": len(experiences),
-        "nb_formations": len(formations),
-        "nb_projets": len(projets),
-        "nb_competences_tech": len([c for c in comp_tech if isinstance(c, str) and c.strip()]),
-        "nb_competences_soft": len([c for c in comp_soft if isinstance(c, str) and c.strip()]),
-        "nb_langues": len([la for la in langues if (la.get("langue") if isinstance(la, dict) else la or "").strip()]),
-        "resume_word_count": len(resume_words),
-        "total_bullet_points": len(all_bullets),
-        "avg_bullets_per_exp": round(len(all_bullets) / max(len(experiences), 1), 1),
+        "template_id": (str(tid).strip()[:64] if tid else None),
+        "template_options_count": len(opts) if isinstance(opts, dict) else 0,
+        "has_photo_url": bool((str(cv.get("photo_url") or "")).strip()),
     }
 
 
-def cv_content_metrics(cv: dict) -> dict[str, Any]:
-    """Analyse qualitative du contenu : verbes d'action, quantifications, diversité lexicale."""
-    all_bullets = []
-    for exp in cv.get("experiences") or []:
-        for bp in exp.get("bullet_points") or []:
-            if isinstance(bp, str) and bp.strip():
-                all_bullets.append(bp.strip())
+def cv_content_metrics(cv: dict[str, Any] | None) -> dict[str, Any]:
+    """Structure du CV (compteurs), pour suivre la richesse du profil."""
+    if not isinstance(cv, dict):
+        return {
+            "n_experiences": 0,
+            "n_formations": 0,
+            "n_projets": 0,
+            "n_certifications": 0,
+            "resume_chars": 0,
+            "n_bullets": 0,
+        }
+    exps = [e for e in (cv.get("experiences") or []) if isinstance(e, dict)]
+    n_bullets = 0
+    for e in exps:
+        for b in e.get("bullet_points") or []:
+            if isinstance(b, str) and b.strip():
+                n_bullets += 1
+    resume = cv.get("resume") or ""
+    resume_chars = len(resume.strip()) if isinstance(resume, str) else 0
+    forms = [f for f in (cv.get("formations") or []) if isinstance(f, dict)]
+    projs = [p for p in (cv.get("projets") or []) if isinstance(p, dict)]
+    certs = [c for c in (cv.get("certifications") or []) if isinstance(c, dict)]
+    return {
+        "n_experiences": len(exps),
+        "n_formations": len(forms),
+        "n_projets": len(projs),
+        "n_certifications": len(certs),
+        "resume_chars": resume_chars,
+        "n_bullets": n_bullets,
+    }
 
-    bullets_with_verb = sum(1 for b in all_bullets if _starts_with_action_verb(b))
-    bullets_with_quant = sum(1 for b in all_bullets if _has_quantification(b))
-    total = max(len(all_bullets), 1)
+
+def _rapport_score(r: Any) -> int | None:
+    if not isinstance(r, dict):
+        return None
+    s = r.get("score_global")
+    if s is None:
+        return None
+    try:
+        return int(round(float(s)))
+    except (TypeError, ValueError):
+        return None
+
+
+def adaptation_metrics(
+    cv_base: dict[str, Any] | None,
+    merged: dict[str, Any] | None,
+    offre: dict[str, Any] | None,
+    rapport_before: dict[str, Any] | None,
+    rapport_after: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Résumé d’une adaptation (scores ATS + taille offre), pour funnels."""
+    desc = ""
+    if isinstance(offre, dict):
+        desc = str(offre.get("description_brute") or "")
+    words = len(desc.split()) if desc else 0
+    sb = _rapport_score(rapport_before)
+    sa = _rapport_score(rapport_after)
+    delta = None if sb is None or sa is None else sa - sb
+    return {
+        "score_ats_before": sb,
+        "score_ats_after": sa,
+        "score_ats_delta": delta,
+        "offre_word_count": words,
+        "offre_has_titre": bool(isinstance(offre, dict) and (str(offre.get("titre") or "")).strip()),
+        "offre_has_entreprise": bool(isinstance(offre, dict) and (str(offre.get("entreprise") or "")).strip()),
+    }
+
+
+def _nonempty(s: Any) -> bool:
+    return isinstance(s, str) and bool(s.strip())
+
+
+def _exp_meaningful(exp: dict) -> bool:
+    if not isinstance(exp, dict):
+        return False
+    poste = _nonempty(exp.get("poste"))
+    ent = _nonempty(exp.get("entreprise"))
+    bullets = exp.get("bullet_points") or []
+    nb_bullets = sum(1 for b in bullets if _nonempty(b))
+    return (poste and ent) or nb_bullets >= 2
+
+
+def _form_meaningful(f: dict) -> bool:
+    if not isinstance(f, dict):
+        return False
+    return _nonempty(f.get("diplome")) or _nonempty(f.get("etablissement"))
+
+
+def cv_import_completeness(cv: dict[str, Any] | None) -> dict[str, Any]:
+    """
+    Score 0–100 + indices lisibles pour comprendre un ré-import ou un profil léger.
+    """
+    if not isinstance(cv, dict):
+        return {
+            "score": 0,
+            "checks_passed": 0,
+            "checks_total": 0,
+            "missing_hints": ["invalid_or_empty_cv"],
+            "n_experiences": 0,
+            "n_experiences_meaningful": 0,
+            "n_formations": 0,
+            "has_competences_block": False,
+        }
+
+    checks: list[tuple[str, bool]] = []
+
+    name_ok = _nonempty(cv.get("prenom")) or _nonempty(cv.get("nom"))
+    checks.append(("identity_name", name_ok))
+
+    contact_ok = _nonempty(cv.get("email")) or _nonempty(cv.get("telephone")) or _nonempty(cv.get("linkedin"))
+    checks.append(("contact", contact_ok))
+
+    checks.append(("titre_professionnel", _nonempty(cv.get("titre_professionnel"))))
 
     resume = cv.get("resume") or ""
-    resume_words_list = _words(resume)
-    resume_unique = set(resume_words_list)
-    lexical_diversity = round(len(resume_unique) / max(len(resume_words_list), 1), 2)
+    checks.append(("resume_80_chars", isinstance(resume, str) and len(resume.strip()) >= 80))
 
-    all_text_words = _words(resume)
-    for b in all_bullets:
-        all_text_words.extend(_words(b))
+    exps = [e for e in (cv.get("experiences") or []) if isinstance(e, dict)]
+    n_meaningful = sum(1 for e in exps if _exp_meaningful(e))
+    checks.append(("at_least_one_experience", len(exps) >= 1))
+    checks.append(("experience_with_poste_entreprise_or_bullets", n_meaningful >= 1))
 
-    return {
-        "action_verb_ratio": round(bullets_with_verb / total, 2),
-        "quantification_ratio": round(bullets_with_quant / total, 2),
-        "bullets_with_action_verb": bullets_with_verb,
-        "bullets_with_quantification": bullets_with_quant,
-        "resume_lexical_diversity": lexical_diversity,
-        "total_cv_word_count": len(all_text_words),
-    }
+    forms = [f for f in (cv.get("formations") or []) if isinstance(f, dict)]
+    n_form_ok = sum(1 for f in forms if _form_meaningful(f))
+    checks.append(("at_least_one_formation", n_form_ok >= 1))
 
+    comp = cv.get("competences") if isinstance(cv.get("competences"), dict) else {}
+    tech = comp.get("techniques") or []
+    logi = comp.get("logiciels") or []
+    langues = comp.get("langues") or []
+    skills_ok = (isinstance(tech, list) and len([x for x in tech if _nonempty(x)]) >= 2) or (
+        isinstance(logi, list) and len([x for x in logi if _nonempty(x)]) >= 1
+    )
+    checks.append(("competences_techniques_or_logiciels", skills_ok))
 
-def adaptation_metrics(cv_base: dict, merged_cv: dict, offre: dict, rapport: dict, rapport_after: dict | None = None) -> dict[str, Any]:
-    """Métriques comparatives avant/après adaptation, plus infos offre."""
-    base_bullets = []
-    for exp in cv_base.get("experiences") or []:
-        for bp in exp.get("bullet_points") or []:
-            if isinstance(bp, str) and bp.strip():
-                base_bullets.append(bp.strip())
+    lang_ok = isinstance(langues, list) and len([l for l in langues if isinstance(l, dict) and _nonempty(l.get("langue"))]) >= 1
+    checks.append(("langues", lang_ok))
 
-    merged_bullets = []
-    for exp in merged_cv.get("experiences") or []:
-        for bp in exp.get("bullet_points") or []:
-            if isinstance(bp, str) and bp.strip():
-                merged_bullets.append(bp.strip())
+    projs = [p for p in (cv.get("projets") or []) if isinstance(p, dict)]
+    proj_ok = any(_nonempty(p.get("nom")) or _nonempty(p.get("description")) for p in projs)
+    checks.append(("projets_optional", proj_ok))
 
-    description = offre.get("description_brute") or ""
-    contract_type = _detect_contract_type(description)
-    sector = _detect_sector(description, offre)
-
-    score_before = rapport.get("score_global")
-    score_after = rapport_after.get("score_global") if rapport_after else None
-    keywords_missing_before = len(rapport.get("mots_cles_manquants") or [])
+    passed = sum(1 for _, ok in checks if ok)
+    total = len(checks)
+    score = int(round(100 * passed / total)) if total else 0
+    missing = [name for name, ok in checks if not ok]
 
     return {
-        "score_ats_before": score_before,
-        "score_ats_after": score_after,
-        "keywords_missing_before": keywords_missing_before,
-        "nb_experiences": len(cv_base.get("experiences") or []),
-        "nb_formations": len(cv_base.get("formations") or []),
-        "nb_competences_tech": len([c for c in (cv_base.get("competences") or {}).get("techniques") or [] if isinstance(c, str) and c.strip()]),
-        "resume_word_count_before": len(_words(cv_base.get("resume") or "")),
-        "resume_word_count_after": len(_words(merged_cv.get("resume") or "")),
-        "total_bullets_before": len(base_bullets),
-        "total_bullets_after": len(merged_bullets),
-        "offre_word_count": len(_words(description)),
-        "offre_type_contrat": contract_type,
-        "offre_sector": sector,
+        "score": score,
+        "checks_passed": passed,
+        "checks_total": total,
+        "missing_hints": missing[:16],
+        "n_experiences": len(exps),
+        "n_experiences_meaningful": n_meaningful,
+        "n_formations": len(forms),
+        "has_competences_block": bool(comp),
     }
-
-
-_CONTRACT_PATTERNS = [
-    (r"\b(alternance|contrat\s+d['\u2019]?apprentissage)\b", "alternance"),
-    (r"\b(stage)\b", "stage"),
-    (r"\b(CDI)\b", "cdi"),
-    (r"\b(CDD)\b", "cdd"),
-    (r"\b(freelance|ind[ée]pendant|mission)\b", "freelance"),
-    (r"\b(int[ée]rim)\b", "interim"),
-]
-
-_SECTOR_KEYWORDS = {
-    "tech": ["développeur", "software", "engineering", "data", "devops", "cloud", "saas", "startup", "tech"],
-    "finance": ["finance", "banque", "audit", "comptabilité", "trading", "asset", "investment", "risk"],
-    "conseil": ["conseil", "consulting", "consultant", "strategy", "stratégie"],
-    "luxe": ["luxe", "luxury", "fashion", "mode", "maison"],
-    "industrie": ["industrie", "manufacturing", "production", "supply chain", "logistique"],
-    "sante": ["santé", "pharma", "médical", "biotech", "healthcare"],
-    "marketing": ["marketing", "communication", "digital", "brand", "marque", "social media"],
-    "rh": ["ressources humaines", "rh", "recrutement", "talent", "people"],
-    "immobilier": ["immobilier", "real estate", "property"],
-    "energie": ["énergie", "energy", "renouvelable", "nucléaire", "pétrole"],
-}
-
-
-def _detect_contract_type(text: str) -> str:
-    t = text.lower()
-    for pattern, label in _CONTRACT_PATTERNS:
-        if re.search(pattern, t, re.IGNORECASE):
-            return label
-    return "unknown"
-
-
-def _detect_sector(text: str, offre: dict) -> str:
-    combined = (text + " " + (offre.get("titre") or "") + " " + (offre.get("entreprise") or "")).lower()
-    best, best_count = "unknown", 0
-    for sector, keywords in _SECTOR_KEYWORDS.items():
-        count = sum(1 for kw in keywords if kw in combined)
-        if count > best_count:
-            best, best_count = sector, count
-    return best

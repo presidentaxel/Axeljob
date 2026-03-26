@@ -2573,7 +2573,10 @@ export default function App() {
           </header>
           {usage && usage.plan === 'free' && usage.adaptations_used >= 2 && (
             <div className="free-plan-banner">
-              <span>{usage.adaptations_limit - usage.adaptations_used <= 0 ? 'Tes adaptations gratuites sont épuisées.' : `Il te reste ${usage.adaptations_limit - usage.adaptations_used} adaptation${usage.adaptations_limit - usage.adaptations_used > 1 ? 's' : ''} gratuite${usage.adaptations_limit - usage.adaptations_used > 1 ? 's' : ''}.`}</span>
+              <span>{(() => {
+                const rem = usage.adaptations_quota_remaining ?? (usage.adaptations_limit - usage.adaptations_used);
+                return rem <= 0 ? 'Tes adaptations gratuites sont épuisées.' : `Il te reste ${rem} adaptation${rem > 1 ? 's' : ''} gratuite${rem > 1 ? 's' : ''}.`;
+              })()}</span>
               <button type="button" className="btn btn-primary btn-sm" onClick={handleUpgradeClick} disabled={checkoutLoading}>
                 {checkoutLoading ? '…' : 'Passer Pro - 10€/mois'}
               </button>

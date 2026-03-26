@@ -5,6 +5,8 @@ create table if not exists public.user_plans (
   user_id text primary key,
   plan text not null default 'free' check (plan in ('free', 'pro')),
   paywall_disabled boolean not null default false,
+  free_adaptation_bonus integer not null default 0 check (free_adaptation_bonus >= 0),
+  free_adaptation_count_anchor integer not null default 0 check (free_adaptation_count_anchor >= 0),
   stripe_customer_id text,
   stripe_subscription_id text,
   updated_at timestamptz default now()

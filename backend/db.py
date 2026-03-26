@@ -22,8 +22,8 @@ from backend.supabase_metrics import inc_pg_fallback
 logger = logging.getLogger(__name__)
 
 _user_plan_lock = threading.Lock()
-# uid -> (plan 'free'|'pro', paywall_disabled, expire_monotonic)
-_user_plan_cache: dict[str, tuple[str, bool, float]] = {}
+# uid -> (plan, paywall_disabled, free_adaptation_bonus, free_adaptation_count_anchor, expire_monotonic)
+_user_plan_cache: dict[str, tuple[str, bool, int, int, float]] = {}
 
 
 def _warn_pg_fallback(operation: str, exc: BaseException) -> None:
@@ -37,11 +37,11 @@ def _invalidate_user_plan_cache(uid: str) -> None:
         _user_plan_cache.pop(uid, None)
 
 
-def _fetch_user_plan_state(uid: str) -> tuple[str, bool]:
-    """Une requête store : (plan 'free'|'pro', paywall_disabled)."""
+def _fetch_user_plan_state(uid: str) -> tuple[str, bool, int, int]:
+    """Store : (plan, paywall_disabled, free_adaptation_bonus, free_adaptation_count_anchor)."""
     sb = _get_supabase()
     if not sb:
-        return "free", False
+        return "free", False, 0, 0
     if USE_SUPABASE_PG:
         try:
             from backend import supabase_pg as spg
@@ -49,14 +49,14 @@ def _fetch_user_plan_state(uid: str) -> tuple[str, bool]:
             row = spg.get_user_plan_row(uid)
             if row:
                 plan = "pro" if row[0] == "pro" else "free"
-                return plan, bool(row[1])
-            return "free", False
+                return plan, bool(row[1]), int(row[2]), int(row[3])
+            return "free", False, 0, 0
         except Exception as e:
             _warn_pg_fallback("get_user_plan_row", e)
     try:
         r = (
             sb.table("user_plans")
-            .select("plan, paywall_disabled")
+            .select("plan, paywall_disabled, free_adaptation_bonus, free_adaptation_count_anchor")
             .eq("user_id", uid)
             .limit(1)
             .execute()
@@ -64,25 +64,35 @@ def _fetch_user_plan_state(uid: str) -> tuple[str, bool]:
         if r.data and len(r.data) > 0:
             row = r.data[0]
             plan = "pro" if row.get("plan") == "pro" else "free"
-            return plan, bool(row.get("paywall_disabled"))
+            raw_bonus = row.get("free_adaptation_bonus")
+            try:
+                bonus = max(0, int(raw_bonus or 0))
+            except (TypeError, ValueError):
+                bonus = 0
+            raw_anchor = row.get("free_adaptation_count_anchor")
+            try:
+                anchor = max(0, int(raw_anchor or 0))
+            except (TypeError, ValueError):
+                anchor = 0
+            return plan, bool(row.get("paywall_disabled")), bonus, anchor
     except Exception:
         pass
-    return "free", False
+    return "free", False, 0, 0
 
 
-def _get_cached_user_plan_state(uid: str) -> tuple[str, bool]:
+def _get_cached_user_plan_state(uid: str) -> tuple[str, bool, int, int]:
     ttl = USER_PLAN_CACHE_TTL_SEC
     if ttl <= 0:
         return _fetch_user_plan_state(uid)
     now = time.monotonic()
     with _user_plan_lock:
         hit = _user_plan_cache.get(uid)
-        if hit is not None and hit[2] > now:
-            return hit[0], hit[1]
-    plan, pw = _fetch_user_plan_state(uid)
+        if hit is not None and hit[4] > now:
+            return hit[0], hit[1], hit[2], hit[3]
+    plan, pw, bonus, anchor = _fetch_user_plan_state(uid)
     with _user_plan_lock:
-        _user_plan_cache[uid] = (plan, pw, now + ttl)
-    return plan, pw
+        _user_plan_cache[uid] = (plan, pw, bonus, anchor, now + ttl)
+    return plan, pw, bonus, anchor
 
 CV_BASE_PATH = BASE_DIR / "cv_base.json"
 ADAPTATIONS_DIR = BASE_DIR / "adaptations"
@@ -736,7 +746,7 @@ def get_user_plan(user_id: Optional[str] = None) -> str:
     uid = (user_id or "default").strip() or "default"
     if not _get_supabase():
         return "free"
-    plan, _ = _get_cached_user_plan_state(uid)
+    plan, _, _, _ = _get_cached_user_plan_state(uid)
     return plan
 
 
@@ -745,8 +755,26 @@ def get_paywall_disabled(user_id: Optional[str] = None) -> bool:
     uid = (user_id or "default").strip() or "default"
     if not _get_supabase():
         return False
-    _, pw = _get_cached_user_plan_state(uid)
+    _, pw, _, _ = _get_cached_user_plan_state(uid)
     return pw
+
+
+def get_free_adaptation_bonus(user_id: Optional[str] = None) -> int:
+    """Crédits gratuits supplémentaires (user_plans.free_adaptation_bonus), 0 si pas de ligne ou sans Supabase."""
+    uid = (user_id or "default").strip() or "default"
+    if not _get_supabase():
+        return 0
+    _, _, bonus, _ = _get_cached_user_plan_state(uid)
+    return bonus
+
+
+def get_free_adaptation_count_anchor(user_id: Optional[str] = None) -> int:
+    """Ancrage quota / affichage (user_plans.free_adaptation_count_anchor), 0 si absent."""
+    uid = (user_id or "default").strip() or "default"
+    if not _get_supabase():
+        return 0
+    _, _, _, anchor = _get_cached_user_plan_state(uid)
+    return anchor
 
 
 def get_user_stripe_ids(user_id: Optional[str] = None) -> tuple[Optional[str], Optional[str]]:

@@ -319,8 +319,8 @@ def count_applications_for_user(uid: str) -> int:
 # --- user_plans ---
 
 
-def get_user_plan_row(uid: str) -> Optional[tuple[str, Optional[bool]]]:
-    """Retourne (plan, paywall_disabled) ou None si pas de ligne."""
+def get_user_plan_row(uid: str) -> Optional[tuple[str, Optional[bool], int, int]]:
+    """Retourne (plan, paywall_disabled, free_adaptation_bonus, free_adaptation_count_anchor) ou None."""
     pool = get_pool()
     if not pool:
         return None
@@ -330,7 +330,7 @@ def get_user_plan_row(uid: str) -> Optional[tuple[str, Optional[bool]]]:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
-                SELECT plan, paywall_disabled
+                SELECT plan, paywall_disabled, free_adaptation_bonus, free_adaptation_count_anchor
                 FROM public.user_plans
                 WHERE user_id = %s
                 LIMIT 1
@@ -340,7 +340,17 @@ def get_user_plan_row(uid: str) -> Optional[tuple[str, Optional[bool]]]:
             row = cur.fetchone()
     if not row:
         return None
-    return (row.get("plan") or "free", row.get("paywall_disabled"))
+    raw_bonus = row.get("free_adaptation_bonus")
+    try:
+        bonus = max(0, int(raw_bonus or 0))
+    except (TypeError, ValueError):
+        bonus = 0
+    raw_anchor = row.get("free_adaptation_count_anchor")
+    try:
+        anchor = max(0, int(raw_anchor or 0))
+    except (TypeError, ValueError):
+        anchor = 0
+    return (row.get("plan") or "free", row.get("paywall_disabled"), bonus, anchor)
 
 
 def get_user_plan_stripe_fields(uid: str) -> Optional[dict]:

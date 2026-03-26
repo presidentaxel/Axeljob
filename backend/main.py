@@ -80,6 +80,8 @@ from backend.db import (
     count_applications,
     get_user_plan,
     get_paywall_disabled,
+    get_free_adaptation_bonus,
+    get_free_adaptation_count_anchor,
     get_user_stripe_ids,
     find_user_id_by_stripe_subscription_id,
     set_user_plan,
@@ -2404,7 +2406,16 @@ def api_usage(request: Request):
     plan = get_user_plan(uid)
     no_paywall = get_paywall_disabled(uid)
     count = count_applications(uid)
-    adaptations_limit = 999999 if (plan == "pro" or no_paywall) else FREE_ADAPTATIONS_LIMIT
+    anchor = get_free_adaptation_count_anchor(uid)
+    bonus = get_free_adaptation_bonus(uid)
+    if plan == "pro" or no_paywall:
+        adaptations_used = count
+        adaptations_limit = 999999
+    else:
+        # Jauge toujours 0–3 à l’affichage ; quota réel = anchor + 3 + bonus.
+        rel = max(0, count - anchor)
+        adaptations_used = min(rel, FREE_ADAPTATIONS_LIMIT)
+        adaptations_limit = FREE_ADAPTATIONS_LIMIT
     applications_limit = 999999 if (plan == "pro" or no_paywall) else FREE_APPLICATIONS_LIMIT
     user_email = _get_user_email_from_jwt(request)
     is_support = _is_support_admin(user_email)
@@ -2424,16 +2435,20 @@ def api_usage(request: Request):
                 stripe_subscription = _stripe_subscription_snapshot_dict(client, sub_id)
         except Exception as e:
             logger.info("api/usage stripe snapshot skipped: %s", e)
-    return {
+    payload = {
         "plan": "pro" if no_paywall else plan,
         "paywall_disabled": no_paywall,
-        "adaptations_used": count,
+        "adaptations_used": adaptations_used,
         "adaptations_limit": adaptations_limit,
         "applications_count": count,
         "applications_limit": applications_limit,
         "is_support": is_support,
         "stripe_subscription": stripe_subscription,
     }
+    if plan == "free" and not no_paywall:
+        free_cap = anchor + FREE_ADAPTATIONS_LIMIT + bonus
+        payload["adaptations_quota_remaining"] = max(0, free_cap - count)
+    return payload
 
 
 @app.get("/api/admin/monitoring/summary")
@@ -2531,10 +2546,15 @@ def api_adapt(request: Request, body: AdaptBody):
     no_paywall = get_paywall_disabled(uid)
     if plan == "free" and not no_paywall:
         count = count_applications(uid)
-        if count >= FREE_ADAPTATIONS_LIMIT:
+        cap = (
+            get_free_adaptation_count_anchor(uid)
+            + FREE_ADAPTATIONS_LIMIT
+            + get_free_adaptation_bonus(uid)
+        )
+        if count >= cap:
             raise HTTPException(
                 status_code=402,
-                detail="Vous avez épuisé vos 3 adaptations gratuites. Passez en Pro pour des adaptations illimitées.",
+                detail="Vous avez épuisé vos adaptations gratuites. Passez en Pro pour des adaptations illimitées.",
             )
     _track_analytics(request, event_log.EVENT_ADAPTATION_STARTED, user_id, {"description_length": len(description)})
     try:

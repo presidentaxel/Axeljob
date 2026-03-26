@@ -446,6 +446,32 @@ def upsert_user_plan(
             )
 
 
+def upsert_free_adaptation_count_anchor(uid: str, anchor: int) -> None:
+    """Met à jour l’ancre seule, ou insère une ligne free minimale si absente."""
+    pool = get_pool()
+    if not pool:
+        raise RuntimeError("Pool PG indisponible")
+    a = max(0, int(anchor))
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE public.user_plans
+                SET free_adaptation_count_anchor = %s, updated_at = now()
+                WHERE user_id = %s
+                """,
+                (a, uid),
+            )
+            if cur.rowcount == 0:
+                cur.execute(
+                    """
+                    INSERT INTO public.user_plans (user_id, plan, free_adaptation_count_anchor)
+                    VALUES (%s, 'free', %s)
+                    """,
+                    (uid, a),
+                )
+
+
 # --- gemini usage ---
 
 

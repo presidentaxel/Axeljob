@@ -82,6 +82,7 @@ from backend.db import (
     get_paywall_disabled,
     get_free_adaptation_bonus,
     get_free_adaptation_count_anchor,
+    ensure_implicit_free_adaptation_anchor,
     get_user_stripe_ids,
     find_user_id_by_stripe_subscription_id,
     set_user_plan,
@@ -2403,6 +2404,8 @@ def api_usage(request: Request):
     """Retourne les quotas (adaptations, candidatures) et le plan (free/pro)."""
     user_id = _get_user_id(request)
     uid = user_id or "default"
+    if user_id:
+        ensure_implicit_free_adaptation_anchor(user_id)
     plan = get_user_plan(uid)
     no_paywall = get_paywall_disabled(uid)
     count = count_applications(uid)
@@ -2542,6 +2545,8 @@ def api_adapt(request: Request, body: AdaptBody):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     uid = user_id or "default"
+    if user_id:
+        ensure_implicit_free_adaptation_anchor(user_id)
     plan = get_user_plan(uid)
     no_paywall = get_paywall_disabled(uid)
     if plan == "free" and not no_paywall:

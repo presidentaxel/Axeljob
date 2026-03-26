@@ -21,6 +21,9 @@ from backend.supabase_metrics import inc_pg_fallback
 
 logger = logging.getLogger(__name__)
 
+# Aligné sur main.FREE_ADAPTATIONS_LIMIT : au-delà, ancrage implicite possible.
+_FREE_ADAPTATIONS_BASE_LIMIT = 3
+
 _user_plan_lock = threading.Lock()
 # uid -> (plan, paywall_disabled, free_adaptation_bonus, free_adaptation_count_anchor, expire_monotonic)
 _user_plan_cache: dict[str, tuple[str, bool, int, int, float]] = {}
@@ -775,6 +778,52 @@ def get_free_adaptation_count_anchor(user_id: Optional[str] = None) -> int:
         return 0
     _, _, _, anchor = _get_cached_user_plan_state(uid)
     return anchor
+
+
+def ensure_implicit_free_adaptation_anchor(user_id: Optional[str] = None) -> None:
+    """
+    Si l'utilisateur a déjà plus de 3 candidatures et que anchor/bonus sont encore à 0,
+    fixe free_adaptation_count_anchor sur le count actuel : jauge 0/3 + 3 essais sans SQL manuel.
+    Ne s'applique pas au user_id fictif « default », ni pro / paywall_disabled.
+    """
+    uid = (user_id or "default").strip() or "default"
+    if uid == "default":
+        return
+    sb = _get_supabase()
+    if not sb:
+        return
+    count = count_applications(uid)
+    if count <= _FREE_ADAPTATIONS_BASE_LIMIT:
+        return
+    plan, pw, bonus, anchor = _fetch_user_plan_state(uid)
+    if plan == "pro" or pw:
+        return
+    if anchor != 0 or bonus != 0:
+        return
+    try:
+        if USE_SUPABASE_PG:
+            try:
+                from backend import supabase_pg as spg
+
+                spg.upsert_free_adaptation_count_anchor(uid, count)
+                _invalidate_user_plan_cache(uid)
+                return
+            except Exception as e:
+                _warn_pg_fallback("upsert_free_adaptation_count_anchor", e)
+        ex = sb.table("user_plans").select("user_id").eq("user_id", uid).limit(1).execute()
+        if ex.data:
+            sb.table("user_plans").update({"free_adaptation_count_anchor": count}).eq("user_id", uid).execute()
+        else:
+            sb.table("user_plans").insert(
+                {
+                    "user_id": uid,
+                    "plan": "free",
+                    "free_adaptation_count_anchor": count,
+                }
+            ).execute()
+        _invalidate_user_plan_cache(uid)
+    except Exception as e:
+        logger.warning("ensure_implicit_free_adaptation_anchor %s: %s", uid, e)
 
 
 def get_user_stripe_ids(user_id: Optional[str] = None) -> tuple[Optional[str], Optional[str]]:

@@ -1,5 +1,8 @@
 -- Ancrage du compteur d’adaptations gratuites affiché (remise visuelle à 0/3).
 -- Le quota réel = anchor + 3 + free_adaptation_bonus (voir backend).
+-- Sans remplir la colonne à la main : le backend pose automatiquement anchor = count
+-- dès qu’un compte free a plus de 3 candidatures et que anchor/bonus restent à 0
+-- (GET /api/usage ou POST /api/adapt).
 -- Remise à zéro apparente + 3 essais en plus (exemple) :
 --   UPDATE public.user_plans up
 --   SET free_adaptation_count_anchor = (

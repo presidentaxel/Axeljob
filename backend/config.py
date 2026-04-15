@@ -213,6 +213,18 @@ def trusted_host_names() -> list[str]:
 GEMINI_BUDGET_EUR = float(os.environ.get("GEMINI_BUDGET_EUR", "10"))
 # Taux USD/EUR pour convertir le budget en coût API (USD)
 GEMINI_USD_PER_EUR = float(os.environ.get("GEMINI_USD_PER_EUR", "1.08"))
+# Modèles Gemini configurables (évite les IDs hardcodés dans le code)
+GEMINI_MODEL_DEFAULT = _env("GEMINI_MODEL", "gemini-2.5-flash-lite")
+GEMINI_MODEL_LINKEDIN = _env("GEMINI_MODEL_LINKEDIN", GEMINI_MODEL_DEFAULT)
+GEMINI_MODEL_IMPORT = _env("GEMINI_MODEL_IMPORT", GEMINI_MODEL_DEFAULT)
+GEMINI_MODELS_VISION = [
+    m.strip()
+    for m in _env(
+        "GEMINI_MODELS_VISION",
+        "gemini-2.5-pro,gemini-2.5-flash,gemini-2.5-flash-lite,gemini-1.5-flash,gemini-1.5-pro",
+    ).split(",")
+    if m.strip()
+]
 
 if os.name == "nt":
     dll_dirs = _env("WEASYPRINT_DLL_DIRECTORIES")

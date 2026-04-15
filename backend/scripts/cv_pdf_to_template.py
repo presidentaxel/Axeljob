@@ -46,7 +46,7 @@ from dotenv import load_dotenv
 load_dotenv(PROJECT_ROOT / ".env")
 
 from backend.db import create_pending_custom_template, update_custom_template_content
-from backend.config import USE_SUPABASE
+from backend.config import USE_SUPABASE, GEMINI_MODELS_VISION
 
 
 # Variables Jinja2 que le moteur de rendu CV injecte (le template doit les utiliser).
@@ -150,7 +150,7 @@ def generate_template_with_ai(image_jpeg_bytes: bytes, api_key: str, debug: bool
     client = genai.Client(api_key=api_key)
     image_part = types.Part.from_bytes(data=image_jpeg_bytes, mime_type="image/jpeg")
     contents = [image_part, CV_TEMPLATE_AI_PROMPT]
-    for model_id in ("gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-1.5-flash", "gemini-1.5-pro"):
+    for model_id in GEMINI_MODELS_VISION:
         try:
             r = client.models.generate_content(
                 model=model_id,

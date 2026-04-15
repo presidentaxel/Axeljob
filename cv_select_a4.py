@@ -17,6 +17,8 @@ except ImportError:
 
 import os
 
+from backend.config import GEMINI_MODEL_DEFAULT
+
 
 SELECT_A4_SYSTEM = """Tu es un expert en recrutement et en rédaction de CV.
 Le CV doit tenir sur UNE SEULE page A4. On te donne un CV complet et (optionnellement) une offre d'emploi.
@@ -213,7 +215,7 @@ def select_cv_content_for_a4(
     prompt = _build_select_prompt(cv, offre)
 
     r = client.models.generate_content(
-        model="gemini-2.5-flash-lite",
+        model=GEMINI_MODEL_DEFAULT,
         contents=SELECT_A4_SYSTEM.strip() + "\n\n---\n\n" + prompt,
         config=types.GenerateContentConfig(temperature=0.2),
     )

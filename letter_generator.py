@@ -7,6 +7,7 @@ import os
 import re
 from pathlib import Path
 from datetime import datetime
+from backend.config import GEMINI_MODEL_DEFAULT
 
 try:
     from dotenv import load_dotenv
@@ -154,7 +155,7 @@ Ne commence pas par un titre, une étiquette ou le nom d'un modèle de CV (ex. �
 Ton : direct et naturel. À proscrire : "suscite mon plus vif intérêt", "je me permets de", formules trop guindées ou pompeuses. Préférer des phrases simples et concrètes."""
 
     r = client.models.generate_content(
-        model="gemini-2.5-flash-lite",
+        model=GEMINI_MODEL_DEFAULT,
         contents=user,
         config=config,
     )

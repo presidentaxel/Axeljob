@@ -163,6 +163,11 @@ _active_users_peak = 0
 _route_stats: dict[str, dict[str, float]] = defaultdict(lambda: {"count": 0, "sum_sec": 0.0})
 _recent_http: deque[tuple[float, int, str, float]] = deque(maxlen=8000)
 _cpu_samples: deque[float] = deque(maxlen=120)
+# Anti-bruit CPU: exiger plusieurs ticks élevés consécutifs avant d'alerter.
+_cpu_high_streak = 0
+_CPU_HIGH_REQUIRED_TICKS = max(1, int(os.getenv("MONITORING_ALERT_CPU_REQUIRED_TICKS", "3")))
+_CPU_HIGH_AVG_WINDOW_TICKS = max(1, int(os.getenv("MONITORING_ALERT_CPU_AVG_WINDOW_TICKS", "4")))
+_CPU_HIGH_AVG_MIN_PCT = float(os.getenv("MONITORING_ALERT_CPU_AVG_MIN_PCT", str(MONITORING_ALERT_CPU_PCT)))
 _last_alert_at: dict[str, float] = {}
 _alert_log: deque[dict[str, Any]] = deque(maxlen=30)
 _psutil_process: Any = None
@@ -484,8 +489,32 @@ def evaluate_alerts() -> None:
     n5 = sum(1 for _t, c, _r, _d in recent if c >= 500)
     n_slow = sum(1 for _t, _c, _r, d in recent if d >= MONITORING_ALERT_SLOW_REQUEST_SEC)
 
-    if sys_cpu >= MONITORING_ALERT_CPU_PCT and _alert_can_send("cpu_high"):
-        msg = f"CPU système {sys_cpu:.1f}% (seuil {MONITORING_ALERT_CPU_PCT}%). Worker unique - voir aussi Prometheus."
+    global _cpu_high_streak
+    if sys_cpu >= MONITORING_ALERT_CPU_PCT:
+        _cpu_high_streak += 1
+    else:
+        _cpu_high_streak = 0
+
+    cpu_avg_ok = False
+    cpu_avg = float(sys_cpu)
+    avg_window: list[float] = []
+    if _cpu_samples:
+        avg_window = list(_cpu_samples)[-_CPU_HIGH_AVG_WINDOW_TICKS:]
+        if avg_window:
+            cpu_avg = sum(avg_window) / len(avg_window)
+            cpu_avg_ok = cpu_avg >= _CPU_HIGH_AVG_MIN_PCT
+
+    if (
+        _cpu_high_streak >= _CPU_HIGH_REQUIRED_TICKS
+        and cpu_avg_ok
+        and _alert_can_send("cpu_high")
+    ):
+        msg = (
+            f"CPU système {sys_cpu:.1f}% (seuil {MONITORING_ALERT_CPU_PCT}%) "
+            f"sur {_cpu_high_streak} ticks consécutifs (~{_cpu_high_streak * 45}s), "
+            f"moyenne {len(avg_window)} ticks={cpu_avg:.1f}% (min {_CPU_HIGH_AVG_MIN_PCT:.1f}%). "
+            "Worker unique - voir aussi Prometheus."
+        )
         _send_alert_email("[AxeL Job] Alerte CPU élevée", msg)
         _append_alert_log("cpu_high", msg)
 
@@ -800,6 +829,9 @@ def get_admin_snapshot() -> dict[str, Any]:
                 "slow_min_count": MONITORING_ALERT_SLOW_COUNT_THRESHOLD,
                 "slow_request_sec": MONITORING_ALERT_SLOW_REQUEST_SEC,
                 "min_interval_sec": MONITORING_ALERT_MIN_INTERVAL_SEC,
+                "cpu_required_ticks": _CPU_HIGH_REQUIRED_TICKS,
+                "cpu_avg_window_ticks": _CPU_HIGH_AVG_WINDOW_TICKS,
+                "cpu_avg_min_pct": round(_CPU_HIGH_AVG_MIN_PCT, 2),
             },
         },
     }

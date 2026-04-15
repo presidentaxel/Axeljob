@@ -3,6 +3,7 @@ Backend FastAPI : API AxeL Job (adapter CV, PDF, export, candidatures).
 Sert les métriques Prometheus sur /metrics.
 Données : Supabase (cv_base, applications) ou fallback fichiers.
 """
+import asyncio
 import json
 import logging
 import re
@@ -31,7 +32,7 @@ from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import HTMLResponse, FileResponse, Response
+from fastapi.responses import HTMLResponse, FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
 from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
 
@@ -58,6 +59,8 @@ from backend.config import (
     METRICS_AUTH_TOKEN,
     ALLOW_LOCAL_DATA_IN_PRODUCTION,
     trusted_host_names,
+    GEMINI_MODEL_LINKEDIN,
+    GEMINI_MODEL_IMPORT,
 )
 from backend.rate_limit import check_rate_limit, rate_limit_max_adapt
 from backend.template_registry import DEFAULT_TEMPLATE_ID
@@ -165,22 +168,34 @@ def _set_thread_pool():
 # --- Middlewares ---
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-_allowed_origins = [
-    o.strip() for o in (FRONTEND_URL or "").split(",") if o.strip()
-]
-if API_BASE_URL and API_BASE_URL not in _allowed_origins:
-    _allowed_origins.append(API_BASE_URL)
-if not _allowed_origins:
-    _allowed_origins = ["http://localhost:5173"]
+if IS_PRODUCTION:
+    _allowed_origins = [
+        o.strip() for o in (FRONTEND_URL or "").split(",") if o.strip()
+    ]
+    if API_BASE_URL and API_BASE_URL not in _allowed_origins:
+        _allowed_origins.append(API_BASE_URL)
+    if not _allowed_origins:
+        _allowed_origins = ["http://localhost:5173"]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_allowed_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept", "Stripe-Signature"],
-    expose_headers=["X-CV-PDF-Engine"],
-)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_allowed_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "Accept", "Stripe-Signature"],
+        expose_headers=["X-CV-PDF-Engine"],
+    )
+else:
+    # Dev only: autorise toutes les origines/headers/methods pour éviter
+    # les blocages CORS pendant les tests locaux (Vite, ports variés, etc.).
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=".*",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["X-CV-PDF-Engine"],
+    )
 
 _trusted = trusted_host_names()
 if _trusted:
@@ -220,6 +235,31 @@ class AdaptBody(BaseModel):
     entreprise: str = ""
     template_id: str | None = None
     template_options: dict | None = None
+
+
+class AdaptPlanBody(BaseModel):
+    description: str = ""
+    titre: str = ""
+    entreprise: str = ""
+
+
+class AdaptRunBody(BaseModel):
+    description: str = ""
+    titre: str = ""
+    entreprise: str = ""
+    plan_id: str | None = None
+    selected_step_ids: list[str] | None = None
+    template_id: str | None = None
+    template_options: dict | None = None
+
+
+class AdaptPlanExplainBody(BaseModel):
+    plan_id: str | None = None
+    selected_step_ids: list[str] | None = None
+
+
+class AdaptPlanUpdateBody(BaseModel):
+    selected_step_ids: list[str] | None = None
 
 
 class AdaptRefineBody(BaseModel):
@@ -832,12 +872,13 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
             html_str = html_str.replace("</head>", scale_css + "</head>", 1)
 
     if highlight_changes and base_cv:
-        # Deux verts de la même famille : zone claire vs bandeau / sidebar foncés.
-        # Les mots-clés ATS imbriqués dans .cv-changed héritent du surlignage parent (pas une 3e teinte dans la phrase).
         highlight_styles = (
             "<style>"
             ".cv-changed{background-color:#c5e3cd;padding:0 1px;border-radius:1px}"
             ".cv-header .cv-changed,.cv-sidebar .cv-changed{background-color:#9dc6ae;color:#0f2418}"
+            "html.cv-preview .cv-changed,html.cv-preview .cv-header .cv-changed,html.cv-preview .cv-sidebar .cv-changed,html.cv-preview .cv-main .cv-changed{"
+            "background-color:#c5e3cd!important;color:#0f2418!important;padding:0 2px;border-radius:2px;box-decoration-break:clone;-webkit-box-decoration-break:clone"
+            "}"
             "span.cv-changed span.cv-ats-kw{background-color:transparent!important;color:inherit!important;padding:0!important;border-radius:0!important;box-shadow:none!important}"
             "@media print{"
             ".cv-changed{background-color:transparent;padding:0}"
@@ -853,11 +894,11 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
         ats_kw_css = ""
         if preview_ats_keywords:
             ats_kw_css = (
-                ".cv-preview span.cv-ats-kw{background-color:#86efac;padding:0 2px;border-radius:2px;box-decoration-break:clone;-webkit-box-decoration-break:clone}"
-                ".cv-preview .cv-header span.cv-ats-kw,.cv-preview .cv-sidebar span.cv-ats-kw{background-color:#166534;color:#bbf7d1}"
-                ".cv-preview span.cv-changed span.cv-ats-kw{background-color:transparent!important;color:inherit!important;padding:0!important;border-radius:0!important}"
-                ".cv-preview .header-titre-inline span.cv-ats-kw,.cv-preview .header-titre span.cv-ats-kw,.cv-preview .sidebar-titre span.cv-ats-kw,.cv-preview .resume-text span.cv-ats-kw{white-space:normal!important;overflow-wrap:break-word!important;word-break:break-word}"
-                "@media print{.cv-preview span.cv-ats-kw{background:transparent!important;color:inherit!important;padding:0}}"
+                "html.cv-preview span.cv-ats-kw{background-color:#c5e3cd!important;color:#0f2418!important;padding:0 2px;border-radius:2px;box-decoration-break:clone;-webkit-box-decoration-break:clone}"
+                "html.cv-preview .cv-header span.cv-ats-kw,html.cv-preview .cv-sidebar span.cv-ats-kw{background-color:#c5e3cd!important;color:#0f2418!important}"
+                "html.cv-preview span.cv-changed span.cv-ats-kw{background-color:transparent!important;color:inherit!important;padding:0!important;border-radius:0!important}"
+                "html.cv-preview .header-titre-inline span.cv-ats-kw,html.cv-preview .header-titre span.cv-ats-kw,html.cv-preview .sidebar-titre span.cv-ats-kw,html.cv-preview .resume-text span.cv-ats-kw{white-space:normal!important;overflow-wrap:break-word!important;word-break:break-word}"
+                "@media print{html.cv-preview span.cv-ats-kw{background:transparent!important;color:inherit!important;padding:0}}"
             )
         scrollbar_style = (
             "html,body{scrollbar-width:thin;scrollbar-color:rgba(107,70,193,0.45) transparent}"
@@ -1163,7 +1204,7 @@ def _apply_linkedin_changes_with_ai(cv: dict, changes: list[dict], user_id: str 
                         + linkedin_val[:2000]
                     )
                     r = client.models.generate_content(
-                        model="gemini-2.0-flash",
+                        model=GEMINI_MODEL_LINKEDIN,
                         contents=prompt,
                         config=types.GenerateContentConfig(temperature=0.3),
                     )
@@ -1528,7 +1569,7 @@ def _parse_cv_text_with_ai(text: str, user_id: str | None = None) -> dict:
     client = genai.Client(api_key=api_key)
     prompt = _CV_IMPORT_SYSTEM_PROMPT.strip() + "\n\n---\n\nTexte du CV :\n\n" + text[:8000]
     r = client.models.generate_content(
-        model="gemini-2.5-flash-lite",
+        model=GEMINI_MODEL_IMPORT,
         contents=prompt,
         config=types.GenerateContentConfig(temperature=0.1),
     )
@@ -2531,6 +2572,600 @@ def api_admin_monitoring_news(request: Request):
             }
         )
     return {"items": safe}
+
+
+ADAPT_TODO_DEFAULT_STEPS = [
+    {"id": "rewrite_resume", "title": "Ton résumé, aligné sur l'offre", "reason": "Dernière option si le plan n'a pas pu être personnalisé.", "enabled": True},
+    {"id": "rewrite_experiences", "title": "Tes expériences, recentrées", "reason": "Dernière option si le plan n'a pas pu être personnalisé.", "enabled": True},
+    {"id": "optimize_ats", "title": "Les mots de l'annonce dans ton CV", "reason": "Dernière option si le plan n'a pas pu être personnalisé.", "enabled": True},
+]
+ADAPT_TODO_STEP_IDS = {s["id"] for s in ADAPT_TODO_DEFAULT_STEPS}
+ADAPT_PLAN_TTL_SEC = 60 * 60 * 6  # 6h
+ADAPT_PLAN_STORE: dict[str, dict] = {}
+
+
+def _adapt_plan_gc(now_ts: float | None = None) -> None:
+    now = now_ts if now_ts is not None else _time.time()
+    stale_ids = []
+    for pid, payload in ADAPT_PLAN_STORE.items():
+        created = float(payload.get("created_at_ts", 0))
+        if not created or now - created > ADAPT_PLAN_TTL_SEC:
+            stale_ids.append(pid)
+    for pid in stale_ids:
+        ADAPT_PLAN_STORE.pop(pid, None)
+
+
+def _save_adapt_plan(plan_id: str, user_id: str | None, payload: dict) -> None:
+    _adapt_plan_gc()
+    ADAPT_PLAN_STORE[plan_id] = {
+        "user_id": user_id or "default",
+        "created_at_ts": _time.time(),
+        "payload": payload,
+    }
+
+
+def _get_adapt_plan(plan_id: str, user_id: str | None) -> dict | None:
+    _adapt_plan_gc()
+    stored = ADAPT_PLAN_STORE.get(plan_id)
+    if not stored:
+        return None
+    if stored.get("user_id") != (user_id or "default"):
+        return None
+    return stored.get("payload")
+
+
+def _delete_adapt_plan(plan_id: str) -> None:
+    ADAPT_PLAN_STORE.pop(plan_id, None)
+
+
+def _normalize_selected_step_ids(selected_step_ids: list[str] | None) -> set[str]:
+    if not selected_step_ids:
+        return set(ADAPT_TODO_STEP_IDS)
+    out: set[str] = set()
+    for sid in selected_step_ids:
+        if not isinstance(sid, str):
+            continue
+        sid_norm = sid.strip()
+        if sid_norm in ADAPT_TODO_STEP_IDS:
+            out.add(sid_norm)
+    return out or set(ADAPT_TODO_STEP_IDS)
+
+
+def _keep_original_experiences_tweaks(cv_base: dict) -> list[dict]:
+    return [
+        {"id": exp.get("id"), "bullet_points": (exp.get("bullet_points") or [])[:3]}
+        for exp in (cv_base.get("experiences") or [])
+    ]
+
+
+@app.post("/api/adapt-plan")
+def api_adapt_plan(request: Request, body: AdaptPlanBody):
+    user_id = _get_user_id(request)
+    check_rate_limit(user_id, rate_limit_max_adapt())
+    description = (body.description or "").strip()
+    if not description:
+        raise HTTPException(status_code=400, detail="Collez l'annonce dans le champ 'description'")
+    try:
+        check_user_input_for_injection(description=description)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    try:
+        cv_base = load_cv_base(user_id)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    offre = _offre_from_description(
+        description,
+        titre=(body.titre or "").strip(),
+        entreprise=(body.entreprise or "").strip(),
+    )
+    from adapter import plan_adaptation_todo, fallback_todo_steps_for_offre
+
+    plan = plan_adaptation_todo(cv_base, offre, user_id=user_id, operation="adapt_plan")
+    raw_steps = plan.get("steps") if isinstance(plan, dict) else None
+    fb_by_id = {s["id"]: s for s in fallback_todo_steps_for_offre(offre)}
+    safe_steps = []
+    for default_step in ADAPT_TODO_DEFAULT_STEPS:
+        sid = default_step["id"]
+        fb = fb_by_id.get(sid, default_step)
+        picked = None
+        if isinstance(raw_steps, list):
+            picked = next((s for s in raw_steps if isinstance(s, dict) and s.get("id") == sid), None)
+        safe_steps.append(
+            {
+                "id": sid,
+                "title": str((picked or {}).get("title") or fb["title"])[:120],
+                "reason": str((picked or {}).get("reason") or fb["reason"])[:240],
+                "enabled": bool((picked or {}).get("enabled", True)),
+            }
+        )
+    plan_id = f"plan_{uuid_module.uuid4().hex[:10]}"
+    payload = {
+        "plan_id": plan_id,
+        "description": description,
+        "titre": (body.titre or "").strip(),
+        "entreprise": (body.entreprise or "").strip(),
+        "todo": safe_steps,
+        "assistant_message": str((plan or {}).get("assistant_message") or "Voici le plan d'adaptation proposé."),
+    }
+    _save_adapt_plan(plan_id, user_id, payload)
+    return {
+        "plan_id": plan_id,
+        "todo": payload["todo"],
+        "assistant_message": payload["assistant_message"],
+    }
+
+
+@app.get("/api/adapt-plan/{plan_id}")
+def api_adapt_plan_get(request: Request, plan_id: str):
+    user_id = _get_user_id(request)
+    check_rate_limit(user_id, rate_limit_max_adapt())
+    pid = (plan_id or "").strip()
+    if not pid or len(pid) > 80:
+        raise HTTPException(status_code=400, detail="plan_id invalide")
+    payload = _get_adapt_plan(pid, user_id)
+    if not payload:
+        raise HTTPException(status_code=404, detail="Plan introuvable ou expiré")
+    return payload
+
+
+@app.patch("/api/adapt-plan/{plan_id}")
+def api_adapt_plan_patch(request: Request, plan_id: str, body: AdaptPlanUpdateBody):
+    user_id = _get_user_id(request)
+    check_rate_limit(user_id, rate_limit_max_adapt())
+    pid = (plan_id or "").strip()
+    if not pid or len(pid) > 80:
+        raise HTTPException(status_code=400, detail="plan_id invalide")
+    payload = _get_adapt_plan(pid, user_id)
+    if not payload:
+        raise HTTPException(status_code=404, detail="Plan introuvable ou expiré")
+    selected = _normalize_selected_step_ids(body.selected_step_ids)
+    todo = payload.get("todo") if isinstance(payload.get("todo"), list) else []
+    if not todo:
+        todo = [dict(s) for s in ADAPT_TODO_DEFAULT_STEPS]
+    updated_todo = []
+    for step in todo:
+        sid = str(step.get("id") or "").strip()
+        if sid not in ADAPT_TODO_STEP_IDS:
+            continue
+        updated_todo.append(
+            {
+                "id": sid,
+                "title": str(step.get("title") or ""),
+                "reason": str(step.get("reason") or ""),
+                "enabled": sid in selected,
+            }
+        )
+    payload["todo"] = updated_todo
+    _save_adapt_plan(pid, user_id, payload)
+    return {"plan_id": pid, "todo": updated_todo}
+
+
+@app.post("/api/adapt-plan-explain")
+def api_adapt_plan_explain(request: Request, body: AdaptPlanExplainBody):
+    user_id = _get_user_id(request)
+    check_rate_limit(user_id, rate_limit_max_adapt())
+    selected = _normalize_selected_step_ids(body.selected_step_ids)
+    steps_source = [dict(s) for s in ADAPT_TODO_DEFAULT_STEPS]
+    if not selected and (body.plan_id or "").strip():
+        payload = _get_adapt_plan((body.plan_id or "").strip(), user_id)
+        todo = payload.get("todo") if isinstance(payload.get("todo"), list) else []
+        if todo:
+            steps_source = [
+                {
+                    "id": str(step.get("id") or ""),
+                    "title": str(step.get("title") or ""),
+                    "reason": str(step.get("reason") or ""),
+                    "enabled": bool(step.get("enabled")),
+                }
+                for step in todo
+                if isinstance(step, dict) and str(step.get("id") or "").strip()
+            ]
+        for step in todo:
+            if isinstance(step, dict) and bool(step.get("enabled")):
+                sid = str(step.get("id") or "").strip()
+                if sid:
+                    selected.add(sid)
+    details = []
+    for step in steps_source:
+        if step["id"] in selected:
+            details.append({"id": step["id"], "title": step["title"], "reason": step["reason"]})
+    if not details:
+        details = [{"id": "none", "title": "Aucune étape active", "reason": "Active au moins une étape pour lancer l'adaptation."}]
+    summary = "Plan validé. On exécute uniquement les étapes actives, dans l'ordre, sans modifier les autres sections."
+    return {"summary": summary, "details": details}
+
+
+def _adapt_run_prepare(request: Request, body: AdaptRunBody) -> dict:
+    user_id = _get_user_id(request)
+    check_rate_limit(user_id, rate_limit_max_adapt())
+    plan_payload = None
+    if (body.plan_id or "").strip():
+        plan_payload = _get_adapt_plan((body.plan_id or "").strip(), user_id)
+    description = (body.description or "").strip() or str((plan_payload or {}).get("description") or "").strip()
+    if not description:
+        raise HTTPException(status_code=400, detail="Collez l'annonce dans le champ 'description'")
+    try:
+        check_user_input_for_injection(description=description)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    selected_steps = _normalize_selected_step_ids(body.selected_step_ids)
+    uid = user_id or "default"
+    if user_id:
+        ensure_implicit_free_adaptation_anchor(user_id)
+    plan = get_user_plan(uid)
+    no_paywall = get_paywall_disabled(uid)
+    if plan == "free" and not no_paywall:
+        count = count_applications(uid)
+        cap = (
+            get_free_adaptation_count_anchor(uid)
+            + FREE_ADAPTATIONS_LIMIT
+            + get_free_adaptation_bonus(uid)
+        )
+        if count >= cap:
+            raise HTTPException(
+                status_code=402,
+                detail="Vous avez épuisé vos adaptations gratuites. Passez en Pro pour des adaptations illimitées.",
+            )
+    _track_analytics(request, event_log.EVENT_ADAPTATION_STARTED, user_id, {"description_length": len(description), "todo_steps": sorted(selected_steps)})
+    try:
+        cv_base = load_cv_base(user_id)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    titre_request = (body.titre or "").strip() or str((plan_payload or {}).get("titre") or "").strip()
+    entreprise_request = (body.entreprise or "").strip() or str((plan_payload or {}).get("entreprise") or "").strip()
+    offre = _offre_from_description(
+        description,
+        titre=titre_request,
+        entreprise=entreprise_request,
+    )
+    from rules import appliquer_regles
+    cv_enrichi = appliquer_regles(cv_base, offre)
+    rapport = cv_enrichi.get("rapport", {})
+    return {
+        "user_id": user_id,
+        "plan_payload": plan_payload,
+        "description": description,
+        "selected_steps": selected_steps,
+        "uid": uid,
+        "cv_base": cv_base,
+        "offre": offre,
+        "rapport": rapport,
+        "titre_request": titre_request,
+        "entreprise_request": entreprise_request,
+    }
+
+
+def _adapt_run_finalize_result(request: Request, body: AdaptRunBody, prep: dict, merged: dict, tweaks: dict) -> dict:
+    user_id = prep["user_id"]
+    cv_base = prep["cv_base"]
+    offre = prep["offre"]
+    rapport = prep["rapport"]
+    description = prep["description"]
+    selected_steps = prep["selected_steps"]
+    titre_request = prep["titre_request"]
+    entreprise_request = prep["entreprise_request"]
+    adaptation_id = _adaptation_id_from_description(description)
+    poste_offre = (tweaks.get("poste_offre") or "").strip()
+    entreprise_offre = (offre.get("entreprise") or "").strip()
+    user_titre = titre_request
+    user_ent = entreprise_request
+    resolved_poste = user_titre or poste_offre
+    offre_rapport_final = {**offre, **({"titre": resolved_poste} if resolved_poste.strip() else {})}
+    if user_ent:
+        suggested_ent = user_ent
+        ent_confidence = 1.0
+    else:
+        from offre_infer import infer_entreprise_from_annonce
+        suggested_ent, ent_raw = infer_entreprise_from_annonce(description)
+        ent_confidence = round(float(ent_raw), 2)
+    export_hints = {
+        "poste": resolved_poste,
+        "entreprise": suggested_ent,
+        "entreprise_confidence": ent_confidence,
+    }
+    selection_a4 = None
+    try:
+        from cv_select_a4 import select_cv_content_for_a4
+        selection_a4 = select_cv_content_for_a4(merged, offre, user_id=user_id, force=True)
+    except Exception:
+        pass
+    tid = body.template_id or cv_base.get("template_id") or DEFAULT_TEMPLATE_ID
+    tid = str(tid).strip() if tid else DEFAULT_TEMPLATE_ID
+    if not tid:
+        tid = DEFAULT_TEMPLATE_ID
+    topt = body.template_options if body.template_options is not None else (cv_base.get("template_options") or {})
+    _check_premium_template(user_id, tid)
+    _check_custom_template_access(user_id, tid)
+    initial_payload = {
+        "resume": tweaks.get("resume"),
+        "experiences": tweaks.get("experiences", []),
+        "mots_cles_cache": tweaks.get("mots_cles_cache", ""),
+        "poste_offre": poste_offre,
+        "poste": resolved_poste,
+        "entreprise": entreprise_offre,
+        "export_hints": export_hints,
+        "rapport": rapport,
+        "description_preview": description[:200] + "..." if len(description) > 200 else description,
+        "description_full": description,
+        "full_cv": merged,
+        "selection_a4": selection_a4,
+        "statut": "candidature_envoyee",
+        "archived": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "template_id": tid,
+        "template_options": topt,
+        "todo_selected_steps": sorted(selected_steps),
+    }
+    save_adaptation(adaptation_id, initial_payload, user_id=user_id)
+    snap = snapshot_application_pdfs_to_storage(
+        user_id, adaptation_id, initial_payload, do_cv=True, do_fiche=True, do_lettre=False
+    )
+    if snap:
+        save_adaptation(adaptation_id, {**initial_payload, **snap}, user_id=user_id)
+    ADAPT_COUNT.inc()
+    from rules import appliquer_regles
+    try:
+        rapport_after_cv = appliquer_regles(merged, offre_rapport_final)
+        rapport_after = rapport_after_cv.get("rapport", {})
+    except Exception:
+        rapport_after = None
+    try:
+        a_metrics = adaptation_metrics(cv_base, merged, offre, rapport, rapport_after)
+        a_metrics["adaptation_id"] = adaptation_id
+        a_metrics["todo_selected_steps"] = sorted(selected_steps)
+        a_metrics["content_before"] = cv_content_metrics(cv_base)
+        a_metrics["content_after"] = cv_content_metrics(merged)
+        _track_analytics(request, event_log.EVENT_ADAPTATION_COMPLETED, user_id, a_metrics)
+    except Exception:
+        _track_analytics(request, event_log.EVENT_ADAPTATION_COMPLETED, user_id, {"adaptation_id": adaptation_id})
+    if (body.plan_id or "").strip():
+        _delete_adapt_plan((body.plan_id or "").strip())
+    return {
+        "cv": merged,
+        "rapport": rapport_after or rapport,
+        "rapport_before": rapport,
+        "tweaks": tweaks,
+        "adaptation_id": adaptation_id,
+        "selection_a4": selection_a4,
+        "export_hints": export_hints,
+        "todo_selected_steps": sorted(selected_steps),
+    }
+
+
+def _stream_render_adapt_preview(user_id: str | None, body: AdaptRunBody, merged: dict) -> str:
+    tid = body.template_id or (merged or {}).get("template_id") or DEFAULT_TEMPLATE_ID
+    tid = str(tid).strip() if tid else DEFAULT_TEMPLATE_ID
+    if not tid:
+        tid = DEFAULT_TEMPLATE_ID
+    topt = body.template_options if body.template_options is not None else ((merged or {}).get("template_options") or {})
+    base_cv = None
+    if user_id:
+        try:
+            base_cv = load_cv_base(user_id)
+        except Exception:
+            base_cv = None
+    cv_m = dict(merged or {})
+    if USE_SUPABASE and user_id:
+        photo_url = (cv_m.get("photo_url") or "").strip()
+        is_supabase_photo = "supabase.co/storage" in photo_url and "/object/sign" in photo_url
+        if not photo_url or is_supabase_photo:
+            try:
+                from backend.db import get_cv_photo_public_url_for_user
+                url = get_cv_photo_public_url_for_user(user_id)
+                if url:
+                    cv_m = {**cv_m, "photo_url": url}
+            except Exception:
+                pass
+    return _render_cv_html(
+        cv_m,
+        base_cv=base_cv,
+        highlight_changes=True,
+        for_preview=True,
+        template_id=tid,
+        template_options=topt,
+        selection_a4=None,
+    )
+
+
+def _stream_render_adapt_final_preview(request: Request, body: AdaptRunBody, data: dict) -> str:
+    user_id = _get_user_id(request)
+    cv = dict(data.get("cv") or {})
+    tid = body.template_id or cv.get("template_id") or DEFAULT_TEMPLATE_ID
+    tid = str(tid).strip() if tid else DEFAULT_TEMPLATE_ID
+    topt = body.template_options if body.template_options is not None else (cv.get("template_options") or {})
+    base_cv = None
+    try:
+        base_cv = load_cv_base(user_id)
+    except Exception:
+        base_cv = None
+    if USE_SUPABASE and user_id:
+        photo_url = (cv.get("photo_url") or "").strip()
+        is_supabase_photo = "supabase.co/storage" in photo_url and "/object/sign" in photo_url
+        if not photo_url or is_supabase_photo:
+            try:
+                from backend.db import get_cv_photo_public_url_for_user
+                url = get_cv_photo_public_url_for_user(user_id)
+                if url:
+                    cv = {**cv, "photo_url": url}
+            except Exception:
+                pass
+    return _render_cv_html(
+        cv,
+        base_cv=base_cv,
+        highlight_changes=True,
+        for_preview=True,
+        template_id=tid,
+        template_options=topt,
+        selection_a4=data.get("selection_a4"),
+    )
+
+
+@app.post("/api/adapt-run")
+def api_adapt_run(request: Request, body: AdaptRunBody):
+    prep = _adapt_run_prepare(request, body)
+    from adapter import adapter_cv_by_selected_steps
+    try:
+        tweaks = adapter_cv_by_selected_steps(
+            prep["cv_base"],
+            prep["offre"],
+            prep["rapport"],
+            prep["selected_steps"],
+            prep["user_id"],
+            operation="adapt",
+        )
+    except GeminiQuotaExceeded:
+        raise HTTPException(status_code=429, detail="Quota temporairement atteint. Réessaie plus tard.")
+    except Exception as e:
+        logger.exception(e)
+        _track_analytics(request, event_log.EVENT_ADAPTATION_FAILED, prep["user_id"], {"error": str(e)})
+        raise HTTPException(status_code=500, detail="Erreur lors de l'adaptation. Réessaie.")
+    if "rewrite_resume" not in prep["selected_steps"]:
+        tweaks["resume"] = prep["cv_base"].get("resume", "")
+    if "rewrite_experiences" not in prep["selected_steps"]:
+        tweaks["experiences"] = _keep_original_experiences_tweaks(prep["cv_base"])
+    if "optimize_ats" not in prep["selected_steps"]:
+        tweaks["mots_cles_cache"] = prep["cv_base"].get("mots_cles_cache", "")
+    merged = _apply_tweaks(prep["cv_base"], tweaks)
+    return _adapt_run_finalize_result(request, body, prep, merged, tweaks)
+
+
+@app.post("/api/adapt-run-stream")
+async def api_adapt_run_stream(request: Request, body: AdaptRunBody):
+    from copy import deepcopy
+    from adapter import (
+        ADAPT_STEPS_ORDER,
+        adapter_cv_for_step,
+        apply_partial_tweaks,
+        _tweaks_snapshot_from_cv,
+        fallback_todo_steps_for_offre,
+    )
+
+    def _line(payload: dict) -> str:
+        return json.dumps(payload, ensure_ascii=False) + "\n"
+
+    async def _stream():
+        try:
+            prep = _adapt_run_prepare(request, body)
+        except HTTPException as e:
+            yield _line({"type": "error", "status": e.status_code, "detail": e.detail})
+            return
+        except Exception as e:
+            logger.exception(e)
+            yield _line({"type": "error", "status": 500, "detail": str(e) or "Erreur préparation adaptation."})
+            return
+
+        selected_steps = prep["selected_steps"]
+        steps_to_run = [s for s in ADAPT_STEPS_ORDER if s in selected_steps]
+        step_lookup = {s["id"]: s["title"] for s in fallback_todo_steps_for_offre(prep["offre"])}
+        for ds in ADAPT_TODO_DEFAULT_STEPS:
+            step_lookup.setdefault(ds["id"], ds["title"])
+        pp = prep.get("plan_payload") or {}
+        if isinstance(pp.get("todo"), list):
+            for row in pp["todo"]:
+                if isinstance(row, dict) and row.get("id") and row.get("title"):
+                    step_lookup[str(row["id"]).strip()] = str(row["title"])[:120]
+        step_labels = [step_lookup.get(sid, sid) for sid in steps_to_run] + ["Finalisation"]
+        yield _line({"type": "started", "step_labels": step_labels})
+
+        merged = deepcopy(prep["cv_base"])
+        cv_base = prep["cv_base"]
+        offre = prep["offre"]
+        rapport = prep["rapport"]
+        user_id = prep["user_id"]
+        poste_acc = ""
+
+        try:
+            for i, sid in enumerate(steps_to_run):
+                if await request.is_disconnected():
+                    return
+                yield _line({
+                    "type": "step_started",
+                    "step_id": sid,
+                    "step_index": i,
+                    "step_label": step_lookup.get(sid, sid),
+                })
+                try:
+                    delta = adapter_cv_for_step(
+                        merged,
+                        offre,
+                        rapport,
+                        sid,
+                        user_id,
+                        f"adapt_{sid}",
+                    )
+                except GeminiQuotaExceeded:
+                    yield _line({"type": "error", "status": 429, "detail": "Quota temporairement atteint. Réessaie plus tard."})
+                    return
+                except Exception as e:
+                    logger.exception(e)
+                    _track_analytics(request, event_log.EVENT_ADAPTATION_FAILED, user_id, {"error": str(e), "step": sid})
+                    yield _line({"type": "error", "status": 500, "detail": "Erreur lors de l'adaptation. Réessaie."})
+                    return
+                merged = apply_partial_tweaks(merged, delta, cv_base)
+                if str((delta or {}).get("poste_offre") or "").strip():
+                    poste_acc = str(delta.get("poste_offre")).strip()
+                yield _line({
+                    "type": "step_done",
+                    "step_id": sid,
+                    "step_index": i,
+                    "step_label": step_lookup.get(sid, sid),
+                })
+                try:
+                    html = _stream_render_adapt_preview(user_id, body, merged)
+                except Exception:
+                    html = ""
+                yield _line({"type": "preview_begin", "step_id": sid})
+                chunk_size = 1400
+                for j in range(0, len(html), chunk_size):
+                    if await request.is_disconnected():
+                        return
+                    yield _line({"type": "preview_chunk", "chunk": html[j:j + chunk_size], "done": False})
+                    await asyncio.sleep(0.048)
+                yield _line({"type": "preview_chunk", "chunk": "", "done": True})
+
+            if not poste_acc.strip():
+                poste_acc = (offre.get("titre") or "").strip()
+            tweaks = _tweaks_snapshot_from_cv(cv_base, merged, poste_acc)
+            if "rewrite_resume" not in selected_steps:
+                tweaks["resume"] = cv_base.get("resume", "")
+            if "rewrite_experiences" not in selected_steps:
+                tweaks["experiences"] = _keep_original_experiences_tweaks(cv_base)
+            if "optimize_ats" not in selected_steps:
+                tweaks["mots_cles_cache"] = cv_base.get("mots_cles_cache", "")
+            merged_final = _apply_tweaks(cv_base, tweaks)
+            data = _adapt_run_finalize_result(request, body, prep, merged_final, tweaks)
+            yield _line({"type": "result", "data": data})
+            try:
+                html_final = _stream_render_adapt_final_preview(request, body, data)
+            except Exception:
+                html_final = ""
+            yield _line({"type": "preview_begin", "step_id": "final"})
+            chunk_size = 1400
+            for j in range(0, len(html_final), chunk_size):
+                if await request.is_disconnected():
+                    return
+                yield _line({"type": "preview_chunk", "chunk": html_final[j:j + chunk_size], "done": False})
+                await asyncio.sleep(0.048)
+            yield _line({"type": "preview_chunk", "chunk": "", "done": True})
+        except HTTPException as e:
+            yield _line({"type": "error", "status": e.status_code, "detail": e.detail})
+            return
+        except Exception as e:
+            logger.exception(e)
+            yield _line({"type": "error", "status": 500, "detail": str(e) or "Erreur lors de l'adaptation."})
+            return
+
+        yield _line({"type": "done"})
+
+    return StreamingResponse(
+        _stream(),
+        media_type="application/x-ndjson",
+        headers={
+            "Cache-Control": "no-store",
+            # Évite qu’un proxy (ex. nginx) bufferise tout le corps avant envoi au navigateur
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.post("/api/adapt")

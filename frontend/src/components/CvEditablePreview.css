@@ -110,17 +110,17 @@
   word-break: normal;
 }
 
-/* Surlignage vert : texte modifié par l’IA (même famille que main.py : clair vs bandeau/sidebar) */
-.cv-editable-preview .cv-changed {
+/* Surlignage des différences : une seule teinte en aperçu (aligné sur render-html) */
+.cv-editable-preview.cv-preview .cv-changed,
+.cv-editable-preview.cv-preview .cv-header .cv-changed,
+.cv-editable-preview.cv-preview .cv-sidebar .cv-changed,
+.cv-editable-preview.cv-preview .cv-main .cv-changed {
   background-color: #c5e3cd;
-  padding: 0 1px;
-  border-radius: 1px;
-}
-
-.cv-editable-preview .cv-header .cv-changed,
-.cv-editable-preview .cv-sidebar .cv-changed {
-  background-color: #9dc6ae;
   color: #0f2418;
+  padding: 0 2px;
+  border-radius: 2px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
 /* Impact / Classique / Executive : bandeau sombre — focus dans le header → texte éditable en blanc (priorité sur .cv-changed foncé). */
@@ -177,7 +177,8 @@
 
 /* ATS + modifié : mots-clés dans un segment modifié = pas de 2e teinte (hérite du parent) */
 .cv-editable-preview.cv-preview span.cv-ats-kw {
-  background-color: #86efac;
+  background-color: #c5e3cd;
+  color: #0f2418;
   padding: 0 2px;
   border-radius: 2px;
   box-decoration-break: clone;
@@ -185,8 +186,8 @@
 }
 .cv-editable-preview.cv-preview .cv-header span.cv-ats-kw,
 .cv-editable-preview.cv-preview .cv-sidebar span.cv-ats-kw {
-  background-color: #166534;
-  color: #bbf7d1;
+  background-color: #c5e3cd;
+  color: #0f2418;
 }
 .cv-editable-preview.cv-preview span.cv-changed span.cv-ats-kw {
   background-color: transparent !important;

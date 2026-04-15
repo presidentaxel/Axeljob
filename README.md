@@ -89,7 +89,7 @@ cv-bot/
 |--------|-------------|
 | Frontend | React 19, Vite 7, react-router-dom 7, Supabase Auth |
 | Backend | FastAPI 0.128, uvicorn, Jinja2 |
-| IA | Google Gemini (gemini-2.5-flash-lite / gemini-2.0-flash) |
+| IA | Google Gemini (modèles configurables via variables d'environnement) |
 | PDF | WeasyPrint 68 |
 | Base de donnees | Supabase (PostgreSQL) ou fallback fichiers JSON |
 | Stockage fichiers | Supabase Storage (buckets prives, signed URLs) |
@@ -143,6 +143,10 @@ npm run dev
 | Variable | Description | Requis |
 |----------|-------------|--------|
 | `GEMINI_API_KEY` | Cle API Google AI (Gemini) | Oui |
+| `GEMINI_MODEL` | Modèle Gemini par défaut (adaptation, lettre, A4) | Non |
+| `GEMINI_MODEL_LINKEDIN` | Modèle Gemini pour adaptation des champs LinkedIn | Non |
+| `GEMINI_MODEL_IMPORT` | Modèle Gemini pour l'import CV texte -> JSON | Non |
+| `GEMINI_MODELS_VISION` | Liste CSV ordonnée de modèles Gemini vision (import PDF -> template) | Non |
 | `SUPABASE_URL` | URL du projet Supabase | Oui (prod) |
 | `SUPABASE_SERVICE_KEY` | Cle `service_role` Supabase | Oui (prod) |
 | `SUPABASE_JWT_SECRET` | JWT Secret (Dashboard > API) | Oui (prod) |

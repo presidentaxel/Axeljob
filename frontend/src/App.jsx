@@ -4,10 +4,14 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   apiGet,
   apiPost,
+  apiPostStream,
   apiPatch,
   apiPostBlob,
   apiPostFormData,
   apiGetBlob,
+  getDownloadPermissionHint,
+  prepareAppleDownloadWindow,
+  saveBlobWithPreferredMethod,
   setAuthToken,
   setUnauthorizedCallback,
   trackEvent,
@@ -20,7 +24,7 @@ import AppTopbar from './components/AppTopbar';
 import CompanyLogo from './components/CompanyLogo';
 import { NotFoundPage } from './components/ErrorPages';
 import { CONTACT_EMAIL, STORAGE_EXPORT_DIR, STORAGE_EXPORT_ATS_BLOCK_SNOOZE, STORAGE_PRE_EXPORT_TEMPLATE_OPTIONS_DONE, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
-import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiCheck, HiSwatch } from 'react-icons/hi2';
+import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiCheck, HiSwatch, HiChevronDown, HiChevronUp } from 'react-icons/hi2';
 import { lazyWithChunkReload, clearChunkErrorReloadKey } from './lib/lazyChunkReload';
 import { getViewFromPathname } from './lib/appRoutes';
 import { syncRobotsMeta } from './lib/seoHead';
@@ -73,6 +77,8 @@ const TPL_FONT_SAFE = { 'Plus Jakarta Sans': "'Plus Jakarta Sans', Arial, sans-s
 
 /** Évite de rappeler render-html à chaque pas de curseur (réglages template). */
 const TEMPLATE_PREVIEW_DEBOUNCE_MS = 150;
+const ADAPT_PLAN_STORAGE_PREFIX = 'cv_bot_adapt_plan_id_';
+const ADAPT_DRAFT_STORAGE_PREFIX = 'cv_bot_adapt_draft_';
 
 function MfaChallengeScreen({ onSuccess }) {
   const [code, setCode] = useState('');
@@ -697,9 +703,24 @@ export default function App() {
   const [usage, setUsage] = useState(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [adaptStepIndex, setAdaptStepIndex] = useState(0);
+  const [adaptStepLabels, setAdaptStepLabels] = useState([
+    'Analyse des mots-clés',
+    'Extraction des compétences',
+    'Réécriture du résumé',
+    'Adaptation des expériences',
+    'Optimisation ATS',
+    'Finalisation',
+  ]);
   /** true quand l’API a répondu ; on n’affiche le résultat qu’une fois l’animation à la dernière étape */
   const [apiAdaptDone, setApiAdaptDone] = useState(false);
   const pendingAdaptResultRef = useRef(null);
+  /** Annule un flux d'adaptation précédent si un nouveau démarre (double clic / relance rapide). */
+  const adaptRunAbortRef = useRef(null);
+  /** Identifiant de run d’adaptation (évite qu’un AbortError d’un run annulé coupe l’UI d’un run plus récent). */
+  const adaptRunGenRef = useRef(0);
+  const adaptActiveRunIdRef = useRef(0);
+  /** Évite un POST /api/render-html redondant juste après adaptation (HTML déjà fourni par le flux). */
+  const suppressAdaptedPreviewRef = useRef(false);
   const sourceOffreDebounceRef = useRef(null);
   const [kanbanDraggedId, setKanbanDraggedId] = useState(null);
   const [kanbanDragOverColumn, setKanbanDragOverColumn] = useState(null);
@@ -721,6 +742,17 @@ export default function App() {
   const [exportPrepTemplateOptionsNonce, setExportPrepTemplateOptionsNonce] = useState(0);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
+  const [adaptTodoPlan, setAdaptTodoPlan] = useState(null);
+  /** En attente de la réponse /api/adapt-plan après envoi de l’offre. */
+  const [adaptPlanLoading, setAdaptPlanLoading] = useState(false);
+  const [adaptTodoLastAction, setAdaptTodoLastAction] = useState('');
+  const [adaptRunStepIds, setAdaptRunStepIds] = useState([]);
+  /** Suivi des étapes par id (ordre backend ≠ ordre d’affichage de la todo). */
+  const [adaptStreamRunningStepId, setAdaptStreamRunningStepId] = useState(null);
+  const [adaptStreamDoneStepIds, setAdaptStreamDoneStepIds] = useState([]);
+  const [adaptStreamMode, setAdaptStreamMode] = useState(false);
+  const [expandedUserMessages, setExpandedUserMessages] = useState({});
+  const [lastAdaptRunConfig, setLastAdaptRunConfig] = useState(null);
   const [cvEditPanelOpen, setCvEditPanelOpen] = useState(false);
   const [atsScoreOpen, setAtsScoreOpen] = useState(false);
   const [adaptRating, setAdaptRating] = useState(null);
@@ -766,6 +798,18 @@ export default function App() {
   const guidedTourUid = session?.user?.id || '';
   const tourKeyPhase1 = guidedTourUid ? `main_phase1_${guidedTourUid}` : 'main_phase1';
   const tourKeyPhase2 = guidedTourUid ? `main_phase2_${guidedTourUid}` : 'main_phase2';
+
+  const getPersistedPlanStorageKey = useCallback(() => {
+    const uid = session?.user?.id;
+    if (!uid) return null;
+    return `${ADAPT_PLAN_STORAGE_PREFIX}${uid}`;
+  }, [session?.user?.id]);
+
+  const getAdaptDraftStorageKey = useCallback(() => {
+    const uid = session?.user?.id;
+    if (!uid) return null;
+    return `${ADAPT_DRAFT_STORAGE_PREFIX}${uid}`;
+  }, [session?.user?.id]);
 
   // Hauteur auto du textarea : après envoi / reset, enlever le style inline sinon il reste « grand ».
   useEffect(() => {
@@ -1213,6 +1257,8 @@ export default function App() {
       return;
     }
     if (!isCvView) return;
+    /** Pendant le flux NDJSON, le HTML arrive déjà dans le client — évite des POST /render-html en rafale. */
+    if (adaptStreamMode) return;
 
     const sessionBecameActive = !prevHadSessionRef.current;
     prevHadSessionRef.current = true;
@@ -1242,6 +1288,15 @@ export default function App() {
     const run = () => {
       const tid = templateIdForPreviewRef.current;
       const opts = templateOptionsForPreviewRef.current;
+      if (adaptChanged && suppressAdaptedPreviewRef.current && lastAdaptedCv) {
+        suppressAdaptedPreviewRef.current = false;
+        if (lastBaseCv) {
+          apiPost('/api/render-html', { cv: lastBaseCv, template_id: tid, template_options: opts })
+            .then((html) => setOriginalPreviewHtml(html))
+            .catch(() => {});
+        }
+        return;
+      }
       if (lastAdaptedCv) {
         apiPost('/api/render-html', {
           cv: lastAdaptedCv,
@@ -1272,7 +1327,7 @@ export default function App() {
 
     const t = setTimeout(run, TEMPLATE_PREVIEW_DEBOUNCE_MS);
     return () => clearTimeout(t);
-  }, [session?.user?.id, isCvView, templateKey, wantHighlight, lastAdaptedCv, lastBaseCv, lastSelectionA4, tourHighlightStepActive]);
+  }, [session?.user?.id, isCvView, templateKey, wantHighlight, lastAdaptedCv, lastBaseCv, lastSelectionA4, tourHighlightStepActive, adaptStreamMode]);
 
   // Tutoriel : surlignage vert réel (API render-html + highlight_changes), sur le CV adapté ou une démo
   useEffect(() => {
@@ -1387,7 +1442,17 @@ export default function App() {
     setExportBlockVisible(false);
     setChatMessages([]);
     setChatInput('');
+    setAdaptTodoPlan(null);
+    setAdaptPlanLoading(false);
+    setAdaptTodoExplain('');
+    setAdaptTodoExplainLoading(false);
+    setAdaptTodoLastAction('');
+    try {
+      const key = getPersistedPlanStorageKey();
+      if (key) localStorage.removeItem(key);
+    } catch (_) {}
     setAnnonce('');
+    setLastAdaptRunConfig(null);
     setAdaptRating(null);
     setApiAdaptDone(false);
     pendingAdaptResultRef.current = null;
@@ -1403,6 +1468,18 @@ export default function App() {
     setError('');
     setCvEditPanelOpen(false);
     setAdaptStepIndex(0);
+    setAdaptStepLabels([
+      'Analyse des mots-clés',
+      'Extraction des compétences',
+      'Réécriture du résumé',
+      'Adaptation des expériences',
+      'Optimisation ATS',
+      'Finalisation',
+    ]);
+    setAdaptRunStepIds([]);
+    setAdaptStreamRunningStepId(null);
+    setAdaptStreamDoneStepIds([]);
+    setAdaptStreamMode(false);
     setAdapting(false);
     apiGet('/api/cv')
       .then((cv) => {
@@ -1468,6 +1545,71 @@ export default function App() {
     return () => { cancelled = true; };
   }, [view, session?.user?.id, onboardingChecked, needsOnboarding, profileRefreshKey, !!lastAdaptedCv, lastSelectionA4]);
 
+  // Restaurer une todo en attente après refresh (persistance légère par plan_id)
+  useEffect(() => {
+    if (!session?.user?.id || view !== 'cv') return;
+    if (lastAdaptedCv || adapting || adaptTodoPlan) return;
+    let cancelled = false;
+    const key = getPersistedPlanStorageKey();
+    if (!key) return;
+    let planId = '';
+    try {
+      planId = (localStorage.getItem(key) || '').trim();
+    } catch {
+      return;
+    }
+    if (!planId) return;
+    apiGet(`/api/adapt-plan/${encodeURIComponent(planId)}`)
+      .then((data) => {
+        if (cancelled) return;
+        const todo = Array.isArray(data?.todo) ? data.todo : [];
+        setAdaptRunStepIds([]);
+        setAdaptStreamRunningStepId(null);
+        setAdaptStreamDoneStepIds([]);
+        setAdaptTodoPlan({
+          planId: data?.plan_id || planId,
+          description: data?.description || '',
+          todo,
+          assistantMessage: data?.assistant_message || 'Plan restauré. Tu peux valider ou ajuster les étapes.',
+        });
+        setAnnonce((data?.description || '').trim());
+        setChatMessages((prev) => (
+          prev.some((m) => m.kind === 'todo_plan')
+            ? prev
+            : [...prev, { role: 'assistant', content: data?.assistant_message || 'Plan restauré.', kind: 'todo_plan' }]
+        ));
+      })
+      .catch(() => {
+        try { localStorage.removeItem(key); } catch (_) {}
+      });
+    return () => { cancelled = true; };
+  }, [session?.user?.id, view, lastAdaptedCv, adapting, adaptTodoPlan, getPersistedPlanStorageKey]);
+
+  // Sauvegarde locale du brouillon de l'offre pendant la saisie (avant adaptation).
+  useEffect(() => {
+    if (!session?.user?.id || view !== 'cv') return;
+    if (lastAdaptedCv || adaptTodoPlan) return;
+    const key = getAdaptDraftStorageKey();
+    if (!key) return;
+    try {
+      const v = (chatInput || '').trim();
+      if (!v) localStorage.removeItem(key);
+      else localStorage.setItem(key, v);
+    } catch (_) {}
+  }, [session?.user?.id, view, chatInput, lastAdaptedCv, adaptTodoPlan, getAdaptDraftStorageKey]);
+
+  // Restauration du brouillon après refresh.
+  useEffect(() => {
+    if (!session?.user?.id || view !== 'cv') return;
+    if (lastAdaptedCv || adaptTodoPlan || (chatInput || '').trim()) return;
+    const key = getAdaptDraftStorageKey();
+    if (!key) return;
+    try {
+      const draft = (localStorage.getItem(key) || '').trim();
+      if (draft) setChatInput(draft);
+    } catch (_) {}
+  }, [session?.user?.id, view, lastAdaptedCv, adaptTodoPlan, chatInput, getAdaptDraftStorageKey]);
+
   useEffect(() => {
     if (usage && usage.adaptations_used > 0) setFirstOfferNudgeOpen(false);
   }, [usage?.adaptations_used]);
@@ -1529,31 +1671,22 @@ export default function App() {
     loadUsage();
   }, [session?.user?.id]);
 
-  const adaptSteps = [
-    'Analyse des mots-clés',
-    'Extraction des compétences',
-    'Réécriture du résumé',
-    'Adaptation des expériences',
-    'Optimisation ATS',
-    'Finalisation',
-  ];
-
   useEffect(() => {
     if (!adapting) {
-      setAdaptStepIndex(0);
-      setApiAdaptDone(false);
       pendingAdaptResultRef.current = null;
+      setAdaptStreamMode(false);
       return;
     }
+    if (adaptStreamMode) return;
     const id = setInterval(() => {
-      setAdaptStepIndex((i) => Math.min(i + 1, adaptSteps.length - 1));
+      setAdaptStepIndex((i) => Math.min(i + 1, adaptStepLabels.length - 1));
     }, 3800);
     return () => clearInterval(id);
-  }, [adapting]);
+  }, [adapting, adaptStepLabels, adaptStreamMode]);
 
   // Quand l’API a fini et l’animation est sur « Finalisation », on applique le résultat et on arrête
   useEffect(() => {
-    if (!apiAdaptDone || adaptStepIndex !== adaptSteps.length - 1 || !adapting) return;
+    if (!apiAdaptDone || adaptStepIndex !== adaptStepLabels.length - 1 || !adapting) return;
     const pending = pendingAdaptResultRef.current;
     if (pending) {
       if (pending.cv) setLastAdaptedCv(pending.cv);
@@ -1564,8 +1697,11 @@ export default function App() {
       if (pending.exportBlockVisible) setExportBlockVisible(true);
       setPreviewVariant('modified');
       if (pending.previewHtml) setPreviewHtml(pending.previewHtml);
-      if (pending.modifiedPreviewHtml) setModifiedPreviewHtml(pending.modifiedPreviewHtml);
-      setChatMessages((prev) => [...prev, { role: 'assistant', content: pending.summary }]);
+      if (pending.modifiedPreviewHtml) {
+        suppressAdaptedPreviewRef.current = true;
+        setModifiedPreviewHtml(pending.modifiedPreviewHtml);
+      }
+      // Flux silencieux: pas de récapitulatif automatique dans le chat après adaptation.
       if (pending.baseCv != null) setLastBaseCv(pending.baseCv);
       if (pending.export_hints != null && pending.adaptation_id != null) {
         exportHintsRef.current = { ...pending.export_hints, adaptation_id: pending.adaptation_id };
@@ -1597,13 +1733,13 @@ export default function App() {
 
   // Scroll vers la réponse / animation quand on lance un prompt
   useEffect(() => {
-    if (adapting || chatMessages.length > 0) {
+    if (adapting || adaptPlanLoading || chatMessages.length > 0) {
       const t = requestAnimationFrame(() => {
         chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
       });
       return () => cancelAnimationFrame(t);
     }
-  }, [adapting, chatMessages.length]);
+  }, [adapting, adaptPlanLoading, chatMessages.length]);
 
   useEffect(() => {
     if (!atsScoreOpen) return;
@@ -1675,103 +1811,329 @@ export default function App() {
   const handleDetailDownload = async (type) => {
     if (!applicationDetailId) return;
     const path = `/api/applications/${encodeURIComponent(applicationDetailId)}/download/${type}`;
+    const preopenedWindow = prepareAppleDownloadWindow();
     setDetailDownloading(type);
     try {
       const { blob, filename } = await apiGetBlob(path);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename || (type === 'cv' ? 'cv.pdf' : type === 'lettre' ? 'lettre.pdf' : 'fiche.pdf');
-      a.click();
-      URL.revokeObjectURL(url);
+      await saveBlobWithPreferredMethod(blob, filename || (type === 'cv' ? 'cv.pdf' : type === 'lettre' ? 'lettre.pdf' : 'fiche.pdf'), {
+        preopenedWindow,
+      });
     } catch (e) {
-      setError(e.message || 'Téléchargement impossible.');
+      if (preopenedWindow && !preopenedWindow.closed) preopenedWindow.close();
+      const baseMessage = e.message || 'Téléchargement impossible.';
+      setError(`${baseMessage}${getDownloadPermissionHint()}`);
     } finally {
       setDetailDownloading(null);
     }
   };
 
+  const runPlannedAdaptation = async ({ description, selectedStepIds, source = 'chat_send', planId = null }) => {
+    try {
+      adaptRunAbortRef.current?.abort();
+    } catch (_) { /* ignore */ }
+    adaptRunGenRef.current += 1;
+    const myRunId = adaptRunGenRef.current;
+    adaptActiveRunIdRef.current = myRunId;
+    adaptRunAbortRef.current = new AbortController();
+    const adaptSignal = adaptRunAbortRef.current.signal;
+    openPhase2AfterFirstAdaptRef.current = true;
+    setAdapting(true);
+    setAdaptStreamMode(true);
+    setAdaptRating(null);
+    setApiAdaptDone(false);
+    setAdaptStepIndex(0);
+    setAdaptStreamRunningStepId(null);
+    setAdaptStreamDoneStepIds([]);
+    const selected = Array.isArray(selectedStepIds) ? selectedStepIds : [];
+    setAdaptRunStepIds(selected);
+    const labels = (adaptTodoPlan?.todo || [])
+      .filter((s) => selected.includes(s.id))
+      .map((s) => s.title)
+      .filter(Boolean);
+    setAdaptStepLabels(labels.length > 0 ? [...labels, 'Finalisation'] : ['Adaptation', 'Finalisation']);
+    try {
+      setAnnonce(description);
+      trackEvent('job_description_pasted', { word_count: description.split(/\s+/).length, source });
+      let streamedData = null;
+      /** HTML complet du dernier segment de preview (chaque étape + final) — appliqué à l’iframe à chaque fin de segment. */
+      let lastStreamPreviewHtml = '';
+      let previewAccum = '';
+      let previewPartialTimer = null;
+      let streamStepLabels = [];
+      await apiPostStream('/api/adapt-run-stream', {
+        description,
+        titre: posteNom || undefined,
+        entreprise: entrepriseNom || undefined,
+        plan_id: planId || undefined,
+        selected_step_ids: selected,
+        ...templateParams,
+      }, {
+        signal: adaptSignal,
+        onMessage: (msg) => {
+          if (!msg || typeof msg !== 'object') return;
+          if (msg.type === 'started' && Array.isArray(msg.step_labels) && msg.step_labels.length > 0) {
+            streamStepLabels = msg.step_labels;
+            setAdaptStepLabels(msg.step_labels);
+            setAdaptStepIndex(0);
+            return;
+          }
+          if (msg.type === 'step_started' && Number.isInteger(msg.step_index)) {
+            const idx = Math.max(0, Number(msg.step_index));
+            setAdaptStepIndex((prev) => Math.max(prev, idx));
+            if (msg.step_id) setAdaptStreamRunningStepId(String(msg.step_id));
+            return;
+          }
+          if (msg.type === 'step_done' && Number.isInteger(msg.step_index)) {
+            const next = Math.max(0, Number(msg.step_index) + 1);
+            setAdaptStepIndex((prev) => Math.max(prev, next));
+            if (msg.step_id) {
+              setAdaptStreamDoneStepIds((prev) => (prev.includes(String(msg.step_id)) ? prev : [...prev, String(msg.step_id)]));
+              setAdaptStreamRunningStepId(null);
+            }
+            return;
+          }
+          if (msg.type === 'preview_begin') {
+            previewAccum = '';
+            return;
+          }
+          if (msg.type === 'progress' && Number.isInteger(msg.step_index)) {
+            const idx = Math.max(0, Number(msg.step_index));
+            setAdaptStepIndex((prev) => Math.max(prev, idx));
+            return;
+          }
+          if (msg.type === 'result' && msg.data) {
+            streamedData = msg.data;
+            return;
+          }
+          if (msg.type === 'preview_chunk') {
+            if (msg.chunk) previewAccum += String(msg.chunk);
+            if (msg.done) {
+              if (previewPartialTimer) {
+                clearTimeout(previewPartialTimer);
+                previewPartialTimer = null;
+              }
+              lastStreamPreviewHtml = previewAccum;
+              previewAccum = '';
+              if (adaptActiveRunIdRef.current === myRunId && lastStreamPreviewHtml) {
+                setPreviewVariant('modified');
+                setModifiedPreviewHtml(lastStreamPreviewHtml);
+              }
+            } else if (previewAccum.length > 400) {
+              /* Construction progressive du HTML (effet « réécriture ») sans bloquer le thread. */
+              if (previewPartialTimer) clearTimeout(previewPartialTimer);
+              previewPartialTimer = window.setTimeout(() => {
+                previewPartialTimer = null;
+                if (adaptActiveRunIdRef.current !== myRunId) return;
+                setPreviewVariant('modified');
+                setModifiedPreviewHtml(previewAccum);
+              }, 48);
+            }
+            return;
+          }
+          if (msg.type === 'error') {
+            const err = new Error(msg.detail || 'Erreur.');
+            err.status = msg.status;
+            throw err;
+          }
+        },
+      });
+      const data = streamedData;
+      if (!data) throw new Error("Le flux d'adaptation s'est terminé sans résultat.");
+      let baseCv = null;
+      try {
+        baseCv = await apiGet('/api/cv');
+      } catch {}
+      const html = lastStreamPreviewHtml || await apiPost('/api/render-html', {
+        ...templateParams,
+        cv: data.cv,
+        base_cv: baseCv ?? lastBaseCv ?? undefined,
+        highlight_changes: true,
+        selection_a4: data.selection_a4 || undefined,
+      });
+      const selectedSteps = Array.isArray(data?.todo_selected_steps) ? data.todo_selected_steps : selected;
+      const touchedSections = [];
+      if (selectedSteps.includes('rewrite_resume')) touchedSections.push('résumé');
+      if (selectedSteps.includes('rewrite_experiences')) touchedSections.push('expériences');
+      if (selectedSteps.includes('optimize_ats')) touchedSections.push('ATS');
+      const sectionsText = touchedSections.length ? `Sections modifiées: ${touchedSections.join(', ')}.` : '';
+      const summary = data.rapport?.score_global != null
+        ? `CV adapté (score ATS : ${data.rapport.score_global}/100). ${sectionsText} Tu peux affiner en envoyant un autre message ou modifier le texte avant téléchargement.`
+        : `CV adapté à l'offre. ${sectionsText} Envoie un message pour affiner ou clique sur « Modifier le CV » pour éditer le texte.`;
+      setSourceOffreValue('');
+      pendingAdaptResultRef.current = {
+        cv: data.cv,
+        adaptation_id: data.adaptation_id || null,
+        selection_a4: data.selection_a4 || null,
+        rapport: data.rapport || {},
+        rapportBefore: data.rapport_before || null,
+        export_hints: data.export_hints || null,
+        exportBlockVisible: true,
+        previewHtml: '',
+        modifiedPreviewHtml: html,
+        summary,
+        baseCv: baseCv ?? lastBaseCv ?? undefined,
+      };
+      const labelsLen = streamStepLabels.length > 0 ? streamStepLabels.length : adaptStepLabels.length;
+      setAdaptStepIndex((labelsLen > 0 ? labelsLen - 1 : 0));
+      setApiAdaptDone(true);
+      setAdaptTodoLastAction('');
+      setLastAdaptRunConfig({
+        description,
+        selectedStepIds: selectedSteps,
+        source: 'redo_available',
+      });
+      try {
+        const key = getPersistedPlanStorageKey();
+        if (key) localStorage.removeItem(key);
+      } catch (_) {}
+    try {
+      const key = getAdaptDraftStorageKey();
+      if (key) localStorage.removeItem(key);
+    } catch (_) {}
+    } catch (e) {
+      if (e?.name === 'AbortError') {
+        if (adaptActiveRunIdRef.current !== myRunId) return;
+        setAdaptStreamMode(false);
+        setAdaptStreamRunningStepId(null);
+        setAdaptStreamDoneStepIds([]);
+        setAdapting(false);
+        return;
+      }
+      setApiAdaptDone(false);
+      setAdaptStreamMode(false);
+      pendingAdaptResultRef.current = null;
+      openPhase2AfterFirstAdaptRef.current = false;
+      if (e.status === 402 || (e.message && e.message.includes('épuisé'))) {
+        setUpgradeModalVisible(true);
+      } else {
+        setError(e.message || "Erreur.");
+      }
+      setChatMessages((prev) => [...prev, { role: 'assistant', content: 'Désolé, une erreur s\'est produite. ' + (e.message || '') }]);
+      setAdapting(false);
+    }
+  };
+
+  const handleRemoveTodoStep = (stepId) => {
+    setAdaptTodoPlan((prev) => {
+      if (!prev) return prev;
+      const nextTodo = (prev.todo || []).filter((step) => step.id !== stepId);
+      const selected = nextTodo.map((s) => s.id);
+      if (prev.planId) {
+        apiPatch(`/api/adapt-plan/${encodeURIComponent(prev.planId)}`, { selected_step_ids: selected }).catch(() => {});
+      }
+      const removed = (prev.todo || []).find((s) => s.id === stepId);
+      setAdaptTodoLastAction(`Retirée: ${removed?.title || stepId}`);
+      return { ...prev, todo: nextTodo };
+    });
+  };
+
+  const handleRunTodoPlan = async () => {
+    if (!adaptTodoPlan || adapting) return;
+    const selected = (adaptTodoPlan.todo || []).map((s) => s.id);
+    if (!selected.length) {
+      setError('Active au moins une étape avant de lancer.');
+      return;
+    }
+    await runPlannedAdaptation({
+      description: adaptTodoPlan.description,
+      selectedStepIds: selected,
+      source: 'todo_confirm',
+      planId: adaptTodoPlan.planId || null,
+    });
+  };
+
   const handleChatSend = async () => {
     const text = (chatInput || '').trim();
-    if (!text || adapting) return;
+    if (!text || adapting || adaptPlanLoading) return;
     setChatInput('');
     setChatMessages((prev) => [...prev, { role: 'user', content: text }]);
     hideError();
     if (!lastAdaptedCv) {
-      openPhase2AfterFirstAdaptRef.current = true;
+      if (adaptTodoPlan) {
+        setChatMessages((prev) => [...prev, { role: 'assistant', content: "Valide d'abord la todo (ou démarre une nouvelle candidature)." }]);
+        return;
+      }
       trackEvent('adapt_cta_clicked', {
         source: 'chat_send',
         desc_word_count: text.split(/\s+/).filter(Boolean).length,
       });
-    }
-    setAdapting(true);
-    try {
-      if (!lastAdaptedCv) {
-        setAnnonce(text);
-        trackEvent('job_description_pasted', { word_count: text.split(/\s+/).length });
-        setAdaptRating(null);
-        const data = await apiPost('/api/adapt', {
+      setAdaptPlanLoading(true);
+      try {
+        const plan = await apiPost('/api/adapt-plan', {
           description: text,
           titre: posteNom || undefined,
           entreprise: entrepriseNom || undefined,
-          ...templateParams,
         });
-        let baseCv = null;
+        const todo = Array.isArray(plan?.todo) ? plan.todo : [];
+        setAnnonce(text);
+        setAdaptRunStepIds([]);
+        setAdaptStreamRunningStepId(null);
+        setAdaptStreamDoneStepIds([]);
+        setAdaptTodoPlan({
+          planId: plan?.plan_id || null,
+          description: text,
+          todo,
+          assistantMessage: plan?.assistant_message || "Voici un plan d'adaptation. Ajuste les étapes puis valide.",
+        });
+        setChatMessages((prev) => [...prev, {
+          role: 'assistant',
+          content: plan?.assistant_message || "Voici un plan d'adaptation. Ajuste les étapes puis valide.",
+          kind: 'todo_plan',
+        }]);
         try {
-          baseCv = await apiGet('/api/cv');
-        } catch {}
-        const html = await apiPost('/api/render-html', {
-          ...templateParams,
-          cv: data.cv,
-          base_cv: baseCv ?? lastBaseCv ?? undefined,
-          highlight_changes: true,
-          selection_a4: data.selection_a4 || undefined,
-        });
-        const summary = data.rapport?.score_global != null
-          ? `CV adapté (score ATS : ${data.rapport.score_global}/100). Tu peux affiner en envoyant un autre message ou modifier le texte avant téléchargement.`
-          : 'CV adapté à l\'offre. Envoie un message pour affiner ou clique sur « Modifier le CV » pour éditer le texte.';
-        setSourceOffreValue('');
-        pendingAdaptResultRef.current = {
-          cv: data.cv,
-          adaptation_id: data.adaptation_id || null,
-          selection_a4: data.selection_a4 || null,
-          rapport: data.rapport || {},
-          rapportBefore: data.rapport_before || null,
-          export_hints: data.export_hints || null,
-          exportBlockVisible: true,
-          previewHtml: html,
-          modifiedPreviewHtml: html,
-          summary,
-          baseCv: baseCv ?? lastBaseCv ?? undefined,
-        };
-        setApiAdaptDone(true);
-      } else {
-        const data = await apiPost('/api/adapt-refine', { cv: lastAdaptedCv, instruction: text });
-        const html = await apiPost('/api/render-html', {
-          ...templateParams,
-          cv: data.cv,
-          base_cv: lastBaseCv || undefined,
-          highlight_changes: false,
-          selection_a4: undefined,
-        });
-        pendingAdaptResultRef.current = {
-          cv: data.cv,
-          adaptation_id: lastAdaptationId,
-          selection_a4: null,
-          rapport,
-          rapportBefore: null,
-          exportBlockVisible: exportBlockVisible,
-          previewHtml: html,
-          modifiedPreviewHtml: html,
-          summary: 'Modifications appliquées. Tu peux continuer à affiner ou télécharger le CV.',
-          baseCv: lastBaseCv ?? undefined,
-        };
-        setApiAdaptDone(true);
+          const key = getPersistedPlanStorageKey();
+          if (key && plan?.plan_id) localStorage.setItem(key, String(plan.plan_id));
+        } catch (_) {}
+        try {
+          const key = getAdaptDraftStorageKey();
+          if (key) localStorage.removeItem(key);
+        } catch (_) {}
+      } catch (e) {
+        if (e.status === 402 || (e.message && e.message.includes('épuisé'))) {
+          setUpgradeModalVisible(true);
+        } else {
+          setError(e.message || "Erreur.");
+        }
+        setChatMessages((prev) => [...prev, { role: 'assistant', content: 'Désolé, une erreur s\'est produite. ' + (e.message || '') }]);
+      } finally {
+        setAdaptPlanLoading(false);
       }
+      return;
+    }
+    setAdapting(true);
+    setAdaptStepLabels(['Analyse de la demande', 'Application des modifications', 'Finalisation']);
+    try {
+      const data = await apiPost('/api/adapt-refine', { cv: lastAdaptedCv, instruction: text });
+      const html = await apiPost('/api/render-html', {
+        ...templateParams,
+        cv: data.cv,
+        base_cv: lastBaseCv || undefined,
+        highlight_changes: false,
+        selection_a4: undefined,
+      });
+      pendingAdaptResultRef.current = {
+        cv: data.cv,
+        adaptation_id: lastAdaptationId,
+        selection_a4: null,
+        rapport,
+        rapportBefore: null,
+        exportBlockVisible: exportBlockVisible,
+        previewHtml: html,
+        modifiedPreviewHtml: html,
+        summary: (() => {
+          const touched = [];
+          if (data?.tweaks?.resume) touched.push('résumé');
+          if (Array.isArray(data?.tweaks?.experiences) && data.tweaks.experiences.length) touched.push('expériences');
+          if (data?.tweaks?.mots_cles_cache) touched.push('ATS');
+          const sectionText = touched.length ? ` Sections modifiées: ${touched.join(', ')}.` : '';
+          return `Modifications appliquées.${sectionText} Tu peux continuer à affiner ou télécharger le CV.`;
+        })(),
+        baseCv: lastBaseCv ?? undefined,
+      };
+      setApiAdaptDone(true);
     } catch (e) {
       setApiAdaptDone(false);
       pendingAdaptResultRef.current = null;
-      openPhase2AfterFirstAdaptRef.current = false;
       if (e.status === 402 || (e.message && e.message.includes('épuisé'))) {
         setUpgradeModalVisible(true);
       } else {
@@ -1879,6 +2241,7 @@ export default function App() {
 
   const executePdfDownload = async (templateOptsOverride, titreForPdf, entrepriseForPdf) => {
     if (!lastAdaptedCv) return;
+    const preopenedWindow = prepareAppleDownloadWindow();
     const opts = templateOptsOverride ?? templateOptions;
     try {
       const pdfTemplateOptions = { ...opts, show_mots_cles_ats: opts?.show_mots_cles_ats !== false };
@@ -1892,11 +2255,7 @@ export default function App() {
         template_id: templateId,
         template_options: pdfTemplateOptions,
       });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = filename || 'CV.pdf';
-      a.click();
-      URL.revokeObjectURL(a.href);
+      await saveBlobWithPreferredMethod(blob, filename || 'CV.pdf', { preopenedWindow });
       const count = parseInt(localStorage.getItem('pdf_export_count') || '0', 10) + 1;
       localStorage.setItem('pdf_export_count', String(count));
       if (lastAdaptationId) {
@@ -1913,7 +2272,8 @@ export default function App() {
         });
       }
     } catch (e) {
-      showError('Téléchargement PDF : ' + (e.message || e));
+      if (preopenedWindow && !preopenedWindow.closed) preopenedWindow.close();
+      showError(`Téléchargement PDF : ${e.message || e}${getDownloadPermissionHint()}`);
     }
   };
 
@@ -2559,15 +2919,34 @@ export default function App() {
                   ?
                 </button>
               </div>
-              <button
-                type="button"
-                className="btn btn-secondary btn-new-adapt-session"
-                onClick={requestNewCandidatureWorkspace}
-                disabled={adapting}
-                title="Vider le chat et l’aperçu pour adapter ton CV à une autre offre (sans supprimer tes candidatures enregistrées)"
-              >
-                Nouvelle candidature
-              </button>
+              <div className="page-title-row-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-new-adapt-session"
+                  onClick={requestNewCandidatureWorkspace}
+                  disabled={adapting}
+                  title="Vider le chat et l’aperçu pour adapter ton CV à une autre offre (sans supprimer tes candidatures enregistrées)"
+                >
+                  Nouvelle candidature
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-new-adapt-session"
+                  onClick={async () => {
+                    if (!lastAdaptRunConfig || adapting) return;
+                    setChatMessages((prev) => [...prev, { role: 'user', content: 'Relancer la dernière adaptation' }]);
+                    await runPlannedAdaptation({
+                      description: lastAdaptRunConfig.description,
+                      selectedStepIds: lastAdaptRunConfig.selectedStepIds || [],
+                      source: 'redo_last_adaptation',
+                    });
+                  }}
+                  disabled={adapting || !lastAdaptRunConfig}
+                  title="Relancer la dernière adaptation avec les mêmes étapes"
+                >
+                  Relancer la dernière adaptation
+                </button>
+              </div>
             </div>
             <p className="page-subtitle">Colle une offre d'emploi, l'IA adapte ton CV. Affine par chat, puis exporte en PDF.</p>
           </header>
@@ -2602,15 +2981,103 @@ export default function App() {
                 )}
                 {chatMessages.map((m, i) => (
                   <div key={i} className={`cv-chat-msg cv-chat-msg--${m.role}`}>
-                    <div className="cv-chat-msg-content">{m.content}</div>
+                    <div className={`cv-chat-msg-content ${m.role === 'user' ? 'cv-chat-msg-content--user-collapsible' : ''}`}>
+                      {m.kind === 'todo_plan' && adaptTodoPlan ? (
+                        <div className="cv-chat-todo-card">
+                          <div className="cv-chat-todo-header">
+                            <p className="cv-chat-todo-title">
+                              {(adaptTodoPlan.assistantMessage || m.content || "Plan d'adaptation")}
+                            </p>
+                            <span className="cv-chat-todo-badge">
+                              {(adaptTodoPlan.todo || []).length} étape(s)
+                            </span>
+                          </div>
+                          <div className="cv-chat-todo-list">
+                            {(adaptTodoPlan.todo || []).map((step) => {
+                              const sid = String(step.id);
+                              const inRun = adaptRunStepIds.length === 0 || adaptRunStepIds.includes(sid);
+                              const progressState = !inRun
+                                ? ''
+                                : lastAdaptedCv && !adapting
+                                  ? 'cv-chat-todo-item--done'
+                                  : adapting
+                                    ? (adaptStreamDoneStepIds.includes(sid)
+                                        ? 'cv-chat-todo-item--done'
+                                        : adaptStreamRunningStepId === sid
+                                          ? 'cv-chat-todo-item--running'
+                                          : '')
+                                    : '';
+                              return (
+                                <div key={step.id} className={`cv-chat-todo-item ${progressState}`}>
+                                  <span className="cv-chat-todo-item-title">{step.title}</span>
+                                  {!adapting && !lastAdaptedCv && (
+                                    <button
+                                      type="button"
+                                      className="cv-chat-todo-item-remove"
+                                      onClick={() => handleRemoveTodoStep(step.id)}
+                                      title={`Retirer ${step.title}`}
+                                      aria-label={`Retirer ${step.title}`}
+                                    >
+                                      ×
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {!lastAdaptedCv && (
+                            <div className="cv-chat-todo-actions">
+                              <button type="button" className="btn btn-primary btn-sm" onClick={handleRunTodoPlan} disabled={adapting}>
+                                Valider et lancer
+                              </button>
+                              <button type="button" className="btn btn-secondary btn-sm" onClick={requestNewCandidatureWorkspace} disabled={adapting}>
+                                Annuler
+                              </button>
+                            </div>
+                          )}
+                          {adaptTodoLastAction ? <p className="cv-chat-todo-last-action">{adaptTodoLastAction}</p> : null}
+                        </div>
+                      ) : (
+                        <>
+                          {m.role === 'user' && typeof m.content === 'string' && m.content.length > 280 && !expandedUserMessages[i]
+                            ? `${m.content.slice(0, 280)}…`
+                            : m.content}
+                          {m.role === 'user' && typeof m.content === 'string' && m.content.length > 280 ? (
+                            <button
+                              type="button"
+                              className={`cv-chat-msg-toggle ${expandedUserMessages[i] ? 'is-expanded' : 'is-collapsed'}`}
+                              onClick={() => setExpandedUserMessages((prev) => ({ ...prev, [i]: !prev[i] }))}
+                              aria-expanded={!!expandedUserMessages[i]}
+                              title={expandedUserMessages[i] ? 'Réduire' : 'Afficher tout'}
+                            >
+                              {expandedUserMessages[i] ? <HiChevronUp aria-hidden="true" /> : <HiChevronDown aria-hidden="true" />}
+                            </button>
+                          ) : null}
+                        </>
+                      )}
+                    </div>
                   </div>
                 ))}
+                {adaptPlanLoading && !lastAdaptedCv && (
+                  <div className="cv-chat-msg cv-chat-msg--assistant" aria-live="polite" aria-busy="true">
+                    <div className="cv-chat-msg-content cv-chat-plan-loading">
+                      <div className="cv-chat-plan-loading__shimmer" aria-hidden="true" />
+                      <p className="cv-chat-plan-loading__title">Préparation de ton plan</p>
+                      <p className="cv-chat-plan-loading__hint">Lecture de l’offre et repérage des points à adapter…</p>
+                      <div className="cv-chat-plan-loading__dots" aria-hidden="true">
+                        <span className="cv-chat-plan-loading__dot" />
+                        <span className="cv-chat-plan-loading__dot" />
+                        <span className="cv-chat-plan-loading__dot" />
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {adapting && (
                   <div className="cv-chat-msg cv-chat-msg--assistant">
                     <div className="cv-chat-msg-content cv-adapt-steps-wrap">
                       <p className="cv-adapt-steps-title">Adaptation du CV en cours…</p>
                       <div className="cv-adapt-steps" role="list" aria-label="Étapes d’adaptation">
-                        {adaptSteps.map((label, i) => (
+                        {adaptStepLabels.map((label, i) => (
                           <div
                             key={i}
                             className={`cv-adapt-step ${i < adaptStepIndex ? 'cv-adapt-step--done' : i === adaptStepIndex ? 'cv-adapt-step--current' : ''}`}
@@ -2630,7 +3097,7 @@ export default function App() {
                         ))}
                       </div>
                       <div className="cv-adapt-progress-bar">
-                        <div className="cv-adapt-progress-fill" style={{ width: `${((adaptStepIndex + 0.5) / adaptSteps.length) * 100}%` }} />
+                        <div className="cv-adapt-progress-fill" style={{ width: `${((adaptStepIndex + 0.5) / adaptStepLabels.length) * 100}%` }} />
                       </div>
                     </div>
                   </div>
@@ -2642,7 +3109,13 @@ export default function App() {
                 <textarea
                   ref={cvChatInputRef}
                   className="cv-chat-input"
-                  placeholder="Colle une offre d'emploi ou décris ce que tu veux modifier..."
+                  placeholder={
+                    adaptPlanLoading
+                      ? 'Préparation de ton plan…'
+                      : adaptTodoPlan && !lastAdaptedCv
+                        ? "Valide d'abord la todo puis lance l'adaptation."
+                        : "Colle une offre d'emploi ou décris ce que tu veux modifier..."
+                  }
                   value={chatInput}
                   onChange={(e) => {
                     const el = e.target;
@@ -2658,9 +3131,9 @@ export default function App() {
                   }}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
                   rows={1}
-                  disabled={adapting}
+                  disabled={adapting || adaptPlanLoading || (!!adaptTodoPlan && !lastAdaptedCv)}
                 />
-                <button type="button" className="cv-chat-input-send" onClick={handleChatSend} disabled={adapting || !chatInput.trim()} aria-label="Envoyer">
+                <button type="button" className="cv-chat-input-send" onClick={handleChatSend} disabled={adapting || adaptPlanLoading || !chatInput.trim() || (!!adaptTodoPlan && !lastAdaptedCv)} aria-label="Envoyer">
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
                 </button>
               </div>
@@ -2757,7 +3230,9 @@ export default function App() {
                     }}
                   />
                 ) : (
-                  <div className="preview-iframe-wrap">
+                  <div
+                    className={`preview-iframe-wrap${adapting && adaptStreamMode ? ' preview-iframe-wrap--adapt-live' : ''}`}
+                  >
                     <iframe
                       ref={iframeRef}
                       key={`adapt-preview-${previewVariant}-${templateKey}`}

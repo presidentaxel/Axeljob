@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import DOMPurify from 'dompurify';
-import { apiGet, apiPost, apiGetBlob, apiPostFormData } from '../api';
+import { apiGet, apiPost, apiGetBlob, apiPostFormData, prepareAppleDownloadWindow, saveBlobWithPreferredMethod, getDownloadPermissionHint } from '../api';
 import CompanyLogo from './CompanyLogo';
 import { formatApplicationDateLabel } from '../lib/applicationDates';
 
@@ -60,17 +60,17 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
   const handleDetailDownload = async (type) => {
     if (!applicationDetailId) return;
     const path = `/api/applications/${encodeURIComponent(applicationDetailId)}/download/${type}`;
+    const preopenedWindow = prepareAppleDownloadWindow();
     setDetailDownloading(type);
     try {
       const { blob, filename } = await apiGetBlob(path);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename || (type === 'cv' ? 'cv.pdf' : type === 'lettre' ? 'lettre.pdf' : 'fiche.pdf');
-      a.click();
-      URL.revokeObjectURL(url);
+      await saveBlobWithPreferredMethod(blob, filename || (type === 'cv' ? 'cv.pdf' : type === 'lettre' ? 'lettre.pdf' : 'fiche.pdf'), {
+        preopenedWindow,
+      });
     } catch (e) {
-      setError(e.message || 'Téléchargement impossible.');
+      if (preopenedWindow && !preopenedWindow.closed) preopenedWindow.close();
+      const baseMessage = e.message || 'Téléchargement impossible.';
+      setError(`${baseMessage}${getDownloadPermissionHint()}`);
     } finally {
       setDetailDownloading(null);
     }

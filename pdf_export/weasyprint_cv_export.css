@@ -90,6 +90,17 @@ body.cv-preview .section-mots-cles-ats .mots-cles-ats-invisible,
   line-height: 1.15 !important;
 }
 
+/*
+  Minimal / Élégant (une colonne, pas de .cv-sidebar) : le bloc ATS est sur fond blanc.
+  Sans cette règle, le fallback #f4f4f2 ci-dessus laisse une légère teinte visible sur la page.
+*/
+body.cv-preview article.cv:not(.cv-print-split):not(.cv-pdf-dual-column) .section-mots-cles-ats .mots-cles-ats-invisible,
+body.cv-preview .cv:not(.cv-print-split):not(.cv-pdf-dual-column) .section-mots-cles-ats .mots-cles-ats-invisible,
+article.cv:not(.cv-print-split):not(.cv-pdf-dual-column) .section-mots-cles-ats .mots-cles-ats-invisible,
+.cv:not(.cv-print-split):not(.cv-pdf-dual-column) .section-mots-cles-ats .mots-cles-ats-invisible {
+  color: #ffffff !important;
+}
+
 body.cv-preview .section-mots-cles-ats .mots-cles-ats-titre,
 .section-mots-cles-ats .mots-cles-ats-titre {
   display: none !important;

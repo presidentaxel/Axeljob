@@ -737,6 +737,7 @@ export default function App() {
   const entrepriseFieldTouchedRef = useRef(false);
   const pdfEntrepriseModalMergedPosteRef = useRef('');
   const pdfEntrepriseModalPendingOptsRef = useRef(null);
+  const [baseCvPdfLoading, setBaseCvPdfLoading] = useState(false);
   const [pdfEntrepriseModalOpen, setPdfEntrepriseModalOpen] = useState(false);
   const [pdfEntrepriseModalValue, setPdfEntrepriseModalValue] = useState('');
   const [exportPrepTemplateOptionsNonce, setExportPrepTemplateOptionsNonce] = useState(0);
@@ -2277,6 +2278,39 @@ export default function App() {
     }
   };
 
+  const downloadBaseCvPdf = async () => {
+    setBaseCvPdfLoading(true);
+    const preopenedWindow = prepareAppleDownloadWindow();
+    const opts = templateOptions;
+    let base = null;
+    try {
+      base = await apiGet('/api/cv');
+    } catch (_) { /* fallback below */ }
+    if (!base) base = lastBaseCv;
+    if (base) setLastBaseCv(base);
+    if (!base) {
+      setBaseCvPdfLoading(false);
+      if (preopenedWindow && !preopenedWindow.closed) preopenedWindow.close();
+      showError('Impossible de charger ton CV de base. Vérifie ta connexion ou enregistre ton profil, puis réessaie.');
+      return;
+    }
+    try {
+      const pdfTemplateOptions = { ...opts, show_mots_cles_ats: opts?.show_mots_cles_ats !== false };
+      const { blob, filename } = await apiPostBlob('/api/pdf', {
+        cv: base,
+        template_id: templateId,
+        template_options: pdfTemplateOptions,
+      });
+      await saveBlobWithPreferredMethod(blob, filename || 'CV-base.pdf', { preopenedWindow });
+      trackEvent('base_cv_pdf_downloaded', { template_id: templateId, source: 'cv_tab' });
+    } catch (e) {
+      if (preopenedWindow && !preopenedWindow.closed) preopenedWindow.close();
+      showError(`Téléchargement PDF : ${e.message || e}${getDownloadPermissionHint()}`);
+    } finally {
+      setBaseCvPdfLoading(false);
+    }
+  };
+
   const doDownloadPdf = async (templateOptsOverride) => {
     if (!lastAdaptedCv) return;
     const h = exportHintsRef.current;
@@ -3155,6 +3189,20 @@ export default function App() {
                   onOpenFromUrlConsumed={() => navigate(location.pathname, { replace: true })}
                   optionsPreviewHtml={previewVariant === 'original' ? (originalPreviewHtml || previewHtmlFallback) : (modifiedPreviewHtml || previewHtmlFallback)}
                   optionsPreviewLoading={false}
+                  extraBarLeft={(
+                    <button
+                      type="button"
+                      className="tpl-btn-bar-extra"
+                      onClick={downloadBaseCvPdf}
+                      disabled={baseCvPdfLoading}
+                      title="Télécharger ton CV de profil (sans adaptation) en PDF, avec le template et les options actuels"
+                    >
+                      <span className="tpl-btn-bar-extra-icon" aria-hidden>
+                        <HiArrowDownTray size={16} strokeWidth={2} />
+                      </span>
+                      CV de base
+                    </button>
+                  )}
                 />
               </div>
               {lastAdaptedCv && adaptRating === null && (

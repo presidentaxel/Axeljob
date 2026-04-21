@@ -9,12 +9,16 @@
   flex-shrink: 0;
   border-bottom: 1px solid var(--border);
   background: var(--bg);
+  flex-wrap: wrap;
+  row-gap: 8px;
 }
 
 .tpl-bar-left {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .tpl-bar-right {
@@ -499,6 +503,38 @@
 
 .tpl-btn-open-modal:hover .tpl-btn-open-modal-chevron {
   transform: translateY(1px);
+}
+
+/* Bouton compagnon (ex. PDF CV de base) — aligné sur tpl-btn-open-modal */
+.tpl-btn-bar-extra {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, opacity 0.15s;
+  white-space: nowrap;
+}
+
+.tpl-btn-bar-extra:hover:not(:disabled) {
+  background: var(--bg-secondary);
+  border-color: var(--accent);
+}
+
+.tpl-btn-bar-extra:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.tpl-btn-bar-extra-icon {
+  display: flex;
+  color: var(--text-secondary);
 }
 
 /* --- Modale templates --- */

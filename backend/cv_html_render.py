@@ -3,8 +3,9 @@ Rendu HTML du CV (Jinja2 + CSS template) pour l’aperçu navigateur et WeasyPri
 
 Un seul point d’entrée : render_cv_html(). Toute la logique de contexte (expériences,
 formations, options template, CSS inliné, preview_responsive vs PDF) vit ici pour que
-l’export PDF et l’iframe utilisent exactement le même HTML lorsque for_preview/for_pdf
-sont identiques.
+l’export PDF et l’iframe soient alignés : avec CV_BOT_PDF_ENGINE=chromium, le bloc
+preview_responsive (même largeur .cv, césures, overflow) est aussi injecté pour le PDF ;
+WeasyPrint conserve l’ancien comportement (sans ce bloc) pour ne pas casser l’export.
 """
 from __future__ import annotations
 
@@ -19,6 +20,7 @@ if str(CV_BOT_ROOT) not in sys.path:
     sys.path.insert(0, str(CV_BOT_ROOT))
 
 from backend.config import API_BASE_URL
+from backend.cv_pdf_dispatch import pdf_engine_is_chromium
 from backend.template_registry import DEFAULT_TEMPLATE_ID
 
 _ATS_STOPWORDS = frozenset({
@@ -497,8 +499,13 @@ def render_cv_html(
             "</style>"
         )
         html_str = html_str.replace("</head>", highlight_styles + "</head>", 1)
-    if for_preview and not for_pdf:
-        preview_ats_keywords = _keywords_from_mots_cles_cache((cv.get("mots_cles_cache") or "").strip())
+    inject_preview_responsive = for_preview and (not for_pdf or pdf_engine_is_chromium())
+    if inject_preview_responsive:
+        preview_ats_keywords = (
+            _keywords_from_mots_cles_cache((cv.get("mots_cles_cache") or "").strip())
+            if not for_pdf
+            else []
+        )
         ats_kw_css = ""
         if preview_ats_keywords:
             ats_kw_css = (
@@ -553,7 +560,7 @@ def render_cv_html(
             + "</style>"
         )
         html_str = html_str.replace("</head>", preview_responsive + "</head>", 1)
-        if preview_ats_keywords:
+        if preview_ats_keywords and not for_pdf:
             html_str = _ats_highlight_preview_body(html_str, preview_ats_keywords)
     return html_str
 

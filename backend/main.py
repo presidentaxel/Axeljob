@@ -65,6 +65,7 @@ from backend.config import (
 from backend.rate_limit import check_rate_limit, rate_limit_max_adapt
 from backend.template_registry import DEFAULT_TEMPLATE_ID
 from backend.cv_html_render import render_cv_html as _render_cv_html
+from backend.cv_pdf_dispatch import pdf_engine_is_chromium
 
 _thread_pool = ThreadPoolExecutor(max_workers=thread_pool_max_workers())
 
@@ -889,10 +890,18 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
             "</style>"
         )
         html_str = html_str.replace("</head>", highlight_styles + "</head>", 1)
-    if for_preview and not for_pdf:
-        preview_ats_keywords = _keywords_from_mots_cles_cache((cv.get("mots_cles_cache") or "").strip())
+    # Aperçu iframe : toujours. PDF : uniquement avec Chromium (même moteur que le navigateur).
+    # WeasyPrint garde for_pdf sans ce bloc (overflow / hauteurs .cv cassaient l’export).
+    inject_preview_responsive = for_preview and (not for_pdf or pdf_engine_is_chromium())
+    if inject_preview_responsive:
+        preview_ats_keywords = (
+            _keywords_from_mots_cles_cache((cv.get("mots_cles_cache") or "").strip())
+            if not for_pdf
+            else []
+        )
         ats_kw_css = ""
         if preview_ats_keywords:
+
             ats_kw_css = (
                 "html.cv-preview span.cv-ats-kw{background-color:#c5e3cd!important;color:#0f2418!important;padding:0 2px;border-radius:2px;box-decoration-break:clone;-webkit-box-decoration-break:clone}"
                 "html.cv-preview .cv-header span.cv-ats-kw,html.cv-preview .cv-sidebar span.cv-ats-kw{background-color:#c5e3cd!important;color:#0f2418!important}"
@@ -944,7 +953,7 @@ def _render_cv_html(cv: dict, base_cv: dict | None = None, highlight_changes: bo
             + scrollbar_style + "</style>"
         )
         html_str = html_str.replace("</head>", preview_responsive + "</head>", 1)
-        if preview_ats_keywords:
+        if preview_ats_keywords and not for_pdf:
             html_str = _ats_highlight_preview_body(html_str, preview_ats_keywords)
     return html_str
 

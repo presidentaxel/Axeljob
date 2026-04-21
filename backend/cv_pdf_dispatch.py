@@ -21,6 +21,11 @@ def cv_pdf_engine() -> str:
     return "weasyprint"
 
 
+def pdf_engine_is_chromium() -> bool:
+    """True si le PDF est rendu via Chromium (Playwright) — même moteur que l’aperçu navigateur."""
+    return cv_pdf_engine() == "chromium"
+
+
 def html_to_cv_pdf_bytes(
     html_str: str,
     base_dir: Path,
@@ -48,8 +53,23 @@ def html_to_cv_pdf_bytes(
     if engine == "chromium":
         from backend.cv_pdf_chromium import html_to_cv_pdf_bytes_chromium
 
-        out = html_to_cv_pdf_bytes_chromium(html_str, base_resolved, template_id=template_id)
-        _log.info("Export PDF CV - Chromium termine (%d octets PDF).", len(out))
+        try:
+            out = html_to_cv_pdf_bytes_chromium(html_str, base_resolved, template_id=template_id)
+            _log.info("Export PDF CV - Chromium termine (%d octets PDF).", len(out))
+        except NotImplementedError:
+            # Windows + asyncio (boucle sans subprocess) : voir _ensure_windows_playwright_asyncio.
+            _log.warning(
+                "Export PDF CV - Chromium impossible (NotImplementedError / asyncio), repli WeasyPrint.",
+                exc_info=True,
+            )
+            print(
+                "[cv-bot] PDF export: chromium failed (NotImplementedError), falling back to weasyprint",
+                flush=True,
+            )
+            from backend.cv_pdf_weasyprint import html_to_cv_pdf_bytes as _wp
+
+            out = _wp(html_str, base_resolved, template_id=template_id)
+            _log.info("Export PDF CV - WeasyPrint (repli) termine (%d octets PDF).", len(out))
         return out
     from backend.cv_pdf_weasyprint import html_to_cv_pdf_bytes as _wp
 

@@ -1,11 +1,23 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
-import { apiGet, apiPut, apiPost, apiPostFile, apiUrl } from '../api';
+import {
+  apiGet,
+  apiPut,
+  apiPost,
+  apiPostFile,
+  apiPostBlob,
+  apiUrl,
+  getDownloadPermissionHint,
+  prepareAppleDownloadWindow,
+  saveBlobWithPreferredMethod,
+  trackEvent,
+} from '../api';
 import { supabase } from '../lib/supabase';
 import { defaultCv, newExpId, newFormId, newCertId, newProjId } from '../data/cvDefault';
 import TemplatePicker from './TemplatePicker';
 import ReauthModal from './ReauthModal';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from '../lib/cvPreviewA4Pages';
+import { HiArrowDownTray } from 'react-icons/hi2';
 import '../styles/ProfileView.css';
 import '../styles/TemplatePicker.css';
 
@@ -148,6 +160,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
   const [uploadPhotoLoading, setUploadPhotoLoading] = useState(false);
   const [profilePreviewHtml, setProfilePreviewHtml] = useState('');
   const [profilePreviewLoading, setProfilePreviewLoading] = useState(false);
+  const [baseCvPdfLoading, setBaseCvPdfLoading] = useState(false);
   const profilePreviewIframeRef = useRef(null);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [cropModalOpen, setCropModalOpen] = useState(false);
@@ -316,6 +329,28 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
       clearTimeout(t);
     };
   }, [cv, loading, templateKey]);
+
+  const downloadBaseCvPdf = useCallback(async () => {
+    if (loading) return;
+    setBaseCvPdfLoading(true);
+    setError('');
+    const preopenedWindow = prepareAppleDownloadWindow();
+    try {
+      const pdfTemplateOptions = { ...templateOptions, show_mots_cles_ats: templateOptions?.show_mots_cles_ats !== false };
+      const { blob, filename } = await apiPostBlob('/api/pdf', {
+        cv,
+        template_id: templateId,
+        template_options: pdfTemplateOptions,
+      });
+      await saveBlobWithPreferredMethod(blob, filename || 'CV-base.pdf', { preopenedWindow });
+      trackEvent('base_cv_pdf_downloaded', { template_id: templateId, source: 'profile' });
+    } catch (e) {
+      if (preopenedWindow && !preopenedWindow.closed) preopenedWindow.close();
+      setError(`Téléchargement PDF : ${e.message || e}${getDownloadPermissionHint()}`);
+    } finally {
+      setBaseCvPdfLoading(false);
+    }
+  }, [loading, cv, templateId, templateOptions]);
 
   // Template / HTML : réappliquer cadres A4 (onLoad parfois insuffisant après changement de srcDoc)
   useEffect(() => {
@@ -1375,6 +1410,20 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
             onUpgradeClick={onUpgradeClick}
             optionsPreviewHtml={profilePreviewHtml}
             optionsPreviewLoading={profilePreviewLoading}
+            extraBarLeft={(
+              <button
+                type="button"
+                className="tpl-btn-bar-extra"
+                onClick={downloadBaseCvPdf}
+                disabled={baseCvPdfLoading || loading}
+                title="Télécharger ton CV de profil (tel qu’affiché dans l’aperçu) en PDF"
+              >
+                <span className="tpl-btn-bar-extra-icon" aria-hidden>
+                  <HiArrowDownTray size={16} strokeWidth={2} />
+                </span>
+                CV de base
+              </button>
+            )}
           />
         </div>
         <div className="profile-preview-pane-scroll">

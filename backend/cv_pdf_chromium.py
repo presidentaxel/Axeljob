@@ -15,8 +15,24 @@ En conteneur, pointe l’API vers une URL joignable depuis le processus PDF (ex.
 """
 from __future__ import annotations
 
+import asyncio
 import os
+import sys
 from pathlib import Path
+
+
+def _ensure_windows_playwright_asyncio() -> None:
+    """
+    Sous Windows, la politique SelectorEventLoop ne gère pas subprocess → Playwright sync lève
+    NotImplementedError dans asyncio.create_subprocess_exec (ex. Python 3.12+ / thread Uvicorn).
+    ProactorEventLoop est requis pour lancer le navigateur Chromium.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    except Exception:
+        pass
 
 
 # Hauteur viewport : si trop basse (~1 page A4), Chromium sous-estime scrollHeight / fragmentation PDF.
@@ -110,6 +126,7 @@ def html_to_cv_pdf_bytes_chromium(
     base_dir: Path,
     template_id: str | None = None,
 ) -> bytes:
+    _ensure_windows_playwright_asyncio()
     try:
         from playwright.sync_api import sync_playwright
     except ImportError as e:

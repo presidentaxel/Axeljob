@@ -48,7 +48,7 @@ body {
 /* ----- Header ----- */
 .cv-header {
   background-color: var(--cv-header-color);
-  padding: 20px 28px 14px;
+  padding: 18px 28px 8px;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -99,7 +99,7 @@ body {
 
 /* ----- Body ----- */
 .cv-body {
-  padding: 12px 28px 16px;
+  padding: 6px 28px 16px;
   flex: 1;
   overflow: hidden;
 }
@@ -237,8 +237,8 @@ body {
 }
 
 /* PDF compact */
-body:not(.cv-preview) .cv-header { padding: 14px 24px 10px; }
-body:not(.cv-preview) .cv-body { padding: 8px 24px 12px; }
+body:not(.cv-preview) .cv-header { padding: 12px 24px 6px; }
+body:not(.cv-preview) .cv-body { padding: 5px 24px 12px; }
 body:not(.cv-preview) .section { margin-bottom: 6px; }
 body:not(.cv-preview) .section.section-resume {
   margin-bottom: 16px;

@@ -1,5 +1,11 @@
 export const STORAGE_EXPORT_DIR = 'cv_bot_last_export_dir';
 
+/** Modèle de nom de fichier pour l’export PDF du CV adapté (vide = défaut « CV - Prénom Nom - Poste »). */
+export const STORAGE_PDF_EXPORT_FILENAME_PATTERN = 'cv_bot_pdf_export_filename_pattern';
+
+/** Libellé du dossier d’ouverture mémorisé pour l’export PDF (affichage Profil). */
+export const STORAGE_PDF_EXPORT_START_DIR_LABEL = 'cv_bot_pdf_export_start_dir_label';
+
 /** Timestamp (ms) : après confirmation, ne plus afficher le rappel « bloc ATS » à l’export avant cette date. */
 export const STORAGE_EXPORT_ATS_BLOCK_SNOOZE = 'export_ats_block_prompt_snooze_until';
 

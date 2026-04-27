@@ -1319,3 +1319,45 @@
 .profile-cancel-sub-modal .profile-change-email-hint strong {
   color: var(--text, #1e293b);
 }
+
+.profile-inline-code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.88em;
+  background: var(--surface-2, #f1f5f9);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+
+.profile-export-filename-ex {
+  font-family: ui-monospace, monospace;
+  font-size: 0.9em;
+  word-break: break-all;
+}
+
+.profile-export-pdf-preview {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--muted, #64748b);
+}
+
+.profile-export-dir-badge {
+  margin: 0.35rem 0 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text, #1e293b);
+}
+
+.profile-export-pdf-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  margin-top: 0.35rem;
+}
+
+.profile-section-hint {
+  font-size: 0.88rem;
+  color: var(--muted, #64748b);
+  margin: 0.75rem 0 0;
+  line-height: 1.45;
+}

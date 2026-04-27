@@ -481,17 +481,65 @@ def download_application_doc_bytes(user_id: str, application_id: str, doc_type: 
         return None
 
 
+def _legacy_signed_app_doc_url_needs_resign(url: str) -> bool:
+    """
+    Anciennes candidatures : URL signée Storage enregistrée sans pdf_*_stored — JWT « exp » expiré.
+    Les URLs /object/public/ ne passent pas ici (pas de claim exp côté token).
+    """
+    s = (url or "").strip()
+    if not s or APPLICATION_DOCS_BUCKET not in s:
+        return False
+    if "/object/sign" not in s:
+        return False
+    return True
+
+
 def hydrate_application_pdf_urls(payload: dict, user_id: str, application_id: str) -> dict:
-    """Met à jour pdf_*_url pour les documents stockés (URLs signées renouvelées)."""
+    """Met à jour pdf_*_url pour les documents stockés (URLs signées renouvelées).
+    Inclut les anciennes entrées : URL signée `application_docs` en base sans `pdf_*_stored`."""
     if not payload:
         return payload
     out = dict(payload)
     uid = (user_id or "default").strip() or "default"
     for doc_type in APPLICATION_DOC_TYPES:
-        if out.get(f"pdf_{doc_type}_stored"):
+        key_stored = f"pdf_{doc_type}_stored"
+        key_url = f"pdf_{doc_type}_url"
+        should_refresh = bool(out.get(key_stored))
+        if not should_refresh and _legacy_signed_app_doc_url_needs_resign(
+            (out.get(key_url) or "").strip()
+        ):
+            should_refresh = True
+        if should_refresh:
             u = get_application_doc_signed_url(uid, application_id, doc_type)
             if u:
-                out[f"pdf_{doc_type}_url"] = u
+                out[key_url] = u
+                if not out.get(key_stored) and _legacy_signed_app_doc_url_needs_resign(
+                    (payload.get(key_url) or "").strip()
+                ):
+                    out[key_stored] = True
+    return out
+
+
+def hydrate_application_full_cv_photo(payload: dict, user_id: str | None) -> dict:
+    """
+    Même logique que GET /api/cv : photo profil en URL signée (JWT) dans full_cv,
+    rafraîchie à l’ouverture pour éviter « exp claim » côté Storage.
+    """
+    if not payload or not user_id or not _get_supabase():
+        return payload
+    out = dict(payload)
+    fc = out.get("full_cv")
+    if not isinstance(fc, dict):
+        return out
+    photo_url = (fc.get("photo_url") or "").strip()
+    is_supabase_signed = "supabase.co/storage" in photo_url and "/object/sign" in photo_url
+    if not photo_url or is_supabase_signed:
+        try:
+            u = get_cv_photo_public_url_for_user(user_id)
+            if u:
+                out["full_cv"] = {**fc, "photo_url": u}
+        except Exception:
+            pass
     return out
 
 

@@ -83,15 +83,19 @@ function getPickerTypesFromBlob(blob, filename) {
  * then fallback to browser-driven blob download.
  */
 export async function saveBlobWithPreferredMethod(blob, filename, options = {}) {
-  const { preopenedWindow = null } = options;
+  const { preopenedWindow = null, startIn = null } = options;
   const safeFilename = filename || 'download';
 
   if (typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function') {
     try {
-      const handle = await window.showSaveFilePicker({
+      const pickerOpts = {
         suggestedName: safeFilename,
         types: getPickerTypesFromBlob(blob, safeFilename),
-      });
+      };
+      if (startIn && typeof startIn === 'object' && startIn.kind) {
+        pickerOpts.startIn = startIn;
+      }
+      const handle = await window.showSaveFilePicker(pickerOpts);
       const writable = await handle.createWritable();
       await writable.write(blob);
       await writable.close();

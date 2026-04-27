@@ -122,6 +122,7 @@ uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ### 2. Frontend
 
 ```bash
+cd cv-bot
 cd frontend
 cp .env.example .env
 # Editer .env : VITE_API_URL, VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY

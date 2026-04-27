@@ -23,7 +23,9 @@ import AuthForm from './components/AuthForm';
 import AppTopbar from './components/AppTopbar';
 import CompanyLogo from './components/CompanyLogo';
 import { NotFoundPage } from './components/ErrorPages';
-import { CONTACT_EMAIL, STORAGE_EXPORT_DIR, STORAGE_EXPORT_ATS_BLOCK_SNOOZE, STORAGE_PRE_EXPORT_TEMPLATE_OPTIONS_DONE, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
+import { CONTACT_EMAIL, STORAGE_EXPORT_DIR, STORAGE_EXPORT_ATS_BLOCK_SNOOZE, STORAGE_PRE_EXPORT_TEMPLATE_OPTIONS_DONE, STORAGE_PDF_EXPORT_FILENAME_PATTERN, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
+import { buildAdaptedPdfFilename } from './lib/pdfExportFilename';
+import { getPdfSaveStartInDirectoryHandle } from './lib/pdfExportStartDirIdb';
 import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiCheck, HiSwatch, HiChevronDown, HiChevronUp } from 'react-icons/hi2';
 import { lazyWithChunkReload, clearChunkErrorReloadKey } from './lib/lazyChunkReload';
 import { getViewFromPathname } from './lib/appRoutes';
@@ -2248,7 +2250,21 @@ export default function App() {
       const pdfTemplateOptions = { ...opts, show_mots_cles_ats: opts?.show_mots_cles_ats !== false };
       const titre = (titreForPdf || '').trim();
       const ent = (entrepriseForPdf || '').trim();
-      const { blob, filename } = await apiPostBlob('/api/pdf', {
+      let pattern = '';
+      try {
+        pattern = localStorage.getItem(STORAGE_PDF_EXPORT_FILENAME_PATTERN) || '';
+      } catch (_) { /* ignore */ }
+      const suggestedFilename = buildAdaptedPdfFilename(pattern, {
+        prenom: lastAdaptedCv?.prenom,
+        nom: lastAdaptedCv?.nom,
+        poste: titre,
+        entreprise: ent,
+      });
+      let startIn = null;
+      try {
+        startIn = await getPdfSaveStartInDirectoryHandle();
+      } catch (_) { /* ignore */ }
+      const { blob } = await apiPostBlob('/api/pdf', {
         cv: lastAdaptedCv,
         titre: titre || undefined,
         entreprise: ent || undefined,
@@ -2256,7 +2272,7 @@ export default function App() {
         template_id: templateId,
         template_options: pdfTemplateOptions,
       });
-      await saveBlobWithPreferredMethod(blob, filename || 'CV.pdf', { preopenedWindow });
+      await saveBlobWithPreferredMethod(blob, suggestedFilename, { preopenedWindow, startIn });
       const count = parseInt(localStorage.getItem('pdf_export_count') || '0', 10) + 1;
       localStorage.setItem('pdf_export_count', String(count));
       if (lastAdaptationId) {
@@ -3905,6 +3921,7 @@ export default function App() {
             applicationDetailId={applicationDetailId}
             applications={applications}
             onClose={closeApplicationDetail}
+            onPosteUpdated={loadApplications}
           />
         )}
 

@@ -59,13 +59,13 @@ def _sanitize_filename(s: str, max_len: int = 80) -> str:
 
 
 def _nom_fichier_pdf(cv: dict, offre: dict) -> str:
-    """Nom du PDF CV : « CV - NOM PRENOM - POSTE » ; chaque partie absente est omise (ex. « CV.pdf », « CV - Dupont - Poste »)."""
+    """Nom du PDF CV : « CV - Prénom NOM - POSTE » ; chaque partie absente est omise (ex. « CV.pdf », « CV - Marie - Poste »)."""
     nom = _sanitize_filename((cv.get("nom") or "").strip())
     prenom = _sanitize_filename((cv.get("prenom") or "").strip())
     poste = _sanitize_filename((offre.get("titre") or "").strip())
 
     parts: list[str] = ["CV"]
-    identite = " ".join(x for x in (nom, prenom) if x)
+    identite = " ".join(x for x in (prenom, nom) if x)
     if identite:
         parts.append(identite)
     if poste:

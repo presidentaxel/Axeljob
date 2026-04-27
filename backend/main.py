@@ -80,6 +80,7 @@ from backend.db import (
     upload_application_doc,
     APPLICATION_DOC_TYPES,
     download_application_doc_bytes,
+    hydrate_application_full_cv_photo,
     hydrate_application_pdf_urls,
     count_applications,
     get_user_plan,
@@ -3749,7 +3750,9 @@ def api_application_get(request: Request, adaptation_id: str):
         raise HTTPException(status_code=404, detail="Candidature introuvable")
     payload = dict(payload)
     if USE_SUPABASE and user_id:
-        payload = hydrate_application_pdf_urls(payload, user_id or "default", adaptation_id)
+        uid = user_id or "default"
+        payload = hydrate_application_pdf_urls(payload, uid, adaptation_id)
+        payload = hydrate_application_full_cv_photo(payload, uid)
     if payload.get("lettre_corps"):
         from letter_generator import corps_lettre_to_html
         payload["lettre_html"] = corps_lettre_to_html(payload["lettre_corps"])

@@ -3484,13 +3484,74 @@ textarea::placeholder {
   margin-bottom: 0.2rem;
 }
 
-.application-detail-header h3 {
+.detail-header-title-heading {
+  display: inline;
   margin: 0;
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--text);
   line-height: 1.3;
+  color: var(--text);
+  max-width: 100%;
+  vertical-align: top;
+}
+
+.detail-header-title-text {
   word-break: break-word;
+}
+
+.detail-header-title-edit-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  vertical-align: top;
+}
+
+.detail-header-poste-input {
+  min-width: 10ch;
+  max-width: 100%;
+  flex: 0 1 auto;
+  margin: 0;
+  font-size: 1rem;
+  padding: 0.35rem 0.5rem;
+  field-sizing: content;
+  box-sizing: border-box;
+  overflow-x: auto;
+}
+
+.detail-header-text .btn-detail-edit-poste {
+  display: inline-flex;
+  width: 1.6rem;
+  height: 1.6rem;
+  min-width: 1.6rem;
+  min-height: 1.6rem;
+  margin: 0 0 0 0.2rem;
+  padding: 0;
+  flex-shrink: 0;
+  vertical-align: 0.1em;
+}
+
+.detail-header-edit-pencil {
+  width: 1rem;
+  height: 1rem;
+}
+
+.btn-detail-edit-poste:hover {
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.btn-detail-validate-poste {
+  color: #16a34a;
+}
+
+.btn-detail-validate-poste:hover:not(:disabled) {
+  color: #15803d;
+  background: rgba(22, 163, 74, 0.12);
+}
+
+.btn-detail-validate-poste:disabled {
+  opacity: 0.7;
 }
 
 .detail-date {

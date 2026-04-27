@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Cropper from 'react-easy-crop';
 import {
   apiGet,
@@ -14,6 +14,9 @@ import {
 } from '../api';
 import { supabase } from '../lib/supabase';
 import { defaultCv, newExpId, newFormId, newCertId, newProjId } from '../data/cvDefault';
+import { STORAGE_PDF_EXPORT_FILENAME_PATTERN, STORAGE_PDF_EXPORT_START_DIR_LABEL } from '../constants';
+import { DEFAULT_PDF_EXPORT_FILENAME_PATTERN, buildAdaptedPdfFilename } from '../lib/pdfExportFilename';
+import { setPdfSaveStartInDirectoryHandle, clearPdfSaveStartInDirectoryHandle } from '../lib/pdfExportStartDirIdb';
 import TemplatePicker from './TemplatePicker';
 import ReauthModal from './ReauthModal';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from '../lib/cvPreviewA4Pages';
@@ -183,6 +186,9 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState('');
+  const [pdfExportPattern, setPdfExportPattern] = useState('');
+  const [pdfExportDirLabel, setPdfExportDirLabel] = useState('');
+  const [pdfExportDirBusy, setPdfExportDirBusy] = useState(false);
   const [setPasswordOpen, setSetPasswordOpen] = useState(false);
   const [setPasswordNew, setSetPasswordNew] = useState('');
   const [setPasswordConfirm, setSetPasswordConfirm] = useState('');
@@ -219,6 +225,14 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
       .catch(() => setCv(defaultCv()))
       .finally(() => setLoading(false));
   }, [session?.user?.id, refreshKey]);
+
+  useEffect(() => {
+    if (!session) return;
+    try {
+      setPdfExportPattern(localStorage.getItem(STORAGE_PDF_EXPORT_FILENAME_PATTERN) || '');
+      setPdfExportDirLabel(localStorage.getItem(STORAGE_PDF_EXPORT_START_DIR_LABEL) || '');
+    } catch { /* ignore */ }
+  }, [session?.user?.id]);
 
   // Charger les facteurs MFA (optionnel, pour la section Compte et sécurité)
   useEffect(() => {
@@ -821,6 +835,16 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
     setTimeout(() => setMessage(''), 5000);
   };
 
+  const pdfExportFilenameExample = useMemo(
+    () => buildAdaptedPdfFilename(pdfExportPattern, {
+      prenom: cv.prenom,
+      nom: cv.nom,
+      poste: cv.titre_professionnel || 'Intitulé du poste',
+      entreprise: 'Entreprise',
+    }),
+    [pdfExportPattern, cv.prenom, cv.nom, cv.titre_professionnel]
+  );
+
   if (loading) return <div className="profile-loading">Chargement du profil…</div>;
 
   return (
@@ -1103,6 +1127,108 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
           ))}
           <button type="button" className="btn btn-add" onClick={() => addCompList('autres', '')}>+ Ajouter</button>
         </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Export du CV adapté (PDF)" defaultOpen={false}>
+        <p className="profile-section-desc">
+          Quand tu télécharges le PDF du CV <strong>après adaptation</strong> (onglet CV), le navigateur te propose
+          d’enregistrer le fichier : tu peux choisir le nom et l’emplacement. Le nom suggéré vient du modèle ci-dessous.
+        </p>
+        <label className="profile-full" htmlFor="pdf-export-pattern">Modèle du nom de fichier (laisser vide = défaut)</label>
+        <input
+          id="pdf-export-pattern"
+          type="text"
+          className="auth-input"
+          value={pdfExportPattern}
+          onChange={(e) => setPdfExportPattern(e.target.value)}
+          onBlur={() => {
+            try {
+              localStorage.setItem(STORAGE_PDF_EXPORT_FILENAME_PATTERN, pdfExportPattern.trim());
+            } catch { /* ignore */ }
+          }}
+          placeholder={DEFAULT_PDF_EXPORT_FILENAME_PATTERN}
+          autoComplete="off"
+        />
+        <p className="profile-section-desc" style={{ marginTop: '0.5rem' }}>
+          Placeholders : <code className="profile-inline-code">{'{prenom}'} {`{nom}`} {`{poste}`} {`{entreprise}`}</code>
+          {'. '}
+          Par défaut si le champ est vide : <code className="profile-inline-code">{DEFAULT_PDF_EXPORT_FILENAME_PATTERN}.pdf</code>
+        </p>
+        <p className="profile-export-pdf-preview" role="status">
+          <strong>Exemple</strong> avec ton profil et un intitulé fictif :{' '}
+          <span className="profile-export-filename-ex">{pdfExportFilenameExample}</span>
+        </p>
+        <p className="profile-section-desc" style={{ marginTop: '0.75rem' }}>
+          Dossier d’ouverture du dialogue d’enregistrement (Chrome, Edge, etc.) : mémorise un dossier pour que la fenêtre
+          &quot;Enregistrer&quot; s’y ouvre directement. Sans dossier mémorisé, le navigateur choisit l’emplacement habituel
+          (généralement Téléchargements).
+        </p>
+        {pdfExportDirLabel && (
+          <p className="profile-export-dir-badge" role="status">
+            Dossier mémorisé : <strong>{pdfExportDirLabel}</strong>
+          </p>
+        )}
+        <div className="profile-export-pdf-actions">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={pdfExportDirBusy || typeof showDirectoryPicker !== 'function'}
+            onClick={async () => {
+              if (typeof showDirectoryPicker !== 'function') return;
+              setPdfExportDirBusy(true);
+              setError('');
+              try {
+                const d = await showDirectoryPicker();
+                await setPdfSaveStartInDirectoryHandle(d);
+                try {
+                  localStorage.setItem(STORAGE_PDF_EXPORT_START_DIR_LABEL, d.name);
+                } catch { /* ignore */ }
+                setPdfExportDirLabel(d.name);
+                setMessage('Dossier mémorisé pour les prochains exports PDF du CV adapté.');
+                setTimeout(() => setMessage(''), 5000);
+              } catch (e) {
+                if (e?.name === 'AbortError') {
+                  return;
+                }
+                setError(e?.message || 'Impossible d’enregistrer le dossier.');
+              } finally {
+                setPdfExportDirBusy(false);
+              }
+            }}
+          >
+            {pdfExportDirBusy ? 'Sélection…' : (pdfExportDirLabel ? 'Changer le dossier par défaut…' : 'Choisir le dossier par défaut…')}
+          </button>
+          {pdfExportDirLabel && (
+            <button
+              type="button"
+              className="btn btn-tertiary"
+              disabled={pdfExportDirBusy}
+              onClick={async () => {
+                setPdfExportDirBusy(true);
+                setError('');
+                try {
+                  await clearPdfSaveStartInDirectoryHandle();
+                  try { localStorage.removeItem(STORAGE_PDF_EXPORT_START_DIR_LABEL); } catch { /* ignore */ }
+                  setPdfExportDirLabel('');
+                  setMessage('Dossier par défaut oublié pour les exports PDF.');
+                  setTimeout(() => setMessage(''), 5000);
+                } catch (e) {
+                  setError(e?.message || 'Impossible d’oublier le dossier.');
+                } finally {
+                  setPdfExportDirBusy(false);
+                }
+              }}
+            >
+              Oublier le dossier
+            </button>
+          )}
+        </div>
+        {typeof showDirectoryPicker !== 'function' && (
+          <p className="profile-section-hint" role="note">
+            La mémorisation d’un dossier n’est pas disponible sur ce navigateur. Le nom de fichier personnalisé s’applique
+            quand même une fois l’enregistrement lancé.
+          </p>
+        )}
       </CollapsibleSection>
 
       {usage?.plan === 'pro' && !usage?.paywall_disabled && (

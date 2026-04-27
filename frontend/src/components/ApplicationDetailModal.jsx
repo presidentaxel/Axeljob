@@ -1,13 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
 import DOMPurify from 'dompurify';
-import { apiGet, apiPost, apiGetBlob, apiPostFormData, prepareAppleDownloadWindow, saveBlobWithPreferredMethod, getDownloadPermissionHint } from '../api';
+import { HiPencil, HiCheck } from 'react-icons/hi2';
+import { apiGet, apiPost, apiPatch, apiGetBlob, apiPostFormData, prepareAppleDownloadWindow, saveBlobWithPreferredMethod, getDownloadPermissionHint } from '../api';
 import CompanyLogo from './CompanyLogo';
 import { formatApplicationDateLabel } from '../lib/applicationDates';
 
 const DOC_LABELS = { lettre: 'Lettre de motivation', cv: 'CV', fiche: 'Fiche de poste' };
 
-export default function ApplicationDetailModal({ applicationDetailId, applications, onClose }) {
+export default function ApplicationDetailModal({ applicationDetailId, applications, onClose, onPosteUpdated }) {
   const [applicationDetail, setApplicationDetail] = useState(null);
+  const [editingPoste, setEditingPoste] = useState(false);
+  const [posteDraft, setPosteDraft] = useState('');
+  const [posteSaving, setPosteSaving] = useState(false);
   const [detailTab, setDetailTab] = useState('cv');
   const [detailCvHtml, setDetailCvHtml] = useState('');
   const [detailLetterHtml, setDetailLetterHtml] = useState('');
@@ -22,6 +26,8 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
     setDetailTab('cv');
     setDetailCvHtml('');
     setDetailLetterHtml('');
+    setEditingPoste(false);
+    setPosteDraft('');
     apiGet(`/api/applications/${encodeURIComponent(applicationDetailId)}`)
       .then((payload) => {
         setApplicationDetail(payload);
@@ -76,6 +82,41 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
     }
   };
 
+  const posteDisplay = () => {
+    if (!applicationDetail) return '';
+    return (applicationDetail.poste || applicationDetail.poste_offre || '').trim() || 'Sans intitulé';
+  };
+
+  const startEditPoste = () => {
+    if (!applicationDetail) return;
+    const raw = (applicationDetail.poste || applicationDetail.poste_offre || '').trim();
+    setPosteDraft(raw);
+    setEditingPoste(true);
+  };
+
+  const cancelEditPoste = () => {
+    setEditingPoste(false);
+    setPosteDraft('');
+  };
+
+  const commitPoste = async () => {
+    if (!applicationDetailId) return;
+    setPosteSaving(true);
+    setError('');
+    const next = posteDraft.trim();
+    try {
+      await apiPatch(`/api/applications/${encodeURIComponent(applicationDetailId)}`, { poste: next });
+      setApplicationDetail((prev) => (prev ? { ...prev, poste: next } : null));
+      setEditingPoste(false);
+      setPosteDraft('');
+      onPosteUpdated?.();
+    } catch (e) {
+      setError(e.message || 'Impossible d’enregistrer l’intitulé.');
+    } finally {
+      setPosteSaving(false);
+    }
+  };
+
   const handleUploadDoc = async (docType, file) => {
     if (!applicationDetailId || !file) return;
     if (file.type !== 'application/pdf' && !(file.name || '').toLowerCase().endsWith('.pdf')) return;
@@ -100,6 +141,12 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
 
   const app = applications.find((a) => a.id === applicationDetailId);
 
+  const posteInputWidthStyle = (() => {
+    const len = (posteDraft || '').length;
+    const ch = Math.min(Math.max(len + 3, 12), 96);
+    return { width: `min(100%, ${ch}ch)` };
+  })();
+
   return (
     <div className="application-detail-overlay" onClick={onClose} role="dialog" aria-modal="true">
       <div className="application-detail-modal" onClick={(e) => e.stopPropagation()}>
@@ -107,7 +154,52 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
           <CompanyLogo companyName={applicationDetail.entreprise} className="detail-company-logo" size={44} />
           <div className="detail-header-text">
             <span className="detail-entreprise">{applicationDetail.entreprise || ''}</span>
-            <h3>{applicationDetail.poste || applicationDetail.poste_offre || 'Sans intitulé'}</h3>
+            {editingPoste ? (
+              <div className="detail-header-title-edit-wrap">
+                <input
+                  type="text"
+                  className="input-field detail-header-poste-input"
+                  style={posteInputWidthStyle}
+                  value={posteDraft}
+                  onChange={(e) => setPosteDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void commitPoste();
+                    } else if (e.key === 'Escape') {
+                      e.preventDefault();
+                      cancelEditPoste();
+                    }
+                  }}
+                  disabled={posteSaving}
+                  autoFocus
+                  aria-label="Intitulé du poste"
+                />
+                <button
+                  type="button"
+                  className="btn btn-icon btn-detail-validate-poste"
+                  onClick={() => void commitPoste()}
+                  disabled={posteSaving}
+                  title="Valider"
+                  aria-label="Valider l’intitulé"
+                >
+                  {posteSaving ? '…' : <HiCheck aria-hidden />}
+                </button>
+              </div>
+            ) : (
+              <h3 className="detail-header-title-heading">
+                <span className="detail-header-title-text">{posteDisplay()}</span>
+                <button
+                  type="button"
+                  className="btn btn-icon btn-detail-edit-poste"
+                  onClick={startEditPoste}
+                  title="Modifier l’intitulé"
+                  aria-label="Modifier l’intitulé du poste"
+                >
+                  <HiPencil aria-hidden className="detail-header-edit-pencil" />
+                </button>
+              </h3>
+            )}
             {app?.date && <span className="detail-date">{formatApplicationDateLabel(app.date)}</span>}
           </div>
           <button type="button" className="btn-close-detail" onClick={onClose} aria-label="Fermer">×</button>

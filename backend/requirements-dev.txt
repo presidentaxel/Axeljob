@@ -6,7 +6,7 @@
 #   pip install -r backend/requirements.txt -r backend/requirements-dev.txt
 
 # Utilisé par backend/scripts/cv_pdf_to_template.py (rasterize PDF → image avant Gemini Vision).
-PyMuPDF==1.25.1
+PyMuPDF==1.27.2.3
 
 # Typage mypy pour requests (lazy import dans main.py).
-types-requests>=2.32
+types-requests>=2.33.0.20260503

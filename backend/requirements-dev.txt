@@ -9,4 +9,4 @@
 PyMuPDF==1.25.1
 
 # Typage mypy pour requests (lazy import dans main.py).
-types-requests>=2.32
+types-requests>=2.33.0.20260503

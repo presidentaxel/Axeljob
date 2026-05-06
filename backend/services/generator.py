@@ -13,7 +13,10 @@ if os.name == "nt":
             if dir_path and os.path.isdir(dir_path):
                 os.environ["PATH"] = dir_path + os.pathsep + os.environ.get("PATH", "")
                 try:
-                    os.add_dll_directory(dir_path)
+                    # API Windows uniquement : absent des stubs Linux (CI GitHub).
+                    add_dll = getattr(os, "add_dll_directory", None)
+                    if add_dll is not None:
+                        add_dll(dir_path)
                 except OSError:
                     pass
 

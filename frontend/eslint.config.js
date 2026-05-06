@@ -7,7 +7,17 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 export default defineConfig([
   globalIgnores(['dist', 'playwright.config.js', 'e2e/**']),
   {
+    files: ['vite.config.js'],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: globals.node,
+      sourceType: 'module',
+    },
+  },
+  {
     files: ['**/*.{js,jsx}'],
+    ignores: ['vite.config.js'],
     extends: [
       js.configs.recommended,
       reactHooks.configs.flat.recommended,
@@ -23,7 +33,16 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'no-unused-vars': [
+        'error',
+        {
+          varsIgnorePattern: '^[A-Z_]',
+          argsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
+      // Trop bruyant avec les patterns usuels React (sync d’état léger au montage dans un effet).
+      'react-hooks/set-state-in-effect': 'off',
     },
   },
 ])

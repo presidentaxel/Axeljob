@@ -14,9 +14,7 @@ import {
 } from '../api';
 import { supabase } from '../lib/supabase';
 import { defaultCv, newExpId, newFormId, newCertId, newProjId } from '../data/cvDefault';
-import { STORAGE_PDF_EXPORT_FILENAME_PATTERN, STORAGE_PDF_EXPORT_START_DIR_LABEL } from '../constants';
-import { DEFAULT_PDF_EXPORT_FILENAME_PATTERN, buildAdaptedPdfFilename } from '../lib/pdfExportFilename';
-import { setPdfSaveStartInDirectoryHandle, clearPdfSaveStartInDirectoryHandle } from '../lib/pdfExportStartDirIdb';
+import { buildAdaptedPdfFilename } from '../lib/pdfExportFilename';
 import TemplatePicker from './TemplatePicker';
 import ReauthModal from './ReauthModal';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from '../lib/cvPreviewA4Pages';
@@ -62,17 +60,6 @@ const LINKEDIN_PHOTO_KEY = 'linkedin_photo_pending';
 
 const AUTO_SAVE_DELAY_MS = 1500;
 const LIVE_PREVIEW_DEBOUNCE_MS = 600;
-
-/** Convertit une date stockée (MM/AAAA, AAAA-MM, etc.) en valeur pour input type="month" (AAAA-MM). Pour expériences on utilise du texte libre. */
-function toMonthValue(str) {
-  if (!str || typeof str !== 'string') return '';
-  const s = str.trim();
-  const match = s.match(/^(\d{4})-(\d{1,2})$/); // déjà AAAA-MM
-  if (match) return `${match[1]}-${match[2].padStart(2, '0')}`;
-  const match2 = s.match(/^(\d{1,2})\/(\d{4})$/); // MM/AAAA
-  if (match2) return `${match2[2]}-${match2[1].padStart(2, '0')}`;
-  return s;
-}
 
 function ProfileCompletion({ cv }) {
   const checks = [
@@ -178,17 +165,9 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
   const [importStepIndex, setImportStepIndex] = useState(0);
   const importStepTimerRef = useRef(null);
   const importFinalisationTimerRef = useRef(null);
-  const [changeEmailOpen, setChangeEmailOpen] = useState(false);
-  const [changeEmailNew, setChangeEmailNew] = useState('');
-  const [changeEmailPassword, setChangeEmailPassword] = useState('');
-  const [changeEmailLoading, setChangeEmailLoading] = useState(false);
-  const [changeEmailError, setChangeEmailError] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState('');
-  const [pdfExportPattern, setPdfExportPattern] = useState('');
-  const [pdfExportDirLabel, setPdfExportDirLabel] = useState('');
-  const [pdfExportDirBusy, setPdfExportDirBusy] = useState(false);
   const [setPasswordOpen, setSetPasswordOpen] = useState(false);
   const [setPasswordNew, setSetPasswordNew] = useState('');
   const [setPasswordConfirm, setSetPasswordConfirm] = useState('');
@@ -196,18 +175,9 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
   const [setPasswordError, setSetPasswordError] = useState('');
   const [cancelSubModalOpen, setCancelSubModalOpen] = useState(false);
   const [cancelSubLoading, setCancelSubLoading] = useState(false);
-  const [mfaFactors, setMfaFactors] = useState({ totp: [], phone: [] });
-  const [mfaEnrollOpen, setMfaEnrollOpen] = useState(false);
-  const [mfaEnrollQr, setMfaEnrollQr] = useState('');
-  const [mfaEnrollFactorId, setMfaEnrollFactorId] = useState('');
-  const [mfaEnrollCode, setMfaEnrollCode] = useState('');
-  const [mfaEnrollLoading, setMfaEnrollLoading] = useState(false);
-  const [mfaEnrollError, setMfaEnrollError] = useState('');
-  const [mfaUnenrollLoading, setMfaUnenrollLoading] = useState(null);
   const fileInputRef = useRef(null);
   const importFileRef = useRef(null);
   const skipNextAutoSaveRef = useRef(true);
-  const autoSaveTimeoutRef = useRef(null);
 
   // Données profil : exclusivement depuis Supabase (liées au compte connecté via JWT)
   useEffect(() => {
@@ -225,28 +195,6 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
       .catch(() => setCv(defaultCv()))
       .finally(() => setLoading(false));
   }, [session?.user?.id, refreshKey]);
-
-  useEffect(() => {
-    if (!session) return;
-    try {
-      setPdfExportPattern(localStorage.getItem(STORAGE_PDF_EXPORT_FILENAME_PATTERN) || '');
-      setPdfExportDirLabel(localStorage.getItem(STORAGE_PDF_EXPORT_START_DIR_LABEL) || '');
-    } catch { /* ignore */ }
-  }, [session?.user?.id]);
-
-  // Charger les facteurs MFA (optionnel, pour la section Compte et sécurité)
-  useEffect(() => {
-    if (!session || !supabase?.auth?.mfa?.listFactors) return;
-    supabase.auth.mfa.listFactors()
-      .then(({ data, error }) => {
-        if (error) return;
-        setMfaFactors({
-          totp: (data?.totp || []).filter((f) => f.status === 'verified'),
-          phone: (data?.phone || []).filter((f) => f.status === 'verified'),
-        });
-      })
-      .catch(() => {});
-  }, [session?.user?.id]);
 
   // Auto-trigger LinkedIn sync/photo after OAuth redirect
   const linkedinAutoTriggeredRef = useRef(false);
@@ -512,10 +460,6 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
   };
 
   const comp = cv.competences || { techniques: [], logiciels: [], langues: [], autres: [] };
-  const setComp = (key, arr) => setCv((prev) => ({
-    ...prev,
-    competences: { ...(prev.competences || {}), [key]: arr },
-  }));
   const updateCompList = (key, index, value) => setCv((prev) => {
     const arr = [...(prev.competences?.[key] || [])];
     const current = arr[index];
@@ -602,19 +546,6 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
       setError(e.message || 'Impossible d\'importer la photo LinkedIn.');
     } finally {
       setImportPhotoLoading(false);
-    }
-  };
-
-  const handleFetchLinkedIn = async () => {
-    const token = session?.provider_token;
-    if (!token) {
-      await initiateLinkedInOAuth(LINKEDIN_SYNC_KEY);
-      return;
-    }
-    try {
-      await fetchLinkedInWithToken(token);
-    } catch {
-      await initiateLinkedInOAuth(LINKEDIN_SYNC_KEY);
     }
   };
 
@@ -780,7 +711,9 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
           const current = cv[key];
           try {
             if (JSON.stringify(imported) === JSON.stringify(current)) return;
-          } catch (_) {}
+          } catch {
+            /* non-serializable fragment: fall through to merge UI */
+          }
           const hasCurrent = Array.isArray(current) ? current.some((e) => (e && (e.poste || e.entreprise || e.diplome || e.nom || (e.bullet_points && e.bullet_points.some(Boolean))))) : (current && typeof current === 'object' && ((current.techniques || []).some(Boolean) || (current.logiciels || []).some(Boolean)));
           choices[key] = hasCurrent ? 'keep' : 'replace';
         });
@@ -836,13 +769,13 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
   };
 
   const pdfExportFilenameExample = useMemo(
-    () => buildAdaptedPdfFilename(pdfExportPattern, {
+    () => buildAdaptedPdfFilename('', {
       prenom: cv.prenom,
       nom: cv.nom,
       poste: cv.titre_professionnel || 'Intitulé du poste',
       entreprise: 'Entreprise',
     }),
-    [pdfExportPattern, cv.prenom, cv.nom, cv.titre_professionnel]
+    [cv.prenom, cv.nom, cv.titre_professionnel]
   );
 
   if (loading) return <div className="profile-loading">Chargement du profil…</div>;
@@ -1131,104 +1064,14 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
 
       <CollapsibleSection title="Export du CV adapté (PDF)" defaultOpen={false}>
         <p className="profile-section-desc">
-          Quand tu télécharges le PDF du CV <strong>après adaptation</strong> (onglet CV), le navigateur te propose
-          d’enregistrer le fichier : tu peux choisir le nom et l’emplacement. Le nom suggéré vient du modèle ci-dessous.
-        </p>
-        <label className="profile-full" htmlFor="pdf-export-pattern">Modèle du nom de fichier (laisser vide = défaut)</label>
-        <input
-          id="pdf-export-pattern"
-          type="text"
-          className="auth-input"
-          value={pdfExportPattern}
-          onChange={(e) => setPdfExportPattern(e.target.value)}
-          onBlur={() => {
-            try {
-              localStorage.setItem(STORAGE_PDF_EXPORT_FILENAME_PATTERN, pdfExportPattern.trim());
-            } catch { /* ignore */ }
-          }}
-          placeholder={DEFAULT_PDF_EXPORT_FILENAME_PATTERN}
-          autoComplete="off"
-        />
-        <p className="profile-section-desc" style={{ marginTop: '0.5rem' }}>
-          Placeholders : <code className="profile-inline-code">{'{prenom}'} {`{nom}`} {`{poste}`} {`{entreprise}`}</code>
-          {'. '}
-          Par défaut si le champ est vide : <code className="profile-inline-code">{DEFAULT_PDF_EXPORT_FILENAME_PATTERN}.pdf</code>
+          Depuis l&apos;onglet CV, quand tu enregistres le PDF du CV <strong>adapté</strong> à une offre, le navigateur ouvre
+          la fenêtre d&apos;enregistrement avec un <strong>nom déjà proposé</strong> (ton prénom, nom et l&apos;intitulé de l&apos;offre).
+          Tu peux le modifier ou choisir un autre dossier à ce moment-là, comme pour n&apos;importe quel téléchargement.
         </p>
         <p className="profile-export-pdf-preview" role="status">
-          <strong>Exemple</strong> avec ton profil et un intitulé fictif :{' '}
+          <strong>Exemple de nom suggéré</strong> (avec ton profil et un intitulé fictif)&nbsp;:{' '}
           <span className="profile-export-filename-ex">{pdfExportFilenameExample}</span>
         </p>
-        <p className="profile-section-desc" style={{ marginTop: '0.75rem' }}>
-          Dossier d’ouverture du dialogue d’enregistrement (Chrome, Edge, etc.) : mémorise un dossier pour que la fenêtre
-          &quot;Enregistrer&quot; s’y ouvre directement. Sans dossier mémorisé, le navigateur choisit l’emplacement habituel
-          (généralement Téléchargements).
-        </p>
-        {pdfExportDirLabel && (
-          <p className="profile-export-dir-badge" role="status">
-            Dossier mémorisé : <strong>{pdfExportDirLabel}</strong>
-          </p>
-        )}
-        <div className="profile-export-pdf-actions">
-          <button
-            type="button"
-            className="btn btn-secondary"
-            disabled={pdfExportDirBusy || typeof showDirectoryPicker !== 'function'}
-            onClick={async () => {
-              if (typeof showDirectoryPicker !== 'function') return;
-              setPdfExportDirBusy(true);
-              setError('');
-              try {
-                const d = await showDirectoryPicker();
-                await setPdfSaveStartInDirectoryHandle(d);
-                try {
-                  localStorage.setItem(STORAGE_PDF_EXPORT_START_DIR_LABEL, d.name);
-                } catch { /* ignore */ }
-                setPdfExportDirLabel(d.name);
-                setMessage('Dossier mémorisé pour les prochains exports PDF du CV adapté.');
-                setTimeout(() => setMessage(''), 5000);
-              } catch (e) {
-                if (e?.name === 'AbortError') {
-                  return;
-                }
-                setError(e?.message || 'Impossible d’enregistrer le dossier.');
-              } finally {
-                setPdfExportDirBusy(false);
-              }
-            }}
-          >
-            {pdfExportDirBusy ? 'Sélection…' : (pdfExportDirLabel ? 'Changer le dossier par défaut…' : 'Choisir le dossier par défaut…')}
-          </button>
-          {pdfExportDirLabel && (
-            <button
-              type="button"
-              className="btn btn-tertiary"
-              disabled={pdfExportDirBusy}
-              onClick={async () => {
-                setPdfExportDirBusy(true);
-                setError('');
-                try {
-                  await clearPdfSaveStartInDirectoryHandle();
-                  try { localStorage.removeItem(STORAGE_PDF_EXPORT_START_DIR_LABEL); } catch { /* ignore */ }
-                  setPdfExportDirLabel('');
-                  setMessage('Dossier par défaut oublié pour les exports PDF.');
-                  setTimeout(() => setMessage(''), 5000);
-                } catch (e) {
-                  setError(e?.message || 'Impossible d’oublier le dossier.');
-                } finally {
-                  setPdfExportDirBusy(false);
-                }
-              }}
-            >
-              Oublier le dossier
-            </button>
-          )}
-        </div>
-        {typeof showDirectoryPicker !== 'function' && (
-          <p className="profile-section-hint" role="note">
-            La mémorisation d’un dossier n’est pas disponible sur ce navigateur. Le nom de fichier personnalisé s’applique
-            quand même une fois l’enregistrement lancé.
-          </p>
-        )}
       </CollapsibleSection>
 
       {usage?.plan === 'pro' && !usage?.paywall_disabled && (
@@ -1336,10 +1179,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
       )}
 
       <CollapsibleSection title="Compte et sécurité" defaultOpen={false}>
-        <p className="profile-section-desc">Gère l&apos;email de connexion et la sécurité de ton compte.</p>
-        <button type="button" className="btn btn-secondary" onClick={() => { setChangeEmailOpen(true); setChangeEmailNew(''); setChangeEmailPassword(''); setChangeEmailError(''); }}>
-          Changer l&apos;email du compte
-        </button>
+        <p className="profile-section-desc">Gère la sécurité de ton compte (mot de passe, invitations).</p>
         <div className="profile-set-password-block">
           <p className="profile-section-desc">Tu peux définir un mot de passe pour te connecter aussi par email et mot de passe (utile si tu n&apos;utilises que le lien magique ou Google/LinkedIn).</p>
           <button type="button" className="btn btn-secondary" onClick={() => { setSetPasswordOpen(true); setSetPasswordNew(''); setSetPasswordConfirm(''); setSetPasswordError(''); }}>
@@ -1401,119 +1241,6 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
           </form>
           {inviteError && <div className="auth-error">{inviteError}</div>}
         </div>
-        <div className="profile-mfa-block">
-          <p className="profile-section-desc">Authentification à deux facteurs (optionnel) : ajoute une vérification via une app (Google Authenticator, Authy, etc.). Ce n&apos;est pas obligatoire.</p>
-          {(mfaFactors.totp && mfaFactors.totp.length > 0) ? (
-            <div className="profile-mfa-factors">
-              <span className="profile-mfa-label">App authentificatrice activée</span>
-              {mfaFactors.totp.map((f) => (
-                <div key={f.id} className="profile-mfa-factor-row">
-                  <span>{f.friendly_name || 'TOTP'}</span>
-                  <button type="button" className="btn btn-secondary btn-sm" disabled={mfaUnenrollLoading === f.id} onClick={async () => {
-                    setMfaUnenrollLoading(f.id);
-                    try {
-                      const { error: err } = await supabase.auth.mfa.unenroll({ factorId: f.id });
-                      if (err) throw err;
-                      setMfaFactors((prev) => ({ ...prev, totp: (prev.totp || []).filter((x) => x.id !== f.id) }));
-                      setMessage('Authentification à deux facteurs désactivée.');
-                    } catch (e) {
-                      setError(e?.message || 'Impossible de retirer le facteur.');
-                    } finally {
-                      setMfaUnenrollLoading(null);
-                    }
-                  }}>{mfaUnenrollLoading === f.id ? '…' : 'Retirer'}</button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <button type="button" className="btn btn-secondary" onClick={() => {
-              setMfaEnrollOpen(true);
-              setMfaEnrollError('');
-              setMfaEnrollCode('');
-              setMfaEnrollQr('');
-              setMfaEnrollFactorId('');
-              if (!supabase?.auth?.mfa?.enroll) return;
-              supabase.auth.mfa.enroll({ factorType: 'totp' })
-                .then(({ data, error }) => {
-                  if (error) throw error;
-                  setMfaEnrollFactorId(data?.id ?? '');
-                  const qr = data?.totp?.qr_code;
-                  if (qr) setMfaEnrollQr(qr.startsWith('data:') ? qr : `data:image/svg+xml;charset=utf-8,${encodeURIComponent(qr)}`);
-                })
-                .catch((e) => setMfaEnrollError(e?.message || 'Impossible de démarrer l\'activation MFA.'));
-            }}>
-              Activer l&apos;authentification à deux facteurs (app authentificatrice)
-            </button>
-          )}
-        </div>
-        {mfaEnrollOpen && (
-          <div className="profile-change-email-overlay" onClick={() => setMfaEnrollOpen(false)} role="dialog" aria-modal="true">
-            <div className="profile-change-email-modal profile-mfa-enroll-modal" onClick={(e) => e.stopPropagation()}>
-              <h3>Activer l&apos;authentification à deux facteurs</h3>
-              <p className="profile-change-email-hint">Scanne le QR code avec ton app (Google Authenticator, Authy, etc.) puis entre le code à 6 chiffres.</p>
-              {mfaEnrollQr && <div className="profile-mfa-qr-wrap"><img src={mfaEnrollQr} alt="QR code TOTP" className="profile-mfa-qr" /></div>}
-              <input type="text" inputMode="numeric" maxLength={6} placeholder="Code à 6 chiffres" value={mfaEnrollCode} onChange={(e) => setMfaEnrollCode(e.target.value.replace(/\D/g, '').slice(0, 6))} className="auth-input profile-mfa-code-input" />
-              {mfaEnrollError && <div className="auth-error">{mfaEnrollError}</div>}
-              <div className="reauth-actions">
-                <button type="button" className="btn btn-primary" disabled={mfaEnrollLoading || !mfaEnrollFactorId || mfaEnrollCode.length !== 6} onClick={async () => {
-                  setMfaEnrollError('');
-                  setMfaEnrollLoading(true);
-                  try {
-                    const { data: challengeData, error: chErr } = await supabase.auth.mfa.challenge({ factorId: mfaEnrollFactorId });
-                    if (chErr) throw chErr;
-                    const { error: verifyErr } = await supabase.auth.mfa.verify({ factorId: mfaEnrollFactorId, challengeId: challengeData.id, code: mfaEnrollCode });
-                    if (verifyErr) throw verifyErr;
-                    setMfaFactors((prev) => ({ ...prev, totp: [...(prev.totp || []), { id: mfaEnrollFactorId, friendly_name: 'TOTP', status: 'verified' }] }));
-                    setMessage('Authentification à deux facteurs activée.');
-                    setMfaEnrollOpen(false);
-                  } catch (e) {
-                    setMfaEnrollError(e?.message || 'Code invalide. Réessaie.');
-                  } finally {
-                    setMfaEnrollLoading(false);
-                  }
-                }}>{mfaEnrollLoading ? '…' : 'Activer'}</button>
-                <button type="button" className="btn btn-secondary" onClick={() => setMfaEnrollOpen(false)}>Annuler</button>
-              </div>
-            </div>
-          </div>
-        )}
-        {changeEmailOpen && (
-          <div className="profile-change-email-overlay" onClick={() => setChangeEmailOpen(false)} role="dialog" aria-modal="true">
-            <div className="profile-change-email-modal" onClick={(e) => e.stopPropagation()}>
-              <h3>Changer l&apos;email</h3>
-              <p className="profile-change-email-hint">Un lien de confirmation sera envoyé à ta nouvelle adresse. Tu devras le valider pour que le changement soit pris en compte.</p>
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                setChangeEmailError('');
-                if (!changeEmailNew.trim()) { setChangeEmailError('Saisis ta nouvelle adresse email.'); return; }
-                setChangeEmailLoading(true);
-                try {
-                  const currentEmail = session?.user?.email;
-                  if (currentEmail && changeEmailPassword) {
-                    const { error: signErr } = await supabase.auth.signInWithPassword({ email: currentEmail, password: changeEmailPassword });
-                    if (signErr) throw signErr;
-                  }
-                  const { error: updateErr } = await supabase.auth.updateUser({ email: changeEmailNew.trim() });
-                  if (updateErr) throw updateErr;
-                  setMessage('Un lien de confirmation a été envoyé à ta nouvelle adresse. Clique dessus pour valider le changement.');
-                  setChangeEmailOpen(false);
-                } catch (err) {
-                  setChangeEmailError(err.message || 'Impossible de changer l\'email.');
-                } finally {
-                  setChangeEmailLoading(false);
-                }
-              }}>
-                <label>Nouvel email <input type="email" value={changeEmailNew} onChange={(e) => setChangeEmailNew(e.target.value)} placeholder="nouvelle@email.fr" className="auth-input" /></label>
-                <label>Mot de passe actuel (pour confirmer) <input type="password" value={changeEmailPassword} onChange={(e) => setChangeEmailPassword(e.target.value)} placeholder="••••••••" className="auth-input" autoComplete="current-password" /></label>
-                {changeEmailError && <div className="auth-error">{changeEmailError}</div>}
-                <div className="reauth-actions">
-                  <button type="submit" className="btn btn-primary" disabled={changeEmailLoading}>{changeEmailLoading ? '…' : 'Envoyer le lien de confirmation'}</button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setChangeEmailOpen(false)}>Annuler</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
       </CollapsibleSection>
 
       <div className="profile-footer">

@@ -5,7 +5,7 @@ import './index.css'
 import App from './App.jsx'
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx'
 
-function ScrollToTop() {
+export function ScrollToTop() {
   const { pathname } = useLocation()
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -13,11 +13,13 @@ function ScrollToTop() {
   return null
 }
 
-function ChunkErrorReloadReset() {
+export function ChunkErrorReloadReset() {
   useEffect(() => {
     try {
       sessionStorage.removeItem('chunkErrorReload')
-    } catch (_) {}
+    } catch {
+      /* ignore */
+    }
   }, [])
   return null
 }

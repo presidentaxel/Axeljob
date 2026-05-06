@@ -2,9 +2,10 @@
 Suivi des tokens Gemini par requête et par compte (Supabase).
 Limite par compte = GEMINI_BUDGET_EUR (défaut 10 €) ; dépassement = blocage soft (message générique, pas "tokens").
 """
+
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from backend.db import check_gemini_budget, record_gemini_usage
 
@@ -14,7 +15,9 @@ def usage_from_response(response: Any) -> tuple[int, int]:
     usage = getattr(response, "usage_metadata", None)
     if not usage:
         return 0, 0
-    inp = getattr(usage, "prompt_token_count", None) or getattr(usage, "input_token_count", None) or 0
+    inp = (
+        getattr(usage, "prompt_token_count", None) or getattr(usage, "input_token_count", None) or 0
+    )
     out = (
         getattr(usage, "candidates_token_count", None)
         or getattr(usage, "output_token_count", None)
@@ -29,7 +32,7 @@ def usage_from_response(response: Any) -> tuple[int, int]:
 
 
 def record_and_check(
-    user_id: Optional[str],
+    user_id: str | None,
     operation: str,
     response: Any,
 ) -> None:
@@ -43,7 +46,7 @@ class GeminiQuotaExceeded(Exception):
     """Levée quand le compte a dépassé le budget Gemini (limite €). À convertir en 429 côté API."""
 
 
-def ensure_budget(user_id: Optional[str]) -> None:
+def ensure_budget(user_id: str | None) -> None:
     """
     Vérifie que le compte est sous la limite budget Gemini.
     Lève GeminiQuotaExceeded si dépassement (à convertir en HTTP 429 côté FastAPI).

@@ -22,13 +22,13 @@ class TestPdfExportAssets(unittest.TestCase):
         text = (self.pdf_export / "weasyprint_cv_export.css").read_text(encoding="utf-8")
         self.assertIn("/*cv-bot-pdf-export*/", text)
 
-    def test_generator_loads_bundle(self) -> None:
-        import generator
+    def test_weasyprint_module_loads_bundle(self) -> None:
+        import backend.cv_pdf_weasyprint as wp
 
-        self.assertIn('id="cv-bot-pdf-export-layout"', generator._PDF_EXPORT_LAYOUT_STYLE)
-        self.assertIn('id="cv-bot-pdf-export-align"', generator._PDF_EXPORT_ALIGN_STYLE)
-        self.assertIn("@page", generator._PDF_EXPORT_ALIGN_STYLE)
-        self.assertIn("@page", generator._PDF_EXPORT_CUSTOM_TEMPLATE_STYLE)
+        self.assertIn('id="cv-bot-pdf-export-layout"', wp.PDF_EXPORT_LAYOUT_STYLE)
+        self.assertIn('id="cv-bot-pdf-export-align"', wp.PDF_EXPORT_ALIGN_STYLE)
+        self.assertIn("@page", wp.PDF_EXPORT_ALIGN_STYLE)
+        self.assertIn("@page", wp.PDF_EXPORT_CUSTOM_BASE_STYLE)
 
 
 if __name__ == "__main__":

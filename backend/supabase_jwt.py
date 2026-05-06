@@ -2,6 +2,7 @@
 Décode les access tokens Supabase (HS256 avec secret projet, ou ES256/RS256 via JWKS).
 Partagé par main (auth API) et monitoring_ops (comptage utilisateurs actifs).
 """
+
 from __future__ import annotations
 
 import jwt

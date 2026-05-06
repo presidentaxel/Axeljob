@@ -4,6 +4,7 @@ alertes email (Resend), agrégats pour le dashboard admin.
 
 Limites : un worker uvicorn = une vue mémoire. Multi-workers : agréger dans Prometheus ou Redis.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -14,8 +15,9 @@ import re
 import threading
 import time
 from collections import defaultdict, deque
+from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Any, Callable, Optional
+from typing import Any
 
 from prometheus_client import Counter, Gauge, Histogram
 from starlette.requests import Request
@@ -161,13 +163,27 @@ _max_inflight_seen = 0
 _inflight_local = 0
 _active_users_peak = 0
 _route_stats: dict[str, dict[str, float]] = defaultdict(lambda: {"count": 0, "sum_sec": 0.0})
-_recent_http: deque[tuple[float, int, str, float]] = deque(maxlen=8000)
+
+
+# 3000 entrées ≈ couverture saine de la fenêtre 15 min (recent_error_summary(900))
+# pour un trafic réaliste 1-3 r/s. Avant : 8000 (~2,4 Mo de tuples). Tuned via env si besoin.
+def _recent_http_maxlen() -> int:
+    try:
+        v = int(os.getenv("MONITORING_RECENT_HTTP_MAXLEN", "3000"))
+    except ValueError:
+        v = 3000
+    return max(500, min(20000, v))
+
+
+_recent_http: deque[tuple[float, int, str, float]] = deque(maxlen=_recent_http_maxlen())
 _cpu_samples: deque[float] = deque(maxlen=120)
 # Anti-bruit CPU: exiger plusieurs ticks élevés consécutifs avant d'alerter.
 _cpu_high_streak = 0
 _CPU_HIGH_REQUIRED_TICKS = max(1, int(os.getenv("MONITORING_ALERT_CPU_REQUIRED_TICKS", "3")))
 _CPU_HIGH_AVG_WINDOW_TICKS = max(1, int(os.getenv("MONITORING_ALERT_CPU_AVG_WINDOW_TICKS", "4")))
-_CPU_HIGH_AVG_MIN_PCT = float(os.getenv("MONITORING_ALERT_CPU_AVG_MIN_PCT", str(MONITORING_ALERT_CPU_PCT)))
+_CPU_HIGH_AVG_MIN_PCT = float(
+    os.getenv("MONITORING_ALERT_CPU_AVG_MIN_PCT", str(MONITORING_ALERT_CPU_PCT))
+)
 _last_alert_at: dict[str, float] = {}
 _alert_log: deque[dict[str, Any]] = deque(maxlen=30)
 _psutil_process: Any = None
@@ -185,7 +201,7 @@ _last_snap: dict[str, float] = {
 }
 # Estimations « max actifs @ CPU cible » : fenêtre glissante + EMA (rempli par tick_system_and_db)
 _capacity_point_estimates: deque[float] = deque(maxlen=max(8, MONITORING_CAPACITY_SAMPLE_MAX))
-_capacity_ema: Optional[float] = None
+_capacity_ema: float | None = None
 
 
 def datetime_iso() -> str:
@@ -211,12 +227,14 @@ def route_template(request: Request) -> str:
     if path:
         return path
     raw = request.url.path.split("?")[0] or "/"
-    raw = re.sub(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", "{uuid}", raw, flags=re.I)
+    raw = re.sub(
+        r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", "{uuid}", raw, flags=re.I
+    )
     raw = re.sub(r"/\d+", "/{id}", raw)
     return raw[:200] or "/"
 
 
-def _parse_content_length(value: Optional[str]) -> Optional[int]:
+def _parse_content_length(value: str | None) -> int | None:
     if not value:
         return None
     try:
@@ -240,7 +258,7 @@ def _status_class(code: int) -> str:
     return "other"
 
 
-def _jwt_sub(request: Request) -> Optional[str]:
+def _jwt_sub(request: Request) -> str | None:
     """Même logique que l’API (HS256 ou JWKS) pour compter les subs distincts."""
     auth = request.headers.get("Authorization") or ""
     if not auth.startswith("Bearer "):
@@ -278,8 +296,8 @@ def _record_request(
     route: str,
     status_code: int,
     elapsed: float,
-    request_content_length: Optional[int] = None,
-    response_content_length: Optional[int] = None,
+    request_content_length: int | None = None,
+    response_content_length: int | None = None,
 ) -> None:
     sc = _status_class(status_code)
     HTTP_REQUESTS.labels(method=method, route=route, status_class=sc).inc()
@@ -321,7 +339,7 @@ async def observe_http_request(request: Request, call_next: Callable) -> Respons
 
     t0 = time.perf_counter()
     status_code = 500
-    response: Optional[Response] = None
+    response: Response | None = None
     try:
         _maybe_touch_user(request)
         response = await call_next(request)
@@ -363,7 +381,9 @@ def _alert_recipients() -> list[str]:
 def _send_alert_email(subject: str, text_body: str) -> None:
     to_list = _alert_recipients()
     if not to_list or not RESEND_API_KEY or not RESEND_FROM_EMAIL:
-        logger.warning("Alerte monitoring non envoyée (destinataires ou Resend manquants): %s", subject)
+        logger.warning(
+            "Alerte monitoring non envoyée (destinataires ou Resend manquants): %s", subject
+        )
         return
     try:
         import resend
@@ -460,9 +480,8 @@ def tick_system_and_db() -> None:
 
             pool = supabase_pg.get_pool()
             if pool:
-                with pool.connection() as conn:
-                    with conn.cursor() as cur:
-                        cur.execute("SELECT 1")
+                with pool.connection() as conn, conn.cursor() as cur:
+                    cur.execute("SELECT 1")
                 ok = True
         except Exception:
             ok = False
@@ -504,11 +523,7 @@ def evaluate_alerts() -> None:
             cpu_avg = sum(avg_window) / len(avg_window)
             cpu_avg_ok = cpu_avg >= _CPU_HIGH_AVG_MIN_PCT
 
-    if (
-        _cpu_high_streak >= _CPU_HIGH_REQUIRED_TICKS
-        and cpu_avg_ok
-        and _alert_can_send("cpu_high")
-    ):
+    if _cpu_high_streak >= _CPU_HIGH_REQUIRED_TICKS and cpu_avg_ok and _alert_can_send("cpu_high"):
         msg = (
             f"CPU système {sys_cpu:.1f}% (seuil {MONITORING_ALERT_CPU_PCT}%) "
             f"sur {_cpu_high_streak} ticks consécutifs (~{_cpu_high_streak * 45}s), "
@@ -541,7 +556,9 @@ def evaluate_alerts() -> None:
         _append_alert_log("slow_burst", msg)
 
     if USE_SUPABASE_PG and not _last_db_check.get("ok") and _alert_can_send("db_down"):
-        msg = f"Ping base de données échoué (dernière latence mesurée {_last_db_check.get('ms')} ms)."
+        msg = (
+            f"Ping base de données échoué (dernière latence mesurée {_last_db_check.get('ms')} ms)."
+        )
         _send_alert_email("[AxeL Job] Alerte base de données", msg)
         _append_alert_log("db_down", msg)
 
@@ -559,7 +576,7 @@ def evaluate_alerts() -> None:
             _append_alert_log("cpu_spike", msg)
 
 
-def _median_sorted(values: list[float]) -> Optional[float]:
+def _median_sorted(values: list[float]) -> float | None:
     if not values:
         return None
     s = sorted(values)
@@ -577,7 +594,7 @@ def _capacity_baseline_and_marginal(sys_cpu: float) -> tuple[float, float]:
     return baseline, marginal
 
 
-def _capacity_point_from_observation(active: int, sys_cpu: float) -> Optional[float]:
+def _capacity_point_from_observation(active: int, sys_cpu: float) -> float | None:
     """
     Modèle : CPU_total ≈ baseline + k × actifs → à la cible, actifs × (cible − baseline) / marginal.
     Retourne None si l’extrapolation n’est pas fiable.
@@ -630,13 +647,8 @@ def capacity_estimate(active_users: int, system_cpu: float) -> dict[str, Any]:
     baseline, marginal_now = _capacity_baseline_and_marginal(cpu_now)
     headroom = target - baseline
 
-    instant: Optional[int] = None
-    if (
-        active_users > 0
-        and marginal_now >= min_marginal
-        and cpu_now >= min_cpu
-        and headroom > 1.0
-    ):
+    instant: int | None = None
+    if active_users > 0 and marginal_now >= min_marginal and cpu_now >= min_cpu and headroom > 1.0:
         instant = int(round(active_users * (headroom / marginal_now)))
 
     with _lock:

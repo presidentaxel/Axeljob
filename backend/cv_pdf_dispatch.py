@@ -5,6 +5,7 @@ Variable d’environnement : CV_BOT_PDF_ENGINE
   - weasyprint (défaut) : préparation HTML + bundle pdf_export + WeasyPrint
   - chromium | chrome | playwright : rendu proche navigateur (pas de bundle WeasyPrint)
 """
+
 from __future__ import annotations
 
 import logging
@@ -50,29 +51,38 @@ def html_to_cv_pdf_bytes(
         f"[cv-bot] PDF export: engine={engine} CV_BOT_PDF_ENGINE={raw_env!r} template_id={template_id or '-'}",
         flush=True,
     )
-    if engine == "chromium":
-        from backend.cv_pdf_chromium import html_to_cv_pdf_bytes_chromium
+    from backend.mem_release import release_unused_memory
 
-        try:
-            out = html_to_cv_pdf_bytes_chromium(html_str, base_resolved, template_id=template_id)
-            _log.info("Export PDF CV - Chromium termine (%d octets PDF).", len(out))
-        except NotImplementedError:
-            # Windows + asyncio (boucle sans subprocess) : voir _ensure_windows_playwright_asyncio.
-            _log.warning(
-                "Export PDF CV - Chromium impossible (NotImplementedError / asyncio), repli WeasyPrint.",
-                exc_info=True,
-            )
-            print(
-                "[cv-bot] PDF export: chromium failed (NotImplementedError), falling back to weasyprint",
-                flush=True,
-            )
-            from backend.cv_pdf_weasyprint import html_to_cv_pdf_bytes as _wp
+    try:
+        if engine == "chromium":
+            from backend.cv_pdf_chromium import html_to_cv_pdf_bytes_chromium
 
-            out = _wp(html_str, base_resolved, template_id=template_id)
-            _log.info("Export PDF CV - WeasyPrint (repli) termine (%d octets PDF).", len(out))
+            try:
+                out = html_to_cv_pdf_bytes_chromium(
+                    html_str, base_resolved, template_id=template_id
+                )
+                _log.info("Export PDF CV - Chromium termine (%d octets PDF).", len(out))
+            except NotImplementedError:
+                # Windows + asyncio (boucle sans subprocess) : voir _ensure_windows_playwright_asyncio.
+                _log.warning(
+                    "Export PDF CV - Chromium impossible (NotImplementedError / asyncio), repli WeasyPrint.",
+                    exc_info=True,
+                )
+                print(
+                    "[cv-bot] PDF export: chromium failed (NotImplementedError), falling back to weasyprint",
+                    flush=True,
+                )
+                from backend.cv_pdf_weasyprint import html_to_cv_pdf_bytes as _wp
+
+                out = _wp(html_str, base_resolved, template_id=template_id)
+                _log.info("Export PDF CV - WeasyPrint (repli) termine (%d octets PDF).", len(out))
+            return out
+        from backend.cv_pdf_weasyprint import html_to_cv_pdf_bytes as _wp
+
+        out = _wp(html_str, base_resolved, template_id=template_id)
+        _log.info("Export PDF CV - WeasyPrint termine (%d octets PDF).", len(out))
         return out
-    from backend.cv_pdf_weasyprint import html_to_cv_pdf_bytes as _wp
-
-    out = _wp(html_str, base_resolved, template_id=template_id)
-    _log.info("Export PDF CV - WeasyPrint termine (%d octets PDF).", len(out))
-    return out
+    finally:
+        # Rend au noyau les arenas glibc libérés par WeasyPrint/Chromium (no-op hors Linux).
+        # Évite la dérive de RSS qui ne redescend jamais après un pic PDF.
+        release_unused_memory(reason=f"pdf_{engine}")

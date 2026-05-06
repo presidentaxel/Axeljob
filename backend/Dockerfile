@@ -39,6 +39,11 @@ COPY . .
 
 ENV PYTHONUNBUFFERED=1
 ENV ENVIRONMENT=production
+# Limite glibc à 2 arenas malloc (par défaut : 8 × CPU). Sans ça, un process Python
+# multi-thread (uvicorn + threadpool + monitoring) garde des centaines de Mo de heap
+# fragmenté après chaque pic (PDF Chromium/WeasyPrint). Économise typiquement 150-300 Mo
+# de RSS au repos. À combiner avec backend.mem_release.release_unused_memory() (malloc_trim).
+ENV MALLOC_ARENA_MAX=2
 
 EXPOSE 8000
 

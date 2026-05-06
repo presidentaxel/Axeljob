@@ -69,7 +69,9 @@ export function useViewAnalytics({ view, pathname, session }) {
           sessionStorage.setItem(ATTRIB_SENT_KEY, '1');
         }
       }
-    } catch {}
+    } catch {
+      /* sessionStorage unavailable */
+    }
 
     trackEvent('page_view', payload);
   }, [enabled, view, pathname, flushEngagement]);

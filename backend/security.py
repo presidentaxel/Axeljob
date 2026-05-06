@@ -2,8 +2,8 @@
 Contrôles de sécurité : détection de tentatives d'injection dans les champs envoyés à l'IA.
 Rejeter en 400 avec un message générique (sans révéler la raison).
 """
+
 import re
-from typing import Optional
 
 # Expressions suspectes (injection de prompt) - en minuscules, recherche insensible à la casse
 _PROMPT_INJECTION_PATTERNS = [
@@ -32,7 +32,7 @@ _PROMPT_INJECTION_PATTERNS = [
 ]
 
 
-def looks_like_prompt_injection(text: Optional[str], max_scan_length: int = 8000) -> bool:
+def looks_like_prompt_injection(text: str | None, max_scan_length: int = 8000) -> bool:
     """
     Détecte si le texte contient des tournures typiques d'injection de prompt.
     Ne scanne que les max_scan_length premiers caractères pour limiter le coût.
@@ -52,9 +52,9 @@ def looks_like_prompt_injection(text: Optional[str], max_scan_length: int = 8000
 
 
 def check_user_input_for_injection(
-    description: Optional[str] = None,
-    instruction: Optional[str] = None,
-    text: Optional[str] = None,
+    description: str | None = None,
+    instruction: str | None = None,
+    text: str | None = None,
 ) -> None:
     """
     Vérifie les champs utilisateur avant envoi à Gemini.

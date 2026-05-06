@@ -1172,15 +1172,6 @@
 .profile-invite-form .auth-input { flex: 1; min-width: 200px; }
 .profile-invite-form .auth-error { width: 100%; margin-top: 0.5rem; }
 
-/* MFA (optionnel) */
-.profile-mfa-block { margin-top: 1rem; }
-.profile-mfa-label { font-size: 0.9rem; color: var(--success); font-weight: 500; }
-.profile-mfa-factors { display: flex; flex-direction: column; gap: 0.5rem; }
-.profile-mfa-factor-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-.profile-mfa-enroll-modal .profile-mfa-qr-wrap { text-align: center; margin: 1rem 0; }
-.profile-mfa-qr { max-width: 200px; height: auto; }
-.profile-mfa-code-input { max-width: 140px; text-align: center; font-variant-numeric: tabular-nums; }
-
 /* Buttons inside profile */
 .btn-import-cv {
   display: inline-flex;
@@ -1339,20 +1330,6 @@
   font-size: 0.9rem;
   line-height: 1.4;
   color: var(--muted, #64748b);
-}
-
-.profile-export-dir-badge {
-  margin: 0.35rem 0 0.5rem;
-  font-size: 0.9rem;
-  color: var(--text, #1e293b);
-}
-
-.profile-export-pdf-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  align-items: center;
-  margin-top: 0.35rem;
 }
 
 .profile-section-hint {

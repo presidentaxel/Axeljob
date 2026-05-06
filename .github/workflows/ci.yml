@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-quality:
+    name: Backend Lint & Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Create virtualenv and install dependencies
+        run: |
+          python -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+          pip install black ruff mypy pytest pytest-cov
+
+      - name: Ruff
+        run: |
+          . .venv/bin/activate
+          ruff check .
+
+      - name: Black
+        run: |
+          . .venv/bin/activate
+          black --check .
+
+      - name: Mypy
+        run: |
+          . .venv/bin/activate
+          mypy backend
+
+      - name: Pytest
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          . .venv/bin/activate
+          pytest tests -v --tb=short \
+            --cov=backend.services.cv_render_helpers \
+            --cov=backend.cv_html_render \
+            --cov-report=term-missing \
+            --cov-fail-under=62
+
+  frontend-quality:
+    name: Frontend Lint & Build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build

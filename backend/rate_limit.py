@@ -7,6 +7,7 @@ Important pour la prod multi-instances : chaque worker maintient son propre comp
 Pour une limite globale partagée, utiliser un store commun (ex. Redis) ou un reverse proxy
 (nginx limit_req, Cloudflare, etc.).
 """
+
 from __future__ import annotations
 
 import time
@@ -41,7 +42,9 @@ def check_rate_limit(
     bucket = _RATE_LIMIT_BUCKETS[key]
     _RATE_LIMIT_BUCKETS[key] = [t for t in bucket if now - t < _RATE_LIMIT_WINDOW]
     if len(_RATE_LIMIT_BUCKETS[key]) >= max_requests:
-        raise HTTPException(status_code=429, detail="Trop de requêtes. Réessaie dans quelques secondes.")
+        raise HTTPException(
+            status_code=429, detail="Trop de requêtes. Réessaie dans quelques secondes."
+        )
     _RATE_LIMIT_BUCKETS[key].append(now)
 
 

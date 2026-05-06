@@ -24,7 +24,7 @@ function staticPagesPlugin() {
           const html = readFileSync(filePath, 'utf-8')
           res.setHeader('Content-Type', 'text/html; charset=utf-8')
           res.end(html)
-        } catch (_) {
+        } catch {
           next()
         }
       })
@@ -41,7 +41,7 @@ function staticPagesPlugin() {
           const html = readFileSync(filePath, 'utf-8')
           res.setHeader('Content-Type', 'text/html; charset=utf-8')
           res.end(html)
-        } catch (_) {
+        } catch {
           next()
         }
       })
@@ -81,7 +81,9 @@ function cssNonBlockingPlugin() {
         }
         html = html.replace(/__APP_CSS_FILENAME__/g, appCssFilename)
         writeFileSync(indexPath, html)
-      } catch (_) {}
+      } catch {
+        /* ignore malformed index.html */
+      }
 
       const gtmId = (process.env.VITE_AXEL_GTM_ID || '').trim()
       const analyticsPath = join(process.cwd(), outDir, 'analytics-config.js')
@@ -94,7 +96,9 @@ function cssNonBlockingPlugin() {
             header + 'window.__AXEL_GTM_ID__ = ' + JSON.stringify(gtmId) + ';\n',
           )
         }
-      } catch (_) {}
+      } catch {
+        /* ignore analytics-config write failures */
+      }
     },
   }
 }

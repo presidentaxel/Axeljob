@@ -3644,21 +3644,72 @@ textarea::placeholder {
 }
 
 .application-detail-docs {
-  padding: 0.75rem 1.25rem;
   border-bottom: 1px solid var(--border);
   background: var(--surface-elevated, rgba(0, 0, 0, 0.02));
 }
 
-.application-detail-docs-title {
-  font-size: 0.875rem;
+.application-detail-docs-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 0.5rem;
+  padding: 0.45rem 1.25rem;
+  margin: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.application-detail-docs-toggle:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.application-detail-docs-toggle-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.application-detail-docs-toggle-label {
+  font-size: 0.8125rem;
   font-weight: 600;
-  margin: 0 0 0.25rem 0;
+}
+
+.application-detail-docs-count {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.application-detail-docs-chevron {
+  flex-shrink: 0;
+  width: 1.125rem;
+  height: 1.125rem;
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+
+.application-detail-docs-chevron--open {
+  transform: rotate(180deg);
+}
+
+.application-detail-docs-panel {
+  padding: 0 1.25rem 0.55rem;
 }
 
 .application-detail-docs-hint {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--muted);
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 0.4rem 0;
+  line-height: 1.35;
 }
 
 .application-detail-docs-list {

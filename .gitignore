@@ -31,6 +31,9 @@ wheels/
 venv/
 ENV/
 env/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
 
 # IDE / OS
 .idea/
@@ -54,7 +57,6 @@ assets/uploads/
 
 # Données personnelles (ne pas pousser en ligne)
 cv_base.json
-preview.html
 
 # Logs structurés (mémoire / analyse)
 logs/*.jsonl

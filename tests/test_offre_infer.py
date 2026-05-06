@@ -1,6 +1,6 @@
 import unittest
 
-from offre_infer import infer_entreprise_from_annonce
+from backend.services.offre_infer import infer_entreprise_from_annonce
 
 
 class TestOffreInfer(unittest.TestCase):

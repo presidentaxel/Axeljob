@@ -534,7 +534,9 @@ function loadFavorites() {
 function saveFavorites(ids) {
   try {
     localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(ids));
-  } catch (_) {}
+  } catch {
+    /* ignore quota / private mode */
+  }
 }
 
 export default function TemplatePicker({

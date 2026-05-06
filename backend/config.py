@@ -1,12 +1,15 @@
 """Configuration backend : chemins, env, Supabase."""
+
 import os
 from pathlib import Path
 from urllib.parse import urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
 def _env(key: str, default: str = "") -> str:
     return os.environ.get(key, default).strip()
+
 
 ENVIRONMENT = _env("ENVIRONMENT", "development")
 IS_PRODUCTION = ENVIRONMENT == "production"
@@ -42,6 +45,7 @@ def _user_plan_cache_ttl() -> float:
 
 USER_PLAN_CACHE_TTL_SEC = _user_plan_cache_ttl()
 
+
 # ThreadPool asyncio (tâches CPU / WeasyPrint) - réduire sur petit VPS
 def thread_pool_max_workers() -> int:
     try:
@@ -71,9 +75,12 @@ def supabase_data_mode_info() -> dict:
         "hint": "PostgREST via supabase-py",
     }
 
+
 API_BASE_URL = _env("CV_BOT_API_BASE_URL")
 
 SUPABASE_JWT_SECRET = _env("SUPABASE_JWT_SECRET")
+
+
 # Tolérance iat/exp (secondes) : évite « token is not yet valid (iat) » si l’horloge du serveur est
 # légèrement en retard vs Supabase (Windows / VM sans NTP). PyJWT : leeway.
 def _jwt_leeway_seconds() -> float:
@@ -95,7 +102,9 @@ RESEND_API_KEY = _env("RESEND_API_KEY")
 RESEND_FROM_EMAIL = _env("RESEND_FROM_EMAIL", "AxeL Job <onboarding@resend.dev>")
 SUPPORT_EMAIL = _env("SUPPORT_EMAIL")
 # Emails autorisés à envoyer des réponses support (via l'app, template HTML Resend)
-SUPPORT_ADMIN_EMAILS = [e.strip().lower() for e in _env("SUPPORT_ADMIN_EMAILS", "").split(",") if e.strip()]
+SUPPORT_ADMIN_EMAILS = [
+    e.strip().lower() for e in _env("SUPPORT_ADMIN_EMAILS", "").split(",") if e.strip()
+]
 
 METRICS_AUTH_TOKEN = _env("METRICS_AUTH_TOKEN")
 
@@ -120,7 +129,9 @@ def _truthy_env(key: str) -> bool:
 
 # --- Monitoring / alertes (Resend) ---
 MONITORING_ALERT_ENABLED = _truthy_env("MONITORING_ALERT_ENABLED")
-MONITORING_ALERT_EMAILS = [e.strip() for e in _env("MONITORING_ALERT_EMAILS", "").split(",") if e.strip()]
+MONITORING_ALERT_EMAILS = [
+    e.strip() for e in _env("MONITORING_ALERT_EMAILS", "").split(",") if e.strip()
+]
 MONITORING_ALERT_CPU_PCT = _float_env("MONITORING_ALERT_CPU_PCT", 85.0)
 MONITORING_ALERT_MEM_PCT = _float_env("MONITORING_ALERT_MEM_PCT", 88.0)
 MONITORING_ALERT_MIN_INTERVAL_SEC = _float_env("MONITORING_ALERT_MIN_INTERVAL_SEC", 900.0)
@@ -133,7 +144,9 @@ MONITORING_ALERT_SPIKE_MIN_CPU = _float_env("MONITORING_ALERT_SPIKE_MIN_CPU", 70
 MONITORING_ACTIVE_USER_TTL_SEC = _float_env("MONITORING_ACTIVE_USER_TTL_SEC", 600.0)
 MONITORING_CAPACITY_TARGET_CPU_PCT = _float_env("MONITORING_CAPACITY_TARGET_CPU_PCT", 70.0)
 # Plateau CPU (OS + VM + processus au repos) retiré avant extrapolation - ex. ~2 % sur DO sans trafic
-MONITORING_CAPACITY_IDLE_CPU_BASELINE_PCT = _float_env("MONITORING_CAPACITY_IDLE_CPU_BASELINE_PCT", 2.0)
+MONITORING_CAPACITY_IDLE_CPU_BASELINE_PCT = _float_env(
+    "MONITORING_CAPACITY_IDLE_CPU_BASELINE_PCT", 2.0
+)
 # CPU marginal minimal (mesuré − baseline) pour enregistrer un point - évite division / bruit près du idle
 MONITORING_CAPACITY_MIN_MARGINAL_CPU_SAMPLE_PCT = _float_env(
     "MONITORING_CAPACITY_MIN_MARGINAL_CPU_SAMPLE_PCT", 1.0
@@ -208,6 +221,7 @@ def trusted_host_names() -> list[str]:
     for loopback in ("localhost", "127.0.0.1", "[::1]"):
         add(loopback)
     return hosts
+
 
 # Budget Gemini par compte (€) - dépassement = blocage soft (pas affiché à l'utilisateur)
 GEMINI_BUDGET_EUR = float(os.environ.get("GEMINI_BUDGET_EUR", "10"))

@@ -2,6 +2,7 @@
 Registre des templates CV.
 Charge les meta.json depuis templates/*, expose list + resolve.
 """
+
 import json
 from pathlib import Path
 
@@ -9,6 +10,14 @@ TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 DEFAULT_TEMPLATE_ID = "minimal"
 
 _cache: dict[str, dict] | None = None
+
+# Cache TTL des résultats list_templates(user_id) : la liste des templates perso change
+# rarement (création/suppression manuelle), mais l'endpoint /api/templates est appelé à
+# chaque ouverture du picker / changement d'écran (souvent 2-3× par session). 5 min
+# d'âge max + invalidation explicite à la mutation = aucun risque de stale.
+from backend.perf_cache import TTLCache as _TTLCache
+
+_TEMPLATES_LIST_CACHE = _TTLCache(max_size=2000, ttl_sec=300.0)
 
 
 def _load_all() -> dict[str, dict]:
@@ -33,10 +42,23 @@ def reload():
     global _cache
     _cache = None
     _load_all()
+    _TEMPLATES_LIST_CACHE.clear()
+
+
+def invalidate_templates_cache_for_user(user_id: str | None) -> None:
+    """À appeler après création/édition/suppression d'un template perso."""
+    if user_id:
+        _TEMPLATES_LIST_CACHE.invalidate(user_id)
+    # Clé anonyme aussi (utilisateur non loggé)
+    _TEMPLATES_LIST_CACHE.invalidate("__anon__")
 
 
 def list_templates(user_id: str | None = None) -> list[dict]:
     """Retourne la liste des templates (fichiers + personnalisés Supabase si user_id fourni). Sans _dir / _custom internals."""
+    cache_key = user_id or "__anon__"
+    cached = _TEMPLATES_LIST_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
     all_t = _load_all()
     out = []
     for tid, meta in all_t.items():
@@ -44,11 +66,13 @@ def list_templates(user_id: str | None = None) -> list[dict]:
     if user_id:
         try:
             from backend.db import list_custom_templates_for_user
+
             custom = list_custom_templates_for_user(user_id)
             for c in custom:
                 out.append({k: v for k, v in c.items() if not k.startswith("_")})
         except Exception:
             pass
+    _TEMPLATES_LIST_CACHE.set(cache_key, out)
     return out
 
 
@@ -56,7 +80,8 @@ def get_template(template_id: str | None = None) -> dict:
     """Retourne le meta + _dir (ou _html_content/_css_content pour custom) du template. Fallback sur DEFAULT_TEMPLATE_ID."""
     tid = (template_id or "").strip() or DEFAULT_TEMPLATE_ID
     try:
-        from backend.db import get_custom_template_by_id, CUSTOM_TEMPLATE_ID_PREFIX
+        from backend.db import CUSTOM_TEMPLATE_ID_PREFIX, get_custom_template_by_id
+
         if tid.startswith(CUSTOM_TEMPLATE_ID_PREFIX):
             custom = get_custom_template_by_id(tid)
             if custom:
@@ -87,10 +112,15 @@ TYPO_OPTION_DEFAULTS = {
 }
 
 # Clés réglables dans l’UI (TemplatePicker) : doivent toujours fusionner même si meta.options est vide (ex. template Supabase).
-_MERGE_OPTION_KEYS = (
-    {"show_photo", "show_mots_cles_ats", "photo_size", "header_color", "sidebar_color", "accent_color", "font"}
-    | set(TYPO_OPTION_DEFAULTS.keys())
-)
+_MERGE_OPTION_KEYS = {
+    "show_photo",
+    "show_mots_cles_ats",
+    "photo_size",
+    "header_color",
+    "sidebar_color",
+    "accent_color",
+    "font",
+} | set(TYPO_OPTION_DEFAULTS.keys())
 
 
 def get_default_layout_options_for_custom() -> list:
@@ -107,7 +137,13 @@ def get_default_layout_options_for_custom() -> list:
         {"key": "header_color", "type": "color", "default": "#1e2a3a", "label": "Couleur en-tête"},
         {"key": "sidebar_color", "type": "color", "default": "#f4f4f2", "label": "Couleur sidebar"},
         {"key": "accent_color", "type": "color", "default": "#1e2a3a", "label": "Couleur accent"},
-        {"key": "font", "type": "select", "choices": ["Plus Jakarta Sans", "Inter", "Georgia"], "default": "Plus Jakarta Sans", "label": "Police titres"},
+        {
+            "key": "font",
+            "type": "select",
+            "choices": ["Plus Jakarta Sans", "Inter", "Georgia"],
+            "default": "Plus Jakarta Sans",
+            "label": "Police titres",
+        },
         {"key": "show_photo", "type": "boolean", "default": True, "label": "Afficher la photo"},
         {"key": "show_mots_cles_ats", "type": "boolean", "default": True, "label": "Mots-clés ATS"},
     ]
@@ -134,7 +170,7 @@ def resolve_options(template_id: str | None, user_options: dict | None) -> dict:
 
 import re as _re
 
-_COLOR_RE = _re.compile(r'^#[0-9a-fA-F]{3,8}$')
+_COLOR_RE = _re.compile(r"^#[0-9a-fA-F]{3,8}$")
 
 
 def _is_near_white_hex(val: str) -> bool:
@@ -172,6 +208,7 @@ _TYPO_CSS_VAR_MAP = {
     "color_section_title": "--cv-color-section-title",
 }
 
+
 def options_to_css_vars(options: dict) -> str:
     """Génère un bloc <style> :root qui override les variables du template (couleurs, police, tailles). Injecté après le CSS du template pour que les réglages utilisateur priment."""
     parts = []
@@ -190,7 +227,11 @@ def options_to_css_vars(options: dict) -> str:
         val = options.get(key)
         if key.startswith("font_size_") and val is not None:
             try:
-                pt = float(val) if isinstance(val, (int, float)) else float(str(val).strip().replace(",", "."))
+                pt = (
+                    float(val)
+                    if isinstance(val, (int, float))
+                    else float(str(val).strip().replace(",", "."))
+                )
                 if 6 <= pt <= 24:
                     parts.append(f"  {css_var}: {pt}pt;")
             except (TypeError, ValueError):
@@ -202,7 +243,11 @@ def options_to_css_vars(options: dict) -> str:
     val = options.get("photo_size")
     if val is not None:
         try:
-            px = float(val) if isinstance(val, (int, float)) else float(str(val).strip().replace(",", "."))
+            px = (
+                float(val)
+                if isinstance(val, (int, float))
+                else float(str(val).strip().replace(",", "."))
+            )
             if 40 <= px <= 160:
                 parts.append(f"  --cv-photo-size: {int(round(px))}px;")
         except (TypeError, ValueError):

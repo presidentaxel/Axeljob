@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { HiPhone, HiEnvelope, HiLink } from 'react-icons/hi2';
 import { apiUrl, apiGet } from '../api';
 import { applyA4PageFramesInHost, teardownA4PageFramesInHost } from '../lib/cvPreviewA4Pages';
+import { sanitizeCssForStyleTag } from '../lib/sanitizeCssForStyle';
 import './CvEditablePreview.css';
 
 /** Aligné sur le rendu serveur sans selection_a4 (main.py max_exp). */
@@ -180,7 +181,9 @@ export default function CvEditablePreview({
 
   // Priorité 1 : CSS extrait du HTML de preview (render-html) pour éviter 404 en prod sur /api/templates/.../template.css
   const cssFromHtml = extractStylesFromHtml(previewHtmlWithInlineCss);
-  const effectiveCss = (cssFromHtml && cssFromHtml.length > 0) ? cssFromHtml : templateCss;
+  const effectiveCss = sanitizeCssForStyleTag(
+    (cssFromHtml && cssFromHtml.length > 0) ? cssFromHtml : templateCss,
+  );
 
   // Fallback : charger le CSS par API (peut 404 en prod si la route n'est pas exposée)
   useEffect(() => {
@@ -189,7 +192,9 @@ export default function CvEditablePreview({
     setTemplateCss('');
     const tid = (templateId || 'minimal').trim();
     apiGet(`/api/templates/${tid}/template.css`)
-      .then((css) => { if (!cancelled && typeof css === 'string') setTemplateCss(css); })
+      .then((css) => {
+        if (!cancelled && typeof css === 'string') setTemplateCss(sanitizeCssForStyleTag(css));
+      })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [templateId, cssFromHtml]);
@@ -753,7 +758,7 @@ export default function CvEditablePreview({
       spellCheck={false}
       onBlur={handleBlur}
     >
-      {rootVarsStyle ? <style dangerouslySetInnerHTML={{ __html: rootVarsStyle }} /> : null}
+      {rootVarsStyle ? <style dangerouslySetInnerHTML={{ __html: sanitizeCssForStyleTag(rootVarsStyle) }} /> : null}
       {effectiveCss ? <style dangerouslySetInnerHTML={{ __html: effectiveCss }} /> : null}
       {(templateId === 'minimal') && renderMinimal()}
       {(templateId === 'modern' || templateId === 'creative') && renderModern()}

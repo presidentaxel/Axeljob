@@ -1,7 +1,0 @@
-google-genai
-python-dotenv
-weasyprint
-pypdf
-jinja2
-requests
-Pillow

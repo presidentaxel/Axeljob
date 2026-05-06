@@ -7,12 +7,15 @@ l’export PDF et l’iframe soient alignés : avec CV_BOT_PDF_ENGINE=chromium, 
 preview_responsive (même largeur .cv, césures, overflow) est aussi injecté pour le PDF ;
 WeasyPrint conserve l’ancien comportement (sans ce bloc) pour ne pas casser l’export.
 """
+
 from __future__ import annotations
 
 import html as html_module
 import re
 import sys
+import threading
 from pathlib import Path
+from typing import Any
 
 # Racine du projet cv-bot (parent de backend/) — mêmes imports dynamiques que main.py
 CV_BOT_ROOT = Path(__file__).resolve().parent.parent
@@ -20,201 +23,84 @@ if str(CV_BOT_ROOT) not in sys.path:
     sys.path.insert(0, str(CV_BOT_ROOT))
 
 from backend.config import API_BASE_URL
+from backend.css_sanitize import sanitize_css_for_style_tag
 from backend.cv_pdf_dispatch import pdf_engine_is_chromium
+from backend.services import cv_render_helpers
 from backend.template_registry import DEFAULT_TEMPLATE_ID
 
-_ATS_STOPWORDS = frozenset({
-    "de", "la", "le", "les", "des", "du", "et", "en", "un", "une", "aux", "au", "à", "a",
-    "pour", "avec", "sans", "sur", "par", "dans", "est", "son", "sa", "ses", "ce", "cette", "ces",
-    "qui", "que", "dont", "où", "plus", "pas", "ne", "nous", "vous", "ils", "elles", "elle",
-    "the", "and", "for", "with", "from", "to", "of", "in", "on", "at", "or", "as", "by",
-})
+# Caches Jinja & CSS partagés entre tous les renders.
+# Avant : chaque appel render_cv_html() créait un nouvel Environment + lisait template.html
+# + lisait template.css depuis le disque. Sur un endpoint qui re-render à chaque key-up
+# (preview), ça représente des dizaines d'I/O / sec inutiles + de la pression GC.
+# Maintenant : Environment et Template sont parsés une fois par template_dir, le CSS
+# est gardé en mémoire (quelques Ko par template). Invalidé via _invalidate_render_caches().
+_RENDER_LOCK = threading.Lock()
+_FILE_ENV_CACHE: dict[str, Any] = {}  # key = str(template_dir) → (env, template, css_str)
+_CUSTOM_TEMPLATE_CACHE: dict[str, Any] = {}  # key = template_id → parsed jinja Template
+_CUSTOM_ENV: Any = None  # Environment partagé pour from_string
 
 
-def _keywords_from_mots_cles_cache(cache: str) -> list[str]:
-    """Tokens + bigrammes (+ trigrammes utiles) issus de mots_cles_cache, triés par longueur décroissante."""
-    s = (cache or "").strip()
-    if not s:
-        return []
-    tokens = [t.strip() for t in re.split(r"\s+", s) if t.strip()]
-    seen: set[str] = set()
-    phrases: list[str] = []
-
-    def add_phrase(p: str) -> None:
-        pl = p.lower().strip(".,;:")
-        if len(pl) < 2:
-            return
-        if pl in seen:
-            return
-        seen.add(pl)
-        phrases.append(p)
-
-    for t in tokens:
-        tl = t.lower().strip(".,;:")
-        if len(tl) < 2 or tl in _ATS_STOPWORDS:
-            continue
-        add_phrase(t)
-
-    for i in range(len(tokens) - 1):
-        a, b = tokens[i], tokens[i + 1]
-        pair = f"{a} {b}"
-        pl = pair.lower().strip(".,;:")
-        if len(pl.replace(" ", "")) < 4:
-            continue
-        add_phrase(pair)
-
-    for i in range(len(tokens) - 2):
-        b = tokens[i + 1].lower().strip(".,;:")
-        if b in _ATS_STOPWORDS:
-            continue
-        tri = f"{tokens[i]} {tokens[i + 1]} {tokens[i + 2]}"
-        tl = tri.lower().strip(".,;:")
-        if len(tl.replace(" ", "")) < 5:
-            continue
-        add_phrase(tri)
-
-    phrases.sort(key=len, reverse=True)
-    return phrases
-
-
-def _mots_cles_cache_for_pdf_export(raw: str, max_chars: int = 900) -> str:
-    """Troncature export PDF : limite la hauteur du bloc ATS pour éviter un saut en page 2."""
-    s = (raw or "").strip()
-    if len(s) <= max_chars:
-        return s
-    return s[: max_chars - 1].rstrip() + "…"
-
-
-def _ats_kw_boundary_ok(plain: str, start: int, end: int) -> bool:
-    """Évite les sous-chaînes dans les mots (ex. « en » dans « Entreprise »)."""
-    left = plain[start - 1] if start > 0 else ""
-    right = plain[end] if end < len(plain) else ""
-
-    def is_word_char(c: str) -> bool:
-        return bool(c) and (c.isalnum() or c == "_")
-
-    if is_word_char(left):
-        return False
-    if is_word_char(right):
-        return False
-    return True
-
-
-def _ats_next_match(plain: str, i: int, kws: list[str]) -> tuple[int, int] | None:
-    best_len = 0
-    best: tuple[int, int] | None = None
-    n = len(plain)
-    for kw in kws:
-        L = len(kw)
-        if L == 0 or i + L > n:
-            continue
-        if plain[i : i + L].lower() != kw.lower():
-            continue
-        if not _ats_kw_boundary_ok(plain, i, i + L):
-            continue
-        if L > best_len:
-            best_len = L
-            best = (i, i + L)
-    return best
-
-
-def _ats_wrap_plain_text_segment(segment: str, kws: list[str]) -> str:
-    """Segment HTML sans balise : entités décodées, mots-clés enveloppés, ré-échappé."""
-    if not segment or not kws:
-        return segment
-    plain = html_module.unescape(segment)
-    n = len(plain)
-    out_parts: list[str] = []
-    pos = 0
-    while pos < n:
-        m = _ats_next_match(plain, pos, kws)
-        if m is None:
-            out_parts.append(html_module.escape(plain[pos]))
-            pos += 1
-            continue
-        s, e = m
-        out_parts.append(html_module.escape(plain[pos:s]))
-        out_parts.append(f'<span class="cv-ats-kw">{html_module.escape(plain[s:e])}</span>')
-        pos = e
-    return "".join(out_parts)
-
-
-def _ats_highlight_preview_body(html: str, kws: list[str]) -> str:
-    """Surligne les mots-clés ATS dans le body (aperçu seulement), hors <style> et <script>."""
-    if not kws:
-        return html
-    low = html.lower()
-    i = low.find("<body")
-    if i < 0:
-        return html
-    m = re.search(r"<body[^>]*>", html[i : i + 300], re.I)
-    if not m:
-        return html
-    start = i + m.end()
-    j = low.rfind("</body>")
-    if j < 0 or j <= start:
-        return html
-    before = html[:start]
-    body = html[start:j]
-    after = html[j:]
-
-    protected: list[str] = []
-
-    def _stash_block(match: re.Match) -> str:
-        protected.append(match.group(0))
-        return f"__AXEL_ATS_PROT_{len(protected) - 1}__"
-
-    body = re.sub(r"<style[^>]*>[\s\S]*?</style>", _stash_block, body, flags=re.I)
-    body = re.sub(r"<script[^>]*>[\s\S]*?</script>", _stash_block, body, flags=re.I)
-
-    pieces = re.split(r"(<[^>]+>)", body)
-    out: list[str] = []
-    for p in pieces:
-        if p.startswith("<"):
-            out.append(p)
+def _invalidate_render_caches(template_id: str | None = None) -> None:
+    """À appeler si un template perso est édité (le HTML peut avoir changé)."""
+    with _RENDER_LOCK:
+        if template_id:
+            _CUSTOM_TEMPLATE_CACHE.pop(template_id, None)
         else:
-            out.append(_ats_wrap_plain_text_segment(p, kws))
-    result = "".join(out)
-    for idx, block in enumerate(protected):
-        result = result.replace(f"__AXEL_ATS_PROT_{idx}__", block)
-    return before + result + after
+            _CUSTOM_TEMPLATE_CACHE.clear()
+            _FILE_ENV_CACHE.clear()
 
 
-def _diff_highlight_html(base: str, current: str) -> str:
-    """Compare base et current, entoure les changements en <span class="cv-changed">. Préserve les retours à la ligne."""
-    from difflib import SequenceMatcher
+def _get_file_env_and_template(template_dir: Path) -> tuple[Any, Any, str]:
+    """Retourne (Environment, Template, css_str) pour un template fichier. Cache par dir."""
+    from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-    base = (base or "").strip()
-    current = (current or "").strip()
-    if base == current:
-        return html_module.escape(current)
-    base_lines = base.split("\n")
-    current_lines = current.split("\n")
-    out_lines = []
-    for i, curr_line in enumerate(current_lines):
-        base_line = base_lines[i] if i < len(base_lines) else ""
-        if base_line == curr_line:
-            out_lines.append(html_module.escape(curr_line))
-            continue
-        base_words = base_line.split()
-        current_words = curr_line.split()
-        if not current_words:
-            out_lines.append("")
-            continue
-        matcher = SequenceMatcher(None, base_words, current_words)
-        out = []
-        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-            segment = current_words[j1:j2]
-            if not segment:
-                continue
-            text = " ".join(segment)
-            escaped = html_module.escape(text)
-            if tag == "equal":
-                out.append(escaped)
-            else:
-                out.append(f'<span class="cv-changed">{escaped}</span>')
-        out_lines.append(" ".join(out))
-    return "\n".join(out_lines)
+    key = str(template_dir)
+    cached = _FILE_ENV_CACHE.get(key)
+    if cached is not None:
+        return cached
+    with _RENDER_LOCK:
+        cached = _FILE_ENV_CACHE.get(key)
+        if cached is not None:
+            return cached
+        env = Environment(
+            loader=FileSystemLoader(str(template_dir)),
+            autoescape=select_autoescape(("html", "xml")),
+            cache_size=50,
+        )
+        template = env.get_template("template.html")
+        css_path = Path(template_dir).resolve() / "template.css"
+        css_str = ""
+        if css_path.is_file():
+            try:
+                css_str = css_path.read_text(encoding="utf-8")
+            except OSError:
+                css_str = ""
+        cached = (env, template, css_str)
+        _FILE_ENV_CACHE[key] = cached
+        return cached
+
+
+def _get_custom_template(template_id: str, html_content: str) -> Any:
+    """Retourne la Template Jinja parsée pour un template perso. Cache par template_id."""
+    from jinja2 import select_autoescape
+    from jinja2.sandbox import SandboxedEnvironment
+
+    global _CUSTOM_ENV
+    cached = _CUSTOM_TEMPLATE_CACHE.get(template_id)
+    if cached is not None:
+        return cached
+    with _RENDER_LOCK:
+        cached = _CUSTOM_TEMPLATE_CACHE.get(template_id)
+        if cached is not None:
+            return cached
+        if _CUSTOM_ENV is None:
+            _CUSTOM_ENV = SandboxedEnvironment(
+                autoescape=select_autoescape(("html", "xml")),
+                cache_size=200,
+            )
+        tmpl = _CUSTOM_ENV.from_string(html_content or "")
+        _CUSTOM_TEMPLATE_CACHE[template_id] = tmpl
+        return tmpl
 
 
 def render_cv_html(
@@ -235,14 +121,18 @@ def render_cv_html(
     - for_pdf=True désactive preview_responsive (overflow/hauteurs qui cassent WeasyPrint).
     - Les chemins photo et assets utilisent CV_BOT_ROOT comme dans l’API.
     """
-    from jinja2 import Environment, FileSystemLoader, select_autoescape
-    from photo_assets import ensure_compressed_photo, get_photo_url_for_cv
-    from adapter import _strip_h_f
-    from backend.template_registry import get_template, get_template_dir, resolve_options, options_to_css_vars
+    from backend.services.adapter import _strip_h_f
+    from backend.services.photo_assets import ensure_compressed_photo, get_photo_url_for_cv
+    from backend.template_registry import (
+        get_template,
+        get_template_dir,
+        options_to_css_vars,
+        resolve_options,
+    )
 
     if selection_a4:
         try:
-            from cv_select_a4 import apply_selection_to_cv
+            from backend.services.cv_select_a4 import apply_selection_to_cv
 
             cv = apply_selection_to_cv(cv, selection_a4)
         except Exception:
@@ -283,8 +173,10 @@ def render_cv_html(
     titre_cv = _strip_h_f((cv.get("titre_professionnel") or "").strip())
     titre_base = _strip_h_f((base_doc.get("titre_professionnel") or "").strip())
     if highlight_changes and base_cv:
-        ctx["titre_professionnel_display"] = _diff_highlight_html(titre_base, titre_cv)
-        ctx["resume_display"] = _diff_highlight_html(
+        ctx["titre_professionnel_display"] = cv_render_helpers.diff_highlight_html(
+            titre_base, titre_cv
+        )
+        ctx["resume_display"] = cv_render_helpers.diff_highlight_html(
             (base_doc.get("resume") or "").strip(),
             (cv.get("resume") or "").strip(),
         )
@@ -303,7 +195,7 @@ def render_cv_html(
     experiences_with_content = [
         exp
         for exp in experiences_raw
-        if (exp.get("poste") or exp.get("entreprise") or any((exp.get("bullet_points") or [])))
+        if (exp.get("poste") or exp.get("entreprise") or any(exp.get("bullet_points") or []))
     ]
     experiences_for_display = []
     for exp in experiences_with_content:
@@ -314,7 +206,7 @@ def render_cv_html(
             b_val = (base_exp.get(field) or "").strip()
             c_val = (exp.get(field) or "").strip()
             if do_hl:
-                return _diff_highlight_html(b_val, c_val)
+                return cv_render_helpers.diff_highlight_html(b_val, c_val)
             return html_module.escape(c_val)
 
         bullets_raw = (exp.get("bullet_points") or [])[:max_bullets]
@@ -325,7 +217,11 @@ def render_cv_html(
             bullets_with_hl.append(
                 {
                     "text": b,
-                    "html": _diff_highlight_html(base_b, b) if do_hl else html_module.escape(b),
+                    "html": (
+                        cv_render_helpers.diff_highlight_html(base_b, b)
+                        if do_hl
+                        else html_module.escape(b)
+                    ),
                 }
             )
         exp_display = {
@@ -362,67 +258,63 @@ def render_cv_html(
     comp = cv.get("competences") or {}
     langues_all = comp.get("langues") or []
     ctx["langues_for_display"] = [
-        l
-        for l in langues_all
-        if (l.get("langue") if isinstance(l, dict) else None)
-        or (l.get("niveau") if isinstance(l, dict) else None)
+        lg
+        for lg in langues_all
+        if (lg.get("langue") if isinstance(lg, dict) else None)
+        or (lg.get("niveau") if isinstance(lg, dict) else None)
     ]
 
     ctx["show_mots_cles_ats"] = resolved_opts.get("show_mots_cles_ats", True)
     _raw_mots = (cv.get("mots_cles_cache") or "").strip()
-    ctx["mots_cles_cache"] = _mots_cles_cache_for_pdf_export(_raw_mots) if for_pdf else _raw_mots
+    ctx["mots_cles_cache"] = (
+        cv_render_helpers.mots_cles_cache_for_pdf_export(_raw_mots) if for_pdf else _raw_mots
+    )
 
     actual_tid = tmpl_meta.get("id") or DEFAULT_TEMPLATE_ID
     if tmpl_meta.get("_custom"):
-        env = Environment(autoescape=select_autoescape(("html", "xml")))
-        html_str = env.from_string(tmpl_meta.get("_html_content") or "").render(**ctx)
-        custom_css = (tmpl_meta.get("_css_content") or "").strip()
-        if custom_css:
-            import re as _re_css
-
-            style_block = f"<style>{custom_css}</style>"
-            html_str = _re_css.sub(
-                r'<link\s[^>]*href\s*=\s*["\']?template\.css["\']?[^>]*>',
-                style_block,
-                html_str,
-                count=0,
-                flags=_re_css.IGNORECASE,
-            )
-            if style_block not in html_str:
-                if "</head>" in html_str:
-                    html_str = html_str.replace("</head>", style_block + "\n</head>", 1)
-                elif "<body" in html_str:
-                    import re as _re_body
-
-                    html_str = _re_body.sub(r"(<body[^>]*>)", r"\1" + style_block, html_str, count=1)
-                else:
-                    html_str = style_block + html_str
-        else:
-            html_str = html_str.replace('href="template.css"', f'href="/api/templates/{actual_tid}/template.css"')
-    else:
-        env = Environment(
-            loader=FileSystemLoader(str(tmpl_dir)),
-            autoescape=select_autoescape(("html", "xml")),
+        # Template perso (HTML/CSS stockés en DB) — Template Jinja parsée 1× et cachée.
+        tmpl_obj = _get_custom_template(actual_tid, tmpl_meta.get("_html_content") or "")
+        html_str = tmpl_obj.render(**ctx)
+        custom_css = sanitize_css_for_style_tag((tmpl_meta.get("_css_content") or "").strip())
+        # Toujours inliner le CSS perso : un <link href="…/template.css"> ne porterait pas le Bearer,
+        # alors que GET /api/templates/.../template.css exige une session autorisée.
+        style_block = f"<style>{custom_css}</style>"
+        html_str = re.sub(
+            r'<link\s[^>]*href\s*=\s*["\']?template\.css["\']?[^>]*>',
+            style_block,
+            html_str,
+            count=0,
+            flags=re.IGNORECASE,
         )
-        template = env.get_template("template.html")
+        if style_block not in html_str:
+            if "</head>" in html_str:
+                html_str = html_str.replace("</head>", style_block + "\n</head>", 1)
+            elif "<body" in html_str:
+                html_str = re.sub(r"(<body[^>]*>)", r"\1" + style_block, html_str, count=1)
+            else:
+                html_str = style_block + html_str
+    else:
+        # Template fichier — env Jinja + Template + CSS lus 1× et cachés en mémoire.
+        assert tmpl_dir is not None
+        _env, template, css_content = _get_file_env_and_template(Path(tmpl_dir))
         html_str = template.render(**ctx)
-        css_path = Path(tmpl_dir).resolve() / "template.css"
-        if css_path.is_file():
-            css_content = css_path.read_text(encoding="utf-8")
+        if css_content:
             style_block = f"<style>{css_content}</style>"
-            import re as _re_link
-
-            html_str = _re_link.sub(
+            html_str = re.sub(
                 r'<link\s[^>]*href\s*=\s*["\']?template\.css["\']?[^>]*>',
                 style_block,
                 html_str,
                 count=0,
-                flags=_re_link.IGNORECASE,
+                flags=re.IGNORECASE,
             )
             if style_block not in html_str:
-                html_str = html_str.replace('<link rel="stylesheet" href="template.css">', style_block, 1)
+                html_str = html_str.replace(
+                    '<link rel="stylesheet" href="template.css">', style_block, 1
+                )
         else:
-            html_str = html_str.replace('href="template.css"', f'href="/api/templates/{actual_tid}/template.css"')
+            html_str = html_str.replace(
+                'href="template.css"', f'href="/api/templates/{actual_tid}/template.css"'
+            )
     if 'src="assets/' in html_str:
         html_str = html_str.replace('src="assets/', 'src="/api/assets/')
 
@@ -453,13 +345,15 @@ def render_cv_html(
         )
         html_str = html_str.replace("</head>", typo_override + "</head>", 1)
 
-    _has_typo_opts = template_options is not None and any(k in (template_options or {}) for k in TYPO_OPTION_DEFAULTS)
+    _has_typo_opts = template_options is not None and any(
+        k in (template_options or {}) for k in TYPO_OPTION_DEFAULTS
+    )
     if not _has_typo_opts:
         _ref = base_cv if base_cv else cv
         _exp_ref = [
             e
             for e in (_ref.get("experiences") or [])[:6]
-            if (e.get("poste") or e.get("entreprise") or any((e.get("bullet_points") or [])))
+            if (e.get("poste") or e.get("entreprise") or any(e.get("bullet_points") or []))
         ]
         _bullet_ref = sum(len(e.get("bullet_points") or []) for e in _exp_ref)
         _form_ref = len(
@@ -469,7 +363,9 @@ def render_cv_html(
                 if (f.get("diplome") or f.get("etablissement") or f.get("date") or f.get("mention"))
             ]
         )
-        _proj_ref = len([p for p in (_ref.get("projets") or [])[:5] if (p.get("nom") or p.get("description"))])
+        _proj_ref = len(
+            [p for p in (_ref.get("projets") or [])[:5] if (p.get("nom") or p.get("description"))]
+        )
         content_score = len(_exp_ref) * 3 + _bullet_ref + _form_ref + _proj_ref
         if content_score <= 6:
             scale_css = "<style>body{font-size:11pt;line-height:1.55}.resume-text{font-size:10.5pt;line-height:1.6}.sidebar-item{font-size:9.5pt;line-height:1.4}.section-title{font-size:10.5pt}.exp-poste{font-size:11pt}</style>"
@@ -502,7 +398,9 @@ def render_cv_html(
     inject_preview_responsive = for_preview and (not for_pdf or pdf_engine_is_chromium())
     if inject_preview_responsive:
         preview_ats_keywords = (
-            _keywords_from_mots_cles_cache((cv.get("mots_cles_cache") or "").strip())
+            cv_render_helpers.keywords_from_mots_cles_cache(
+                (cv.get("mots_cles_cache") or "").strip()
+            )
             if not for_pdf
             else []
         )
@@ -561,7 +459,7 @@ def render_cv_html(
         )
         html_str = html_str.replace("</head>", preview_responsive + "</head>", 1)
         if preview_ats_keywords and not for_pdf:
-            html_str = _ats_highlight_preview_body(html_str, preview_ats_keywords)
+            html_str = cv_render_helpers.ats_highlight_preview_body(html_str, preview_ats_keywords)
     return html_str
 
 

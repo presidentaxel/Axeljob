@@ -1,13 +1,33 @@
 # Dossier photo du CV
 
-Place ici ta photo pour le CV.
+Ce dossier contient la photo locale utilisee pour le CV quand `photo_url` n'est pas renseigne.
 
-**Fichiers reconnus** (un seul utilisé, dans cet ordre) :
-- `photo.jpg` / `photo.jpeg`
-- `photo.png`
-- `photo.webp`
-- ou toute autre image (jpg, png, webp, gif) dans ce dossier
+## Sommaire
 
-Tu peux aussi garder une URL dans `cv_base.json` (`photo_url`) ; si `photo_url` est vide, le script utilisera automatiquement l'image de ce dossier.
+1. Ordre de selection
+2. Comportement avec `cv_base.json`
+3. Optimisation image
 
-**Compression** : pour garder le preview et le PDF légers, l'image est automatiquement redimensionnée (max 200×200 px) et enregistrée en JPEG dans `photo_cv.jpg`. Ce fichier est généré à la volée ; tu peux l'ignorer ou le supprimer, il sera recréé si besoin. Nécessite **Pillow** (`pip install Pillow`).
+## 1) Ordre de selection des fichiers
+
+Un seul fichier est utilise, selon l'ordre :
+
+1. `photo.jpg` ou `photo.jpeg`
+2. `photo.png`
+3. `photo.webp`
+4. sinon, la premiere image supportee du dossier (`jpg`, `png`, `webp`, `gif`)
+
+## 2) Comportement avec `cv_base.json`
+
+- Si `photo_url` est defini, cette URL est prioritaire.
+- Si `photo_url` est vide, l'application utilise l'image locale detectee dans ce dossier.
+
+## 3) Optimisation image
+
+Pour alleger preview et PDF, l'image peut etre redimensionnee (max 200x200) puis enregistree en JPEG dans `photo_cv.jpg`.
+Ce fichier est genere a la volee et peut etre supprime (il sera recree au besoin).
+
+Dependance : `Pillow` (`pip install Pillow`).
+
+> [!TIP]
+> Preferer un portrait carre ou proche du carre pour un rendu PDF plus stable.

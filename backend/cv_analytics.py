@@ -1,6 +1,7 @@
 """
 Métriques CV pour analytics : profil sauvegardé, import, adaptation.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -83,8 +84,12 @@ def adaptation_metrics(
         "score_ats_after": sa,
         "score_ats_delta": delta,
         "offre_word_count": words,
-        "offre_has_titre": bool(isinstance(offre, dict) and (str(offre.get("titre") or "")).strip()),
-        "offre_has_entreprise": bool(isinstance(offre, dict) and (str(offre.get("entreprise") or "")).strip()),
+        "offre_has_titre": bool(
+            isinstance(offre, dict) and (str(offre.get("titre") or "")).strip()
+        ),
+        "offre_has_entreprise": bool(
+            isinstance(offre, dict) and (str(offre.get("entreprise") or "")).strip()
+        ),
     }
 
 
@@ -129,7 +134,11 @@ def cv_import_completeness(cv: dict[str, Any] | None) -> dict[str, Any]:
     name_ok = _nonempty(cv.get("prenom")) or _nonempty(cv.get("nom"))
     checks.append(("identity_name", name_ok))
 
-    contact_ok = _nonempty(cv.get("email")) or _nonempty(cv.get("telephone")) or _nonempty(cv.get("linkedin"))
+    contact_ok = (
+        _nonempty(cv.get("email"))
+        or _nonempty(cv.get("telephone"))
+        or _nonempty(cv.get("linkedin"))
+    )
     checks.append(("contact", contact_ok))
 
     checks.append(("titre_professionnel", _nonempty(cv.get("titre_professionnel"))))
@@ -155,7 +164,10 @@ def cv_import_completeness(cv: dict[str, Any] | None) -> dict[str, Any]:
     )
     checks.append(("competences_techniques_or_logiciels", skills_ok))
 
-    lang_ok = isinstance(langues, list) and len([l for l in langues if isinstance(l, dict) and _nonempty(l.get("langue"))]) >= 1
+    lang_ok = (
+        isinstance(langues, list)
+        and len([lg for lg in langues if isinstance(lg, dict) and _nonempty(lg.get("langue"))]) >= 1
+    )
     checks.append(("langues", lang_ok))
 
     projs = [p for p in (cv.get("projets") or []) if isinstance(p, dict)]

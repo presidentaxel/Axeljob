@@ -8,7 +8,6 @@ import {
   apiPatch,
   apiPostBlob,
   apiPostFormData,
-  apiGetBlob,
   getDownloadPermissionHint,
   prepareAppleDownloadWindow,
   saveBlobWithPreferredMethod,
@@ -589,7 +588,58 @@ function SupportReplySection() {
     }
   };
 
-  const sendAnother = () => { setSuccess(false); };
+  const sendAnother = () => {
+    setSuccess(false);
+  };
+
+  return (
+    <section className="support-conv">
+      <h2 className="support-section-title">
+        <HiChatBubbleLeftRight className="support-conv-title-icon" aria-hidden />
+        Répondre à un utilisateur
+      </h2>
+      <div className="support-conv-card">
+        {success ? (
+          <>
+            <p className="support-ticket-success">Message envoyé.</p>
+            <button type="button" className="btn btn-secondary support-ticket-another" onClick={sendAnother}>
+              Nouvelle réponse
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="support-conv-placeholder-text">
+              Envoi d&apos;un email de support depuis l&apos;adresse configurée côté serveur vers l&apos;utilisateur concerné.
+            </p>
+            <form onSubmit={handleSubmit} className="support-ticket-form">
+              <input
+                type="email"
+                className="support-ticket-subject"
+                placeholder="Email du destinataire"
+                value={toEmail}
+                onChange={(e) => setToEmail(e.target.value)}
+                maxLength={320}
+                required
+              />
+              <textarea
+                className="support-ticket-message"
+                placeholder="Message…"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                rows={5}
+                maxLength={8000}
+                required
+              />
+              {error && <p className="support-ticket-error">{error}</p>}
+              <button type="submit" className="btn btn-primary support-ticket-submit" disabled={loading}>
+                {loading ? 'Envoi…' : 'Envoyer'}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </section>
+  );
 }
 
 const marketingSuspenseFallback = (
@@ -675,15 +725,8 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(!!supabase);
   const [loginOtpExpired, setLoginOtpExpired] = useState(false);
   const [applicationDetailId, setApplicationDetailId] = useState(null);
-  const [applicationDetail, setApplicationDetail] = useState(null);
-  const [detailTab, setDetailTab] = useState('cv');
-  const [detailCvHtml, setDetailCvHtml] = useState('');
-  const [detailLetterHtml, setDetailLetterHtml] = useState('');
-  const [detailLetterLoading, setDetailLetterLoading] = useState(false);
-  const [detailDownloading, setDetailDownloading] = useState(null);
   const iframeRef = useRef(null);
   const previewWrapRef = useRef(null);
-  const exportDirHandleRef = useRef(null);
   const chatMessagesEndRef = useRef(null);
   /** Photo Supabase : fenêtre 1 semaine ; si l'URL a expiré, déco + redirect login pour tout remettre à jour */
   const handlePhotoSessionExpired = () => {
@@ -746,6 +789,8 @@ export default function App() {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [adaptTodoPlan, setAdaptTodoPlan] = useState(null);
+  const [, setAdaptTodoExplain] = useState('');
+  const [, setAdaptTodoExplainLoading] = useState(false);
   /** En attente de la réponse /api/adapt-plan après envoi de l’offre. */
   const [adaptPlanLoading, setAdaptPlanLoading] = useState(false);
   const [adaptTodoLastAction, setAdaptTodoLastAction] = useState('');
@@ -778,7 +823,6 @@ export default function App() {
   const [profileRefreshKey, setProfileRefreshKey] = useState(0);
   /** Évite de repasser onboardingChecked à false (écran « Chargement… ») sur un simple refresh profil / même user. */
   const profileGateIdentityRef = useRef('');
-  const [userDisplayName, setUserDisplayName] = useState('');
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [mfaChallengeRequired, setMfaChallengeRequired] = useState(false);
   const [mfaChallengeChecked, setMfaChallengeChecked] = useState(false);
@@ -912,13 +956,18 @@ export default function App() {
     }
   }, [pathname]);
 
-  // Liste des templates : fetch en app (avec token si session pour avoir les templates perso dans « Mes templates »)
+  // Liste des templates : fetch UNE FOIS quand on entre dans /app et à chaque changement
+  // d'identité utilisateur (login/logout). Avant : refetch à chaque navigation interne /app/*
+  // → 4-6 appels inutiles par session. Le backend a un cache TTL 5 min, mais autant ne pas
+  // payer le round-trip + GZip + setState + rerender quand rien n'a changé.
+  const isInApp = pathname.startsWith('/app');
+  const sessionUserId = session?.user?.id || null;
   useEffect(() => {
-    if (!pathname.startsWith('/app')) return;
+    if (!isInApp) return;
     apiGet('/api/templates')
       .then((data) => setTemplatesList(Array.isArray(data) ? data : []))
       .catch(() => setTemplatesList([]));
-  }, [pathname, session]);
+  }, [isInApp, sessionUserId]);
 
   // Persist template choice (localStorage + base de données)
   useEffect(() => {
@@ -931,7 +980,9 @@ export default function App() {
   useEffect(() => {
     if (!session) return;
     const t = setTimeout(() => {
-      apiPatch('/api/cv', { template_id: templateId, template_options: templateOptions }).catch(() => {});
+      apiPatch('/api/cv', { template_id: templateId, template_options: templateOptions }).catch(() => {
+        /* ignore */
+      });
     }, 1500);
     return () => clearTimeout(t);
   }, [session, templateId, templateOptions]);
@@ -1022,7 +1073,9 @@ export default function App() {
         if (error || !data) return;
         if (data.nextLevel === 'aal2' && data.currentLevel !== 'aal2') setMfaChallengeRequired(true);
       })
-      .catch(() => {});
+      .catch(() => {
+        /* ignore */
+      });
   }, [session, authLoading, recoveryMode, mfaChallengeChecked]);
 
   // Check if profile is empty → show onboarding + display name (prénom + nom) ; sync template_id / template_options depuis l’API pour persistance entre sessions
@@ -1046,16 +1099,10 @@ export default function App() {
       profileGateIdentityRef.current = identity;
       setOnboardingChecked(false);
     }
-    setUserDisplayName(email.split('@')[0] || 'Compte');
     apiGet('/api/cv?profile=1')
       .then((data) => {
         const empty = !data || (typeof data === 'object' && Object.keys(data).length === 0);
         setNeedsOnboarding(empty);
-        const prenom = (data?.prenom || '').trim();
-        const nom = (data?.nom || '').trim();
-        if (prenom || nom) {
-          setUserDisplayName([prenom, nom].filter(Boolean).join(' '));
-        }
         if (data?.template_id !== undefined && (data.template_id || '').trim()) setTemplateId((data.template_id || '').trim() || 'minimal');
         if (data?.template_options !== undefined && typeof data.template_options === 'object') setTemplateOptions(data.template_options || {});
       })
@@ -1296,7 +1343,9 @@ export default function App() {
         if (lastBaseCv) {
           apiPost('/api/render-html', { cv: lastBaseCv, template_id: tid, template_options: opts })
             .then((html) => setOriginalPreviewHtml(html))
-            .catch(() => {});
+            .catch(() => {
+        /* ignore */
+      });
         }
         return;
       }
@@ -1312,14 +1361,18 @@ export default function App() {
           .then((html) => {
             setModifiedPreviewHtml(html);
           })
-          .catch(() => {});
+          .catch(() => {
+        /* ignore */
+      });
       } else if (!tourHighlightStepActive) {
         loadInitialPreview(tid, opts);
       }
       if (lastBaseCv) {
         apiPost('/api/render-html', { cv: lastBaseCv, template_id: tid, template_options: opts })
           .then((html) => setOriginalPreviewHtml(html))
-          .catch(() => {});
+          .catch(() => {
+        /* ignore */
+      });
       }
     };
 
@@ -1412,7 +1465,9 @@ export default function App() {
           selection_a4: lastSelectionA4 || undefined,
         })
           .then((html) => { setModifiedPreviewHtml(html); })
-          .catch(() => {});
+          .catch(() => {
+        /* ignore */
+      });
       }
     }
   }, [
@@ -1453,7 +1508,9 @@ export default function App() {
     try {
       const key = getPersistedPlanStorageKey();
       if (key) localStorage.removeItem(key);
-    } catch (_) {}
+    } catch {
+      /* ignore localStorage */
+    }
     setAnnonce('');
     setLastAdaptRunConfig(null);
     setAdaptRating(null);
@@ -1491,7 +1548,9 @@ export default function App() {
           setFreshPreviewPhotoUrl(cv.photo_url ?? null);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        /* ignore */
+      });
     loadInitialPreview();
   };
 
@@ -1521,7 +1580,9 @@ export default function App() {
           setFreshPreviewPhotoUrl(cv.photo_url ?? null);
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        /* ignore */
+      })
       .then(() => {
         if (cancelled) return;
         const adapted = lastAdaptedCvRef.current;
@@ -1583,7 +1644,11 @@ export default function App() {
         ));
       })
       .catch(() => {
-        try { localStorage.removeItem(key); } catch (_) {}
+        try {
+          localStorage.removeItem(key);
+        } catch {
+          /* ignore */
+        }
       });
     return () => { cancelled = true; };
   }, [session?.user?.id, view, lastAdaptedCv, adapting, adaptTodoPlan, getPersistedPlanStorageKey]);
@@ -1598,7 +1663,9 @@ export default function App() {
       const v = (chatInput || '').trim();
       if (!v) localStorage.removeItem(key);
       else localStorage.setItem(key, v);
-    } catch (_) {}
+    } catch {
+      /* ignore localStorage */
+    }
   }, [session?.user?.id, view, chatInput, lastAdaptedCv, adaptTodoPlan, getAdaptDraftStorageKey]);
 
   // Restauration du brouillon après refresh.
@@ -1610,7 +1677,9 @@ export default function App() {
     try {
       const draft = (localStorage.getItem(key) || '').trim();
       if (draft) setChatInput(draft);
-    } catch (_) {}
+    } catch {
+      /* ignore localStorage */
+    }
   }, [session?.user?.id, view, lastAdaptedCv, adaptTodoPlan, chatInput, getAdaptDraftStorageKey]);
 
   useEffect(() => {
@@ -1623,7 +1692,7 @@ export default function App() {
     if (!usage || usage.adaptations_used !== 0) return;
     try {
       if (localStorage.getItem(`cv_bot_first_offer_nudge_dismissed_${session.user.id}`) === '1') return;
-    } catch (_) {
+    } catch {
       return;
     }
     if (!pathname.startsWith('/app')) return;
@@ -1640,7 +1709,9 @@ export default function App() {
       const topt = localStorage.getItem('cv_template_options');
       if (tid) setTemplateId(tid);
       if (topt) setTemplateOptions(JSON.parse(topt));
-    } catch (_) {}
+    } catch {
+      /* ignore localStorage */
+    }
   }, [view]);
 
   // Export default dir : uniquement en app et sur la vue CV (pas sur la landing pour alléger le chemin critique)
@@ -1651,7 +1722,9 @@ export default function App() {
     else {
       apiGet('/api/export-default-dir').then((data) => {
         if (data.path) setExportDossierPath((p) => p || data.path);
-      }).catch(() => {});
+      }).catch(() => {
+        /* ignore */
+      });
     }
   }, [pathname, view]);
 
@@ -1760,74 +1833,12 @@ export default function App() {
     if (view === 'candidatures') loadApplications();
   }, [view, session?.user?.id]);
 
-  const openApplicationDetail = async (id) => {
-    setApplicationDetailId(null);
-    setApplicationDetail(null);
-    setDetailCvHtml('');
-    setDetailLetterHtml('');
-    setDetailTab('cv');
-    try {
-      const payload = await apiGet(`/api/applications/${encodeURIComponent(id)}`);
-      setApplicationDetailId(id);
-      setApplicationDetail(payload);
-      if (payload.lettre_html) setDetailLetterHtml(payload.lettre_html);
-    } catch (e) {
-      setError(e.message || 'Impossible de charger la candidature.');
-    }
+  const openApplicationDetail = (id) => {
+    setApplicationDetailId(id);
   };
 
   const closeApplicationDetail = () => {
     setApplicationDetailId(null);
-    setApplicationDetail(null);
-    setDetailCvHtml('');
-    setDetailLetterHtml('');
-  };
-
-  useEffect(() => {
-    if (!applicationDetail || detailTab !== 'cv') return;
-    const fullCv = applicationDetail.full_cv;
-    if (!fullCv) return;
-    apiPost('/api/render-html', { cv: fullCv, ...templateParams })
-      .then((html) => setDetailCvHtml(html))
-      .catch(() => setDetailCvHtml('<p>Erreur chargement aperçu CV.</p>'));
-  }, [applicationDetail, detailTab]);
-
-  const handleGenerateLetter = async () => {
-    if (!applicationDetailId) return;
-    setDetailLetterLoading(true);
-    try {
-      const data = await apiPost(`/api/applications/${encodeURIComponent(applicationDetailId)}/generate-letter`);
-      if (data && data.lettre_html) {
-        setDetailLetterHtml(data.lettre_html);
-        setApplicationDetail((prev) => (prev ? { ...prev, lettre_html: data.lettre_html } : null));
-      } else {
-        setError('Lettre non disponible.');
-      }
-    } catch (e) {
-      setError(e.message || 'Génération lettre impossible.');
-    } finally {
-      setDetailLetterLoading(false);
-    }
-  };
-
-
-  const handleDetailDownload = async (type) => {
-    if (!applicationDetailId) return;
-    const path = `/api/applications/${encodeURIComponent(applicationDetailId)}/download/${type}`;
-    const preopenedWindow = prepareAppleDownloadWindow();
-    setDetailDownloading(type);
-    try {
-      const { blob, filename } = await apiGetBlob(path);
-      await saveBlobWithPreferredMethod(blob, filename || (type === 'cv' ? 'cv.pdf' : type === 'lettre' ? 'lettre.pdf' : 'fiche.pdf'), {
-        preopenedWindow,
-      });
-    } catch (e) {
-      if (preopenedWindow && !preopenedWindow.closed) preopenedWindow.close();
-      const baseMessage = e.message || 'Téléchargement impossible.';
-      setError(`${baseMessage}${getDownloadPermissionHint()}`);
-    } finally {
-      setDetailDownloading(null);
-    }
   };
 
   const runPlannedAdaptation = async ({ description, selectedStepIds, source = 'chat_send', planId = null }) => {
@@ -1945,7 +1956,9 @@ export default function App() {
       let baseCv = null;
       try {
         baseCv = await apiGet('/api/cv');
-      } catch {}
+      } catch {
+        /* fallback: lastBaseCv */
+      }
       const html = lastStreamPreviewHtml || await apiPost('/api/render-html', {
         ...templateParams,
         cv: data.cv,
@@ -1988,11 +2001,15 @@ export default function App() {
       try {
         const key = getPersistedPlanStorageKey();
         if (key) localStorage.removeItem(key);
-      } catch (_) {}
-    try {
-      const key = getAdaptDraftStorageKey();
-      if (key) localStorage.removeItem(key);
-    } catch (_) {}
+      } catch {
+        /* ignore localStorage */
+      }
+      try {
+        const draftKey = getAdaptDraftStorageKey();
+        if (draftKey) localStorage.removeItem(draftKey);
+      } catch {
+        /* ignore localStorage */
+      }
     } catch (e) {
       if (e?.name === 'AbortError') {
         if (adaptActiveRunIdRef.current !== myRunId) return;
@@ -2022,7 +2039,9 @@ export default function App() {
       const nextTodo = (prev.todo || []).filter((step) => step.id !== stepId);
       const selected = nextTodo.map((s) => s.id);
       if (prev.planId) {
-        apiPatch(`/api/adapt-plan/${encodeURIComponent(prev.planId)}`, { selected_step_ids: selected }).catch(() => {});
+        apiPatch(`/api/adapt-plan/${encodeURIComponent(prev.planId)}`, { selected_step_ids: selected }).catch(() => {
+          /* ignore */
+        });
       }
       const removed = (prev.todo || []).find((s) => s.id === stepId);
       setAdaptTodoLastAction(`Retirée: ${removed?.title || stepId}`);
@@ -2086,11 +2105,15 @@ export default function App() {
         try {
           const key = getPersistedPlanStorageKey();
           if (key && plan?.plan_id) localStorage.setItem(key, String(plan.plan_id));
-        } catch (_) {}
+        } catch {
+          /* ignore localStorage */
+        }
         try {
-          const key = getAdaptDraftStorageKey();
-          if (key) localStorage.removeItem(key);
-        } catch (_) {}
+          const draftKey = getAdaptDraftStorageKey();
+          if (draftKey) localStorage.removeItem(draftKey);
+        } catch {
+          /* ignore localStorage */
+        }
       } catch (e) {
         if (e.status === 402 || (e.message && e.message.includes('épuisé'))) {
           setUpgradeModalVisible(true);
@@ -2158,7 +2181,9 @@ export default function App() {
       selection_a4: lastSelectionA4 || undefined,
     })
       .then((html) => { setPreviewHtml(html); setModifiedPreviewHtml(html); })
-      .catch(() => {});
+      .catch(() => {
+        /* ignore */
+      });
     setCvEditPanelOpen(false);
   };
 
@@ -2386,7 +2411,9 @@ export default function App() {
             entreprise: entEff,
           });
           loadApplications();
-        } catch {}
+        } catch {
+          /* patch application meta: non-bloquant */
+        }
       }
     };
 
@@ -2558,7 +2585,9 @@ export default function App() {
           setOriginalPreviewHtml(html);
           if (iframeRef.current) iframeRef.current.srcdoc = html;
         })
-        .catch(() => {});
+        .catch(() => {
+        /* ignore */
+      });
     }
   }, [previewVariant, isCvView, originalPreviewHtml, lastBaseCv, templateId, templateOptions, templateKey]);
 
@@ -2605,26 +2634,13 @@ export default function App() {
     await runExportDossier();
   };
 
-  const handleBrowseExportDir = async () => {
-    if (typeof showDirectoryPicker !== 'function') {
-      setExportDossierPath('');
-      return;
-    }
-    try {
-      const handle = await showDirectoryPicker();
-      exportDirHandleRef.current = handle;
-      setExportDossierPath('');
-      setRapport((r) => (r ? { ...r, folder: null, files: null } : null));
-    } catch (e) {
-      if (e.name !== 'AbortError') setError('Parcourir : ' + (e.message || e));
-    }
-  };
-
   const handleStatutChange = async (id, statut, extra = {}) => {
     try {
       await apiPatch(`/api/applications/${encodeURIComponent(id)}`, { statut, ...extra });
       loadApplications();
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleStatutSelect = (app, newStatut) => {
@@ -2706,7 +2722,9 @@ export default function App() {
     try {
       await apiPatch(`/api/applications/${encodeURIComponent(id)}`, { archived: isArchived });
       loadApplications();
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   };
 
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
@@ -3290,7 +3308,9 @@ export default function App() {
                         highlight_changes: false,
                       })
                         .then((html) => { setPreviewHtml(html); setModifiedPreviewHtml(html); })
-                        .catch(() => {});
+                        .catch(() => {
+        /* ignore */
+      });
                     }}
                   />
                 ) : (
@@ -3330,7 +3350,9 @@ export default function App() {
                       const trimmed = v.trim();
                       if (!trimmed) return;
                       sourceOffreDebounceRef.current = setTimeout(() => {
-                        apiPatch(`/api/applications/${encodeURIComponent(aid)}`, { source_offre: trimmed }).catch(() => {});
+                        apiPatch(`/api/applications/${encodeURIComponent(aid)}`, { source_offre: trimmed }).catch(() => {
+        /* ignore */
+      });
                       }, 800);
                     }} style={{ maxWidth: '150px' }}>
                       <option value="">Source</option>
@@ -3812,7 +3834,11 @@ export default function App() {
                     loadApplications();
                     loadUsage();
                     let baseCv = null;
-                    try { baseCv = await apiGet('/api/cv'); } catch {}
+                    try {
+                      baseCv = await apiGet('/api/cv');
+                    } catch {
+                      /* ignore */
+                    }
                     if (baseCv) setLastBaseCv(baseCv);
                     const html = await apiPost('/api/render-html', {
                       ...templateParams,

@@ -7,12 +7,13 @@ restent sur le client Supabase (API).
 Configurer SUPABASE_DATABASE_URL (URI depuis Dashboard > Project Settings > Database).
 En cas d'erreur réseau/DB, db.py retombe sur le client supabase-py (REST).
 """
+
 from __future__ import annotations
 
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +33,9 @@ def get_pool():
         return _pool
     if not is_configured():
         return None
-    from backend.config import SUPABASE_DATABASE_URL, supabase_pg_pool_max
     from psycopg_pool import ConnectionPool
+
+    from backend.config import SUPABASE_DATABASE_URL, supabase_pg_pool_max
 
     _pool = ConnectionPool(
         conninfo=SUPABASE_DATABASE_URL,
@@ -51,9 +53,9 @@ def get_pool():
 
 def insert_event_row(
     event_type: str,
-    user_id: Optional[str],
+    user_id: str | None,
     context: dict,
-    session_id: Optional[str] = None,
+    session_id: str | None = None,
 ) -> None:
     """Insère une ligne dans public.events (logs analytiques)."""
     from psycopg.types.json import Json
@@ -62,27 +64,25 @@ def insert_event_row(
     if not pool:
         raise RuntimeError("Pool PG indisponible")
 
-    with pool.connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
+    with pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
                 INSERT INTO public.events (event_type, user_id, session_id, context)
                 VALUES (%s, %s, %s, %s::jsonb)
                 """,
-                (event_type, user_id, session_id, Json(context or {})),
-            )
+            (event_type, user_id, session_id, Json(context or {})),
+        )
 
 
-def count_auth_users() -> Optional[int]:
+def count_auth_users() -> int | None:
     """Nombre de comptes Supabase Auth (auth.users). None si PG indisponible ou erreur."""
     pool = get_pool()
     if not pool:
         return None
     try:
-        with pool.connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT count(*)::bigint FROM auth.users")
-                row = cur.fetchone()
+        with pool.connection() as conn, conn.cursor() as cur:
+            cur.execute("SELECT count(*)::bigint FROM auth.users")
+            row = cur.fetchone()
         if row is None:
             return None
         return int(row[0])
@@ -91,7 +91,7 @@ def count_auth_users() -> Optional[int]:
         return None
 
 
-def auth_user_id_exists(uid: str) -> Optional[bool]:
+def auth_user_id_exists(uid: str) -> bool | None:
     """
     True si une ligne auth.users existe pour cet id, False sinon.
     None si pool PG indisponible ou erreur (l’appelant peut retenter via REST).
@@ -102,16 +102,15 @@ def auth_user_id_exists(uid: str) -> Optional[bool]:
     if not pool:
         return None
     try:
-        with pool.connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT 1 FROM auth.users WHERE id = %s::uuid LIMIT 1", (uid.strip(),))
-                return cur.fetchone() is not None
+        with pool.connection() as conn, conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM auth.users WHERE id = %s::uuid LIMIT 1", (uid.strip(),))
+            return cur.fetchone() is not None
     except Exception as e:
         logger.warning("auth_user_id_exists failed: %s", e)
         return None
 
 
-def aggregate_events_recent_days(days: int = 7) -> Optional[dict[str, Any]]:
+def aggregate_events_recent_days(days: int = 7) -> dict[str, Any] | None:
     """
     Compte les lignes public.events par type sur les N derniers jours (requête admin).
     Retourne None si le pool PG n'est pas configuré ou en cas d'erreur.
@@ -123,36 +122,35 @@ def aggregate_events_recent_days(days: int = 7) -> Optional[dict[str, Any]]:
     from psycopg.rows import dict_row
 
     try:
-        with pool.connection() as conn:
-            with conn.cursor(row_factory=dict_row) as cur:
-                cur.execute(
-                    """
+        with pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
                     SELECT event_type, COUNT(*)::bigint AS n
                     FROM public.events
                     WHERE created_at >= NOW() - (%s * INTERVAL '1 day')
                     GROUP BY event_type
                     ORDER BY n DESC
                     """,
-                    (days,),
-                )
-                rows = cur.fetchall()
-                cur.execute(
-                    """
+                (days,),
+            )
+            rows = cur.fetchall()
+            cur.execute(
+                """
                     SELECT COUNT(*)::bigint AS n FROM public.events
                     WHERE created_at >= NOW() - (%s * INTERVAL '1 day')
                     """,
-                    (days,),
-                )
-                total_row = cur.fetchone()
-                cur.execute(
-                    """
+                (days,),
+            )
+            total_row = cur.fetchone()
+            cur.execute(
+                """
                     SELECT COUNT(DISTINCT user_id)::bigint AS n FROM public.events
                     WHERE created_at >= NOW() - (%s * INTERVAL '1 day')
                       AND user_id IS NOT NULL AND user_id != ''
                     """,
-                    (days,),
-                )
-                distinct_row = cur.fetchone()
+                (days,),
+            )
+            distinct_row = cur.fetchone()
     except Exception as e:
         logger.warning("aggregate_events_recent_days failed: %s", e)
         return None
@@ -198,13 +196,12 @@ def load_cv_base_data(row_id: str) -> Any:
         return None
     from psycopg.rows import dict_row
 
-    with pool.connection() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(
-                "SELECT data FROM public.cv_base WHERE id = %s LIMIT 1",
-                (row_id,),
-            )
-            row = cur.fetchone()
+    with pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "SELECT data FROM public.cv_base WHERE id = %s LIMIT 1",
+            (row_id,),
+        )
+        row = cur.fetchone()
     if not row:
         return None
     data = row.get("data")
@@ -220,36 +217,32 @@ def upsert_cv_base(row_id: str, data: dict, updated_at_iso: str) -> None:
     if not pool:
         raise RuntimeError("Pool PG indisponible")
 
-    with pool.connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
+    with pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
                 INSERT INTO public.cv_base (id, data, updated_at)
                 VALUES (%s, %s::jsonb, %s::timestamptz)
                 ON CONFLICT (id) DO UPDATE SET
                     data = EXCLUDED.data,
                     updated_at = EXCLUDED.updated_at
                 """,
-                (row_id, Json(data), updated_at_iso),
-            )
+            (row_id, Json(data), updated_at_iso),
+        )
 
 
 # --- applications ---
 
 
-def upsert_application(
-    adaptation_id: str, uid: str, payload: dict, updated_at_iso: str
-) -> None:
+def upsert_application(adaptation_id: str, uid: str, payload: dict, updated_at_iso: str) -> None:
     from psycopg.types.json import Json
 
     pool = get_pool()
     if not pool:
         raise RuntimeError("Pool PG indisponible")
 
-    with pool.connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
+    with pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
                 INSERT INTO public.applications (id, user_id, payload, updated_at)
                 VALUES (%s, %s, %s::jsonb, %s::timestamptz)
                 ON CONFLICT (id) DO UPDATE SET
@@ -257,8 +250,8 @@ def upsert_application(
                     payload = EXCLUDED.payload,
                     updated_at = EXCLUDED.updated_at
                 """,
-                (adaptation_id, uid, Json(payload), updated_at_iso),
-            )
+            (adaptation_id, uid, Json(payload), updated_at_iso),
+        )
 
 
 def list_application_rows(uid: str) -> list[dict]:
@@ -267,38 +260,36 @@ def list_application_rows(uid: str) -> list[dict]:
         return []
     from psycopg.rows import dict_row
 
-    with pool.connection() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(
-                """
+    with pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
                 SELECT id, payload, updated_at, user_id
                 FROM public.applications
                 WHERE user_id = %s
                 ORDER BY updated_at DESC
                 """,
-                (uid,),
-            )
-            return list(cur.fetchall() or [])
+            (uid,),
+        )
+        return list(cur.fetchall() or [])
 
 
-def get_application_row(adaptation_id: str) -> Optional[dict]:
+def get_application_row(adaptation_id: str) -> dict | None:
     pool = get_pool()
     if not pool:
         return None
     from psycopg.rows import dict_row
 
-    with pool.connection() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(
-                """
+    with pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
                 SELECT payload, user_id
                 FROM public.applications
                 WHERE id = %s
                 LIMIT 1
                 """,
-                (adaptation_id,),
-            )
-            return cur.fetchone()
+            (adaptation_id,),
+        )
+        return cur.fetchone()
 
 
 def count_applications_for_user(uid: str) -> int:
@@ -306,38 +297,36 @@ def count_applications_for_user(uid: str) -> int:
     if not pool:
         return 0
 
-    with pool.connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT COUNT(*)::int FROM public.applications WHERE user_id = %s",
-                (uid,),
-            )
-            row = cur.fetchone()
-            return int(row[0]) if row else 0
+    with pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(*)::int FROM public.applications WHERE user_id = %s",
+            (uid,),
+        )
+        row = cur.fetchone()
+        return int(row[0]) if row else 0
 
 
 # --- user_plans ---
 
 
-def get_user_plan_row(uid: str) -> Optional[tuple[str, Optional[bool], int, int]]:
+def get_user_plan_row(uid: str) -> tuple[str, bool | None, int, int] | None:
     """Retourne (plan, paywall_disabled, free_adaptation_bonus, free_adaptation_count_anchor) ou None."""
     pool = get_pool()
     if not pool:
         return None
     from psycopg.rows import dict_row
 
-    with pool.connection() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(
-                """
+    with pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
                 SELECT plan, paywall_disabled, free_adaptation_bonus, free_adaptation_count_anchor
                 FROM public.user_plans
                 WHERE user_id = %s
                 LIMIT 1
                 """,
-                (uid,),
-            )
-            row = cur.fetchone()
+            (uid,),
+        )
+        row = cur.fetchone()
     if not row:
         return None
     raw_bonus = row.get("free_adaptation_bonus")
@@ -353,29 +342,28 @@ def get_user_plan_row(uid: str) -> Optional[tuple[str, Optional[bool], int, int]
     return (row.get("plan") or "free", row.get("paywall_disabled"), bonus, anchor)
 
 
-def get_user_plan_stripe_fields(uid: str) -> Optional[dict]:
+def get_user_plan_stripe_fields(uid: str) -> dict | None:
     """Stripe IDs enregistrés pour l'utilisateur (ou None si pas de ligne)."""
     pool = get_pool()
     if not pool:
         return None
     from psycopg.rows import dict_row
 
-    with pool.connection() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(
-                """
+    with pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
                 SELECT stripe_customer_id, stripe_subscription_id
                 FROM public.user_plans
                 WHERE user_id = %s
                 LIMIT 1
                 """,
-                (uid,),
-            )
-            row = cur.fetchone()
+            (uid,),
+        )
+        row = cur.fetchone()
     return row
 
 
-def find_user_id_by_stripe_subscription_id(subscription_id: str) -> Optional[str]:
+def find_user_id_by_stripe_subscription_id(subscription_id: str) -> str | None:
     """Retourne user_id pour un subscription_id Stripe (webhook deleted)."""
     sid = (subscription_id or "").strip()
     if not sid:
@@ -385,18 +373,17 @@ def find_user_id_by_stripe_subscription_id(subscription_id: str) -> Optional[str
         return None
     from psycopg.rows import dict_row
 
-    with pool.connection() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(
-                """
+    with pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
                 SELECT user_id
                 FROM public.user_plans
                 WHERE stripe_subscription_id = %s
                 LIMIT 1
                 """,
-                (sid,),
-            )
-            row = cur.fetchone()
+            (sid,),
+        )
+        row = cur.fetchone()
     if not row:
         return None
     uid = row.get("user_id")
@@ -407,8 +394,8 @@ def upsert_user_plan(
     uid: str,
     plan: str,
     updated_at_iso: str,
-    stripe_customer_id: Optional[str] = None,
-    stripe_subscription_id: Optional[str] = None,
+    stripe_customer_id: str | None = None,
+    stripe_subscription_id: str | None = None,
 ) -> None:
     pool = get_pool()
     if not pool:
@@ -452,24 +439,23 @@ def upsert_free_adaptation_count_anchor(uid: str, anchor: int) -> None:
     if not pool:
         raise RuntimeError("Pool PG indisponible")
     a = max(0, int(anchor))
-    with pool.connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
+    with pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
                 UPDATE public.user_plans
                 SET free_adaptation_count_anchor = %s, updated_at = now()
                 WHERE user_id = %s
                 """,
-                (a, uid),
-            )
-            if cur.rowcount == 0:
-                cur.execute(
-                    """
+            (a, uid),
+        )
+        if cur.rowcount == 0:
+            cur.execute(
+                """
                     INSERT INTO public.user_plans (user_id, plan, free_adaptation_count_anchor)
                     VALUES (%s, 'free', %s)
                     """,
-                    (uid, a),
-                )
+                (uid, a),
+            )
 
 
 # --- gemini usage ---
@@ -512,24 +498,23 @@ def record_gemini_usage_pg(
             )
 
 
-def get_gemini_usage_totals(uid: str) -> Optional[tuple[int, int]]:
+def get_gemini_usage_totals(uid: str) -> tuple[int, int] | None:
     pool = get_pool()
     if not pool:
         return None
     from psycopg.rows import dict_row
 
-    with pool.connection() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(
-                """
+    with pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
                 SELECT total_input_tokens, total_output_tokens
                 FROM public.gemini_usage
                 WHERE user_id = %s
                 LIMIT 1
                 """,
-                (uid,),
-            )
-            row = cur.fetchone()
+            (uid,),
+        )
+        row = cur.fetchone()
     if not row:
         return None
     return (
@@ -552,10 +537,9 @@ def list_cv_templates_visible_for_user(uid_lower: str) -> list[dict]:
     from psycopg.rows import dict_row
 
     pending = "__pending__"
-    with pool.connection() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(
-                """
+    with pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
                 SELECT id, name, description, options, owner_user_id, allowed_user_ids
                 FROM public.cv_templates
                 WHERE owner_user_id <> %s
@@ -569,28 +553,27 @@ def list_cv_templates_visible_for_user(uid_lower: str) -> list[dict]:
                   )
                 ORDER BY updated_at DESC NULLS LAST
                 """,
-                (pending, uid_lower, uid_lower),
-            )
-            return list(cur.fetchall() or [])
+            (pending, uid_lower, uid_lower),
+        )
+        return list(cur.fetchall() or [])
 
 
-def get_cv_template_full(template_id: str) -> Optional[dict]:
+def get_cv_template_full(template_id: str) -> dict | None:
     pool = get_pool()
     if not pool:
         return None
     from psycopg.rows import dict_row
 
     tid = (template_id or "").strip()
-    with pool.connection() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(
-                "SELECT * FROM public.cv_templates WHERE id = %s LIMIT 1",
-                (tid,),
-            )
-            return cur.fetchone()
+    with pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "SELECT * FROM public.cv_templates WHERE id = %s LIMIT 1",
+            (tid,),
+        )
+        return cur.fetchone()
 
 
-def get_cv_template_acl(template_id: str) -> Optional[tuple[str, list]]:
+def get_cv_template_acl(template_id: str) -> tuple[str, list] | None:
     """(owner_user_id, allowed_user_ids) ou None."""
     pool = get_pool()
     if not pool:
@@ -598,18 +581,17 @@ def get_cv_template_acl(template_id: str) -> Optional[tuple[str, list]]:
     from psycopg.rows import dict_row
 
     tid = (template_id or "").strip()
-    with pool.connection() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(
-                """
+    with pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
                 SELECT owner_user_id, allowed_user_ids
                 FROM public.cv_templates
                 WHERE id = %s
                 LIMIT 1
                 """,
-                (tid,),
-            )
-            row = cur.fetchone()
+            (tid,),
+        )
+        row = cur.fetchone()
     if not row:
         return None
     allowed = row.get("allowed_user_ids")
@@ -630,10 +612,9 @@ def insert_cv_template(payload: dict) -> None:
     if allowed is None:
         allowed = []
 
-    with pool.connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
+    with pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
                 INSERT INTO public.cv_templates (
                     id, name, description, html_content, css_content, options,
                     owner_user_id, allowed_user_ids, updated_at
@@ -643,48 +624,47 @@ def insert_cv_template(payload: dict) -> None:
                     %s, %s::text[], %s::timestamptz
                 )
                 """,
-                (
-                    payload["id"],
-                    payload["name"],
-                    payload.get("description") or "",
-                    payload.get("html_content") or "",
-                    payload.get("css_content"),
-                    Json(opts),
-                    payload.get("owner_user_id") or "",
-                    allowed,
-                    payload["updated_at"],
-                ),
-            )
+            (
+                payload["id"],
+                payload["name"],
+                payload.get("description") or "",
+                payload.get("html_content") or "",
+                payload.get("css_content"),
+                Json(opts),
+                payload.get("owner_user_id") or "",
+                allowed,
+                payload["updated_at"],
+            ),
+        )
 
 
 def update_cv_template_content_pg(
-    template_id: str, html_content: str, css_content: Optional[str], updated_at_iso: str
+    template_id: str, html_content: str, css_content: str | None, updated_at_iso: str
 ) -> bool:
     pool = get_pool()
     if not pool:
         raise RuntimeError("Pool PG indisponible")
     tid = (template_id or "").strip()
 
-    with pool.connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
+    with pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
                 UPDATE public.cv_templates
                 SET html_content = %s,
                     css_content = %s,
                     updated_at = %s::timestamptz
                 WHERE id = %s
                 """,
-                (html_content or "", (css_content or "").strip() or None, updated_at_iso, tid),
-            )
-            return cur.rowcount > 0
+            (html_content or "", (css_content or "").strip() or None, updated_at_iso, tid),
+        )
+        return cur.rowcount > 0
 
 
 def update_cv_template_by_owner(
     template_id: str,
     owner_uid: str,
     updates: dict,
-) -> Optional[dict]:
+) -> dict | None:
     """
     Met à jour uniquement les clés présentes dans updates (comme le client REST).
     Clés supportées : name, description, html_content, css_content, options, allowed_user_ids, updated_at.
@@ -733,11 +713,10 @@ def update_cv_template_by_owner(
     """
     params.extend([tid, owner_uid])
 
-    with pool.connection() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(sql, params)
-            row = cur.fetchone()
-            return dict(row) if row else None
+    with pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(sql, params)
+        row = cur.fetchone()
+        return dict(row) if row else None
 
 
 def delete_cv_template_by_owner(template_id: str, owner_uid: str) -> bool:
@@ -746,14 +725,13 @@ def delete_cv_template_by_owner(template_id: str, owner_uid: str) -> bool:
         raise RuntimeError("Pool PG indisponible")
     tid = (template_id or "").strip()
 
-    with pool.connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
+    with pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
                 DELETE FROM public.cv_templates
                 WHERE id = %s AND owner_user_id = %s
                 RETURNING id
                 """,
-                (tid, owner_uid),
-            )
-            return cur.fetchone() is not None
+            (tid, owner_uid),
+        )
+        return cur.fetchone() is not None

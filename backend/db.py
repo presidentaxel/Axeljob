@@ -1,21 +1,21 @@
 """Accès données : Supabase (cv_base, applications) ou fallback fichiers."""
+
 import json
 import logging
 import threading
 import time
-from pathlib import Path
+from collections import OrderedDict
 from datetime import datetime, timezone
-from typing import Optional
 
 from backend.config import (
     BASE_DIR,
+    GEMINI_BUDGET_EUR,
+    GEMINI_USD_PER_EUR,
+    SUPABASE_SERVICE_KEY,
+    SUPABASE_URL,
     USE_SUPABASE,
     USE_SUPABASE_PG,
     USER_PLAN_CACHE_TTL_SEC,
-    SUPABASE_URL,
-    SUPABASE_SERVICE_KEY,
-    GEMINI_BUDGET_EUR,
-    GEMINI_USD_PER_EUR,
 )
 from backend.supabase_metrics import inc_pg_fallback
 
@@ -26,7 +26,10 @@ _FREE_ADAPTATIONS_BASE_LIMIT = 3
 
 _user_plan_lock = threading.Lock()
 # uid -> (plan, paywall_disabled, free_adaptation_bonus, free_adaptation_count_anchor, expire_monotonic)
-_user_plan_cache: dict[str, tuple[str, bool, int, int, float]] = {}
+# OrderedDict pour éviction LRU O(1) bornée à _USER_PLAN_CACHE_MAX entrées : sans cap, le dict
+# grossit sans fin (un user vu une fois reste en RAM jusqu'au redémarrage).
+_USER_PLAN_CACHE_MAX = 5000
+_user_plan_cache: "OrderedDict[str, tuple[str, bool, int, int, float]]" = OrderedDict()
 
 
 def _warn_pg_fallback(operation: str, exc: BaseException) -> None:
@@ -38,6 +41,29 @@ def _warn_pg_fallback(operation: str, exc: BaseException) -> None:
 def _invalidate_user_plan_cache(uid: str) -> None:
     with _user_plan_lock:
         _user_plan_cache.pop(uid, None)
+
+
+def _user_plan_cache_purge_expired_locked(now: float) -> None:
+    """Supprime toutes les entrées expirées (appelé sous _user_plan_lock).
+
+    Léger : appelé seulement sur miss/insertion, pas à chaque hit. Limite la dérive RAM
+    quand des milliers d'utilisateurs distincts touchent l'API puis disparaissent.
+    """
+    if not _user_plan_cache:
+        return
+    expired = [k for k, v in _user_plan_cache.items() if v[4] <= now]
+    for k in expired:
+        _user_plan_cache.pop(k, None)
+
+
+def _user_plan_cache_set_locked(uid: str, value: tuple[str, bool, int, int, float]) -> None:
+    """Insère une entrée et applique la cap LRU (sous _user_plan_lock)."""
+    if uid in _user_plan_cache:
+        _user_plan_cache.move_to_end(uid)
+    _user_plan_cache[uid] = value
+    # Eviction LRU : pop oldest si dépassement
+    while len(_user_plan_cache) > _USER_PLAN_CACHE_MAX:
+        _user_plan_cache.popitem(last=False)
 
 
 def _fetch_user_plan_state(uid: str) -> tuple[str, bool, int, int]:
@@ -91,17 +117,21 @@ def _get_cached_user_plan_state(uid: str) -> tuple[str, bool, int, int]:
     with _user_plan_lock:
         hit = _user_plan_cache.get(uid)
         if hit is not None and hit[4] > now:
+            _user_plan_cache.move_to_end(uid)
             return hit[0], hit[1], hit[2], hit[3]
     plan, pw, bonus, anchor = _fetch_user_plan_state(uid)
     with _user_plan_lock:
-        _user_plan_cache[uid] = (plan, pw, bonus, anchor, now + ttl)
+        _user_plan_cache_purge_expired_locked(now)
+        _user_plan_cache_set_locked(uid, (plan, pw, bonus, anchor, now + ttl))
     return plan, pw, bonus, anchor
+
 
 CV_BASE_PATH = BASE_DIR / "cv_base.json"
 ADAPTATIONS_DIR = BASE_DIR / "adaptations"
 
 # --- Supabase client (lazy) ---
 _supabase = None
+
 
 def _get_supabase():
     global _supabase
@@ -111,6 +141,7 @@ def _get_supabase():
         return None
     try:
         from supabase import create_client
+
         _supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
         return _supabase
     except Exception:
@@ -137,7 +168,8 @@ def invite_user_by_email(email: str, redirect_to: str | None = None) -> dict:
 
 def get_example_cv() -> dict:
     """CV d'exemple (données fictives) pour les nouveaux utilisateurs qui n'ont pas encore enregistré de CV.
-    photo_url reste vide pour ne jamais afficher une photo réelle ; __example__ évite le fallback assets/ côté rendu."""
+    photo_url reste vide pour ne jamais afficher une photo réelle ; __example__ évite le fallback assets/ côté rendu.
+    """
     return {
         "__example__": True,
         "prenom": "Marie",
@@ -224,10 +256,26 @@ def get_example_cv() -> dict:
             },
         ],
         "competences": {
-            "techniques": ["Gestion de projet", "Agile/Scrum", "Jira", "Figma", "Conduite de réunions", "Rédaction de cahiers des charges"],
+            "techniques": [
+                "Gestion de projet",
+                "Agile/Scrum",
+                "Jira",
+                "Figma",
+                "Conduite de réunions",
+                "Rédaction de cahiers des charges",
+            ],
             "logiciels": ["Jira", "Notion", "Figma", "Google Analytics", "Trello", "Miro"],
-            "langues": [{"langue": "Français", "niveau": "Langue maternelle"}, {"langue": "Anglais", "niveau": "Courant (C1)"}, {"langue": "Espagnol", "niveau": "Intermédiaire (B2)"}],
-            "autres": ["Animation d'équipes", "Conduite du changement", "Négociation", "Gestion des priorités"],
+            "langues": [
+                {"langue": "Français", "niveau": "Langue maternelle"},
+                {"langue": "Anglais", "niveau": "Courant (C1)"},
+                {"langue": "Espagnol", "niveau": "Intermédiaire (B2)"},
+            ],
+            "autres": [
+                "Animation d'équipes",
+                "Conduite du changement",
+                "Négociation",
+                "Gestion des priorités",
+            ],
         },
         "projets": [
             {
@@ -252,12 +300,12 @@ def get_example_cv() -> dict:
     }
 
 
-def _cv_row_id(user_id: Optional[str]) -> str:
+def _cv_row_id(user_id: str | None) -> str:
     """Id de la ligne cv_base : user_id si connecté, sinon 'default'."""
     return (user_id or "default").strip() or "default"
 
 
-def load_cv_base(user_id: Optional[str] = None) -> dict:
+def load_cv_base(user_id: str | None = None) -> dict:
     """Charge le CV depuis Supabase (id=user_id). Avec Supabase configuré : jamais de lecture de cv_base.json, uniquement la table Supabase."""
     row_id = _cv_row_id(user_id)
     sb = _get_supabase()
@@ -289,7 +337,9 @@ def load_cv_base(user_id: Optional[str] = None) -> dict:
             return json.load(f)
     if row_id != "default":
         return {}
-    raise FileNotFoundError("cv_base.json introuvable. Lance d'abord : python main.py --setup ou complète ton profil.")
+    raise FileNotFoundError(
+        "cv_base.json introuvable. Complète ton profil via l'application ou crée le fichier localement."
+    )
 
 
 def _is_example_cv_data(data: dict) -> bool:
@@ -299,21 +349,19 @@ def _is_example_cv_data(data: dict) -> bool:
     prenom = (data.get("prenom") or "").strip()
     nom = (data.get("nom") or "").strip()
     titre = (data.get("titre_professionnel") or "").strip()
-    return (
-        prenom == "Marie"
-        and nom == "Dupont"
-        and titre == "Chef de projet digital"
-    )
+    return prenom == "Marie" and nom == "Dupont" and titre == "Chef de projet digital"
 
 
-def save_cv_base(data: dict, user_id: Optional[str] = None) -> None:
+def save_cv_base(data: dict, user_id: str | None = None) -> None:
     """Sauvegarde le CV de base dans Supabase ou dans cv_base.json (si default et pas Supabase).
     Préserve template_id et template_options existants si absents du payload (évite de perdre
     les réglages template Supabase lors d'une sauvegarde qui ne les envoie pas)."""
     data = {k: v for k, v in data.items() if k != "__example__"}
     row_id = _cv_row_id(user_id)
     if row_id != "default" and _is_example_cv_data(data):
-        raise ValueError("Refusing to save example CV as user profile. Please complete your own profile in the Profile tab.")
+        raise ValueError(
+            "Refusing to save example CV as user profile. Please complete your own profile in the Profile tab."
+        )
     # Ne jamais écraser template_id / template_options par défaut : conserver ceux déjà enregistrés si le payload ne les contient pas
     if "template_id" not in data or "template_options" not in data:
         try:
@@ -383,7 +431,12 @@ def upload_photo_to_storage(user_safe_id: str, image_bytes: bytes) -> str:
         file=image_bytes,
         file_options={"content-type": "image/jpeg", "upsert": "true"},
     )
-    return _signed_url(sb, CV_PHOTOS_BUCKET, path)
+    url = _signed_url(sb, CV_PHOTOS_BUCKET, path)
+    # Invalide le cache : l'URL signée précédente pointe vers une autre version du fichier.
+    _CV_PHOTO_URL_CACHE.invalidate(user_safe_id)
+    if url:
+        _CV_PHOTO_URL_CACHE.set(user_safe_id, url)
+    return url
 
 
 def _signed_url(sb, bucket: str, path: str) -> str:
@@ -396,17 +449,36 @@ def _signed_url(sb, bucket: str, path: str) -> str:
         return ""
 
 
-# 1 an en secondes - évite que la photo ne s’affiche plus après une nuit (JWT expiré)
-_SIGNED_URL_EXPIRY = 604800  # 1 semaine
+# 1 semaine en secondes - évite que la photo ne s’affiche plus après une nuit (JWT expiré)
+_SIGNED_URL_EXPIRY = 604800
+
+# Cache mémoire des URLs signées : un GET /api/cv ou /api/render-html n'a pas besoin
+# d'un round-trip Supabase Storage à chaque appel. La signed URL reste valide 1 semaine,
+# on la garde 5 min côté process — invalidé manuellement à l'upload d'une nouvelle photo.
+from backend.perf_cache import TTLCache as _TTLCache
+
+_CV_PHOTO_URL_CACHE = _TTLCache(max_size=2000, ttl_sec=300.0)
 
 
-def get_cv_photo_public_url_for_user(user_id: Optional[str]) -> Optional[str]:
+def get_cv_photo_public_url_for_user(user_id: str | None) -> str | None:
     if not user_id or not _get_supabase():
         return None
+    cached = _CV_PHOTO_URL_CACHE.get(user_id)
+    if cached is not None:
+        return cached or None
     sb = _get_supabase()
     path = _user_photo_path(user_id)
     url = _signed_url(sb, CV_PHOTOS_BUCKET, path)
+    # On stocke même la chaîne vide (cache négatif court : évite de marteler Storage si
+    # l'utilisateur n'a pas de photo). _CV_PHOTO_URL_CACHE.invalidate() à l'upload.
+    _CV_PHOTO_URL_CACHE.set(user_id, url or "")
     return url or None
+
+
+def invalidate_cv_photo_url_cache(user_id: str | None) -> None:
+    """À appeler après upload/changement de photo pour forcer une nouvelle signed URL."""
+    if user_id:
+        _CV_PHOTO_URL_CACHE.invalidate(user_id)
 
 
 # --- Documents candidature (PDF : lettre, CV, fiche) - Supabase Storage ---
@@ -417,7 +489,9 @@ APPLICATION_DOC_TYPES = ("lettre", "cv", "fiche")
 def _application_doc_path(user_id: str, application_id: str, doc_type: str) -> str:
     """Chemin Storage pour un document PDF d'une candidature."""
     safe_uid = "".join(c for c in (user_id or "").strip() if c.isalnum() or c in "_-") or "user"
-    safe_aid = "".join(c for c in (application_id or "").strip() if c.isalnum() or c in "_-") or "app"
+    safe_aid = (
+        "".join(c for c in (application_id or "").strip() if c.isalnum() or c in "_-") or "app"
+    )
     if doc_type not in APPLICATION_DOC_TYPES:
         doc_type = "fiche"
     return f"{safe_uid}/{safe_aid}/{doc_type}.pdf"
@@ -467,7 +541,9 @@ def get_application_doc_signed_url(user_id: str, application_id: str, doc_type: 
         return ""
 
 
-def download_application_doc_bytes(user_id: str, application_id: str, doc_type: str) -> Optional[bytes]:
+def download_application_doc_bytes(
+    user_id: str, application_id: str, doc_type: str
+) -> bytes | None:
     """Télécharge le PDF depuis Storage, ou None si absent / erreur."""
     if doc_type not in APPLICATION_DOC_TYPES:
         return None
@@ -545,7 +621,8 @@ def hydrate_application_full_cv_photo(payload: dict, user_id: str | None) -> dic
 
 # --- Applications (adaptations) ---
 
-def save_adaptation(adaptation_id: str, payload: dict, user_id: Optional[str] = None) -> None:
+
+def save_adaptation(adaptation_id: str, payload: dict, user_id: str | None = None) -> None:
     """Sauvegarde une adaptation (Supabase table applications ou fichier adaptations/<id>.json). Filtrée par user_id."""
     payload.setdefault("statut", "candidature_envoyee")
     payload.setdefault("archived", False)
@@ -588,7 +665,7 @@ def save_adaptation(adaptation_id: str, payload: dict, user_id: Optional[str] = 
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
 
-def list_applications(include_archived: bool = False, user_id: Optional[str] = None) -> list:
+def list_applications(include_archived: bool = False, user_id: str | None = None) -> list:
     """Liste les candidatures de l'utilisateur (Supabase ou fichiers). Sans user_id en mode Supabase, retourne []."""
     uid = (user_id or "default").strip() or "default"
     sb = _get_supabase()
@@ -628,7 +705,7 @@ def list_applications(include_archived: bool = False, user_id: Optional[str] = N
     return _list_applications_files(include_archived, uid)
 
 
-def _format_application_list_date(data: dict, updated_at: Optional[str] = None) -> str:
+def _format_application_list_date(data: dict, updated_at: str | None = None) -> str:
     """Date pour liste / export : date_envoi avec heure si dispo ; anciennes entrées jour-seul sans 00:00 fictif."""
     raw = (data.get("date_envoi") or "").strip()
     if raw:
@@ -666,7 +743,7 @@ def _format_application_list_date(data: dict, updated_at: Optional[str] = None) 
     return date_str
 
 
-def _application_row(aid: str, data: dict, updated_at: Optional[str] = None) -> dict:
+def _application_row(aid: str, data: dict, updated_at: str | None = None) -> dict:
     date_str = _format_application_list_date(data, updated_at)
     created = data.get("created_at") or ""
     return {
@@ -698,7 +775,9 @@ def _list_applications_files(include_archived: bool, user_id: str = "default") -
     applications = []
     if not ADAPTATIONS_DIR.is_dir():
         return applications
-    for path in sorted(ADAPTATIONS_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
+    for path in sorted(
+        ADAPTATIONS_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True
+    ):
         try:
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
@@ -711,11 +790,13 @@ def _list_applications_files(include_archived: bool, user_id: str = "default") -
             continue
         applications.append(_application_row(path.stem, data, None))
         if not applications[-1]["date"]:
-            applications[-1]["date"] = datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+            applications[-1]["date"] = datetime.fromtimestamp(path.stat().st_mtime).strftime(
+                "%Y-%m-%d %H:%M"
+            )
     return applications
 
 
-def get_adaptation(adaptation_id: str, user_id: Optional[str] = None) -> Optional[dict]:
+def get_adaptation(adaptation_id: str, user_id: str | None = None) -> dict | None:
     """Récupère une adaptation par id si elle appartient à l'utilisateur (Supabase ou fichier)."""
     uid = (user_id or "default").strip() or "default"
     sb = _get_supabase()
@@ -756,7 +837,7 @@ def get_adaptation(adaptation_id: str, user_id: Optional[str] = None) -> Optiona
     return None
 
 
-def count_applications(user_id: Optional[str] = None) -> int:
+def count_applications(user_id: str | None = None) -> int:
     """Nombre total de candidatures (adaptations) pour l'utilisateur (toutes, y compris archivées)."""
     uid = (user_id or "default").strip() or "default"
     sb = _get_supabase()
@@ -769,12 +850,7 @@ def count_applications(user_id: Optional[str] = None) -> int:
             except Exception as e:
                 _warn_pg_fallback("count_applications", e)
         try:
-            r = (
-                sb.table("applications")
-                .select("id", count="exact")
-                .eq("user_id", uid)
-                .execute()
-            )
+            r = sb.table("applications").select("id", count="exact").eq("user_id", uid).execute()
             return r.count if r.count is not None else len(r.data or [])
         except Exception:
             pass
@@ -792,7 +868,7 @@ def count_applications(user_id: Optional[str] = None) -> int:
     return count
 
 
-def get_user_plan(user_id: Optional[str] = None) -> str:
+def get_user_plan(user_id: str | None = None) -> str:
     """Retourne 'free' ou 'pro'. Par défaut 'free' si pas de ligne."""
     uid = (user_id or "default").strip() or "default"
     if not _get_supabase():
@@ -801,7 +877,7 @@ def get_user_plan(user_id: Optional[str] = None) -> str:
     return plan
 
 
-def get_paywall_disabled(user_id: Optional[str] = None) -> bool:
+def get_paywall_disabled(user_id: str | None = None) -> bool:
     """True si le paywall est désactivé pour cet utilisateur (option dans user_plans.paywall_disabled)."""
     uid = (user_id or "default").strip() or "default"
     if not _get_supabase():
@@ -810,7 +886,7 @@ def get_paywall_disabled(user_id: Optional[str] = None) -> bool:
     return pw
 
 
-def get_free_adaptation_bonus(user_id: Optional[str] = None) -> int:
+def get_free_adaptation_bonus(user_id: str | None = None) -> int:
     """Crédits gratuits supplémentaires (user_plans.free_adaptation_bonus), 0 si pas de ligne ou sans Supabase."""
     uid = (user_id or "default").strip() or "default"
     if not _get_supabase():
@@ -819,7 +895,7 @@ def get_free_adaptation_bonus(user_id: Optional[str] = None) -> int:
     return bonus
 
 
-def get_free_adaptation_count_anchor(user_id: Optional[str] = None) -> int:
+def get_free_adaptation_count_anchor(user_id: str | None = None) -> int:
     """Ancrage quota / affichage (user_plans.free_adaptation_count_anchor), 0 si absent."""
     uid = (user_id or "default").strip() or "default"
     if not _get_supabase():
@@ -828,7 +904,7 @@ def get_free_adaptation_count_anchor(user_id: Optional[str] = None) -> int:
     return anchor
 
 
-def ensure_implicit_free_adaptation_anchor(user_id: Optional[str] = None) -> None:
+def ensure_implicit_free_adaptation_anchor(user_id: str | None = None) -> None:
     """
     Si l'utilisateur a déjà plus de 3 candidatures et que anchor/bonus sont encore à 0,
     fixe free_adaptation_count_anchor sur le count actuel : jauge 0/3 + 3 essais sans SQL manuel.
@@ -860,7 +936,9 @@ def ensure_implicit_free_adaptation_anchor(user_id: Optional[str] = None) -> Non
                 _warn_pg_fallback("upsert_free_adaptation_count_anchor", e)
         ex = sb.table("user_plans").select("user_id").eq("user_id", uid).limit(1).execute()
         if ex.data:
-            sb.table("user_plans").update({"free_adaptation_count_anchor": count}).eq("user_id", uid).execute()
+            sb.table("user_plans").update({"free_adaptation_count_anchor": count}).eq(
+                "user_id", uid
+            ).execute()
         else:
             sb.table("user_plans").insert(
                 {
@@ -874,7 +952,7 @@ def ensure_implicit_free_adaptation_anchor(user_id: Optional[str] = None) -> Non
         logger.warning("ensure_implicit_free_adaptation_anchor %s: %s", uid, e)
 
 
-def get_user_stripe_ids(user_id: Optional[str] = None) -> tuple[Optional[str], Optional[str]]:
+def get_user_stripe_ids(user_id: str | None = None) -> tuple[str | None, str | None]:
     """Retourne (stripe_customer_id, stripe_subscription_id) depuis user_plans."""
     uid = (user_id or "default").strip() or "default"
     sb = _get_supabase()
@@ -916,7 +994,7 @@ def get_user_stripe_ids(user_id: Optional[str] = None) -> tuple[Optional[str], O
     return None, None
 
 
-def find_user_id_by_stripe_subscription_id(subscription_id: str) -> Optional[str]:
+def find_user_id_by_stripe_subscription_id(subscription_id: str) -> str | None:
     """user_id associé à un abonnement Stripe (pour webhooks)."""
     sid = (subscription_id or "").strip()
     if not sid or not _get_supabase():
@@ -945,7 +1023,12 @@ def find_user_id_by_stripe_subscription_id(subscription_id: str) -> Optional[str
     return None
 
 
-def set_user_plan(user_id: str, plan: str, stripe_customer_id: Optional[str] = None, stripe_subscription_id: Optional[str] = None) -> None:
+def set_user_plan(
+    user_id: str,
+    plan: str,
+    stripe_customer_id: str | None = None,
+    stripe_subscription_id: str | None = None,
+) -> None:
     """Met à jour le plan utilisateur (free/pro). Créé la ligne si besoin."""
     uid = (user_id or "default").strip() or "default"
     sb = _get_supabase()
@@ -983,7 +1066,7 @@ def set_user_plan(user_id: str, plan: str, stripe_customer_id: Optional[str] = N
         raise
 
 
-def update_adaptation(adaptation_id: str, updates: dict, user_id: Optional[str] = None) -> Optional[dict]:
+def update_adaptation(adaptation_id: str, updates: dict, user_id: str | None = None) -> dict | None:
     """Met à jour statut/archived/poste/entreprise et champs quali d'une candidature. Retourne le payload mis à jour."""
     current = get_adaptation(adaptation_id, user_id)
     if not current:
@@ -1000,9 +1083,18 @@ def update_adaptation(adaptation_id: str, updates: dict, user_id: Optional[str] 
         current["poste"] = (updates["poste"] or "").strip()
     if "entreprise" in updates:
         current["entreprise"] = (updates["entreprise"] or "").strip()
-    for key in ("refus_raison", "refus_raison_type", "interview_type", "interview_feedback", "interview_date", "source_offre"):
+    for key in (
+        "refus_raison",
+        "refus_raison_type",
+        "interview_type",
+        "interview_feedback",
+        "interview_date",
+        "source_offre",
+    ):
         if key in updates:
-            current[key] = (updates[key] or "").strip() if isinstance(updates[key], str) else updates[key]
+            current[key] = (
+                (updates[key] or "").strip() if isinstance(updates[key], str) else updates[key]
+            )
     save_adaptation(adaptation_id, current, user_id)
     return current
 
@@ -1020,7 +1112,7 @@ def _gemini_cost_usd(input_tokens: int, output_tokens: int) -> float:
 
 
 def record_gemini_usage(
-    user_id: Optional[str],
+    user_id: str | None,
     operation: str,
     input_tokens: int,
     output_tokens: int,
@@ -1040,9 +1132,7 @@ def record_gemini_usage(
         try:
             from backend import supabase_pg as spg
 
-            spg.record_gemini_usage_pg(
-                uid, op, input_tokens, output_tokens, cost_rounded
-            )
+            spg.record_gemini_usage_pg(uid, op, input_tokens, output_tokens, cost_rounded)
             return cost_usd
         except Exception as e:
             _warn_pg_fallback("record_gemini_usage", e)
@@ -1084,7 +1174,7 @@ def record_gemini_usage(
     return cost_usd
 
 
-def get_gemini_usage(user_id: Optional[str]) -> tuple[int, int, float]:
+def get_gemini_usage(user_id: str | None) -> tuple[int, int, float]:
     """Retourne (total_input_tokens, total_output_tokens, total_cost_usd) pour le compte."""
     uid = (user_id or "default").strip() or "default"
     sb = _get_supabase()
@@ -1118,7 +1208,7 @@ def get_gemini_usage(user_id: Optional[str]) -> tuple[int, int, float]:
     return 0, 0, 0.0
 
 
-def check_gemini_budget(user_id: Optional[str]) -> tuple[bool, float, float]:
+def check_gemini_budget(user_id: str | None) -> tuple[bool, float, float]:
     """Vérifie si le compte est sous la limite (€). Retourne (allowed, used_usd, limit_usd)."""
     limit_usd = GEMINI_BUDGET_EUR * GEMINI_USD_PER_EUR
     _, _, used_usd = get_gemini_usage(user_id)
@@ -1148,6 +1238,7 @@ def _normalize_allowed_ids(allowed: any) -> list[str]:
         if s.startswith("["):
             try:
                 import json
+
                 parsed = json.loads(s)
                 return [_norm_uid(str(x)) for x in (parsed if isinstance(parsed, list) else [])]
             except Exception:
@@ -1156,7 +1247,7 @@ def _normalize_allowed_ids(allowed: any) -> list[str]:
     return [_norm_uid(str(x)) for x in (allowed if isinstance(allowed, (list, tuple)) else [])]
 
 
-def list_custom_templates_for_user(user_id: Optional[str]) -> list[dict]:
+def list_custom_templates_for_user(user_id: str | None) -> list[dict]:
     """Liste les templates personnalisés accessibles par l'utilisateur (owner ou dans allowed_user_ids). Exclut les templates __pending__."""
     uid = _norm_uid(user_id)
     if not uid:
@@ -1178,9 +1269,13 @@ def list_custom_templates_for_user(user_id: Optional[str]) -> list[dict]:
         except Exception as e:
             _warn_pg_fallback("list_custom_templates_for_user", e)
     try:
-        r = sb.table("cv_templates").select("id, name, description, options, owner_user_id, allowed_user_ids").execute()
+        r = (
+            sb.table("cv_templates")
+            .select("id, name, description, options, owner_user_id, allowed_user_ids")
+            .execute()
+        )
         out = []
-        for row in (r.data or []):
+        for row in r.data or []:
             owner = (row.get("owner_user_id") or "").strip()
             if owner == PENDING_OWNER_ID:
                 continue
@@ -1202,6 +1297,7 @@ def _custom_template_meta(row: dict, is_owner: bool = False) -> dict:
         raw_opts = []
     try:
         from backend.template_registry import get_default_layout_options_for_custom
+
         defaults = get_default_layout_options_for_custom()
     except Exception:
         defaults = []
@@ -1261,7 +1357,7 @@ def get_custom_template_by_id(template_id: str) -> dict | None:
         return None
 
 
-def can_user_use_custom_template(template_id: str, user_id: Optional[str]) -> bool:
+def can_user_use_custom_template(template_id: str, user_id: str | None) -> bool:
     """Vérifie si l'utilisateur peut utiliser ce template (owner ou dans allowed_user_ids). Comparaison insensible à la casse (UUID)."""
     uid = _norm_uid(user_id)
     if not uid or not (template_id or "").strip().startswith(CUSTOM_TEMPLATE_ID_PREFIX):
@@ -1285,7 +1381,13 @@ def can_user_use_custom_template(template_id: str, user_id: Optional[str]) -> bo
         except Exception as e:
             _warn_pg_fallback("can_user_use_custom_template", e)
     try:
-        r = sb.table("cv_templates").select("owner_user_id, allowed_user_ids").eq("id", tid).limit(1).execute()
+        r = (
+            sb.table("cv_templates")
+            .select("owner_user_id, allowed_user_ids")
+            .eq("id", tid)
+            .limit(1)
+            .execute()
+        )
         if not r.data or len(r.data) == 0:
             return False
         row = r.data[0]
@@ -1309,6 +1411,7 @@ def create_custom_template(
 ) -> dict:
     """Crée un template personnalisé. Retourne le meta (id, name, ...) du template créé."""
     import uuid
+
     tid = CUSTOM_TEMPLATE_ID_PREFIX + str(uuid.uuid4())
     sb = _get_supabase()
     if not sb:
@@ -1346,8 +1449,10 @@ def create_pending_custom_template(
     options: list | None = None,
 ) -> dict:
     """Insère un template personnalisé en attente d'affectation (owner_user_id=__pending__, allowed_user_ids=[]).
-    Aucun utilisateur ne le voit ; un humain devra mettre à jour owner_user_id et/ou allowed_user_ids dans Supabase."""
+    Aucun utilisateur ne le voit ; un humain devra mettre à jour owner_user_id et/ou allowed_user_ids dans Supabase.
+    """
     import uuid
+
     tid = CUSTOM_TEMPLATE_ID_PREFIX + str(uuid.uuid4())
     sb = _get_supabase()
     if not sb:
@@ -1375,7 +1480,9 @@ def create_pending_custom_template(
     return {"id": tid, "name": payload["name"], "description": payload["description"]}
 
 
-def update_custom_template_content(template_id: str, html_content: str, css_content: str | None = None) -> bool:
+def update_custom_template_content(
+    template_id: str, html_content: str, css_content: str | None = None
+) -> bool:
     """Met à jour uniquement html_content et css_content d'un template (par id, sans vérifier le owner).
     Utilisé par le script d'import pour remplacer le contenu par une nouvelle génération IA."""
     tid = (template_id or "").strip()
@@ -1448,11 +1555,24 @@ def update_custom_template(
         except Exception as e:
             _warn_pg_fallback("update_custom_template", e)
     try:
-        r = sb.table("cv_templates").select("*").eq("id", tid).eq("owner_user_id", uid).limit(1).execute()
+        r = (
+            sb.table("cv_templates")
+            .select("*")
+            .eq("id", tid)
+            .eq("owner_user_id", uid)
+            .limit(1)
+            .execute()
+        )
         if not r.data or len(r.data) == 0:
             return None
         sb.table("cv_templates").update(updates).eq("id", tid).eq("owner_user_id", uid).execute()
-        r2 = sb.table("cv_templates").select("id, name, description, options, owner_user_id, allowed_user_ids").eq("id", tid).limit(1).execute()
+        r2 = (
+            sb.table("cv_templates")
+            .select("id, name, description, options, owner_user_id, allowed_user_ids")
+            .eq("id", tid)
+            .limit(1)
+            .execute()
+        )
         if r2.data and len(r2.data) > 0:
             return _custom_template_meta(r2.data[0], is_owner=True)
         return None

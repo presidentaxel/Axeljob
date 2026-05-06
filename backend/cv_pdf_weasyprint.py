@@ -36,6 +36,7 @@ Règles à respecter (toute refonte doit les préserver ou les documenter explic
    - Toujours la racine cv-bot (BASE_DIR) pour résoudre images locales / chemins relatifs cohérents
      avec le HTML généré côté API.
 """
+
 from __future__ import annotations
 
 import re
@@ -102,11 +103,13 @@ def _build_pdf_export_style_tags() -> tuple[str, str, str]:
     return (
         f'<style id="cv-bot-pdf-export-layout">{layout}</style>',
         f'<style id="cv-bot-pdf-export-align">{align}</style>',
-        f"<style id=\"cv-bot-pdf-export-custom-base\">{custom}</style>",
+        f'<style id="cv-bot-pdf-export-custom-base">{custom}</style>',
     )
 
 
-PDF_EXPORT_LAYOUT_STYLE, PDF_EXPORT_ALIGN_STYLE, PDF_EXPORT_CUSTOM_BASE_STYLE = _build_pdf_export_style_tags()
+PDF_EXPORT_LAYOUT_STYLE, PDF_EXPORT_ALIGN_STYLE, PDF_EXPORT_CUSTOM_BASE_STYLE = (
+    _build_pdf_export_style_tags()
+)
 
 
 def inject_weasyprint_export_bundle(

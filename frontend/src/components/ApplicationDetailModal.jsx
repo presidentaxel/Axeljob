@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import DOMPurify from 'dompurify';
-import { HiPencil, HiCheck } from 'react-icons/hi2';
+import { HiPencil, HiCheck, HiChevronDown } from 'react-icons/hi2';
 import { apiGet, apiPost, apiPatch, apiGetBlob, apiPostFormData, prepareAppleDownloadWindow, saveBlobWithPreferredMethod, getDownloadPermissionHint } from '../api';
 import CompanyLogo from './CompanyLogo';
 import { formatApplicationDateLabel } from '../lib/applicationDates';
@@ -18,6 +18,7 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
   const [detailLetterLoading, setDetailLetterLoading] = useState(false);
   const [detailDownloading, setDetailDownloading] = useState(null);
   const [docUploading, setDocUploading] = useState(null);
+  const [docsSectionOpen, setDocsSectionOpen] = useState(false);
   const [error, setError] = useState('');
   const docInputRefs = useRef({ lettre: null, cv: null, fiche: null });
 
@@ -26,6 +27,7 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
     setDetailTab('cv');
     setDetailCvHtml('');
     setDetailLetterHtml('');
+    setDocsSectionOpen(false);
     setEditingPoste(false);
     setPosteDraft('');
     apiGet(`/api/applications/${encodeURIComponent(applicationDetailId)}`)
@@ -147,6 +149,11 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
     return { width: `min(100%, ${ch}ch)` };
   })();
 
+  const joinedPdfCount = (['lettre', 'cv', 'fiche']).filter((t) => {
+    const u = applicationDetail[`pdf_${t}_url`];
+    return typeof u === 'string' && u.trim().length > 0;
+  }).length;
+
   return (
     <div className="application-detail-overlay" onClick={onClose} role="dialog" aria-modal="true">
       <div className="application-detail-modal" onClick={(e) => e.stopPropagation()}>
@@ -221,35 +228,56 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
           </button>
         </div>
         <div className="application-detail-docs">
-          <h4 className="application-detail-docs-title">Documents joints</h4>
-          <p className="application-detail-docs-hint">Accès aux PDF que tu as joints (lettre, CV, fiche de poste).</p>
-          <div className="application-detail-docs-list">
-            {(['lettre', 'cv', 'fiche']).map((docType) => {
-              const url = applicationDetail[`pdf_${docType}_url`];
-              const uploading = docUploading === docType;
-              return (
-                <div key={docType} className="application-detail-doc-row">
-                  <span className="application-detail-doc-label">{DOC_LABELS[docType]}</span>
-                  {url ? (
-                    <a href={url} target="_blank" rel="noopener noreferrer" className="btn btn-doc-link">Ouvrir le PDF</a>
-                  ) : null}
-                  <label className="btn btn-doc-upload">
-                    <input
-                      ref={(el) => { docInputRefs.current[docType] = el; }}
-                      type="file"
-                      accept=".pdf,application/pdf"
-                      disabled={uploading}
-                      onChange={(e) => {
-                        const f = e.target?.files?.[0];
-                        if (f) handleUploadDoc(docType, f);
-                      }}
-                    />
-                    {uploading ? 'Envoi…' : url ? 'Remplacer' : 'Joindre un PDF'}
-                  </label>
-                </div>
-              );
-            })}
-          </div>
+          <button
+            type="button"
+            className="application-detail-docs-toggle"
+            aria-expanded={docsSectionOpen}
+            aria-controls="application-detail-docs-panel"
+            id="application-detail-docs-heading"
+            onClick={() => setDocsSectionOpen((o) => !o)}
+          >
+            <span className="application-detail-docs-toggle-inner">
+              <span className="application-detail-docs-toggle-label">Documents joints</span>
+              {joinedPdfCount > 0 ? (
+                <span className="application-detail-docs-count" title={`${joinedPdfCount} PDF joint${joinedPdfCount > 1 ? 's' : ''}`}>
+                  {joinedPdfCount}/3
+                </span>
+              ) : null}
+            </span>
+            <HiChevronDown className={`application-detail-docs-chevron${docsSectionOpen ? ' application-detail-docs-chevron--open' : ''}`} aria-hidden />
+          </button>
+          {docsSectionOpen && (
+            <div className="application-detail-docs-panel" id="application-detail-docs-panel" role="region" aria-labelledby="application-detail-docs-heading">
+              <p className="application-detail-docs-hint">Ouvrir ou remplacer les PDF (lettre, CV, fiche).</p>
+              <div className="application-detail-docs-list">
+                {(['lettre', 'cv', 'fiche']).map((docType) => {
+                  const url = applicationDetail[`pdf_${docType}_url`];
+                  const uploading = docUploading === docType;
+                  return (
+                    <div key={docType} className="application-detail-doc-row">
+                      <span className="application-detail-doc-label">{DOC_LABELS[docType]}</span>
+                      {url ? (
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="btn btn-doc-link">Ouvrir</a>
+                      ) : null}
+                      <label className="btn btn-doc-upload">
+                        <input
+                          ref={(el) => { docInputRefs.current[docType] = el; }}
+                          type="file"
+                          accept=".pdf,application/pdf"
+                          disabled={uploading}
+                          onChange={(e) => {
+                            const f = e.target?.files?.[0];
+                            if (f) handleUploadDoc(docType, f);
+                          }}
+                        />
+                        {uploading ? 'Envoi…' : url ? 'Remplacer' : 'Joindre'}
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
         <div className="application-detail-content">
           {detailTab === 'cv' && (

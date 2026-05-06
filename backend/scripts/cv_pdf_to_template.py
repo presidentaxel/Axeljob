@@ -7,10 +7,10 @@ Usage (depuis la racine cv-bot) :
   python -m backend.scripts.cv_pdf_to_template          # ouvre l'explorateur, tu choisis le PDF
   python -m backend.scripts.cv_pdf_to_template "chemin/vers/CV.pdf"
 """
+
 from __future__ import annotations
 
 import argparse
-import base64
 import io
 import re
 import sys
@@ -43,11 +43,11 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from dotenv import load_dotenv
+
 load_dotenv(PROJECT_ROOT / ".env")
 
+from backend.config import GEMINI_MODELS_VISION, USE_SUPABASE
 from backend.db import create_pending_custom_template, update_custom_template_content
-from backend.config import USE_SUPABASE, GEMINI_MODELS_VISION
-
 
 # Variables Jinja2 que le moteur de rendu CV injecte (le template doit les utiliser).
 # IMPORTANT : langues_for_display et listes de compétences sont des listes d'objets ; ne JAMAIS faire {{ langues_for_display }} seul (afficherait du Python brut).
@@ -83,12 +83,14 @@ Génère UNIQUEMENT les deux blocs (```html ... ``` puis ```css ... ```)."""
 def pdf_page_to_pil_image(pdf_path: Path, page_index: int = 0, dpi: int = 150):
     """Rend la première page du PDF en image PIL."""
     import fitz
+
     doc = fitz.open(pdf_path)
     try:
         page = doc[page_index]
         mat = fitz.Matrix(dpi / 72, dpi / 72)
         pix = page.get_pixmap(matrix=mat, alpha=False)
         from PIL import Image
+
         img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
         return img
     finally:
@@ -98,6 +100,7 @@ def pdf_page_to_pil_image(pdf_path: Path, page_index: int = 0, dpi: int = 150):
 def pil_to_jpeg_bytes(img, max_long_side: int = 1200, quality: int = 88):
     """Redimensionne si besoin et renvoie les bytes JPEG (pour envoi à l'IA)."""
     from PIL import Image
+
     w, h = img.size
     if max(w, h) > max_long_side:
         img = img.copy()
@@ -120,7 +123,11 @@ def _extract_html_css_blocks(text: str) -> tuple[str | None, str | None]:
     if not html_content:
         for m in re.finditer(r"```\s*\n(.*?)```", text, re.DOTALL):
             cand = m.group(1).strip()
-            if ("<" in cand and ">" in cand) or ("{{ " in cand or "{% " in cand) and ("prenom" in cand or "nom" in cand):
+            if (
+                ("<" in cand and ">" in cand)
+                or ("{{ " in cand or "{% " in cand)
+                and ("prenom" in cand or "nom" in cand)
+            ):
                 html_content = cand
                 break
     # 3) Bloc ```css ... ```
@@ -140,7 +147,9 @@ def _extract_html_css_blocks(text: str) -> tuple[str | None, str | None]:
     return html_content, css_content or ""
 
 
-def generate_template_with_ai(image_jpeg_bytes: bytes, api_key: str, debug: bool = False) -> tuple[str | None, str | None]:
+def generate_template_with_ai(
+    image_jpeg_bytes: bytes, api_key: str, debug: bool = False
+) -> tuple[str | None, str | None]:
     """Appelle Gemini avec l'image + prompt, retourne (html_content, css_content) ou (None, None)."""
     try:
         from google import genai
@@ -162,14 +171,19 @@ def generate_template_with_ai(image_jpeg_bytes: bytes, api_key: str, debug: bool
             err_str = str(e).upper()
             if "404" in err_str or "NOT_FOUND" in err_str or "no longer available" in err_str:
                 if debug:
-                    print(f"[Debug] Modèle {model_id} indisponible, essai suivant...", file=sys.stderr)
+                    print(
+                        f"[Debug] Modèle {model_id} indisponible, essai suivant...", file=sys.stderr
+                    )
                 continue
             if debug:
                 print(f"[Debug] Erreur API Gemini: {e}", file=sys.stderr)
             return None, None
     else:
         if debug:
-            print("[Debug] Aucun modèle Gemini avec vision disponible (404 sur tous).", file=sys.stderr)
+            print(
+                "[Debug] Aucun modèle Gemini avec vision disponible (404 sur tous).",
+                file=sys.stderr,
+            )
         return None, None
     if not r or not getattr(r, "text", None):
         if debug:
@@ -182,38 +196,80 @@ def generate_template_with_ai(image_jpeg_bytes: bytes, api_key: str, debug: bool
     if not html_content:
         return None, None
     # Validation minimale : prénom et nom en Jinja2
-    if not ("{{ prenom }}" in html_content or "{{prenom}}" in html_content) or not ("{{ nom }}" in html_content or "{{nom}}" in html_content):
+    if not ("{{ prenom }}" in html_content or "{{prenom}}" in html_content) or not (
+        "{{ nom }}" in html_content or "{{nom}}" in html_content
+    ):
         if not ("experiences_for_display" in html_content and "nom" in html_content):
             if debug:
-                print("[Debug] HTML extrait mais variables requises manquantes (prenom/nom).", file=sys.stderr)
+                print(
+                    "[Debug] HTML extrait mais variables requises manquantes (prenom/nom).",
+                    file=sys.stderr,
+                )
             return None, None
     # Contre-vérification : refuser les templates qui afficheraient des dict Python bruts (ex. langues)
-    if "langues_for_display" in html_content and "for " in html_content and " in langues_for_display" not in html_content:
+    if (
+        "langues_for_display" in html_content
+        and "for " in html_content
+        and " in langues_for_display" not in html_content
+    ):
         if debug:
-            print("[Debug] Template rejeté : langues_for_display utilisé sans boucle (affichérait des dict).", file=sys.stderr)
+            print(
+                "[Debug] Template rejeté : langues_for_display utilisé sans boucle (affichérait des dict).",
+                file=sys.stderr,
+            )
         return None, None
     if "{{ langues_for_display }}" in html_content or "{{langues_for_display}}" in html_content:
         if debug:
-            print("[Debug] Template rejeté : {{ langues_for_display }} interdit (utiliser une boucle for l in langues_for_display).", file=sys.stderr)
+            print(
+                "[Debug] Template rejeté : {{ langues_for_display }} interdit (utiliser une boucle for l in langues_for_display).",
+                file=sys.stderr,
+            )
         return None, None
     # Test de rendu avec un contexte minimal pour détecter erreurs (optionnel, peut être coûteux)
     try:
-        from jinja2 import Environment, select_autoescape
-        env = Environment(autoescape=select_autoescape(("html", "xml")))
+        from jinja2 import select_autoescape
+        from jinja2.sandbox import SandboxedEnvironment
+
+        env = SandboxedEnvironment(autoescape=select_autoescape(("html", "xml")))
         tpl = env.from_string(html_content)
         ctx = {
-            "prenom": "Test", "nom": "User", "titre_professionnel_display": "", "resume_display": "",
-            "telephone": "", "email": "", "linkedin": "", "photo_url": "", "for_preview": True,
-            "experiences_for_display": [{"entreprise_display": "A", "date_debut_display": "2020", "date_fin_display": "Aujourd'hui", "lieu_display": "", "poste_display": "", "secteur_display": "", "clients_display": "", "bullet_points": [{"html": "- Point"}]}],
-            "formations_for_display": [], "projets_for_display": [], "certifications_for_display": [],
+            "prenom": "Test",
+            "nom": "User",
+            "titre_professionnel_display": "",
+            "resume_display": "",
+            "telephone": "",
+            "email": "",
+            "linkedin": "",
+            "photo_url": "",
+            "for_preview": True,
+            "experiences_for_display": [
+                {
+                    "entreprise_display": "A",
+                    "date_debut_display": "2020",
+                    "date_fin_display": "Aujourd'hui",
+                    "lieu_display": "",
+                    "poste_display": "",
+                    "secteur_display": "",
+                    "clients_display": "",
+                    "bullet_points": [{"html": "- Point"}],
+                }
+            ],
+            "formations_for_display": [],
+            "projets_for_display": [],
+            "certifications_for_display": [],
             "competences": {"techniques": [], "logiciels": [], "informatiques": [], "autres": []},
             "langues_for_display": [{"langue": "Français", "niveau": "Natif"}],
-            "loisirs": [], "show_mots_cles_ats": True, "mots_cles_cache": "",
+            "loisirs": [],
+            "show_mots_cles_ats": True,
+            "mots_cles_cache": "",
         }
         out = tpl.render(**ctx)
         if "'langue'" in out or "'niveau'" in out or "{'" in out:
             if debug:
-                print("[Debug] Contre-vérification : le rendu contient des dict Python bruts (langues mal gérées). Template rejeté.", file=sys.stderr)
+                print(
+                    "[Debug] Contre-vérification : le rendu contient des dict Python bruts (langues mal gérées). Template rejeté.",
+                    file=sys.stderr,
+                )
             return None, None
     except Exception as e:
         if debug:
@@ -224,7 +280,6 @@ def generate_template_with_ai(image_jpeg_bytes: bytes, api_key: str, debug: bool
 
 def extract_dominant_colors(img, n_colors: int = 5, sample_size: int = 80):
     """Retourne une liste de couleurs (R,G,B) triées par luminance."""
-    from PIL import Image
     img_small = img.copy()
     img_small.thumbnail((sample_size, sample_size))
     pixels = list(img_small.getdata())
@@ -234,18 +289,23 @@ def extract_dominant_colors(img, n_colors: int = 5, sample_size: int = 80):
     def luminance(r, g, b):
         return 0.299 * r + 0.587 * g + 0.114 * b
 
-    by_lum = sorted(set((p[:3] for p in pixels if len(p) >= 3)), key=lambda c: luminance(*c))
+    by_lum = sorted(set(p[:3] for p in pixels if len(p) >= 3), key=lambda c: luminance(*c))
     if len(by_lum) <= n_colors:
         colors = by_lum
     else:
         step = max(1, len(by_lum) // n_colors)
         colors = [by_lum[i] for i in range(0, len(by_lum), step)][:n_colors]
-    return sorted(colors, key=lambda c: luminance(*c)) if colors else [(30, 42, 58), (244, 244, 242), (30, 42, 58)]
+    return (
+        sorted(colors, key=lambda c: luminance(*c))
+        if colors
+        else [(30, 42, 58), (244, 244, 242), (30, 42, 58)]
+    )
 
 
 def pick_header_sidebar_accent(colors: list):
     def to_hex(r, g, b):
         return f"#{r:02x}{g:02x}{b:02x}"
+
     if len(colors) >= 3:
         return to_hex(*colors[0]), to_hex(*colors[-1]), to_hex(*colors[len(colors) // 2])
     if len(colors) == 2:
@@ -254,7 +314,9 @@ def pick_header_sidebar_accent(colors: list):
     return to_hex(*header), "#f4f4f2", to_hex(*header)
 
 
-def build_css_with_colors(classic_css: str, header_hex: str, sidebar_hex: str, accent_hex: str) -> str:
+def build_css_with_colors(
+    classic_css: str, header_hex: str, sidebar_hex: str, accent_hex: str
+) -> str:
     css = classic_css
     for old, new in [
         ("--cv-header-color: #1e2a3a", f"--cv-header-color: {header_hex}"),
@@ -266,13 +328,34 @@ def build_css_with_colors(classic_css: str, header_hex: str, sidebar_hex: str, a
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Importe un PDF de CV : l'IA reproduit le design en template HTML/CSS (ou couleurs seules si pas d'IA).")
-    parser.add_argument("pdf_path", type=str, nargs="?", default="", help="Chemin PDF (optionnel : ouvre l'explorateur)")
+    parser = argparse.ArgumentParser(
+        description="Importe un PDF de CV : l'IA reproduit le design en template HTML/CSS (ou couleurs seules si pas d'IA)."
+    )
+    parser.add_argument(
+        "pdf_path",
+        type=str,
+        nargs="?",
+        default="",
+        help="Chemin PDF (optionnel : ouvre l'explorateur)",
+    )
     parser.add_argument("--name", type=str, default="", help="Nom du template")
     parser.add_argument("--description", type=str, default="", help="Description optionnelle")
-    parser.add_argument("--no-ai", action="store_true", help="Ne pas appeler l'IA : seulement extraire les couleurs (template classic)")
-    parser.add_argument("--update-id", type=str, default="", help="Mettre à jour le HTML/CSS de ce template existant (ex. custom_28b6539c-...) au lieu d'en créer un nouveau")
-    parser.add_argument("--debug", action="store_true", help="Afficher le début de la réponse IA en cas d'échec (pour diagnostiquer)")
+    parser.add_argument(
+        "--no-ai",
+        action="store_true",
+        help="Ne pas appeler l'IA : seulement extraire les couleurs (template classic)",
+    )
+    parser.add_argument(
+        "--update-id",
+        type=str,
+        default="",
+        help="Mettre à jour le HTML/CSS de ce template existant (ex. custom_28b6539c-...) au lieu d'en créer un nouveau",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Afficher le début de la réponse IA en cas d'échec (pour diagnostiquer)",
+    )
     args = parser.parse_args()
 
     if not (args.pdf_path or "").strip():
@@ -287,7 +370,10 @@ def main():
         sys.exit(1)
 
     if not USE_SUPABASE:
-        print("Supabase n'est pas configuré (.env). Impossible d'insérer le template.", file=sys.stderr)
+        print(
+            "Supabase n'est pas configuré (.env). Impossible d'insérer le template.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     try:
@@ -312,8 +398,12 @@ def main():
 
     if html_content is None:
         if use_ai and not api_key:
-            print("GEMINI_API_KEY absente dans .env : impossible de reproduire le design. Repli sur template « classic » + couleurs.")
-        print("(Repli) Extraction des couleurs + template « classic » - le rendu ne reproduit pas la mise en page de ton PDF.")
+            print(
+                "GEMINI_API_KEY absente dans .env : impossible de reproduire le design. Repli sur template « classic » + couleurs."
+            )
+        print(
+            "(Repli) Extraction des couleurs + template « classic » - le rendu ne reproduit pas la mise en page de ton PDF."
+        )
         colors = extract_dominant_colors(img)
         header_hex, sidebar_hex, accent_hex = pick_header_sidebar_accent(colors)
         print(f"Couleurs extraites: header={header_hex} sidebar={sidebar_hex} accent={accent_hex}")
@@ -345,7 +435,10 @@ def main():
                 print(f"Template mis à jour: {update_id}")
                 print("Recharge l'app pour voir le nouveau design.")
             else:
-                print(f"Impossible de mettre à jour {update_id}. Vérifie que l'id existe dans cv_templates.", file=sys.stderr)
+                print(
+                    f"Impossible de mettre à jour {update_id}. Vérifie que l'id existe dans cv_templates.",
+                    file=sys.stderr,
+                )
                 sys.exit(1)
         except Exception as e:
             print(f"Erreur mise à jour Supabase: {e}", file=sys.stderr)
@@ -361,7 +454,9 @@ def main():
             options=options,
         )
         print(f"Template créé en __pending__: id={result['id']} name={result['name']}")
-        print("Assigner owner_user_id et/ou allowed_user_ids dans Supabase pour le rendre visible dans « Mes templates ».")
+        print(
+            "Assigner owner_user_id et/ou allowed_user_ids dans Supabase pour le rendre visible dans « Mes templates »."
+        )
     except Exception as e:
         print(f"Erreur insertion Supabase: {e}", file=sys.stderr)
         sys.exit(1)

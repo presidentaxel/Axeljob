@@ -76,12 +76,23 @@ function TemplateCard({ template, isSelected, isLocked, isFavorite, onSelect, on
     onToggleFavorite(template.id);
   };
 
+  const handleCardKeyDown = (e) => {
+    if (isLocked) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
+  };
+
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={isLocked ? -1 : 0}
       className={`tpl-modal-card${isSelected ? ' tpl-modal-card--active' : ''}${isLocked ? ' tpl-modal-card--locked' : ''}`}
       onClick={handleClick}
+      onKeyDown={handleCardKeyDown}
       title={template.description}
+      aria-disabled={isLocked}
     >
       <div className="tpl-modal-card-preview">
         <MiniPreview templateId={template.id} isActive={isSelected} />
@@ -101,7 +112,7 @@ function TemplateCard({ template, isSelected, isLocked, isFavorite, onSelect, on
       >
         {isFavorite ? <HiStar size={16} /> : <HiOutlineStar size={16} />}
       </button>
-    </button>
+    </div>
   );
 }
 

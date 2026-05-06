@@ -1,4 +1,5 @@
 """Métriques Prometheus liées à Supabase (repli PG → REST)."""
+
 from prometheus_client import Counter
 
 SUPABASE_PG_FALLBACK_TOTAL = Counter(

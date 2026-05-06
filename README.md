@@ -42,11 +42,12 @@ AxeL Job est une application web full-stack qui permet de maintenir un CV de bas
 ```
 cv-bot/
 ├── backend/                 # API FastAPI (Python 3.12)
-│   ├── main.py              # Routes API (~1600 lignes)
+│   ├── main.py              # Routes API (orchestration HTTP)
 │   ├── config.py            # Configuration (env vars)
 │   ├── db.py                # Acces Supabase / fallback fichiers
 │   ├── event_log.py         # Logs structures (memoire / analyse)
 │   ├── cv_analytics.py      # Metriques de contenu CV
+│   ├── cv_html_render.py    # Rendu HTML CV (render_cv_html, caches Jinja)
 │   ├── template_registry.py # Registry des templates CV
 │   ├── Dockerfile           # Image Docker backend
 │   ├── requirements.txt     # Dependances pinnees
@@ -70,17 +71,25 @@ cv-bot/
 │   ├── modern/
 │   └── minimal/
 │
-├── adapter.py               # Logique d'adaptation IA (Gemini)
-├── generator.py             # Generation PDF (WeasyPrint)
-├── letter_generator.py      # Generation lettre de motivation
-├── export_package.py        # Export dossier candidature
-├── mots_cles.py             # Extraction mots-cles
-├── rules.py                 # Regles de scoring ATS
-├── main.py                  # CLI (setup, adaptation, PDF)
+├── backend/templates/documents/ # Templates PDF lettre + fiche de poste
+│   ├── letter_template.html
+│   ├── letter_template.css
+│   ├── fiche_poste_template.html
+│   └── fiche_poste_template.css
+│
+├── backend/services/        # Services metier (adaptation, render CV, billing, PDF, export)
+│   ├── adapter.py
+│   ├── cv_render_helpers.py
+│   ├── cv_select_a4.py
+│   ├── billing_notifications.py
+│   ├── generator.py
+│   ├── letter_generator.py
+│   ├── mots_cles.py
+│   └── export_package.py
+├── backend/services/rules.py # Regles de scoring ATS
 │
 ├── docker-compose.yml       # Orchestration prod
-├── .env.production.example  # Template variables de prod
-└── .env.example             # Template variables de dev
+└── .env.example             # Template variables (dev/prod via ENVIRONMENT)
 ```
 
 ### Stack technique
@@ -206,15 +215,10 @@ Executer dans Supabase Dashboard > SQL Editor :
 
 ---
 
-## Ligne de commande (CLI)
+## Scripts de maintenance
 
 | Commande | Description |
 |----------|-------------|
-| `python main.py --setup` | Questionnaire interactif pour creer `cv_base.json` |
-| `python main.py --description "texte..." -o ./cvs` | Adapter le CV et generer le PDF |
-| `python main.py --description-file fiche.txt -o ./cvs` | Idem avec un fichier |
-| `python main.py --pdf-only -o .` | Generer un PDF sans adaptation IA |
-| `python preview.py` | Generer `preview.html` pour previsualiser le template |
 | **`python -m backend.scripts.cv_pdf_to_template`** | **Ouvre l'explorateur de fichiers → tu choisis un PDF → le script extrait les couleurs, genere un template HTML/CSS et l'insere dans Supabase en `__pending__` (personne ne le voit ; un humain assigne ensuite `owner_user_id` et `allowed_user_ids` dans la table `cv_templates`).** |
 | `python -m backend.scripts.cv_pdf_to_template "chemin/vers/CV.pdf"` | Idem en passant le chemin du PDF en argument |
 | `python -m backend.scripts.cv_pdf_to_template "CV.pdf" --name "Mon template"` | Avec nom et description optionnels |
@@ -241,13 +245,13 @@ Aucun utilisateur ne voit le template tant qu'un humain n'a pas fait la liaison 
 
 ## Deploiement Docker (production)
 
-> Guide detaille dans [DEPLOY.md](DEPLOY.md)
+> Guide detaille dans [docs/deploy.md](docs/deploy.md) — aide-memoire commandes (dev, Docker, SSH) : [docs/ops-commands.md](docs/ops-commands.md)
 
 ### Resume
 
 ```bash
 # 1. Configurer
-cp .env.production.example .env
+cp .env.example .env
 # Editer .env avec tes vraies cles
 
 # 2. Build et lancer
@@ -267,7 +271,7 @@ Il faut un reverse proxy externe (Caddy, nginx, ou Cloudflare) pour HTTPS.
 
 | Fichier / dossier | Role |
 |-------------------|------|
-| `cv_base_vierge.json` | Structure vide du CV (template) |
+| `docs/examples/cv_base_vierge.json` | Structure vide du CV (template) |
 | `cv_base.json` | Ton CV de base (gitignore) |
 | `adaptations/` | Adaptations par offre (gitignore) |
 | `logs/` | Logs structures JSONL (gitignore) |
@@ -318,6 +322,53 @@ En mode development, la doc interactive est accessible sur :
 | Build frontend echoue | Verifier que `frontend/src/lib/supabase.js` existe |
 | CORS errors en prod | Verifier `CV_BOT_FRONTEND_URL` dans `.env` |
 | 401 sur toutes les routes | Verifier `SUPABASE_JWT_SECRET` dans `.env` |
+
+---
+
+## Workflow equipe (pro)
+
+Le projet inclut des standards de contribution et des quality gates :
+
+- Guide contribution : `docs/contributing.md`
+- Guide bonnes pratiques : `docs/guide-bonnes-pratiques.md`
+- Audit conformité guide : `docs/conformity-audit.md`
+- Politique securite : `docs/security.md`
+- Standards engineering : `docs/engineering-standards.md`
+- CI GitHub Actions : `.github/workflows/ci.yml`
+- Workflow securite : `.github/workflows/security.yml` (CodeQL, Gitleaks, pip-audit)
+- Dependabot : `.github/dependabot.yml`
+- Qualite Python : `pyproject.toml` (`ruff`, `black`, `mypy`, `pytest`), gate CI sur rendu CV (`cv_render_helpers`, `cv_html_render`, seuil dans `ci.yml`)
+- Hooks Git : `.pre-commit-config.yaml`
+
+### Setup qualite local (venv recommande)
+
+```bash
+cd cv-bot
+python -m venv .venv
+# Windows PowerShell:
+.\.venv\Scripts\Activate.ps1
+# macOS/Linux:
+# source .venv/bin/activate
+
+python -m pip install --upgrade pip
+pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+pip install black ruff mypy pytest pytest-cov pre-commit bandit pip-audit
+npm --prefix frontend ci
+pre-commit install
+```
+
+### Verification avant PR
+
+```bash
+ruff check .
+black --check .
+mypy backend
+pytest tests
+pytest tests --cov=backend.services.cv_render_helpers --cov=backend.cv_html_render --cov-report=term-missing --cov-fail-under=62
+bandit -r backend -c pyproject.toml
+pip-audit -r backend/requirements.txt
+npm --prefix frontend run lint
+```
 
 ---
 

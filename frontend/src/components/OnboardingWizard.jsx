@@ -101,7 +101,9 @@ export default function OnboardingWizard({ session, onComplete }) {
     if (parsedCv) {
       try {
         await apiPut('/api/cv', parsedCv);
-      } catch {}
+      } catch {
+        /* import optional on navigation */
+      }
     }
     onComplete('profil');
   };

@@ -128,7 +128,9 @@ function getHeaders(extra = {}) {
   try {
     const sid = getOrCreateAnalyticsSessionId();
     if (sid) h[ANALYTICS_SESSION_HEADER] = sid;
-  } catch {}
+  } catch {
+    /* analytics session optional */
+  }
   return h;
 }
 
@@ -153,7 +155,9 @@ export async function apiGet(path) {
     try {
       const data = JSON.parse(text);
       msg = data.detail || data.error || msg;
-    } catch {}
+    } catch {
+      /* body not JSON */
+    }
     const err = new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
     err.status = r.status;
     throw err;
@@ -321,7 +325,9 @@ export async function apiPostFormData(path, formData) {
     try {
       const data = JSON.parse(text);
       msg = data.detail || data.error || msg;
-    } catch {}
+    } catch {
+      /* body not JSON */
+    }
     throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
   }
   const ct = r.headers.get('content-type');
@@ -373,7 +379,9 @@ export async function apiGetBlob(path) {
     try {
       const data = JSON.parse(text);
       msg = data.detail || msg;
-    } catch {}
+    } catch {
+      /* body not JSON */
+    }
     throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
   }
   const engine = r.headers.get('X-CV-PDF-Engine');
@@ -403,14 +411,20 @@ export function trackEvent(eventType, context = {}) {
     let session_id = null;
     try {
       session_id = getOrCreateAnalyticsSessionId();
-    } catch {}
+    } catch {
+      /* ignore */
+    }
     fetch(apiUrl('/api/events/track'), {
       method: 'POST',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ event_type: eventType, context, session_id }),
       keepalive: true,
-    }).catch(() => {});
-  } catch {}
+    }).catch(() => {
+      /* fire-and-forget */
+    });
+  } catch {
+    /* never throw from trackEvent */
+  }
 }
 
 /** Télécharge un fichier via GET (ex. export CSV pour mémoire). */
@@ -423,7 +437,9 @@ export async function apiDownload(path, defaultFilename = 'download') {
     try {
       const data = JSON.parse(text);
       msg = data.detail || data.error || msg;
-    } catch {}
+    } catch {
+      /* body not JSON */
+    }
     throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
   }
   const blob = await r.blob();

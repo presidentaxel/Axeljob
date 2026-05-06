@@ -10,7 +10,9 @@ export const ANALYTICS_SESSION_HEADER = 'X-Analytics-Session-Id';
 function newSessionId() {
   try {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-  } catch {}
+  } catch {
+    /* crypto unavailable */
+  }
   return `sess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 14)}`;
 }
 
@@ -70,7 +72,9 @@ export function ensureAnalyticsFirstTouch() {
       captured_at: new Date().toISOString(),
     };
     localStorage.setItem(ATTRIB_KEY, JSON.stringify(payload));
-  } catch {}
+  } catch {
+    /* storage full or disabled */
+  }
 }
 
 /** Objet compact pour un seul envoi (ex. premier page_view de la session auth). */

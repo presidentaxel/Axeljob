@@ -1,21 +1,23 @@
 fastapi==0.128.0
 uvicorn[standard]==0.32.0
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 google-genai==1.65.0
 weasyprint==68.1
 playwright==1.50.0
 jinja2==3.1.6
-requests==2.32.3
-Pillow==11.3.0
+requests==2.33.0
+Pillow==12.2.0
 prometheus-client==0.23.1
 psutil==7.0.0
 supabase==2.11.0
 psycopg[binary,pool]>=3.2,<4
-PyJWT==2.10.1
+PyJWT==2.12.0
 stripe==12.3.0
 resend>=2.5.1
 pdfplumber==0.11.9
-PyMuPDF==1.25.1
+# PyMuPDF (fitz) déplacé dans backend/requirements-dev.txt : utilisé uniquement par
+# backend/scripts/cv_pdf_to_template.py (script de maintenance, jamais importé en runtime).
+# Le retirer du runtime économise ~50 Mo d'image Docker et ~100 Mo de libs natives.
 python-docx==1.2.0
-python-multipart==0.0.9
+python-multipart==0.0.26
 starlette==0.50.0

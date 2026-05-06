@@ -1,0 +1,84 @@
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | venv
+  | node_modules
+  | frontend/node_modules
+  | frontend/dist
+  | __pycache__
+  | \.pytest_cache
+  | logs
+  | adaptations
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+exclude = [
+  ".git",
+  ".venv",
+  "venv",
+  "node_modules",
+  "frontend/node_modules",
+  "frontend/dist",
+  "__pycache__",
+  "logs",
+  "adaptations",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+# E402 / B904 / SIM* : beaucoup de code historique (imports après sys.path, re-raise HTTP, style try/except).
+ignore = [
+  "E501",
+  "E402",
+  "B904",
+  "SIM102",
+  "SIM103",
+  "SIM105",
+  "SIM108",
+  "SIM117",
+  "B007",
+  "B008",
+  "B023",
+  "E731",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra"
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+pretty = true
+exclude = "(^frontend/|^node_modules/|^\\.venv/|^venv/|^logs/|^adaptations/)"
+# Typer précisément toute la base legacy coûte cher ; on garde mypy comme filet mais sans bloquer la CI locale.
+disable_error_code = [
+  "arg-type",
+  "assignment",
+  "call-arg",
+  "index",
+  "misc",
+  "operator",
+  "return-value",
+  "typeddict-item",
+  "union-attr",
+  "valid-type",
+  "var-annotated",
+]
+
+[tool.bandit]
+exclude_dirs = [".venv", "venv", "frontend/node_modules", "tests"]
+skips = ["B101"]

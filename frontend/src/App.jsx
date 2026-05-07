@@ -2774,6 +2774,18 @@ export default function App() {
     };
   }, [showMobileAppGate]);
 
+  const showProfileCvLoadError =
+    !!session && pathname.startsWith('/app') && onboardingChecked && !!profileCvLoadError;
+
+  useEffect(() => {
+    if (!showProfileCvLoadError) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [showProfileCvLoadError]);
+
   const handleProfileSaveSuccess = () => {
     if (!lastAdaptedCv) loadInitialPreview();
   };
@@ -2916,16 +2928,6 @@ export default function App() {
   }
 
   const showOnboardingBoot = !!(session && pathname.startsWith('/app') && !onboardingChecked);
-  const showProfileCvLoadError = !!(session && pathname.startsWith('/app') && onboardingChecked && profileCvLoadError);
-
-  useEffect(() => {
-    if (!showProfileCvLoadError) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [showProfileCvLoadError]);
 
   return (
     <Suspense fallback={<div className="app-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}>

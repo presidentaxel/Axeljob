@@ -254,7 +254,7 @@ def select_cv_content_for_a4(
         out["experience_bullets"] = {
             str(k): int(v)
             for k, v in exp_bullets.items()
-            if isinstance(v, (int, float)) and 1 <= int(v) <= 3
+            if isinstance(v, int | float) and 1 <= int(v) <= 3
         }
     else:
         out["experience_bullets"] = {}
@@ -267,7 +267,7 @@ def select_cv_content_for_a4(
     ):
         val = sel.get(key)
         if isinstance(val, list):
-            out[key] = [int(x) for x in val if isinstance(x, (int, float))]
+            out[key] = [int(x) for x in val if isinstance(x, int | float)]
         else:
             out[key] = default
 
@@ -303,7 +303,7 @@ def apply_selection_to_cv(cv: dict, selection: dict | None) -> dict:
                 continue
             e = by_id[eid]
             n_bullets = exp_bullets.get(eid, 2)
-            if isinstance(n_bullets, (int, float)):
+            if isinstance(n_bullets, int | float):
                 n_bullets = max(1, min(3, int(n_bullets)))
             else:
                 n_bullets = 2

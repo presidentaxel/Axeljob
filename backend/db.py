@@ -1353,7 +1353,7 @@ def _normalize_allowed_ids(allowed: any) -> list[str]:
             except Exception:
                 return [_norm_uid(s)] if s else []
         return [_norm_uid(s)]
-    return [_norm_uid(str(x)) for x in (allowed if isinstance(allowed, (list, tuple)) else [])]
+    return [_norm_uid(str(x)) for x in (allowed if isinstance(allowed, list | tuple) else [])]
 
 
 def list_custom_templates_for_user(user_id: str | None) -> list[dict]:

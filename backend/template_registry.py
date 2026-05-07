@@ -229,7 +229,7 @@ def options_to_css_vars(options: dict) -> str:
             try:
                 pt = (
                     float(val)
-                    if isinstance(val, (int, float))
+                    if isinstance(val, int | float)
                     else float(str(val).strip().replace(",", "."))
                 )
                 if 6 <= pt <= 24:
@@ -245,7 +245,7 @@ def options_to_css_vars(options: dict) -> str:
         try:
             px = (
                 float(val)
-                if isinstance(val, (int, float))
+                if isinstance(val, int | float)
                 else float(str(val).strip().replace(",", "."))
             )
             if 40 <= px <= 160:

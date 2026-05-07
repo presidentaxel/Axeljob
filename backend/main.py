@@ -539,7 +539,7 @@ def _adaptation_id_from_user_and_offer(user_id: str | None, description: str) ->
     """Id stable par (utilisateur, texte d'annonce) : réadapter la même offre met à jour la même candidature."""
     uid = (user_id or "default").strip() or "default"
     norm = (description or "").strip()
-    h = hashlib.sha256(f"{uid}\n{norm}".encode("utf-8")).hexdigest()[:16]
+    h = hashlib.sha256(f"{uid}\n{norm}".encode()).hexdigest()[:16]
     return f"adapt_{h}"
 
 

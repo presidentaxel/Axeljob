@@ -901,7 +901,8 @@ def count_quota_adaptations(user_id: str | None = None) -> int:
                 1
                 for row in rows
                 if _application_counts_toward_adaptation_quota(
-                    str(row.get("id") or ""), row.get("payload") if isinstance(row.get("payload"), dict) else {}
+                    str(row.get("id") or ""),
+                    row.get("payload") if isinstance(row.get("payload"), dict) else {},
                 )
             )
         except Exception:

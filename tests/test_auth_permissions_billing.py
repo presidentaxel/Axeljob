@@ -66,7 +66,9 @@ class TestAuthGuards(unittest.TestCase):
 
     def test_application_create_requires_auth_when_supabase_enabled(self):
         req = _FakeRequest()
-        body = main.ApplicationCreateBody(poste="Dev", entreprise="Acme", statut="candidature_envoyee")
+        body = main.ApplicationCreateBody(
+            poste="Dev", entreprise="Acme", statut="candidature_envoyee"
+        )
         with (
             patch.object(main, "USE_SUPABASE", True),
             patch.object(main, "_get_user_id", return_value=None),

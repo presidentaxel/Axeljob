@@ -663,11 +663,15 @@ def _validate_cv_put_payload(body: Any) -> dict[str, Any]:
         if not isinstance(key, str):
             raise HTTPException(status_code=400, detail="Payload CV invalide (clé non texte).")
         if not key.strip() or len(key) > 120:
-            raise HTTPException(status_code=400, detail="Payload CV invalide (nom de champ incorrect).")
+            raise HTTPException(
+                status_code=400, detail="Payload CV invalide (nom de champ incorrect)."
+            )
     try:
         serialized = json.dumps(body, ensure_ascii=False)
     except (TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="Payload CV invalide (données non sérialisables).")
+        raise HTTPException(
+            status_code=400, detail="Payload CV invalide (données non sérialisables)."
+        )
     if len(serialized.encode("utf-8")) > 2 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Payload CV trop volumineux.")
     return body
@@ -2591,7 +2595,10 @@ def _adapt_run_prepare(request: Request, body: AdaptRunBody) -> dict:
             )
     adaptation_id = _adaptation_id_from_user_and_offer(user_id, description)
     if plan == "free" and not no_paywall:
-        if not get_adaptation(adaptation_id, user_id=user_id) and count_active_applications(uid) >= FREE_APPLICATIONS_LIMIT:
+        if (
+            not get_adaptation(adaptation_id, user_id=user_id)
+            and count_active_applications(uid) >= FREE_APPLICATIONS_LIMIT
+        ):
             raise HTTPException(
                 status_code=403,
                 detail=(
@@ -3079,7 +3086,10 @@ def api_adapt(request: Request, body: AdaptBody):
             )
     adaptation_id = _adaptation_id_from_user_and_offer(user_id, description)
     if plan == "free" and not no_paywall:
-        if not get_adaptation(adaptation_id, user_id=user_id) and count_active_applications(uid) >= FREE_APPLICATIONS_LIMIT:
+        if (
+            not get_adaptation(adaptation_id, user_id=user_id)
+            and count_active_applications(uid) >= FREE_APPLICATIONS_LIMIT
+        ):
             raise HTTPException(
                 status_code=403,
                 detail=(

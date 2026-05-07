@@ -138,6 +138,30 @@ function checkUnauthorized(r) {
   if (r.status === 401 && onUnauthorized) onUnauthorized();
 }
 
+function buildHttpError(message, r, data = undefined) {
+  const err = new Error(typeof message === 'string' ? message : JSON.stringify(message));
+  err.status = r?.status;
+  err.code = data?.code || data?.error_code || null;
+  err.detail = data?.detail ?? null;
+  return err;
+}
+
+async function parseErrorResponse(r) {
+  const text = await r.text();
+  let data = null;
+  let msg = r.statusText;
+  try {
+    data = JSON.parse(text);
+    const detail = data?.detail;
+    msg = Array.isArray(detail)
+      ? (detail[0]?.msg || JSON.stringify(detail))
+      : (detail || data?.error || msg);
+  } catch {
+    if (text?.trim()) msg = text.trim();
+  }
+  return { msg, data };
+}
+
 export function apiUrl(path) {
   const base = getApiUrl();
   const p = path.startsWith('/') ? path : `/${path}`;
@@ -152,15 +176,14 @@ export async function apiGet(path) {
   if (!r.ok) {
     checkUnauthorized(r);
     let msg = r.statusText;
+    let data = null;
     try {
-      const data = JSON.parse(text);
+      data = JSON.parse(text);
       msg = data.detail || data.error || msg;
     } catch {
       /* body not JSON */
     }
-    const err = new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
-    err.status = r.status;
-    throw err;
+    throw buildHttpError(msg, r, data || undefined);
   }
   return isJson ? JSON.parse(text) : text;
 }
@@ -173,12 +196,8 @@ export async function apiPost(path, body) {
   });
   if (!r.ok) {
     checkUnauthorized(r);
-    const data = await r.json().catch(() => ({}));
-    const detail = data.detail;
-    const msg = Array.isArray(detail) ? (detail[0]?.msg || JSON.stringify(detail)) : (detail || data.error || r.statusText);
-    const err = new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
-    err.status = r.status;
-    throw err;
+    const { msg, data } = await parseErrorResponse(r);
+    throw buildHttpError(msg, r, data || undefined);
   }
   const ct = r.headers.get('content-type');
   if (ct && ct.includes('application/json')) return r.json();
@@ -225,12 +244,8 @@ export async function apiPostStream(path, body, { onMessage, signal } = {}) {
   }
   if (!r.ok) {
     checkUnauthorized(r);
-    const data = await r.json().catch(() => ({}));
-    const detail = data.detail;
-    const msg = Array.isArray(detail) ? (detail[0]?.msg || JSON.stringify(detail)) : (detail || data.error || r.statusText);
-    const err = new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
-    err.status = r.status;
-    throw err;
+    const { msg, data } = await parseErrorResponse(r);
+    throw buildHttpError(msg, r, data || undefined);
   }
   if (!r.body) return;
   const reader = r.body.getReader();
@@ -278,10 +293,8 @@ export async function apiPatch(path, body) {
   });
   if (!r.ok) {
     checkUnauthorized(r);
-    const data = await r.json().catch(() => ({}));
-    const detail = data.detail;
-    const msg = Array.isArray(detail) ? (detail[0]?.msg || JSON.stringify(detail)) : (detail || data.error || r.statusText);
-    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    const { msg, data } = await parseErrorResponse(r);
+    throw buildHttpError(msg, r, data || undefined);
   }
   return r.json();
 }
@@ -294,10 +307,8 @@ export async function apiPut(path, body) {
   });
   if (!r.ok) {
     checkUnauthorized(r);
-    const data = await r.json().catch(() => ({}));
-    const detail = data.detail;
-    const msg = Array.isArray(detail) ? (detail[0]?.msg || JSON.stringify(detail)) : (detail || data.error || r.statusText);
-    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    const { msg, data } = await parseErrorResponse(r);
+    throw buildHttpError(msg, r, data || undefined);
   }
   const ct = r.headers.get('content-type');
   if (ct && ct.includes('application/json')) return r.json();
@@ -320,15 +331,8 @@ export async function apiPostFormData(path, formData) {
   });
   if (!r.ok) {
     checkUnauthorized(r);
-    const text = await r.text();
-    let msg = r.statusText;
-    try {
-      const data = JSON.parse(text);
-      msg = data.detail || data.error || msg;
-    } catch {
-      /* body not JSON */
-    }
-    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    const { msg, data } = await parseErrorResponse(r);
+    throw buildHttpError(msg, r, data || undefined);
   }
   const ct = r.headers.get('content-type');
   if (ct && ct.includes('application/json')) return r.json();
@@ -343,10 +347,8 @@ export async function apiPostBlob(path, body) {
   });
   if (!r.ok) {
     checkUnauthorized(r);
-    const data = await r.json().catch(() => ({}));
-    const detail = data.detail;
-    const msg = Array.isArray(detail) ? (detail[0]?.msg || JSON.stringify(detail)) : (detail || data.error || r.statusText);
-    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    const { msg, data } = await parseErrorResponse(r);
+    throw buildHttpError(msg, r, data || undefined);
   }
   const engine = r.headers.get('X-CV-PDF-Engine');
   if (path.includes('pdf')) {
@@ -374,15 +376,8 @@ export async function apiGetBlob(path) {
   const r = await fetch(apiUrl(path), { headers: getHeaders() });
   if (!r.ok) {
     checkUnauthorized(r);
-    const text = await r.text();
-    let msg = r.statusText;
-    try {
-      const data = JSON.parse(text);
-      msg = data.detail || msg;
-    } catch {
-      /* body not JSON */
-    }
-    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    const { msg, data } = await parseErrorResponse(r);
+    throw buildHttpError(msg, r, data || undefined);
   }
   const engine = r.headers.get('X-CV-PDF-Engine');
   if (path.includes('pdf') || path.includes('download/cv')) {
@@ -432,15 +427,8 @@ export async function apiDownload(path, defaultFilename = 'download') {
   const r = await fetch(apiUrl(path), { headers: getHeaders() });
   if (!r.ok) {
     checkUnauthorized(r);
-    const text = await r.text();
-    let msg = r.statusText;
-    try {
-      const data = JSON.parse(text);
-      msg = data.detail || data.error || msg;
-    } catch {
-      /* body not JSON */
-    }
-    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    const { msg, data } = await parseErrorResponse(r);
+    throw buildHttpError(msg, r, data || undefined);
   }
   const blob = await r.blob();
   const disposition = r.headers.get('Content-Disposition');

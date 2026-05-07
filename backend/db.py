@@ -398,7 +398,7 @@ def save_cv_base(data: dict, user_id: str | None = None) -> None:
         raise RuntimeError("Supabase requis pour enregistrer le CV d'un utilisateur connecté.")
 
 
-# --- Photo CV : Supabase Storage (bucket cv_photos, public) ---
+# --- Photo CV : Supabase Storage (bucket cv_photos privé) ---
 CV_PHOTOS_BUCKET = "cv_photos"
 
 
@@ -409,7 +409,7 @@ def _user_photo_path(user_id: str) -> str:
 
 
 def _ensure_cv_photos_bucket(sb) -> None:
-    """Crée le bucket cv_photos (public) s'il n'existe pas."""
+    """Crée le bucket cv_photos (privé) s'il n'existe pas."""
     try:
         sb.storage.create_bucket(CV_PHOTOS_BUCKET, options={"public": False})
     except Exception as e:
@@ -420,7 +420,7 @@ def _ensure_cv_photos_bucket(sb) -> None:
 
 
 def upload_photo_to_storage(user_safe_id: str, image_bytes: bytes) -> str:
-    """Envoie la photo dans Supabase Storage (bucket cv_photos). Une seule image partagée (pas par user). Retourne l’URL publique."""
+    """Envoie la photo dans Supabase Storage (bucket cv_photos). Retourne une URL signée."""
     sb = _get_supabase()
     if not sb:
         raise RuntimeError("Supabase non configuré.")
@@ -498,7 +498,7 @@ def _application_doc_path(user_id: str, application_id: str, doc_type: str) -> s
 
 
 def _ensure_application_docs_bucket(sb) -> None:
-    """Crée le bucket application_docs (public) s'il n'existe pas."""
+    """Crée le bucket application_docs (privé) s'il n'existe pas."""
     try:
         sb.storage.create_bucket(APPLICATION_DOCS_BUCKET, options={"public": False})
     except Exception as e:
@@ -511,7 +511,7 @@ def _ensure_application_docs_bucket(sb) -> None:
 def upload_application_doc(
     user_id: str, application_id: str, doc_type: str, file_bytes: bytes
 ) -> str:
-    """Envoie un PDF (lettre, cv ou fiche) dans Supabase Storage. Retourne l'URL publique."""
+    """Envoie un PDF (lettre, cv ou fiche) dans Supabase Storage. Retourne une URL signée."""
     if doc_type not in APPLICATION_DOC_TYPES:
         raise ValueError(f"doc_type doit être parmi {APPLICATION_DOC_TYPES}")
     sb = _get_supabase()

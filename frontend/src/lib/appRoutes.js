@@ -13,16 +13,24 @@ export const APP_ROUTES = {
   monitoring: `${APP_BASE}/monitoring`,
 };
 
+export const APP_DEFAULT_ROUTE = APP_ROUTES.cv;
+
+export function isKnownAppPathname(pathname) {
+  if (!pathname) return false;
+  if (pathname === APP_BASE || pathname === `${APP_BASE}/`) return true;
+  return Object.values(APP_ROUTES).some((route) => pathname.startsWith(route));
+}
+
 /**
  * Section logique pour effets (fetch, tracking) - alignée sur l’URL.
  */
 export function getViewFromPathname(pathname) {
   if (!pathname) return 'cv';
-  if (pathname === `${APP_BASE}/cv` || pathname.startsWith(`${APP_BASE}/cv`)) return 'cv';
-  if (pathname === `${APP_BASE}/postule` || pathname.startsWith(`${APP_BASE}/postule`)) return 'candidatures';
-  if (pathname === `${APP_BASE}/profil` || pathname.startsWith(`${APP_BASE}/profil`)) return 'profil';
-  if (pathname === `${APP_BASE}/linkedin` || pathname.startsWith(`${APP_BASE}/linkedin`)) return 'profil';
-  if (pathname === `${APP_BASE}/support` || pathname.startsWith(`${APP_BASE}/support`)) return 'support';
-  if (pathname === `${APP_BASE}/monitoring` || pathname.startsWith(`${APP_BASE}/monitoring`)) return 'monitoring';
+  if (pathname.startsWith(APP_ROUTES.cv)) return 'cv';
+  if (pathname.startsWith(APP_ROUTES.postule)) return 'candidatures';
+  if (pathname.startsWith(APP_ROUTES.profil)) return 'profil';
+  if (pathname.startsWith(APP_ROUTES.linkedin)) return 'profil';
+  if (pathname.startsWith(APP_ROUTES.support)) return 'support';
+  if (pathname.startsWith(APP_ROUTES.monitoring)) return 'monitoring';
   return 'cv';
 }

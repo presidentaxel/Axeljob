@@ -17,6 +17,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -270,12 +271,21 @@ _MAX_BODY_SIZE = 20 * 1024 * 1024  # 20 MB
 @app.middleware("http")
 async def limit_request_body(request: Request, call_next):
     cl = request.headers.get("content-length")
-    if cl and int(cl) > _MAX_BODY_SIZE:
-        return Response(
-            content=json.dumps({"detail": "Corps de requête trop volumineux."}),
-            status_code=413,
-            media_type="application/json",
-        )
+    if cl:
+        try:
+            cl_int = int(cl)
+        except (TypeError, ValueError):
+            return Response(
+                content=json.dumps({"detail": "En-tête Content-Length invalide."}),
+                status_code=400,
+                media_type="application/json",
+            )
+        if cl_int > _MAX_BODY_SIZE:
+            return Response(
+                content=json.dumps({"detail": "Corps de requête trop volumineux."}),
+                status_code=413,
+                media_type="application/json",
+            )
     return await call_next(request)
 
 
@@ -579,10 +589,9 @@ def _resolve_jwt_payload_for_request(request: Request) -> dict | None:
                         " (décalage horaire ? synchronise l’horloge ou augmente JWT_LEEWAY_SECONDS)"
                     )
                 logger.warning(
-                    "JWT decode failed: %s%s (token prefix: %s…)",
+                    "JWT decode failed: %s%s",
                     e,
                     hint,
-                    (token[:10] + "…") if token else "",
                 )
                 payload = None
     if state is not None:
@@ -625,6 +634,26 @@ def _require_user_id(request: Request) -> str:
             status_code=401, detail="Authentification requise. Connecte-toi pour continuer."
         )
     return user_id or "default"
+
+
+def _validate_cv_put_payload(body: Any) -> dict[str, Any]:
+    """Valide le payload CV pour éviter les objets non attendus ou trop volumineux."""
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Payload CV invalide (objet JSON attendu).")
+    if len(body) > 300:
+        raise HTTPException(status_code=400, detail="Payload CV invalide (trop de champs).")
+    for key in body.keys():
+        if not isinstance(key, str):
+            raise HTTPException(status_code=400, detail="Payload CV invalide (clé non texte).")
+        if not key.strip() or len(key) > 120:
+            raise HTTPException(status_code=400, detail="Payload CV invalide (nom de champ incorrect).")
+    try:
+        serialized = json.dumps(body, ensure_ascii=False)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Payload CV invalide (données non sérialisables).")
+    if len(serialized.encode("utf-8")) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Payload CV trop volumineux.")
+    return body
 
 
 _ANALYTICS_UUID_RE = re.compile(
@@ -924,10 +953,10 @@ def api_cv_patch(request: Request, body: dict):
 
 @app.put("/api/cv")
 def api_cv_put(request: Request, body: dict):
-    """Enregistre le CV de base (JSON). Utilisé par la section Profil. Avec auth : stocké par user_id ; sans : id 'default'."""
-    user_id = _get_user_id(request)
+    """Enregistre le CV de base (JSON) pour l'utilisateur authentifié."""
+    user_id = _require_user_id(request)
     try:
-        body = dict(body)
+        body = _validate_cv_put_payload(body)
         if body.get("template_id") is not None:
             body["template_id"] = _effective_template_id_for_user(user_id, body.get("template_id"))
         save_cv_base(body, user_id)
@@ -940,6 +969,8 @@ def api_cv_put(request: Request, body: dict):
         except Exception:
             _track_analytics(request, event_log.EVENT_PROFILE_SAVED, user_id, {})
         return {"ok": True}
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -1024,7 +1055,7 @@ def api_cv_linkedin_photo(request: Request, body: FetchLinkedInBody):
 @app.post("/api/cv/import-linkedin-photo")
 def api_cv_import_linkedin_photo(request: Request, body: FetchLinkedInBody):
     """Récupère la photo LinkedIn et l'enregistre dans le CV (optionnellement prénom/nom)."""
-    user_id = _get_user_id(request)
+    user_id = _require_user_id(request)
     token = (body.linkedin_access_token or "").strip()
     if not token:
         raise HTTPException(
@@ -3412,15 +3443,15 @@ def api_export_dossier_zip(request: Request, body: ExportDossierZipBody):
 @app.get("/api/applications")
 def api_applications_list(request: Request, archived: str = ""):
     include_archived = archived == "1"
-    user_id = _get_user_id(request)
-    return list_applications(include_archived=include_archived, user_id=user_id or "default")
+    user_id = _require_user_id(request)
+    return list_applications(include_archived=include_archived, user_id=user_id)
 
 
 @app.post("/api/applications")
 def api_application_create(request: Request, body: ApplicationCreateBody):
     """Crée une candidature manuelle (postulé hors app) : poste, entreprise, statut. Pas de CV adapté."""
-    user_id = _get_user_id(request)
-    uid = user_id or "default"
+    user_id = _require_user_id(request)
+    uid = user_id
     poste = (body.poste or "").strip()
     entreprise = (body.entreprise or "").strip()
     if not poste and not entreprise:
@@ -3460,8 +3491,8 @@ def api_application_create(request: Request, body: ApplicationCreateBody):
 @app.get("/api/applications/export")
 def api_applications_export(request: Request, format: str = "json"):
     """Export des candidatures de l'utilisateur (JSON ou CSV) pour mémoire / analyse."""
-    user_id = _get_user_id(request)
-    applications = list_applications(include_archived=True, user_id=user_id or "default")
+    user_id = _require_user_id(request)
+    applications = list_applications(include_archived=True, user_id=user_id)
     if format == "csv":
         import csv
         from io import StringIO
@@ -3508,7 +3539,7 @@ def api_events_export(
     request: Request, date_from: str = "", date_to: str = "", format: str = "json"
 ):
     """Export des événements (logs) de l'utilisateur pour mémoire / analyse. Filtre par user_id anonymisé."""
-    user_id = _get_user_id(request)
+    user_id = _require_user_id(request)
     anon_id = event_log.get_anon_user_id(user_id)
     events = event_log.read_events_from_files(date_from=date_from or None, date_to=date_to or None)
     events = [e for e in events if e.get("user_id") == anon_id]
@@ -3613,13 +3644,13 @@ def api_application_update(request: Request, adaptation_id: str, body: Applicati
         raise HTTPException(status_code=400, detail="Id invalide")
     if body.statut is not None and body.statut not in STATUTS_CANDIDATURE:
         raise HTTPException(status_code=400, detail="Statut invalide")
-    user_id = _get_user_id(request)
-    current = get_adaptation(adaptation_id, user_id or "default")
+    user_id = _require_user_id(request)
+    current = get_adaptation(adaptation_id, user_id)
     if not current:
         raise HTTPException(status_code=404, detail="Candidature introuvable")
     statut_prev = current.get("statut")
     updates = body.model_dump(exclude_none=True)
-    payload = update_adaptation(adaptation_id, updates, user_id=user_id or "default")
+    payload = update_adaptation(adaptation_id, updates, user_id=user_id)
     if not payload:
         raise HTTPException(status_code=404, detail="Candidature introuvable")
     # Logs structurés pour mémoire
@@ -3689,8 +3720,8 @@ def api_application_get(request: Request, adaptation_id: str):
     """Retourne le payload complet d'une candidature (CV, fiche, lettre_html si lettre_corps sauvegardé)."""
     if not _safe_adaptation_id(adaptation_id):
         raise HTTPException(status_code=400, detail="Id invalide")
-    user_id = _get_user_id(request)
-    payload = get_adaptation(adaptation_id, user_id=user_id or "default")
+    user_id = _require_user_id(request)
+    payload = get_adaptation(adaptation_id, user_id=user_id)
     if not payload:
         raise HTTPException(status_code=404, detail="Candidature introuvable")
     payload = dict(payload)
@@ -3710,9 +3741,9 @@ def api_application_generate_letter(request: Request, adaptation_id: str):
     """Génère la lettre de motivation (Gemini), la sauvegarde dans la candidature, retourne corps + HTML."""
     if not _safe_adaptation_id(adaptation_id):
         raise HTTPException(status_code=400, detail="Id invalide")
-    user_id = _get_user_id(request)
+    user_id = _require_user_id(request)
     check_rate_limit(user_id, rate_limit_max_adapt())
-    payload = get_adaptation(adaptation_id, user_id=user_id or "default")
+    payload = get_adaptation(adaptation_id, user_id=user_id)
     if not payload:
         raise HTTPException(status_code=404, detail="Candidature introuvable")
     full_cv = payload.get("full_cv")
@@ -3769,11 +3800,11 @@ def api_application_download_cv(request: Request, adaptation_id: str):
     """Télécharge le CV adapté en PDF (utilise selection_a4 si présente pour tenir sur 1 page A4)."""
     if not _safe_adaptation_id(adaptation_id):
         raise HTTPException(status_code=400, detail="Id invalide")
-    user_id = _get_user_id(request)
-    payload = get_adaptation(adaptation_id, user_id=user_id or "default")
+    user_id = _require_user_id(request)
+    payload = get_adaptation(adaptation_id, user_id=user_id)
     if not payload:
         raise HTTPException(status_code=404, detail="Candidature introuvable")
-    uid_dl = user_id or "default"
+    uid_dl = user_id
     if payload.get("pdf_cv_stored") and user_id:
         raw = download_application_doc_bytes(uid_dl, adaptation_id, "cv")
         if raw:
@@ -3832,13 +3863,13 @@ def api_application_download_lettre(request: Request, adaptation_id: str):
     """Télécharge la lettre de motivation en PDF (génère la lettre si pas encore stockée)."""
     if not _safe_adaptation_id(adaptation_id):
         raise HTTPException(status_code=400, detail="Id invalide")
-    user_id = _get_user_id(request)
-    payload = get_adaptation(adaptation_id, user_id=user_id or "default")
+    user_id = _require_user_id(request)
+    payload = get_adaptation(adaptation_id, user_id=user_id)
     if not payload:
         raise HTTPException(status_code=404, detail="Candidature introuvable")
     poste = (payload.get("poste") or "").strip()
     entreprise = (payload.get("entreprise") or "").strip()
-    uid_dl = user_id or "default"
+    uid_dl = user_id
     if payload.get("pdf_lettre_stored") and user_id:
         raw = download_application_doc_bytes(uid_dl, adaptation_id, "lettre")
         if raw:
@@ -3899,11 +3930,11 @@ def api_application_download_fiche(request: Request, adaptation_id: str):
     """Télécharge la fiche de poste en PDF."""
     if not _safe_adaptation_id(adaptation_id):
         raise HTTPException(status_code=400, detail="Id invalide")
-    user_id = _get_user_id(request)
-    payload = get_adaptation(adaptation_id, user_id=user_id or "default")
+    user_id = _require_user_id(request)
+    payload = get_adaptation(adaptation_id, user_id=user_id)
     if not payload:
         raise HTTPException(status_code=404, detail="Candidature introuvable")
-    uid_dl = user_id or "default"
+    uid_dl = user_id
     if payload.get("pdf_fiche_stored") and user_id:
         raw = download_application_doc_bytes(uid_dl, adaptation_id, "fiche")
         if raw:
@@ -3945,8 +3976,8 @@ async def api_application_upload_doc(request: Request, adaptation_id: str):
     file = form.get("file")
     if not file or not hasattr(file, "read"):
         raise HTTPException(status_code=400, detail="Fichier PDF requis")
-    user_id = _get_user_id(request)
-    uid = user_id or "default"
+    user_id = _require_user_id(request)
+    uid = user_id
     # Tous les appels DB / Storage sont déportés sur ThreadPool pour ne pas bloquer le loop.
     payload = await asyncio.to_thread(get_adaptation, adaptation_id, user_id=uid)
     if not payload:

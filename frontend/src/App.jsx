@@ -27,7 +27,7 @@ import { buildAdaptedPdfFilename } from './lib/pdfExportFilename';
 import { getPdfSaveStartInDirectoryHandle } from './lib/pdfExportStartDirIdb';
 import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiCheck, HiSwatch, HiChevronDown, HiChevronUp } from 'react-icons/hi2';
 import { lazyWithChunkReload, clearChunkErrorReloadKey } from './lib/lazyChunkReload';
-import { getViewFromPathname } from './lib/appRoutes';
+import { APP_DEFAULT_ROUTE, getViewFromPathname, isKnownAppPathname } from './lib/appRoutes';
 import { syncRobotsMeta } from './lib/seoHead';
 import './App.css';
 import './styles/TemplatePicker.css';
@@ -1168,7 +1168,7 @@ export default function App() {
       const params = new URLSearchParams(location.search);
       if (pathname === '/' || pathname === '/login') {
         if (params.get('plan') === 'pro') {
-          navigate('/app/cv', { replace: true });
+          navigate(APP_DEFAULT_ROUTE, { replace: true });
           setTimeout(() => handleUpgradeClick(), 500);
         } else {
           const nextPath = params.get('next');
@@ -1181,7 +1181,7 @@ export default function App() {
         }
       } else if (pathname === '/app' || pathname === '/app/') {
         const search = location.search || '';
-        navigate('/app/cv' + search, { replace: true });
+        navigate(APP_DEFAULT_ROUTE + search, { replace: true });
       }
     } else {
       if (pathname.startsWith('/app')) {
@@ -1198,16 +1198,7 @@ export default function App() {
   useEffect(() => {
     if (!session || authLoading) return;
     if (!pathname.startsWith('/app')) return;
-    const ok =
-      pathname === '/app' ||
-      pathname === '/app/' ||
-      pathname.startsWith('/app/cv') ||
-      pathname.startsWith('/app/postule') ||
-      pathname.startsWith('/app/profil') ||
-      pathname.startsWith('/app/linkedin') ||
-      pathname.startsWith('/app/support') ||
-      pathname.startsWith('/app/monitoring');
-    if (!ok) navigate('/app/cv', { replace: true });
+    if (!isKnownAppPathname(pathname)) navigate(APP_DEFAULT_ROUTE, { replace: true });
   }, [session, authLoading, pathname, navigate]);
 
   const setPreviewHtml = (html) => {

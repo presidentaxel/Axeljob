@@ -35,6 +35,56 @@ class TestAuthGuards(unittest.TestCase):
         ):
             self.assertEqual(main._require_user_id(req), "default")
 
+    def test_api_cv_put_requires_auth_when_supabase_enabled(self):
+        req = _FakeRequest()
+        with (
+            patch.object(main, "USE_SUPABASE", True),
+            patch.object(main, "_get_user_id", return_value=None),
+        ):
+            with self.assertRaises(HTTPException) as ctx:
+                main.api_cv_put(req, {})
+        self.assertEqual(ctx.exception.status_code, 401)
+
+    def test_import_linkedin_photo_requires_auth_when_supabase_enabled(self):
+        req = _FakeRequest()
+        body = main.FetchLinkedInBody(linkedin_access_token="tok")
+        with (
+            patch.object(main, "USE_SUPABASE", True),
+            patch.object(main, "_get_user_id", return_value=None),
+        ):
+            with self.assertRaises(HTTPException) as ctx:
+                main.api_cv_import_linkedin_photo(req, body)
+        self.assertEqual(ctx.exception.status_code, 401)
+
+    def test_cv_put_payload_rejects_oversized_object(self):
+        req = _FakeRequest()
+        huge = {f"k{i}": "v" for i in range(400)}
+        with patch.object(main, "_require_user_id", return_value="user_1"):
+            with self.assertRaises(HTTPException) as ctx:
+                main.api_cv_put(req, huge)
+        self.assertEqual(ctx.exception.status_code, 400)
+
+    def test_application_create_requires_auth_when_supabase_enabled(self):
+        req = _FakeRequest()
+        body = main.ApplicationCreateBody(poste="Dev", entreprise="Acme", statut="candidature_envoyee")
+        with (
+            patch.object(main, "USE_SUPABASE", True),
+            patch.object(main, "_get_user_id", return_value=None),
+        ):
+            with self.assertRaises(HTTPException) as ctx:
+                main.api_application_create(req, body)
+        self.assertEqual(ctx.exception.status_code, 401)
+
+    def test_applications_list_requires_auth_when_supabase_enabled(self):
+        req = _FakeRequest()
+        with (
+            patch.object(main, "USE_SUPABASE", True),
+            patch.object(main, "_get_user_id", return_value=None),
+        ):
+            with self.assertRaises(HTTPException) as ctx:
+                main.api_applications_list(req)
+        self.assertEqual(ctx.exception.status_code, 401)
+
 
 class TestTemplatePermissions(unittest.TestCase):
     def test_check_custom_template_access_denied(self):

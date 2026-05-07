@@ -1,16 +1,18 @@
-# Gate local avant push : aligne `.github/workflows/ci.yml` (+ audits optionnels, E2E optionnel).
+# Gate local avant push : aligne `.github/workflows/ci.yml` + `security.yml` (sauf CodeQL, action GitHub uniquement).
 #
 # Usage (depuis n'importe quel cwd) :
 #   .\scripts\pre-push.ps1
 #   .\scripts\pre-push.ps1 -WithE2E          # Playwright apres lint/build (+ long).
-#   .\scripts\pre-push.ps1 -SkipExtras       # Pas pip-audit / bandit.
+#   .\scripts\pre-push.ps1 -SkipExtras       # Pas pip-audit / bandit / npm audit / gitleaks.
+#   .\scripts\pre-push.ps1 -SkipGitleaks     # Gitleaks absent sur la machine : ignorer le scan secrets.
 #
 # Prerequis : `.venv` a la racine avec deps CI (voir docs/COMMANDS.md).
 
 [CmdletBinding()]
 param(
     [switch]$WithE2E,
-    [switch]$SkipExtras
+    [switch]$SkipExtras,
+    [switch]$SkipGitleaks
 )
 
 Set-StrictMode -Version Latest
@@ -70,19 +72,29 @@ try {
     Assert-NativeExit 'pytest'
 
     if (-not $SkipExtras) {
+        if (-not $SkipGitleaks) {
+            $gitleaks = Get-Command gitleaks -ErrorAction SilentlyContinue
+            if ($gitleaks) {
+                Write-Phase 'Secrets (gitleaks, comme security.yml)'
+                Set-Location $RepoRoot
+                gitleaks detect --source . --redact --verbose
+                Assert-NativeExit 'gitleaks'
+            } else {
+                Write-Host 'Gitleaks non trouve dans le PATH — installe https://github.com/gitleaks/gitleaks ou passe -SkipGitleaks / -SkipExtras.' -ForegroundColor Yellow
+            }
+        }
+
         Write-Phase 'Backend (pip-audit sur requirements)'
         python -m pip install -q pip-audit
         Assert-NativeExit 'pip install pip-audit'
         pip-audit -r backend/requirements.txt
         Assert-NativeExit 'pip-audit'
 
-        Write-Phase 'Backend (bandit, seuil High + config pyproject)'
+        Write-Phase 'Backend (bandit, comme security.yml)'
         python -m pip install -q bandit
         Assert-NativeExit 'pip install bandit'
-        # -q : pas de rapport si rien a High -> console vide mais sortie 0 = OK
-        python -m bandit -r backend -c pyproject.toml -q --severity-level high
+        python -m bandit -r backend -c pyproject.toml
         Assert-NativeExit 'bandit'
-        Write-Host 'Bandit: aucune alerte High (Low/Medium non affichees avec ce seuil).' -ForegroundColor DarkGray
     }
 
     if (-not (Test-Path $Frontend)) {
@@ -94,6 +106,12 @@ try {
 
     npm ci
     Assert-NativeExit 'npm ci'
+
+    if (-not $SkipExtras) {
+        Write-Phase 'Frontend (npm audit --audit-level=high, comme security.yml)'
+        npm audit --audit-level=high
+        Assert-NativeExit 'npm audit'
+    }
 
     npm run lint
     Assert-NativeExit 'eslint (npm run lint)'

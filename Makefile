@@ -4,7 +4,7 @@ VENV_PY = $(VENV_DIR)/Scripts/python.exe
 VENV_PIP = $(VENV_DIR)/Scripts/pip.exe
 VENV_PRE_COMMIT = $(VENV_DIR)/Scripts/pre-commit.exe
 
-.PHONY: help venv install-dev install-frontend lint lint-back lint-front format test test-back test-front security security-back ci pre-commit-install
+.PHONY: help venv install-dev install-frontend lint lint-back lint-front format test test-back test-front security security-back ci prepush pre-commit-install
 
 help:
 	@echo "Targets:"
@@ -16,6 +16,7 @@ help:
 	@echo "  make test              Run backend + frontend tests"
 	@echo "  make security          Run backend security checks"
 	@echo "  make ci                Run local CI checks"
+	@echo "  make prepush           Full local gate (same as scripts/pre-push.* + security audits)"
 	@echo "  make pre-commit-install Install git hooks with pre-commit"
 
 venv:
@@ -58,6 +59,14 @@ security-back:
 security: security-back
 
 ci: lint test-back security-back
+
+ifeq ($(OS),Windows_NT)
+prepush:
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/pre-push.ps1
+else
+prepush:
+	bash scripts/pre-push.sh
+endif
 
 pre-commit-install:
 	$(VENV_PRE_COMMIT) install

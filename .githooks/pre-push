@@ -1,0 +1,14 @@
+#!/bin/sh
+# Hook Git : même gate que la CI locale (scripts/pre-push.*).
+# Activer une fois : bash scripts/install-git-hooks.sh   (ou scripts/install-git-hooks.ps1)
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root" || exit 1
+
+if command -v pwsh >/dev/null 2>&1; then
+  exec pwsh -NoProfile -ExecutionPolicy Bypass -File "$repo_root/scripts/pre-push.ps1" "$@"
+fi
+if command -v powershell.exe >/dev/null 2>&1; then
+  exec powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$repo_root/scripts/pre-push.ps1" "$@"
+fi
+exec bash "$repo_root/scripts/pre-push.sh" "$@"

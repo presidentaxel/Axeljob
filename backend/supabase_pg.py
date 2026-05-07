@@ -670,6 +670,7 @@ def update_cv_template_by_owner(
     Clés supportées : name, description, html_content, css_content, options, allowed_user_ids, updated_at.
     """
     from psycopg.rows import dict_row
+    from psycopg.sql import SQL
     from psycopg.types.json import Json
 
     pool = get_pool()
@@ -677,40 +678,42 @@ def update_cv_template_by_owner(
         raise RuntimeError("Pool PG indisponible")
     tid = (template_id or "").strip()
 
-    set_parts: list[str] = []
+    set_parts: list[SQL] = []
     params: list[Any] = []
 
     if "name" in updates:
-        set_parts.append("name = %s")
+        set_parts.append(SQL("name = %s"))
         params.append(updates["name"])
     if "description" in updates:
-        set_parts.append("description = %s")
+        set_parts.append(SQL("description = %s"))
         params.append(updates["description"])
     if "html_content" in updates:
-        set_parts.append("html_content = %s")
+        set_parts.append(SQL("html_content = %s"))
         params.append(updates["html_content"])
     if "css_content" in updates:
-        set_parts.append("css_content = %s")
+        set_parts.append(SQL("css_content = %s"))
         params.append(updates["css_content"])
     if "options" in updates:
-        set_parts.append("options = %s::jsonb")
+        set_parts.append(SQL("options = %s::jsonb"))
         params.append(Json(updates["options"]))
     if "allowed_user_ids" in updates:
-        set_parts.append("allowed_user_ids = %s::text[]")
+        set_parts.append(SQL("allowed_user_ids = %s::text[]"))
         params.append(updates["allowed_user_ids"])
     if "updated_at" in updates:
-        set_parts.append("updated_at = %s::timestamptz")
+        set_parts.append(SQL("updated_at = %s::timestamptz"))
         params.append(updates["updated_at"])
 
     if not set_parts:
         return None
 
-    sql = f"""
+    sql = SQL(
+        """
         UPDATE public.cv_templates
-        SET {", ".join(set_parts)}
+        SET {set_clause}
         WHERE id = %s AND owner_user_id = %s
         RETURNING id, name, description, options, owner_user_id, allowed_user_ids
     """
+    ).format(set_clause=SQL(", ").join(set_parts))
     params.extend([tid, owner_uid])
 
     with pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:

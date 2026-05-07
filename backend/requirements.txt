@@ -19,5 +19,5 @@ pdfplumber==0.11.9
 # backend/scripts/cv_pdf_to_template.py (script de maintenance, jamais importé en runtime).
 # Le retirer du runtime économise ~50 Mo d'image Docker et ~100 Mo de libs natives.
 python-docx==1.2.0
-python-multipart==0.0.26
+python-multipart==0.0.27
 starlette==0.50.0

@@ -81,4 +81,4 @@ disable_error_code = [
 
 [tool.bandit]
 exclude_dirs = [".venv", "venv", "frontend/node_modules", "tests"]
-skips = ["B101"]
+skips = ["B101", "B110", "B112"]

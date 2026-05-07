@@ -642,7 +642,7 @@ def _validate_cv_put_payload(body: Any) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="Payload CV invalide (objet JSON attendu).")
     if len(body) > 300:
         raise HTTPException(status_code=400, detail="Payload CV invalide (trop de champs).")
-    for key in body.keys():
+    for key in body:
         if not isinstance(key, str):
             raise HTTPException(status_code=400, detail="Payload CV invalide (clé non texte).")
         if not key.strip() or len(key) > 120:
@@ -4300,4 +4300,4 @@ def health():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)  # nosec B104

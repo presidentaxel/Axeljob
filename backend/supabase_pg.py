@@ -306,6 +306,47 @@ def count_applications_for_user(uid: str) -> int:
         return int(row[0]) if row else 0
 
 
+def count_quota_adaptations_for_user(uid: str) -> int:
+    """Candidatures IA (payload.full_cv) non archivées, hors suivi manuel (id manual_*)."""
+    pool = get_pool()
+    if not pool:
+        return 0
+
+    with pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT COUNT(*)::int FROM public.applications
+            WHERE user_id = %s
+              AND left(id, 7) <> 'manual_'
+              AND COALESCE((payload->>'archived')::boolean, false) = false
+              AND jsonb_typeof(payload->'full_cv') = 'object'
+              AND payload->'full_cv' != '{}'::jsonb
+            """,
+            (uid,),
+        )
+        row = cur.fetchone()
+        return int(row[0]) if row else 0
+
+
+def count_active_applications_for_user(uid: str) -> int:
+    """Candidatures non archivées (manuel + IA), pour le plafond FREE_APPLICATIONS_LIMIT."""
+    pool = get_pool()
+    if not pool:
+        return 0
+
+    with pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT COUNT(*)::int FROM public.applications
+            WHERE user_id = %s
+              AND COALESCE((payload->>'archived')::boolean, false) = false
+            """,
+            (uid,),
+        )
+        row = cur.fetchone()
+        return int(row[0]) if row else 0
+
+
 # --- user_plans ---
 
 

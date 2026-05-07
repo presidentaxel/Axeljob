@@ -820,6 +820,8 @@ export default function App() {
   const [justAddedAppId, setJustAddedAppId] = useState(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
+  /** Erreur réseau/API sur GET /api/cv?profile=1 — ne pas confondre avec « profil vide ». */
+  const [profileCvLoadError, setProfileCvLoadError] = useState(null);
   const [profileRefreshKey, setProfileRefreshKey] = useState(0);
   /** Évite de repasser onboardingChecked à false (écran « Chargement… ») sur un simple refresh profil / même user. */
   const profileGateIdentityRef = useRef('');
@@ -1099,6 +1101,7 @@ export default function App() {
       profileGateIdentityRef.current = identity;
       setOnboardingChecked(false);
     }
+    setProfileCvLoadError(null);
     apiGet('/api/cv?profile=1')
       .then((data) => {
         const empty = !data || (typeof data === 'object' && Object.keys(data).length === 0);
@@ -1107,7 +1110,8 @@ export default function App() {
         if (data?.template_options !== undefined && typeof data.template_options === 'object') setTemplateOptions(data.template_options || {});
       })
       .catch(() => {
-        setNeedsOnboarding(true);
+        setProfileCvLoadError('Impossible de charger ton profil. Vérifie ta connexion puis réessaie.');
+        setNeedsOnboarding(false);
       })
       .finally(() => setOnboardingChecked(true));
   }, [session?.user?.id, session?.user?.email, authLoading, profileRefreshKey]);
@@ -2014,7 +2018,7 @@ export default function App() {
       setAdaptStreamMode(false);
       pendingAdaptResultRef.current = null;
       openPhase2AfterFirstAdaptRef.current = false;
-      if (e.status === 402 || (e.message && e.message.includes('épuisé'))) {
+      if (e.status === 402 || (e.status === 403 && (e.message || '').toLowerCase().includes('plafond')) || (e.message && e.message.includes('épuisé'))) {
         setUpgradeModalVisible(true);
       } else {
         setError(e.message || "Erreur.");
@@ -2106,7 +2110,7 @@ export default function App() {
           /* ignore localStorage */
         }
       } catch (e) {
-        if (e.status === 402 || (e.message && e.message.includes('épuisé'))) {
+        if (e.status === 402 || (e.status === 403 && (e.message || '').toLowerCase().includes('plafond')) || (e.message && e.message.includes('épuisé'))) {
           setUpgradeModalVisible(true);
         } else {
           setError(e.message || "Erreur.");
@@ -2121,6 +2125,17 @@ export default function App() {
     setAdaptStepLabels(['Analyse de la demande', 'Application des modifications', 'Finalisation']);
     try {
       const data = await apiPost('/api/adapt-refine', { cv: lastAdaptedCv, instruction: text });
+      if (lastAdaptationId) {
+        try {
+          const patch = { full_cv: data.cv };
+          if (lastSelectionA4 && typeof lastSelectionA4 === 'object') {
+            patch.selection_a4 = lastSelectionA4;
+          }
+          await apiPatch(`/api/applications/${encodeURIComponent(lastAdaptationId)}`, patch);
+        } catch (persistErr) {
+          showError(persistErr.message || 'CV affiné en local — enregistrement serveur incomplet. Réessaie ou exporte le dossier.');
+        }
+      }
       const html = await apiPost('/api/render-html', {
         ...templateParams,
         cv: data.cv,
@@ -2151,7 +2166,7 @@ export default function App() {
     } catch (e) {
       setApiAdaptDone(false);
       pendingAdaptResultRef.current = null;
-      if (e.status === 402 || (e.message && e.message.includes('épuisé'))) {
+      if (e.status === 402 || (e.status === 403 && (e.message || '').toLowerCase().includes('plafond')) || (e.message && e.message.includes('épuisé'))) {
         setUpgradeModalVisible(true);
       } else {
         setError(e.message || "Erreur.");
@@ -2901,6 +2916,16 @@ export default function App() {
   }
 
   const showOnboardingBoot = !!(session && pathname.startsWith('/app') && !onboardingChecked);
+  const showProfileCvLoadError = !!(session && pathname.startsWith('/app') && onboardingChecked && profileCvLoadError);
+
+  useEffect(() => {
+    if (!showProfileCvLoadError) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [showProfileCvLoadError]);
 
   return (
     <Suspense fallback={<div className="app-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}>
@@ -2919,6 +2944,28 @@ export default function App() {
             <div className="app-mobile-gate-actions">
               <button type="button" className="btn btn-primary" onClick={() => navigate('/faq')}>
                 Voir le site (FAQ, guides…)
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={async () => {
+                  if (supabase) await supabase.auth.signOut();
+                }}
+              >
+                Se déconnecter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showProfileCvLoadError && (
+        <div className="app-mobile-gate" role="alertdialog" aria-modal="true" aria-labelledby="profile-load-err-title">
+          <div className="app-mobile-gate-card">
+            <h1 id="profile-load-err-title">Profil inaccessible</h1>
+            <p className="app-mobile-gate-lead">{profileCvLoadError}</p>
+            <div className="app-mobile-gate-actions">
+              <button type="button" className="btn btn-primary" onClick={() => setProfileRefreshKey((k) => k + 1)}>
+                Réessayer
               </button>
               <button
                 type="button"
@@ -3850,7 +3897,7 @@ export default function App() {
                     }
                   } catch (e) {
                     openPhase2AfterFirstAdaptRef.current = false;
-                    if (e.status === 402 || (e.message && e.message.includes('épuisé'))) {
+                    if (e.status === 402 || (e.status === 403 && (e.message || '').toLowerCase().includes('plafond')) || (e.message && e.message.includes('épuisé'))) {
                       setUpgradeModalVisible(true);
                     } else {
                       showError(e.message || "Erreur lors de l'adaptation.");
@@ -3939,6 +3986,8 @@ export default function App() {
             applications={applications}
             onClose={closeApplicationDetail}
             onPosteUpdated={loadApplications}
+            letterGenEnabled={usage?.plan === 'pro' || !!usage?.paywall_disabled}
+            onUpgradeClick={handleUpgradeClick}
           />
         )}
 

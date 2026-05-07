@@ -868,6 +868,107 @@ def count_applications(user_id: str | None = None) -> int:
     return count
 
 
+def _application_counts_toward_adaptation_quota(adaptation_id: str, payload: dict | None) -> bool:
+    """True si la ligne représente une adaptation CV IA (quota free / Pro), hors manuel et archivé."""
+    if not adaptation_id or not isinstance(payload, dict):
+        return False
+    if adaptation_id.startswith("manual_"):
+        return False
+    if payload.get("archived"):
+        return False
+    fc = payload.get("full_cv")
+    if not isinstance(fc, dict) or len(fc) == 0:
+        return False
+    return True
+
+
+def count_quota_adaptations(user_id: str | None = None) -> int:
+    """Nombre d'adaptations CV sauvegardées (full_cv), non archivées, hors fiches manuelles « manual_* »."""
+    uid = (user_id or "default").strip() or "default"
+    sb = _get_supabase()
+    if sb:
+        if USE_SUPABASE_PG:
+            try:
+                from backend import supabase_pg as spg
+
+                return spg.count_quota_adaptations_for_user(uid)
+            except Exception as e:
+                _warn_pg_fallback("count_quota_adaptations_for_user", e)
+        try:
+            r = sb.table("applications").select("id,payload").eq("user_id", uid).execute()
+            rows = r.data or []
+            return sum(
+                1
+                for row in rows
+                if _application_counts_toward_adaptation_quota(
+                    str(row.get("id") or ""), row.get("payload") if isinstance(row.get("payload"), dict) else {}
+                )
+            )
+        except Exception:
+            pass
+    if not ADAPTATIONS_DIR.is_dir():
+        return 0
+    n = 0
+    for path in ADAPTATIONS_DIR.glob("*.json"):
+        aid = path.stem
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            continue
+        if data.get("user_id", "default") != uid:
+            continue
+        if _application_counts_toward_adaptation_quota(aid, data):
+            n += 1
+    return n
+
+
+def _application_is_active_non_archived(payload: dict | None) -> bool:
+    if not isinstance(payload, dict):
+        return True
+    return not bool(payload.get("archived"))
+
+
+def count_active_applications(user_id: str | None = None) -> int:
+    """Candidatures non archivées (Kanban actif), pour le plafond FREE_APPLICATIONS_LIMIT."""
+    uid = (user_id or "default").strip() or "default"
+    sb = _get_supabase()
+    if sb:
+        if USE_SUPABASE_PG:
+            try:
+                from backend import supabase_pg as spg
+
+                return spg.count_active_applications_for_user(uid)
+            except Exception as e:
+                _warn_pg_fallback("count_active_applications_for_user", e)
+        try:
+            r = sb.table("applications").select("payload").eq("user_id", uid).execute()
+            rows = r.data or []
+            return sum(
+                1
+                for row in rows
+                if _application_is_active_non_archived(
+                    row.get("payload") if isinstance(row.get("payload"), dict) else {}
+                )
+            )
+        except Exception:
+            pass
+    if not ADAPTATIONS_DIR.is_dir():
+        return 0
+    n = 0
+    for path in ADAPTATIONS_DIR.glob("*.json"):
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            continue
+        if data.get("user_id", "default") != uid:
+            continue
+        if _application_is_active_non_archived(data):
+            n += 1
+    return n
+
+
 def get_user_plan(user_id: str | None = None) -> str:
     """Retourne 'free' ou 'pro'. Par défaut 'free' si pas de ligne."""
     uid = (user_id or "default").strip() or "default"
@@ -916,7 +1017,7 @@ def ensure_implicit_free_adaptation_anchor(user_id: str | None = None) -> None:
     sb = _get_supabase()
     if not sb:
         return
-    count = count_applications(uid)
+    count = count_quota_adaptations(uid)
     if count <= _FREE_ADAPTATIONS_BASE_LIMIT:
         return
     plan, pw, bonus, anchor = _fetch_user_plan_state(uid)
@@ -1083,6 +1184,14 @@ def update_adaptation(adaptation_id: str, updates: dict, user_id: str | None = N
         current["poste"] = (updates["poste"] or "").strip()
     if "entreprise" in updates:
         current["entreprise"] = (updates["entreprise"] or "").strip()
+    if "full_cv" in updates and updates["full_cv"] is not None:
+        if isinstance(updates["full_cv"], dict):
+            current["full_cv"] = updates["full_cv"]
+    if "selection_a4" in updates:
+        if updates["selection_a4"] is None:
+            current.pop("selection_a4", None)
+        elif isinstance(updates["selection_a4"], dict):
+            current["selection_a4"] = updates["selection_a4"]
     for key in (
         "refus_raison",
         "refus_raison_type",

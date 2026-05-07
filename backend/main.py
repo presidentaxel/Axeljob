@@ -75,7 +75,8 @@ from backend.cv_analytics import (
 )
 from backend.db import (
     APPLICATION_DOC_TYPES,
-    count_applications,
+    count_active_applications,
+    count_quota_adaptations,
     download_application_doc_bytes,
     ensure_implicit_free_adaptation_anchor,
     find_user_id_by_stripe_subscription_id,
@@ -394,6 +395,8 @@ class ApplicationUpdateBody(BaseModel):
     archived: bool | None = None
     poste: str | None = None
     entreprise: str | None = None
+    full_cv: dict[str, Any] | None = None
+    selection_a4: dict[str, Any] | None = None
     # Questionnaires quali (mémoire)
     refus_raison: str | None = None
     refus_raison_type: str | None = None
@@ -532,10 +535,24 @@ def _offre_from_description(description: str, titre: str = "", entreprise: str =
     return offre_from_description(description or "", titre=titre, entreprise=entreprise)
 
 
-def _adaptation_id_from_description(description: str) -> str:
-    h = hashlib.sha256(description.strip().encode("utf-8")).hexdigest()[:12]
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M")
-    return f"{ts}_{h}"
+def _adaptation_id_from_user_and_offer(user_id: str | None, description: str) -> str:
+    """Id stable par (utilisateur, texte d'annonce) : réadapter la même offre met à jour la même candidature."""
+    uid = (user_id or "default").strip() or "default"
+    norm = (description or "").strip()
+    h = hashlib.sha256(f"{uid}\n{norm}".encode("utf-8")).hexdigest()[:16]
+    return f"adapt_{h}"
+
+
+def _require_pro_for_letter_features(user_id: str | None) -> None:
+    """Lettre générée par IA : réservée au plan Pro (sauf paywall_disabled)."""
+    uid = user_id or "default"
+    if get_paywall_disabled(uid):
+        return
+    if get_user_plan(uid) != "pro":
+        raise HTTPException(
+            status_code=403,
+            detail="La lettre de motivation IA est réservée au plan Pro.",
+        )
 
 
 def _safe_adaptation_id(adaptation_id: str) -> bool:
@@ -2188,15 +2205,16 @@ def api_usage(request: Request):
         ensure_implicit_free_adaptation_anchor(user_id)
     plan = get_user_plan(uid)
     no_paywall = get_paywall_disabled(uid)
-    count = count_applications(uid)
+    count_adapt = count_quota_adaptations(uid)
+    count_active = count_active_applications(uid)
     anchor = get_free_adaptation_count_anchor(uid)
     bonus = get_free_adaptation_bonus(uid)
     if plan == "pro" or no_paywall:
-        adaptations_used = count
+        adaptations_used = count_adapt
         adaptations_limit = 999999
     else:
         # Jauge toujours 0–3 à l’affichage ; quota réel = anchor + 3 + bonus.
-        rel = max(0, count - anchor)
+        rel = max(0, count_adapt - anchor)
         adaptations_used = min(rel, FREE_ADAPTATIONS_LIMIT)
         adaptations_limit = FREE_ADAPTATIONS_LIMIT
     applications_limit = 999999 if (plan == "pro" or no_paywall) else FREE_APPLICATIONS_LIMIT
@@ -2218,14 +2236,14 @@ def api_usage(request: Request):
         "paywall_disabled": no_paywall,
         "adaptations_used": adaptations_used,
         "adaptations_limit": adaptations_limit,
-        "applications_count": count,
+        "applications_count": count_active,
         "applications_limit": applications_limit,
         "is_support": is_support,
         "stripe_subscription": stripe_subscription,
     }
     if plan == "free" and not no_paywall:
         free_cap = anchor + FREE_ADAPTATIONS_LIMIT + bonus
-        payload["adaptations_quota_remaining"] = max(0, free_cap - count)
+        payload["adaptations_quota_remaining"] = max(0, free_cap - count_adapt)
     _USAGE_CACHE.set(uid, payload)
     return payload
 
@@ -2560,7 +2578,7 @@ def _adapt_run_prepare(request: Request, body: AdaptRunBody) -> dict:
     plan = get_user_plan(uid)
     no_paywall = get_paywall_disabled(uid)
     if plan == "free" and not no_paywall:
-        count = count_applications(uid)
+        count = count_quota_adaptations(uid)
         cap = (
             get_free_adaptation_count_anchor(uid)
             + FREE_ADAPTATIONS_LIMIT
@@ -2570,6 +2588,16 @@ def _adapt_run_prepare(request: Request, body: AdaptRunBody) -> dict:
             raise HTTPException(
                 status_code=402,
                 detail="Vous avez épuisé vos adaptations gratuites. Passez en Pro pour des adaptations illimitées.",
+            )
+    adaptation_id = _adaptation_id_from_user_and_offer(user_id, description)
+    if plan == "free" and not no_paywall:
+        if not get_adaptation(adaptation_id, user_id=user_id) and count_active_applications(uid) >= FREE_APPLICATIONS_LIMIT:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    f"Plafond gratuit atteint : {FREE_APPLICATIONS_LIMIT} candidatures actives "
+                    "(archive d'anciennes entrées ou passe en Pro pour un suivi illimité)."
+                ),
             )
     _track_analytics(
         request,
@@ -2621,7 +2649,7 @@ def _adapt_run_finalize_result(
     selected_steps = prep["selected_steps"]
     titre_request = prep["titre_request"]
     entreprise_request = prep["entreprise_request"]
-    adaptation_id = _adaptation_id_from_description(description)
+    adaptation_id = _adaptation_id_from_user_and_offer(user_id, description)
     poste_offre = (tweaks.get("poste_offre") or "").strip()
     entreprise_offre = (offre.get("entreprise") or "").strip()
     user_titre = titre_request
@@ -3038,7 +3066,7 @@ def api_adapt(request: Request, body: AdaptBody):
     plan = get_user_plan(uid)
     no_paywall = get_paywall_disabled(uid)
     if plan == "free" and not no_paywall:
-        count = count_applications(uid)
+        count = count_quota_adaptations(uid)
         cap = (
             get_free_adaptation_count_anchor(uid)
             + FREE_ADAPTATIONS_LIMIT
@@ -3048,6 +3076,16 @@ def api_adapt(request: Request, body: AdaptBody):
             raise HTTPException(
                 status_code=402,
                 detail="Vous avez épuisé vos adaptations gratuites. Passez en Pro pour des adaptations illimitées.",
+            )
+    adaptation_id = _adaptation_id_from_user_and_offer(user_id, description)
+    if plan == "free" and not no_paywall:
+        if not get_adaptation(adaptation_id, user_id=user_id) and count_active_applications(uid) >= FREE_APPLICATIONS_LIMIT:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    f"Plafond gratuit atteint : {FREE_APPLICATIONS_LIMIT} candidatures actives "
+                    "(archive d'anciennes entrées ou passe en Pro pour un suivi illimité)."
+                ),
             )
     _track_analytics(
         request,
@@ -3084,7 +3122,6 @@ def api_adapt(request: Request, body: AdaptBody):
         raise HTTPException(status_code=500, detail="Erreur lors de l'adaptation. Réessaie.")
 
     merged = _apply_tweaks(cv_base, tweaks)
-    adaptation_id = _adaptation_id_from_description(description)
     poste_offre = (tweaks.get("poste_offre") or "").strip()
     entreprise_offre = (offre.get("entreprise") or "").strip()
     user_titre = (body.titre or "").strip()
@@ -3458,6 +3495,18 @@ def api_application_create(request: Request, body: ApplicationCreateBody):
         raise HTTPException(status_code=400, detail="Renseigne au moins le poste ou l'entreprise.")
     if body.statut not in STATUTS_CANDIDATURE:
         raise HTTPException(status_code=400, detail="Statut invalide")
+    ensure_implicit_free_adaptation_anchor(user_id)
+    plan = get_user_plan(uid)
+    no_pw = get_paywall_disabled(uid)
+    if plan == "free" and not no_pw:
+        if count_active_applications(uid) >= FREE_APPLICATIONS_LIMIT:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    f"Plafond gratuit atteint : {FREE_APPLICATIONS_LIMIT} candidatures actives "
+                    "(archive d'anciennes entrées ou passe en Pro pour un suivi illimité)."
+                ),
+            )
     application_id = "manual_" + uuid_module.uuid4().hex[:12]
     now_iso = datetime.now(timezone.utc).isoformat()
     payload = {
@@ -3708,6 +3757,22 @@ def api_application_update(request: Request, adaptation_id: str, body: Applicati
                 "source_offre": updates["source_offre"],
             },
         )
+    if updates.get("full_cv") is not None and user_id and USE_SUPABASE:
+        fresh = get_adaptation(adaptation_id, user_id=user_id)
+        if fresh and isinstance(fresh.get("full_cv"), dict):
+            try:
+                snap = snapshot_application_pdfs_to_storage(
+                    user_id,
+                    adaptation_id,
+                    dict(fresh),
+                    do_cv=True,
+                    do_fiche=True,
+                    do_lettre=False,
+                )
+                if snap:
+                    save_adaptation(adaptation_id, {**dict(fresh), **snap}, user_id=user_id)
+            except Exception as e:
+                logger.warning("snapshot after cv patch %s: %s", adaptation_id, e)
     return {
         "id": adaptation_id,
         "statut": payload.get("statut"),
@@ -3754,6 +3819,7 @@ def api_application_generate_letter(request: Request, adaptation_id: str):
         raise HTTPException(status_code=400, detail="CV adapté absent pour cette candidature")
     lettre_corps = payload.get("lettre_corps")
     if not lettre_corps:
+        _require_pro_for_letter_features(user_id)
         from backend.services.letter_generator import generer_corps_lettre
 
         try:
@@ -3895,6 +3961,7 @@ def api_application_download_lettre(request: Request, adaptation_id: str):
 
     lettre_corps = payload.get("lettre_corps")
     if not lettre_corps:
+        _require_pro_for_letter_features(user_id)
         try:
             lettre_corps = generer_corps_lettre(
                 full_cv,

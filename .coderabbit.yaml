@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# Docs : https://docs.coderabbit.ai/guides/configure-coderabbit
+language: "fr-FR"
+early_access: false
+
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  review_details: true
+  auto_review:
+    enabled: true
+    drafts: false
+  # Contexte projet (AxeL Job / cv-bot)
+  path_instructions:
+    - path: "backend/**/*.py"
+      instructions: |
+        API FastAPI : vérifier auth (JWT Supabase), que les routes sensibles utilisent bien le contrôle d’accès côté serveur (service_role),
+        pas de secrets en clair, erreurs HTTP cohérentes. Aligner avec docs/guide-bonnes-pratiques.md.
+    - path: "frontend/**/*.{js,jsx}"
+      instructions: |
+        React/Vite : pas de secrets serveur ; uniquement variables VITE_* publiques. Gestion 401/403 et erreurs API homogènes.
+    - path: "backend/supabase_*.sql"
+      instructions: |
+        SQL Supabase : RLS, buckets Storage, migrations idempotentes / non destructives quand possible.
+
+chat:
+  auto_reply: true

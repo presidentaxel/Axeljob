@@ -16,6 +16,7 @@ import {
   trackEvent,
 } from './api';
 import { ensureAnalyticsFirstTouch } from './analyticsSession';
+import { resetTemplateOptionsToDefaults } from './lib/templateOptionsSchema.js';
 import { useViewAnalytics } from './useViewAnalytics';
 import { supabase } from './lib/supabase';
 import AuthForm from './components/AuthForm';
@@ -834,6 +835,33 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('cv_template_options') || '{}'); } catch { return {}; }
   });
   const [templatesList, setTemplatesList] = useState([]);
+
+  /**
+   * Wrapper a appeler quand l utilisateur CHOISIT explicitement un nouveau
+   * template (vs hydratation depuis Supabase / localStorage qui doivent
+   * preserver les options telles quelles).
+   *
+   * Probleme resolu : les `templateOptions` (couleurs, polices, booleens
+   * d affichage) sont specifiques a chaque template. Si l user passe d un
+   * template avec en-tete fonce (header_color: #1e293b par exemple) a un
+   * template a en-tete blanc, l ancienne couleur reste appliquee via
+   * `--cv-header-color`, ce qui peut rendre le header illisible (texte
+   * blanc sur fond blanc).
+   *
+   * Solution : a chaque changement EXPLICITE de template, on reset les
+   * options aux defauts du nouveau template. Si l user veut personnaliser,
+   * il refait ses reglages dans l inspecteur.
+   *
+   * Note : on accepte un parametre `templates` optionnel pour les cas ou
+   * `templatesList` n est pas encore charge (rare, mais defensive).
+   */
+  const handleUserPickTemplate = useCallback((nextId, templates = templatesList) => {
+    setTemplateId(nextId);
+    const nextTemplate = Array.isArray(templates)
+      ? templates.find((t) => t && t.id === nextId)
+      : null;
+    setTemplateOptions(nextTemplate ? resetTemplateOptionsToDefaults(nextTemplate) : {});
+  }, [templatesList]);
   const [tourRestartKey, setTourRestartKey] = useState(0);
   /** Incrémenté pour démonter le tour phase 1 si l’utilisateur lance la 1re adapt sans avoir cliqué « Terminer » (le spotlight laisse passer les clics). */
   const [phase1DismissForAdaptKey, setPhase1DismissForAdaptKey] = useState(0);
@@ -3245,7 +3273,7 @@ export default function App() {
                   templates={templatesList}
                   templateId={templateId}
                   templateOptions={templateOptions}
-                  onChangeTemplate={(id) => { setTemplateId(id); setTemplateOptions({}); trackEvent('template_changed', { template_id: id }); }}
+                  onChangeTemplate={(id) => { handleUserPickTemplate(id); trackEvent('template_changed', { template_id: id }); }}
                   onChangeOptions={setTemplateOptions}
                   openOptionsFromSupport={location.state?.supportHighlight?.openTemplateOptions}
                   openOptionsNonce={exportPrepTemplateOptionsNonce}
@@ -3924,7 +3952,7 @@ export default function App() {
             )}
           </header>
           <div className="page-content" data-analytics-section="profil_editor">
-            <ProfileView onSaveSuccess={handleProfileSaveSuccess} session={session} refreshKey={profileRefreshKey} usage={usage} onUpgradeClick={handleUpgradeClick} onUsageRefresh={loadUsage} onBillingPortalClick={() => setManageSubscriptionModalOpen(true)} templatesList={templatesList} templateId={templateId} templateOptions={templateOptions} onTemplateIdChange={setTemplateId} onTemplateOptionsChange={setTemplateOptions} onPhotoSessionExpired={handlePhotoSessionExpired} />
+            <ProfileView onSaveSuccess={handleProfileSaveSuccess} session={session} refreshKey={profileRefreshKey} usage={usage} onUpgradeClick={handleUpgradeClick} onUsageRefresh={loadUsage} onBillingPortalClick={() => setManageSubscriptionModalOpen(true)} templatesList={templatesList} templateId={templateId} templateOptions={templateOptions} onTemplateIdChange={handleUserPickTemplate} onTemplateOptionsChange={setTemplateOptions} onPhotoSessionExpired={handlePhotoSessionExpired} />
           </div>
         </div>
 

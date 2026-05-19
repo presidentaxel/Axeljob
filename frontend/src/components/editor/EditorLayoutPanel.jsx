@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import { HiLockClosed } from 'react-icons/hi2';
 
 import {
   getOrderedSectionEntries,
@@ -171,7 +172,7 @@ export default function EditorLayoutPanel({ layout, onLayoutChange, sectionsAvai
               title={locked ? 'Cette section est rendue dans le header du template (non déplaçable)' : undefined}
             >
               <span className="editor-layout-item-handle" aria-hidden="true" title={locked ? 'Verrouillée' : 'Glisser pour réordonner'}>
-                {locked ? '🔒' : '⋮⋮'}
+                {locked ? <HiLockClosed size={13} aria-hidden /> : '⋮⋮'}
               </span>
               <span className="editor-layout-item-index" aria-hidden="true">{index + 1}</span>
               <span className="editor-layout-item-label">{entry.label}</span>

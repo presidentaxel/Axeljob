@@ -687,6 +687,14 @@
 
 .editor-layout-item--locked .editor-layout-item-handle {
   cursor: not-allowed;
+  /* Le HiLockClosed (react-icon) est aligne verticalement comme le ⋮⋮ unicode
+   * grace au flex parent. On unifie juste la couleur "muted" du cadenas pour
+   * eviter qu il ne ressorte trop. */
+  color: #94a3b8;
+}
+
+.editor-layout-item--locked .editor-layout-item-handle svg {
+  display: block;
 }
 
 /* Badge de zone (Principal / Sidebar) pour signaler que le reorder

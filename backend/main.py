@@ -1488,6 +1488,23 @@ def api_render_html(request: Request, body: RenderHtmlBody):
     return HTMLResponse(html)
 
 
+from backend.api_ats import ScoreParsingBody as _AtsScoreParsingBody
+from backend.api_ats import handle_score_parsing as _ats_handle_score_parsing
+
+
+@app.post("/api/ats/score-parsing")
+def api_ats_score_parsing(request: Request, body: _AtsScoreParsingBody):
+    """Score ATS Parsing d'un couple ``(cv, layout)`` ou d'un ``template_id``.
+
+    Auth soft : on rate-limite par user_id si disponible, sinon par token vide
+    (best-effort anti-DoS). Le calcul lui-meme est deterministe et public ;
+    la limite sert uniquement a empecher l'abus du endpoint.
+    """
+    user_id = _get_user_id(request)
+    check_rate_limit(user_id, 60, scope="ats_score")
+    return _ats_handle_score_parsing(body)
+
+
 FREE_ADAPTATIONS_LIMIT = 3
 FREE_APPLICATIONS_LIMIT = 5
 

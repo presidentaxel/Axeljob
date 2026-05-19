@@ -443,15 +443,15 @@ Base : **100**. Plancher : **0**. Plafond : **100**.
 
 | Règle | Delta | Détection |
 | --- | --- | --- |
-| 2 colonnes | −5 | `layout.grid` + `sidebar_ratio` significatif |
-| 3+ colonnes | −12 | Compte des "zones X" distinctes |
+| 2 colonnes | −8 | `layout.grid` + `sidebar_ratio` significatif |
+| 3+ colonnes | −15 | Compte des "zones X" distinctes |
 | Contenu sémantique fractionné multi-colonnes | −5 supplémentaire | `experiences` réparti sur ≥ 2 colonnes |
-| Présence d'une sidebar | −3 | `sidebar_ratio > 0` |
+| Présence d'une sidebar | −5 | `sidebar_ratio > 0` |
 | Tableau pour le layout | −10 | `<table>` dans le HTML rendu |
-| Positions absolues d'éléments textuels (L3) | −2 par bloc texte | `layout.grid == "free"` |
+| Positions absolues d'éléments textuels (L3) | −2 par bloc texte (plafond −10) | `layout.grid == "free"` |
 | Texte sur image de fond | −5 | `block.style.background_image` présent |
 | Bullets non standards (▪ ★ ➜) | −1 | Regex sur le texte rendu |
-| Dates au format exotique | −1 par occurrence | Regex stricte sur `cv.experiences[].date_*` |
+| Dates au format exotique | −1 par occurrence (plafond −5) | Regex stricte sur `cv.experiences[].date_*` |
 | Police "exotique" (script, decorative) | −5 | Allowlist : Arial, Calibri, Helvetica, Inter, Plus Jakarta Sans, Georgia, Times |
 | Taille de corps < 9pt ou > 12pt | −3 | `layout.theme.font_size_body` |
 
@@ -459,7 +459,7 @@ Base : **100**. Plancher : **0**. Plafond : **100**.
 
 | Règle | Delta | Détection |
 | --- | --- | --- |
-| Photo présente | −2 | `layout.theme.show_photo == true && cv.photo_url` |
+| Photo présente | −3 | `layout.theme.show_photo == true && cv.photo_url` |
 | Couleurs de fond saturées | −1 | HSL : saturation > 60% sur block.style.bg |
 | Émojis dans le texte | −2 | Regex Unicode |
 | Liens en image plutôt qu'en texte | −1 | `block.type == "image" && block.target_url` |
@@ -469,7 +469,7 @@ Base : **100**. Plancher : **0**. Plafond : **100**.
 | Règle | Delta | Détection |
 | --- | --- | --- |
 | Mono-colonne | +10 | `sidebar_ratio == 0` et `grid != "free"` |
-| Titres de section avec mots-clés standards | +1 chacun | "Expérience professionnelle", "Formation", "Compétences", "Languages" présents |
+| Titres de section avec mots-clés standards | +1 par section (plafond +3) | sections "identity", "experiences", "formations", "skills", "languages" reconnues |
 | Contact (email, téléphone) dans les 30% supérieurs de la page 1 | +5 | Inspection positions |
 | Format de dates cohérent (MM/YYYY ou YYYY partout) | +3 | Analyse uniformité |
 | Bullets en `<li>` réels (pas des `<p>` avec "• ") | +3 | Inspection HTML rendu |

@@ -23,6 +23,26 @@
   min-width: 0;
 }
 
+/* Slot du drawer dans le workspace. Doit etre `display: flex` (et non
+ * `block` qui est le defaut d un `<div>`) pour deux raisons :
+ *  - quand le contenu du drawer est COURT, sans flex le drawer prend
+ *    sa hauteur intrinseque (courte) et le fond du workspace apparait
+ *    en zone grise sous le drawer (le wrapper `<div>` lui s etire bien
+ *    via align-items: stretch du workspace, mais son enfant non).
+ *  - quand le contenu du drawer est LONG, sans flex le drawer prend
+ *    sa hauteur intrinseque (longue) et deborde le workspace au lieu
+ *    de declencher l overflow-y: auto de son body interne.
+ *
+ * En `display: flex` row, l enfant `.editor-inspector-drawer` herite
+ * `align-self: stretch` (default) -> il s etend a la hauteur du slot,
+ * qui prend la hauteur du workspace. Le body interne avec `flex:1` et
+ * `overflow-y: auto` peut alors scroller correctement.
+ */
+.cv-editor-beta-inspector-slot {
+  display: flex;
+  min-height: 0;
+}
+
 /* Bouton d ouverture/fermeture dans la topbar editeur. */
 .editor-inspector-toggle-btn {
   display: inline-flex;
@@ -181,6 +201,7 @@
 
 .editor-inspector-drawer-body {
   flex: 1;
+  min-height: 0; /* indispensable pour que `overflow-y: auto` scrolle */
   overflow-y: auto;
   padding: 0.75rem 0.9rem 1rem;
   display: flex;

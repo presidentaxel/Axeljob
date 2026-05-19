@@ -184,7 +184,7 @@ export default function CvEditorBeta({
             templateOptions={templateOptions}
           />
         </main>
-        <div id="cv-editor-beta-inspector">
+        <div id="cv-editor-beta-inspector" className="cv-editor-beta-inspector-slot">
           <EditorInspectorDrawer
             open={inspectorOpen}
             template={activeTemplate}

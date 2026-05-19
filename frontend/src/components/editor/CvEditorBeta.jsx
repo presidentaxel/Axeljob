@@ -54,12 +54,10 @@ export default function CvEditorBeta({
   const [loadError, setLoadError] = useState(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   /**
-   * Layout local (ordre des sections, sidebar ratio, theme). Non persiste
-   * cote backend pour l instant -- la migration SQL `user_layouts` et le
-   * rendu effectif viendront en P2.2. Voir docs/editor-vision.md sec 6.
-   *
-   * On part toujours du layout par defaut au mount. Lorsque la persistance
-   * sera en place, on initialisera depuis la reponse de `GET /api/cv`.
+   * Layout local (ordre des sections, sidebar ratio, theme). Persiste cote
+   * backend depuis P2.3 dans `cv_base.data.layout` (JSONB). On initialise
+   * avec le defaut, puis on hydrate avec la valeur GET via `sanitizeLayout`
+   * (qui tolere null / payload partiel).
    */
   const [layout, setLayout] = useState(createDefaultLayout);
   /**
@@ -86,14 +84,23 @@ export default function CvEditorBeta({
    * `saveFnKey` : quand templateId/templateOptions changent, on cree une
    * nouvelle reference, et le scheduler est re-initialise (via la cle).
    * Cela garantit qu un PUT en cours utilise toujours les bons template_*.
+   *
+   * `layout` est inclus dans la closure pour suivre la derniere mise en
+   * page. La ref interne de `useAutoSave` capture toujours la version la
+   * plus recente, donc on ne change PAS `saveFnKey` quand layout change
+   * (pour ne pas re-init le scheduler et perdre les pending changes).
+   * Convention : on envoie `null` quand le layout est au defaut, ce qui
+   * permet au backend de nettoyer la ligne -- voir
+   * `tests/test_cv_layout_persistence.py`.
    */
   const saveFn = useCallback(async (payload) => {
     return apiPut('/api/cv', {
       ...payload,
       template_id: templateId,
       template_options: templateOptions,
+      layout: isDefaultLayout(layout) ? null : layout,
     });
-  }, [templateId, templateOptions]);
+  }, [templateId, templateOptions, layout]);
 
   const autoSave = useAutoSave({
     saveFn,
@@ -116,7 +123,15 @@ export default function CvEditorBeta({
       .then((data) => {
         if (aborted) return;
         const incoming = data && typeof data === 'object' ? data : {};
-        setCv({ ...defaultCv, ...incoming });
+        // Hydrate le layout local depuis le serveur (P2.3). sanitizeLayout
+        // tolere null / objet partiel / valeurs invalides -> fallback defaut.
+        if (Object.prototype.hasOwnProperty.call(incoming, 'layout')) {
+          setLayout(sanitizeLayout(incoming.layout));
+        }
+        // On retire `layout` du cv pour ne pas le considerer comme un champ
+        // de contenu (il est gere a part dans son propre state).
+        const { layout: _layout, ...cvPayload } = incoming;
+        setCv({ ...defaultCv, ...cvPayload });
         setLoading(false);
       })
       .catch((err) => {
@@ -152,8 +167,15 @@ export default function CvEditorBeta({
   }, [onTemplateOptionsChange]);
 
   const handleLayoutChange = useCallback((nextLayout) => {
-    setLayout(sanitizeLayout(nextLayout));
-  }, []);
+    const safe = sanitizeLayout(nextLayout);
+    setLayout(safe);
+    // P2.3 : declenche un save (debounce dans le scheduler). Le saveFn
+    // sera re-cree par React au prochain render (deps inclut `layout`),
+    // et la ref interne du hook prendra la nouvelle version -> le PUT
+    // partira avec le bon layout. cv peut etre null avant le 1er fetch :
+    // on schedule alors un objet vide, le scheduler sait debouncer.
+    if (cv) autoSave.schedule(cv);
+  }, [cv, autoSave]);
 
   /**
    * Layout au format SCORING : transmis a `EditorAtsScoreBadge` quand le

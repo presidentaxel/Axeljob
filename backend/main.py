@@ -974,9 +974,10 @@ def api_cv(request: Request, profile: bool = False):
 
 @app.patch("/api/cv")
 def api_cv_patch(request: Request, body: dict):
-    """Met à jour partiellement le CV (ex. template_id, template_options). Fusionne avec le document existant."""
+    """Met à jour partiellement le CV (ex. template_id, template_options, layout).
+    Fusionne avec le document existant."""
     user_id = _require_user_id(request)
-    allowed = {"template_id", "template_options"}
+    allowed = {"template_id", "template_options", "layout"}
     patch = {k: v for k, v in body.items() if k in allowed}
     if not patch:
         return {"ok": True}

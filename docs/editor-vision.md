@@ -1284,10 +1284,60 @@ custom — le backend supporte les deux modes (cf. `backend/api_ats.py`
 - [x] 4 nouveaux tests sur `frontendLayoutToScoringLayout`.
 - [x] Lint clean, build OK.
 
-Critères d'acceptation :
-- Un user peut réordonner ses sections et le PDF reflète l'ordre.
-- Score ATS recalculé en < 100 ms après chaque changement.
-- Rétrocompatibilité : les CVs sans `layout` continuent de marcher.
+#### 14.4.4 Verrouillage visuel des sections non rendues (livré, P2.2.b)
+
+Quand un template (ex. `executive`, `classic`) place une section dans
+le header (typiquement `resume`) ou dans une zone non identifiée par
+`data-cv-section`, l'utilisateur cliquait sur ↑ / ↓ sans rien voir
+bouger sur le canvas. Cause : `applyLayoutToDom` regroupe par parent
+DOM et le header n'est pas un parent réordonnable.
+
+| Rôle | Fichier |
+|---|---|
+| Détection DOM pure + tests | `frontend/src/lib/sectionsAvailability.js` + `tests/unit/sectionsAvailability.test.js` (7 tests) |
+| Remontée vers le parent | `frontend/src/components/CvEditablePreview.jsx` -> nouvelle prop `onLayoutAvailabilityChange` + `useEffect` après render |
+| Stockage et propagation | `frontend/src/components/editor/CvEditorBeta.jsx` -> state `sectionsAvailability` |
+| UX verrouillage | `frontend/src/components/editor/EditorLayoutPanel.jsx` -> handle 🔒 + boutons disabled + badge "Principal" / "Sidebar" |
+
+Conventions UX :
+- Section **rendue** : handle ⋮⋮, draggable, badge vert "Principal" ou
+  jaune "Sidebar". Les boutons ↑ / ↓ sont actifs uniquement si la
+  section voisine est dans la même zone (sinon le déplacement n'aurait
+  AUCUN effet visuel).
+- Section **verrouillée** (présente dans `layout.sectionsOrder` mais
+  pas dans `[data-cv-section]` du DOM) : grisée, handle 🔒, drag
+  désactivé, boutons disabled. Tooltip explicite.
+
+#### 14.4.5 Persistance backend du layout (livré, P2.3)
+
+Le layout est désormais persistant dans Supabase à côté du CV (champ
+`data.layout` du JSONB `cv_base`). Aucune migration SQL nécessaire :
+Supabase accepte le champ supplémentaire dans le JSONB existant.
+
+| Rôle | Fichier |
+|---|---|
+| Préservation côté DB | `backend/db.py::save_cv_base` -> garde le `layout` existant si payload partiel |
+| Route PATCH | `backend/main.py::api_cv_patch` -> `layout` accepté dans `allowed` |
+| Tests DB | `tests/test_cv_layout_persistence.py` (5 tests : save/load, préservation partielle, null = reset, ne casse pas template_id) |
+| Hydratation côté FE | `frontend/src/components/editor/CvEditorBeta.jsx` -> `setLayout(sanitizeLayout(incoming.layout))` au GET |
+| PUT côté FE | `saveFn` ajoute `layout: isDefaultLayout(layout) ? null : layout` -> backend stocke `null` quand l'user revient au défaut |
+| Trigger auto-save | `handleLayoutChange` appelle `autoSave.schedule(cv)` -> debounce 1.5s avant le PUT |
+
+Conventions :
+- Le frontend envoie `layout: null` quand l'utilisateur revient au layout
+  défaut. Le backend stocke `null` (et un futur GET le réinitialisera
+  via `sanitizeLayout`).
+- Le payload PATCH legacy (sans `layout`) ne touche PAS au layout
+  existant grâce à la préservation `db.py::save_cv_base`.
+- ProfileView (mode stable) continue d'appeler PUT sans `layout` ->
+  préservation automatique.
+
+**Critères d'acceptation (P2.3)** :
+- [x] Reorder + reload du navigateur : l'ordre est conservé.
+- [x] Reset layout par défaut : `data.layout` devient `null` côté DB.
+- [x] Le mode stable (ProfileView) ne perd jamais le layout du mode Beta.
+- [x] 5 nouveaux tests Python (`tests/test_cv_layout_persistence.py`).
+- [x] Lint, type, build clean.
 
 ### 14.5 P3 — L3 Canvas libre (8 semaines)
 

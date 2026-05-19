@@ -28,7 +28,7 @@ En cas de doute, ce guide prime sur les habitudes legacy. Si une zone ancienne n
 | Zone | Role |
 | --- | --- |
 | `frontend/` | SPA React 19 + Vite 7, auth Supabase (anon), parcours utilisateur et UX |
-| `backend/` | API FastAPI (Python), logique metier IA, PDF, controle d'acces |
+| `backend/` | API FastAPI (Python), logique metier IA, PDF, billing Stripe, controle d'acces |
 | `backend/services/` | Services metier testables (adaptation, generation, scoring ATS, export) |
 | `backend/supabase_*.sql` | Schema SQL et migrations appliquees au projet Supabase |
 | `templates/` | Templates CV HTML/CSS/meta statiques (classic, modern, minimal, etc.) |
@@ -64,7 +64,7 @@ Avant de modifier du code : identifier **ou** vit la regle (UI, API, SQL, templa
 ### 2.4 Variables d'environnement (Vite)
 
 - Toute variable exposee au navigateur doit commencer par `VITE_`.
-- Les secrets serveurs (service role, tokens) ne doivent **jamais** etre exposes en frontend.
+- Les secrets serveurs (service role, Stripe secret, tokens) ne doivent **jamais** etre exposes en frontend.
 
 ---
 
@@ -193,4 +193,4 @@ npm --prefix frontend run lint
 
 ---
 
-*Derniere mise a jour : guide aligne sur la structure actuelle de `cv-bot` (React/Vite, FastAPI, Supabase, WeasyPrint).*
+*Derniere mise a jour : guide aligne sur la structure actuelle de `cv-bot` (React/Vite, FastAPI, Supabase, Stripe, WeasyPrint).*

@@ -33,7 +33,7 @@ AxeL Job est une application web full-stack qui permet de maintenir un CV de bas
 | Import CV | Import PDF/Word existant, l'IA le structure automatiquement |
 | Suivi candidatures | Kanban avec statuts, questionnaires refus/entretien, export CSV |
 | Export dossier | ZIP ou dossier local avec CV + lettre + fiche de poste |
-| Gratuit | Toutes les fonctionnalités sont gratuites et sans limite |
+| Stripe | Plan gratuit (3 adaptations) et plan Pro illimite |
 
 ---
 
@@ -77,10 +77,11 @@ cv-bot/
 │   ├── fiche_poste_template.html
 │   └── fiche_poste_template.css
 │
-├── backend/services/        # Services metier (adaptation, render CV, PDF, export)
+├── backend/services/        # Services metier (adaptation, render CV, billing, PDF, export)
 │   ├── adapter.py
 │   ├── cv_render_helpers.py
 │   ├── cv_select_a4.py
+│   ├── billing_notifications.py
 │   ├── generator.py
 │   ├── letter_generator.py
 │   ├── mots_cles.py
@@ -101,6 +102,7 @@ cv-bot/
 | PDF | WeasyPrint 68 |
 | Base de donnees | Supabase (PostgreSQL) ou fallback fichiers JSON |
 | Stockage fichiers | Supabase Storage (buckets prives, signed URLs) |
+| Paiement | Stripe (checkout sessions, webhooks) |
 | Monitoring | Prometheus (metriques), logs JSON structures |
 | Deploiement | Docker, docker-compose, nginx |
 
@@ -159,8 +161,11 @@ npm run dev
 | `SUPABASE_SERVICE_KEY` | Cle `service_role` Supabase | Oui (prod) |
 | `SUPABASE_JWT_SECRET` | JWT Secret (Dashboard > API) | Oui (prod) |
 | `CV_BOT_API_BASE_URL` | URL publique du backend (HTTPS en prod) | Non |
-| `CV_BOT_FRONTEND_URL` | URL publique du frontend (CORS) | Oui (prod) |
+| `CV_BOT_FRONTEND_URL` | URL publique du frontend (CORS + Stripe redirect) | Oui (prod) |
 | `ENVIRONMENT` | `development` ou `production` | Non (default: development) |
+| `STRIPE_SECRET_KEY` | Cle secrete Stripe | Non |
+| `STRIPE_PRICE_ID_PRO_MONTHLY` | Price ID Stripe pour l'abo Pro | Non |
+| `STRIPE_WEBHOOK_SECRET` | Secret webhook Stripe | Non |
 | `METRICS_AUTH_TOKEN` | Token pour proteger `/metrics` | Non |
 | `LOGO_DEV_TOKEN` | Token publishable Logo.dev | Non |
 | `WEASYPRINT_DLL_DIRECTORIES` | (Windows) Chemin DLL Pango/GTK | Windows only |
@@ -190,6 +195,8 @@ Executer dans Supabase Dashboard > SQL Editor :
 |---------|-------------|
 | `supabase_migration_applications_user_id.sql` | Colonne `user_id` sur `applications` |
 | `supabase_migration_events.sql` | Table `events` (logs structures) |
+| `supabase_migration_user_plans.sql` | Table `user_plans` (free/pro, Stripe) |
+| `supabase_migration_user_plans_paywall_disabled.sql` | Colonne `paywall_disabled` |
 | `supabase_migration_storage_cv_photos.sql` | Bucket Storage `cv_photos` |
 | `supabase_migration_storage_application_docs.sql` | Bucket Storage `application_docs` |
 | `supabase_migration_cv_templates.sql` | Table `cv_templates` (templates perso HTML/CSS, owner + allowed_user_ids) |

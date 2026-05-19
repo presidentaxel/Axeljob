@@ -1564,6 +1564,79 @@ migrateLayoutToV3(input)                       // v1 / v2 / inconnu -> starter (
 - [x] 46 tests unitaires verts.
 - [x] 0 lint error sur le nouveau fichier.
 
+#### 14.5.2 P3.1 — Store immutable + undo/redo (livré, 19 mai 2026)
+
+Avant le premier drag, on pose l'historique. Rétrofiter l'undo/redo
+après est un cauchemar (cf. §7.6) ; le doc le dit explicitement.
+Store maison `past/present/future`, 0 dépendance ajoutée.
+
+**Implémentation** :
+
+| Rôle | Fichier |
+|---|---|
+| Store pur (commit / undo / redo / coalesce / limit) | `frontend/src/lib/layoutHistoryStore.js` |
+| Hook React qui expose le store + keybindings Cmd+Z / Cmd+Shift+Z / Ctrl+Y | `frontend/src/lib/useLayoutHistory.js` |
+| Tests unitaires (`node --test`) | `frontend/tests/unit/layoutHistoryStore.test.js` (21 tests) |
+
+**Forme du store** :
+
+```js
+{
+  past: Layout[],           // anciens etats (LIFO)
+  present: Layout,          // etat courant
+  future: Layout[],         // etats annules par undo, redo-ables
+  lastCommitAt: number,     // pour le coalescing
+  lastGroupKey: string|null,
+}
+```
+
+**API publique (store pur)** :
+
+```js
+createHistoryStore(initialLayout)
+getPresent(store) / canUndo(store) / canRedo(store)
+commit(store, newLayout, { groupKey?, now?, coalesceWindowMs? })
+undo(store) / redo(store)
+reset(newLayout)
+getHistoryDepth(store)  // { past, future }
+```
+
+**Hook React** :
+
+```js
+const { layout, commit, undo, redo, reset, canUndo, canRedo, historyDepth } =
+  useLayoutHistory(() => createBlankLayoutV3(), { keyboardShortcuts: true });
+```
+
+**Choix techniques clés** :
+
+- **Coalescing par `groupKey` + fenêtre temps** : pendant un drag, le
+  caller commit potentiellement à 60Hz. Plutôt que de pousser 60 entrées
+  dans `past` en 1 seconde, on coalesce les commits qui partagent le
+  même `groupKey` (ex. `"drag:blk_xyz"`) dans une fenêtre de 300ms. Le
+  PREMIER commit du drag reste dur (sinon on perdrait la possibilité
+  d'annuler), les suivants se contentent de remplacer le `present`.
+- **`HISTORY_LIMIT = 50`** : fenêtre glissante. Au-delà, les états les
+  plus anciens sont droppés. 50 × ~5 KB = ~250 KB max → négligeable.
+- **`undo` puis `commit` invalide `future`** : convention React /
+  Photoshop, conforme à l'attente utilisateur.
+- **Keybindings désactivés dans les champs éditables** : si l'user a le
+  focus dans un `<input>`, `<textarea>` ou un `contenteditable`,
+  `Cmd+Z` reste l'undo natif du texte (pas de vol). Détection par
+  `tagName` + `isContentEditable`.
+- **`reset(newLayout)`** : purge tout l'historique. Utilisé au login,
+  au changement de profil, ou à l'import d'un layout externe.
+
+**Critères d'acceptation (P3.1)** :
+- [x] Store entièrement pur, testable hors React.
+- [x] Coalescing par `groupKey` + fenêtre temps (premier commit JAMAIS
+      coalescé pour préserver l'undo).
+- [x] `HISTORY_LIMIT` glissant : pas de fuite mémoire après N opérations.
+- [x] Hook React expose les keybindings standards (Cmd+Z / Cmd+Shift+Z
+      / Ctrl+Y) avec fallback dans les champs éditables.
+- [x] 21 tests unitaires verts sur le store pur.
+- [x] 0 lint error, 0 dépendance ajoutée au `package.json`.
+
 ### 14.6 P4 — Calibration et expansion (continu)
 
 - Job mensuel de recalibration des pondérations sur les ground truths collectées.

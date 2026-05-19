@@ -721,6 +721,300 @@
   color: #166534;
 }
 
+/* ============================================================
+ * P2.4b : Mini-carte de mise en page.
+ * Affiche le CV comme un wireframe miniature avec zones (header /
+ * main / sidebar). Chaque zone est un conteneur drop-target pour
+ * les sections (drag entre zones via HTML5 native).
+ * ============================================================ */
+.editor-minimap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  font-family: var(--editor-font-family, inherit);
+}
+
+.editor-minimap-help {
+  margin: 0;
+  padding: 0.45rem 0.55rem;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 0.4rem;
+  font-size: 0.74rem;
+  color: #3730a3;
+  line-height: 1.35;
+}
+
+/* --- Zones (header / main / sidebar) --- */
+.editor-minimap-zone {
+  background: #ffffff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 0.5rem;
+  padding: 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-height: 56px;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.editor-minimap-zone--header {
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  border-style: solid;
+  border-color: #e2e8f0;
+}
+
+.editor-minimap-zone--main {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.editor-minimap-zone--sidebar {
+  flex: 0 0 auto;
+  min-width: 0;
+  width: 38%;
+  background: linear-gradient(180deg, #fffbeb 0%, #ffffff 100%);
+  border-style: solid;
+  border-color: #fde68a;
+}
+
+.editor-minimap-zone--disabled {
+  opacity: 0.55;
+  background: #f1f5f9;
+  border-style: dashed;
+  border-color: #cbd5e1;
+}
+
+.editor-minimap-zone--drag-over {
+  border-style: solid;
+  border-color: #6366f1;
+  background: #eef2ff;
+}
+
+/* --- Header de zone : titre + toggle --- */
+.editor-minimap-zone-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.editor-minimap-zone-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-minimap-zone-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #475569;
+}
+
+.editor-minimap-zone-toggle input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+/* --- Sections dans une zone --- */
+.editor-minimap-zone-sections {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-height: 28px;
+}
+
+.editor-minimap-empty {
+  padding: 0.5rem 0.55rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: 0.35rem;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  text-align: center;
+  background: #f8fafc;
+}
+
+.editor-minimap-empty--drop {
+  border-style: solid;
+  border-color: #6366f1;
+  color: #3730a3;
+  background: #eef2ff;
+}
+
+.editor-minimap-section {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.45rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.35rem;
+  font-size: 0.78rem;
+  color: #1e293b;
+  cursor: grab;
+  user-select: none;
+}
+
+.editor-minimap-section:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.editor-minimap-section--dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+.editor-minimap-section--over {
+  border-color: #6366f1;
+  box-shadow: inset 3px 0 0 0 #6366f1;
+}
+
+.editor-minimap-section-handle {
+  flex-shrink: 0;
+  color: #94a3b8;
+  font-family: monospace;
+  font-size: 0.85rem;
+  letter-spacing: -0.1em;
+}
+
+.editor-minimap-section-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-minimap-zone-disabled-hint {
+  margin: 0;
+  font-size: 0.7rem;
+  font-style: italic;
+  color: #94a3b8;
+}
+
+/* --- Row main + sidebar --- */
+.editor-minimap-row {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+/* --- Controls sidebar (cote + ratio) --- */
+.editor-minimap-sidebar-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.5rem 0.55rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.4rem;
+}
+
+.editor-minimap-side-fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.editor-minimap-side-fieldset legend {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+}
+
+.editor-minimap-side-buttons {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.editor-minimap-side-btn {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.45rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.editor-minimap-side-btn:hover {
+  background: #f1f5f9;
+}
+
+.editor-minimap-side-btn.is-active {
+  background: #6366f1;
+  color: #ffffff;
+  border-color: #6366f1;
+}
+
+.editor-minimap-ratio {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.editor-minimap-ratio input[type="range"] {
+  width: 100%;
+  cursor: pointer;
+}
+
+/* --- Reset --- */
+.editor-minimap-reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  align-self: flex-start;
+  padding: 0.4rem 0.65rem;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.35rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+}
+
+.editor-minimap-reset:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.editor-minimap-reset:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .editor-layout-item-handle {
   flex-shrink: 0;
   cursor: grab;

@@ -2,12 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { apiGet, apiPut } from '../../api';
 import { defaultCv } from '../../data/cvDefault';
+import { frontendLayoutToScoringLayout } from '../../lib/cvLayoutModel.js';
 import {
-  createDefaultLayout,
-  frontendLayoutToScoringLayout,
-  isDefaultLayout,
-  sanitizeLayout,
-} from '../../lib/cvLayoutModel.js';
+  LAYOUT_V2_VERSION,
+  createDefaultLayoutV2,
+  flattenLayoutV2ToOrder,
+  isDefaultLayoutV2,
+  migrateLayoutV1ToV2,
+  sanitizeLayoutV2,
+} from '../../lib/cvLayoutModelV2.js';
 import { useAutoSave } from '../../lib/useAutoSave.js';
 import CvEditablePreview from '../CvEditablePreview.jsx';
 
@@ -54,20 +57,21 @@ export default function CvEditorBeta({
   const [loadError, setLoadError] = useState(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   /**
-   * Layout local (ordre des sections, sidebar ratio, theme). Persiste cote
-   * backend depuis P2.3 dans `cv_base.data.layout` (JSONB). On initialise
-   * avec le defaut, puis on hydrate avec la valeur GET via `sanitizeLayout`
-   * (qui tolere null / payload partiel).
+   * Layout local (zones header / main / sidebar + ratio + side + theme).
+   * Forme v2 (cf. lib/cvLayoutModelV2.js) persiste dans `cv_base.data.layout`.
+   *
+   * Hydratation a l init :
+   *  - si le payload GET contient un layout v2 -> sanitize
+   *  - si layout v1 (ancien clients) -> migration auto v1->v2
+   *  - sinon -> defaut v2
+   *
+   * Le rendu effectif des zones (sidebar on/off, identity deplacee, etc.)
+   * est P2.4c -- pour l instant le DOM patching `applyLayoutToDom` opere
+   * uniquement sur `flattenLayoutV2ToOrder` (intra-parent toujours, comme
+   * P2.2). L UI mini-carte permet deja a l user d EXPRIMER son intention
+   * complete via le modele v2.
    */
-  const [layout, setLayout] = useState(createDefaultLayout);
-  /**
-   * P2.2.b : etat decrivant quelles sections sont effectivement rendues
-   * dans le DOM et leur groupe (main / sidebar). Mis a jour par
-   * `CvEditablePreview` via le callback `onLayoutAvailabilityChange`.
-   * `null` au mount -> le drawer affiche toutes les sections comme
-   * verrouillees tant qu on n a pas recu de premiere mesure.
-   */
-  const [sectionsAvailability, setSectionsAvailability] = useState(null);
+  const [layout, setLayout] = useState(createDefaultLayoutV2);
 
   /**
    * Template courant deduit de `templatesList` + `templateId` pour
@@ -98,7 +102,7 @@ export default function CvEditorBeta({
       ...payload,
       template_id: templateId,
       template_options: templateOptions,
-      layout: isDefaultLayout(layout) ? null : layout,
+      layout: isDefaultLayoutV2(layout) ? null : layout,
     });
   }, [templateId, templateOptions, layout]);
 
@@ -123,10 +127,19 @@ export default function CvEditorBeta({
       .then((data) => {
         if (aborted) return;
         const incoming = data && typeof data === 'object' ? data : {};
-        // Hydrate le layout local depuis le serveur (P2.3). sanitizeLayout
-        // tolere null / objet partiel / valeurs invalides -> fallback defaut.
+        // Hydrate le layout local depuis le serveur :
+        //   - si v2 -> sanitize
+        //   - si v1 (ancien clients ou docs deja en base) -> migration auto
+        //   - sinon -> defaut v2
         if (Object.prototype.hasOwnProperty.call(incoming, 'layout')) {
-          setLayout(sanitizeLayout(incoming.layout));
+          const rawLayout = incoming.layout;
+          if (rawLayout && typeof rawLayout === 'object' && Number(rawLayout.version) === LAYOUT_V2_VERSION) {
+            setLayout(sanitizeLayoutV2(rawLayout));
+          } else if (rawLayout && typeof rawLayout === 'object') {
+            setLayout(migrateLayoutV1ToV2(rawLayout));
+          } else {
+            setLayout(createDefaultLayoutV2());
+          }
         }
         // On retire `layout` du cv pour ne pas le considerer comme un champ
         // de contenu (il est gere a part dans son propre state).
@@ -167,26 +180,43 @@ export default function CvEditorBeta({
   }, [onTemplateOptionsChange]);
 
   const handleLayoutChange = useCallback((nextLayout) => {
-    const safe = sanitizeLayout(nextLayout);
+    const safe = sanitizeLayoutV2(nextLayout);
     setLayout(safe);
     // P2.3 : declenche un save (debounce dans le scheduler). Le saveFn
     // sera re-cree par React au prochain render (deps inclut `layout`),
     // et la ref interne du hook prendra la nouvelle version -> le PUT
-    // partira avec le bon layout. cv peut etre null avant le 1er fetch :
-    // on schedule alors un objet vide, le scheduler sait debouncer.
+    // partira avec le bon layout.
     if (cv) autoSave.schedule(cv);
   }, [cv, autoSave]);
 
   /**
    * Layout au format SCORING : transmis a `EditorAtsScoreBadge` quand le
-   * user a personnalise l ordre des sections / la sidebar. Si le layout
-   * est au defaut, on garde `null` -> le badge appelle l API avec juste
-   * `templateId` (rapide path).
+   * user a personnalise la mise en page. Le backend attend pour l instant
+   * un format v1 (sectionsOrder plat). On flatten le layout v2 pour
+   * preserver l ordre visuel (header -> main -> sidebar) attendu.
+   *
+   * Si le layout est au defaut, on garde `null` -> le badge appelle
+   * l API avec juste `templateId` (path rapide).
    */
   const scoringLayout = useMemo(() => {
-    if (isDefaultLayout(layout)) return null;
-    return frontendLayoutToScoringLayout(layout, { templateId });
+    if (isDefaultLayoutV2(layout)) return null;
+    const v1Like = {
+      version: 1,
+      sectionsOrder: flattenLayoutV2ToOrder(layout),
+      sidebarRatio: layout.sidebarRatio,
+      theme: layout.theme,
+    };
+    return frontendLayoutToScoringLayout(v1Like, { templateId });
   }, [layout, templateId]);
+
+  /**
+   * Ordre des sections aplati en suivant les zones (pour le DOM patch
+   * `applyLayoutToDom`). Note : tant que le renderer n est pas
+   * layout-aware (P2.4c), le DOM patch ne peut reordonner qu intra-
+   * parent. Les deplacements inter-zones (ex. competences -> main) ne
+   * seront visibles qu apres P2.4c.
+   */
+  const flatSectionsOrder = useMemo(() => flattenLayoutV2ToOrder(layout), [layout]);
 
   if (loading) {
     return (
@@ -246,8 +276,7 @@ export default function CvEditorBeta({
             onChange={handleCvChange}
             templateId={templateId}
             templateOptions={templateOptions}
-            layoutSectionsOrder={layout.sectionsOrder}
-            onLayoutAvailabilityChange={setSectionsAvailability}
+            layoutSectionsOrder={flatSectionsOrder}
           />
         </main>
         <div id="cv-editor-beta-inspector" className="cv-editor-beta-inspector-slot">
@@ -261,7 +290,6 @@ export default function CvEditorBeta({
             onCvChange={handleCvChange}
             layout={layout}
             onLayoutChange={handleLayoutChange}
-            sectionsAvailability={sectionsAvailability}
           />
         </div>
       </div>

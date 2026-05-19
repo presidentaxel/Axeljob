@@ -8,7 +8,7 @@ import {
 
 import EditorContentPanel from './EditorContentPanel.jsx';
 import EditorInspectorField from './EditorInspectorField.jsx';
-import EditorLayoutPanel from './EditorLayoutPanel.jsx';
+import EditorLayoutMiniMap from './EditorLayoutMiniMap.jsx';
 
 const TABS = [
   { id: 'style', label: 'Style' },
@@ -45,7 +45,6 @@ export default function EditorInspectorDrawer({
   onCvChange,
   layout,
   onLayoutChange,
-  sectionsAvailability,
 }) {
   const [activeTab, setActiveTab] = useState('style');
 
@@ -152,11 +151,7 @@ export default function EditorInspectorDrawer({
           </>
         )}
         {activeTab === 'layout' && (
-          <EditorLayoutPanel
-            layout={layout}
-            onLayoutChange={onLayoutChange}
-            sectionsAvailability={sectionsAvailability}
-          />
+          <EditorLayoutMiniMap layout={layout} onLayoutChange={onLayoutChange} />
         )}
         {activeTab === 'content' && (
           <EditorContentPanel cv={cv} onCvChange={onCvChange} />

@@ -83,8 +83,7 @@ export default function EditorLayoutPanel({ layout, onLayoutChange }) {
     <div className="editor-layout-panel">
       <p className="editor-layout-help">
         Glissez-déposez ou utilisez les flèches pour réordonner les sections.
-        Le nouveau rendu effectif arrive bientôt — l’ordre choisi sera
-        appliqué au CV et au score ATS.
+        L’aperçu et le score ATS reflètent votre choix en temps réel.
       </p>
 
       <ul className="editor-layout-list" role="list">

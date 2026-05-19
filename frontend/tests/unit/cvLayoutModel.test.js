@@ -11,6 +11,7 @@ import {
   CANONICAL_SECTION_KEYS,
   SIDEBAR_RATIOS,
   createDefaultLayout,
+  frontendLayoutToScoringLayout,
   getOrderedSectionEntries,
   isDefaultLayout,
   moveSectionInLayout,
@@ -139,4 +140,31 @@ test('getOrderedSectionEntries : sanitise une entree corrompue', () => {
   const entries = getOrderedSectionEntries({ sectionsOrder: ['experiences', 'fake'] });
   assert.equal(entries.length, CANONICAL_SECTION_KEYS.length);
   assert.equal(entries[0].key, 'experiences');
+});
+
+test('frontendLayoutToScoringLayout : conversion camelCase -> snake_case', () => {
+  const payload = frontendLayoutToScoringLayout(createDefaultLayout(), { templateId: 'classic' });
+  assert.equal(payload.template_id, 'classic');
+  assert.equal(payload.format, 'A4');
+  assert.equal(payload.sidebar_ratio, 0);
+  assert.equal(payload.grid, 'single-column');
+  assert.deepEqual(payload.sections_order, [...CANONICAL_SECTION_KEYS]);
+  assert.equal(payload.metadata.source, 'editor_beta_layout');
+});
+
+test('frontendLayoutToScoringLayout : ratio % -> float 0..1', () => {
+  const payload = frontendLayoutToScoringLayout(setSidebarRatio(createDefaultLayout(), 33));
+  assert.equal(payload.sidebar_ratio, 0.33);
+  assert.equal(payload.grid, 'single-or-sidebar');
+});
+
+test('frontendLayoutToScoringLayout : reorder propage', () => {
+  const layout = moveSectionInLayout(createDefaultLayout(), 0, 2);
+  const payload = frontendLayoutToScoringLayout(layout);
+  assert.equal(payload.sections_order[2], 'resume');
+});
+
+test('frontendLayoutToScoringLayout : sans templateId -> null', () => {
+  const payload = frontendLayoutToScoringLayout(createDefaultLayout());
+  assert.equal(payload.template_id, null);
 });

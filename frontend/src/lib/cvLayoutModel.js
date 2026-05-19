@@ -174,3 +174,45 @@ export function getOrderedSectionEntries(layout) {
   const safe = sanitizeLayout(layout);
   return safe.sectionsOrder.map((key) => ({ key, label: SECTION_LABELS[key] || key }));
 }
+
+/**
+ * Convertit le layout FRONTEND (forme minimaliste) en payload SCORING
+ * tel qu attendu par le backend ATS (cf. backend/services/ats_score +
+ * docs/editor-vision.md sec 16.2).
+ *
+ * Differences a recouvrir :
+ *  - `sectionsOrder` (camelCase) -> `sections_order` (snake_case)
+ *  - `sidebarRatio` percent (0-100) -> `sidebar_ratio` float (0.0-1.0)
+ *  - on inclut une enveloppe minimale `{ version, format, grid, theme }`
+ *
+ * Volontairement pur : aucun fetch, pas d acces a `cv` (le scoring ATS
+ * de base est sur le layout). Si on veut envoyer `cv` aussi, on le passe
+ * separement au client (cf. lib/atsScoreClient.js).
+ *
+ * @param {object} layout - layout frontend (camelCase)
+ * @param {object} [opts]
+ * @param {string} [opts.templateId] - id du template pour traçabilite
+ * @returns {object} payload pret a etre envoye a POST /api/ats/score-parsing
+ */
+export function frontendLayoutToScoringLayout(layout, { templateId } = {}) {
+  const safe = sanitizeLayout(layout);
+  // Le backend stocke un ratio dans [0.0, 1.0]. On garde 2 decimales
+  // significatives pour rester aligne sur DEFAULT_SIDEBAR_RATIO = 0.33.
+  const sidebarRatioFloat = Math.round((safe.sidebarRatio / 100) * 100) / 100;
+  return {
+    version: '2026.05',
+    template_id: templateId || null,
+    format: 'A4',
+    grid: safe.sidebarRatio > 0 ? 'single-or-sidebar' : 'single-column',
+    sidebar_position: 'right',
+    sidebar_ratio: sidebarRatioFloat,
+    sections_order: safe.sectionsOrder.slice(),
+    theme: {
+      name: safe.theme,
+    },
+    metadata: {
+      source: 'editor_beta_layout',
+      scoring_version: '2026.05',
+    },
+  };
+}

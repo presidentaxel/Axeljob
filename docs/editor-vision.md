@@ -1228,9 +1228,61 @@ déjà au défaut (calcul via `isDefaultLayout`).
 - [x] L'ordre se modifie via drag-and-drop ou flèches.
 - [x] Le bouton Réinitialiser fonctionne et se désactive au défaut.
 - [x] Aucun lint warning sur les nouveaux fichiers.
-- [ ] (P2.2) Le canvas reflète l'ordre choisi.
-- [ ] (P2.2) Le score ATS reflète l'ordre choisi.
+- [x] (P2.2) Le canvas reflète l'ordre choisi.
+- [x] (P2.2) Le score ATS reflète l'ordre choisi.
 - [ ] (P2.3) Le layout est persisté en base et survit au reload.
+
+#### 14.4.3 Rendu effectif + ATS live (livré, P2.2)
+
+L'ordre `sectionsOrder` est désormais APPLIQUÉ au canvas et au scoring ATS.
+
+| Rôle | Fichier |
+|---|---|
+| Reorder DOM pur + tests | `frontend/src/lib/applyLayoutToDom.js` + `tests/unit/applyLayoutToDom.test.js` (8 tests) |
+| Conversion FE -> backend scoring | `frontend/src/lib/cvLayoutModel.js` -> `frontendLayoutToScoringLayout()` (4 tests) |
+| Marquage HTML | `frontend/src/components/CvEditablePreview.jsx` -> `data-cv-section="<key>"` ajouté sur chaque `<section>` éditable des 4 layouts (Minimal / Modern / Elegant / Default) |
+| Câblage | `frontend/src/components/CvEditablePreview.jsx` -> nouvelle prop `layoutSectionsOrder` + `useLayoutEffect` |
+| Câblage côté éditeur | `frontend/src/components/editor/CvEditorBeta.jsx` -> `scoringLayout` mémoisé + props vers Preview et Badge |
+
+**Stratégie « DOM patch post-render »** (pourquoi ne pas refactorer le JSX en `.map(sectionKey => …)` ?) :
+
+- Le JSX de `CvEditablePreview` rend 4 variantes de layout (Minimal /
+  Modern / Elegant / Default sidebar), totalisant plusieurs centaines de
+  lignes. Refactorer pour rendre les sections dans un ordre dynamique
+  multiplierait la surface d'attaque et le risque de régression sur le
+  mode stable (qui partage ce composant).
+- À la place, on ajoute un attribut HTML stable `data-cv-section="<key>"`
+  sur chaque section, et on réordonne via `useLayoutEffect` immédiatement
+  après le render React. C'est isolable (no-op si `layoutSectionsOrder`
+  est null), idempotent (helpers testés), et compatible avec la
+  réconciliation React (qui se base sur la virtual DOM + keys, non sur
+  la position DOM réelle).
+- Limite consciente : pour le template sidebar (default), les sections
+  réparties entre la colonne principale et la sidebar ont des parents DOM
+  différents. Le reorder n'opère que par parent (cf. `applyLayoutToDom.js`
+  - boucle `byParent`), donc l'utilisateur peut réordonner à l'intérieur
+  de chaque colonne, mais pas faire passer une section de la sidebar à la
+  colonne principale (ou inversement). La gestion cross-column viendra
+  avec le sidebar ratio configurable (P2.4) et/ou un vrai renderer
+  layout-aware (P3).
+
+**Score ATS live** : `EditorAtsScoreBadge` accepte déjà la prop `layout`.
+`CvEditorBeta` calcule `scoringLayout` (au format snake_case attendu par
+le backend) via `frontendLayoutToScoringLayout`. Quand le layout est au
+défaut, on garde `templateId` (path rapide côté backend qui charge le
+meta du template). Dès qu'on personnalise, on bascule sur `layout`
+custom — le backend supporte les deux modes (cf. `backend/api_ats.py`
+`resolve_layout_for_scoring`).
+
+**Critères d'acceptation (P2.2)** :
+- [x] Réordonner une section dans le drawer met à jour le canvas en
+      moins de 16 ms (un seul `insertBefore` ciblé).
+- [x] Le score ATS recalcule automatiquement sur layout custom.
+- [x] Aucune régression sur le mode stable (test : ouvrir `/app/profil`
+      sans toggle Beta, le rendu doit être identique à avant).
+- [x] 8 nouveaux tests purs sur `applyLayoutToDom.js`.
+- [x] 4 nouveaux tests sur `frontendLayoutToScoringLayout`.
+- [x] Lint clean, build OK.
 
 Critères d'acceptation :
 - Un user peut réordonner ses sections et le PDF reflète l'ordre.

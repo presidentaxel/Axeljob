@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { HiPhone, HiEnvelope, HiLink } from 'react-icons/hi2';
 import { apiUrl, apiGet } from '../api';
 import { applyA4PageFramesInHost, teardownA4PageFramesInHost } from '../lib/cvPreviewA4Pages';
+import { applyLayoutToDom } from '../lib/applyLayoutToDom';
 import { sanitizeCssForStyleTag } from '../lib/sanitizeCssForStyle';
 import './CvEditablePreview.css';
 
@@ -173,6 +174,12 @@ export default function CvEditablePreview({
   onPhotoSessionExpired,
   previewHtmlWithInlineCss,
   layoutRefreshKey = '',
+  // P2.2 : ordre custom des sections rendu via reorder DOM post-render.
+  // Quand non fourni (mode stable ou pas de personnalisation), le rendu
+  // garde l ordre JSX naturel. Cette prop est consommee uniquement par
+  // `useLayoutEffect` plus bas -- aucune branche conditionnelle dans le
+  // JSX, ce qui evite toute regression sur le mode stable.
+  layoutSectionsOrder = null,
 }) {
   const containerRef = useRef(null);
   const [templateCss, setTemplateCss] = useState('');
@@ -204,12 +211,26 @@ export default function CvEditablePreview({
     return () => { cancelled = true; };
   }, [templateId, cssFromHtml]);
 
+  /**
+   * P2.2 : reordonne les sections du DOM selon `layoutSectionsOrder` AVANT
+   * que `applyA4PageFramesInHost` ne calcule la pagination (sinon le
+   * layer A4 serait positionne sur l ancien ordre). Voir
+   * `lib/applyLayoutToDom.js` pour la strategie (insertBefore cible).
+   *
+   * No-op si `layoutSectionsOrder` n est pas fourni (mode stable).
+   */
+  useLayoutEffect(() => {
+    const wrap = containerRef.current;
+    if (!wrap) return;
+    applyLayoutToDom(wrap, layoutSectionsOrder);
+  }, [templateId, cv, layoutSectionsOrder, previewHtmlWithInlineCss, layoutRefreshKey]);
+
   useLayoutEffect(() => {
     const wrap = containerRef.current;
     if (!wrap) return undefined;
     applyA4PageFramesInHost(wrap);
     return () => teardownA4PageFramesInHost(wrap);
-  }, [templateId, effectiveCss, contentDensity, cv, previewHtmlWithInlineCss, layoutRefreshKey]);
+  }, [templateId, effectiveCss, contentDensity, cv, previewHtmlWithInlineCss, layoutRefreshKey, layoutSectionsOrder]);
 
   // Même rythme que l’iframe (App.jsx) : HTML / polices / layout peuvent se stabiliser après le premier paint.
   useEffect(() => {
@@ -304,14 +325,14 @@ export default function CvEditablePreview({
         </div>
       </header>
       <div className="cv-body">
-        <section className="section section-resume">
+        <section className="section section-resume" data-cv-section="resume">
           <h2 className="section-title">Profil</h2>
           <p className="resume-text">
             <span data-cv-field="resume" className={isChanged('resume') ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{cv.resume || ''}</span>
           </p>
         </section>
         {experiences.length > 0 && (
-          <section className="section">
+          <section className="section" data-cv-section="experiences">
             <h2 className="section-title">Expérience professionnelle</h2>
             {experiences.slice(0, EDITABLE_PREVIEW_MAX_EXPERIENCES).map((exp, i) => {
               const oi = experiencesAll.indexOf(exp);
@@ -341,7 +362,7 @@ export default function CvEditablePreview({
           </section>
         )}
         {formations.length > 0 && (
-          <section className="section">
+          <section className="section" data-cv-section="formations">
             <h2 className="section-title">Formation</h2>
             {formations.map((form, i) => {
               const oi = formationsAll.indexOf(form);
@@ -358,7 +379,7 @@ export default function CvEditablePreview({
           </section>
         )}
         {(techWithContent.length > 0 || logicielsWithContent.length > 0) && (
-          <section className="section">
+          <section className="section" data-cv-section="competences">
             <h2 className="section-title">Compétences</h2>
             <p className="skills-line">
               {(competences.techniques || []).map((item, i) => (
@@ -369,7 +390,7 @@ export default function CvEditablePreview({
           </section>
         )}
         {certifications.length > 0 && (
-          <section className="section">
+          <section className="section" data-cv-section="certifications">
             <h2 className="section-title">Certifications</h2>
             {certifications.map((cert, i) => {
               const oi = certificationsAll.indexOf(cert);
@@ -394,7 +415,7 @@ export default function CvEditablePreview({
           </section>
         )}
         {projets.length > 0 && (
-          <section className="section">
+          <section className="section" data-cv-section="projets">
             <h2 className="section-title">Projets</h2>
             {projets.map((proj, i) => {
               const oi = projetsAll.indexOf(proj);
@@ -498,12 +519,12 @@ export default function CvEditablePreview({
         )}
       </div>
       <div className="cv-main">
-        <section className="main-section section-resume">
+        <section className="main-section section-resume" data-cv-section="resume">
           <h2 className="main-section-title">PROFIL</h2>
           <p className="resume-text"><span data-cv-field="resume" className={isChanged('resume') ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{cv.resume || ''}</span></p>
         </section>
         {experiences.length > 0 && (
-          <section className="main-section section-experiences">
+          <section className="main-section section-experiences" data-cv-section="experiences">
             <h2 className="main-section-title">EXPÉRIENCE PROFESSIONNELLE</h2>
             <div className="experiences-list">
               {experiences.slice(0, EDITABLE_PREVIEW_MAX_EXPERIENCES).map((exp, i) => {
@@ -536,7 +557,7 @@ export default function CvEditablePreview({
           </section>
         )}
         {formations.length > 0 && (
-          <section className="main-section section-formation">
+          <section className="main-section section-formation" data-cv-section="formations">
             <h2 className="main-section-title">FORMATION</h2>
             {formations.map((form, i) => {
               const oi = formationsAll.indexOf(form);
@@ -553,7 +574,7 @@ export default function CvEditablePreview({
           </section>
         )}
         {projets.length > 0 && (
-          <section className="main-section section-projets">
+          <section className="main-section section-projets" data-cv-section="projets">
             <h2 className="main-section-title">PROJETS</h2>
             {projets.map((proj, i) => {
               const oi = projetsAll.indexOf(proj);
@@ -600,14 +621,14 @@ export default function CvEditablePreview({
         </p>
       </header>
       <div className="cv-body">
-        <section className="cv-section">
+        <section className="cv-section" data-cv-section="resume">
           <h2 className="section-title">Profil</h2>
           <p className="resume-text">
             <span data-cv-field="resume" className={isChanged('resume') ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{cv.resume || ''}</span>
           </p>
         </section>
         {experiences.length > 0 && (
-          <section className="cv-section">
+          <section className="cv-section" data-cv-section="experiences">
             <h2 className="section-title">Expérience professionnelle</h2>
             {experiences.slice(0, EDITABLE_PREVIEW_MAX_EXPERIENCES).map((exp, i) => {
               const oi = experiencesAll.indexOf(exp);
@@ -646,7 +667,7 @@ export default function CvEditablePreview({
           </section>
         )}
         {formations.length > 0 && (
-          <section className="cv-section">
+          <section className="cv-section" data-cv-section="formations">
             <h2 className="section-title">Formation</h2>
             {formations.map((form, i) => {
               const oi = formationsAll.indexOf(form);
@@ -669,7 +690,7 @@ export default function CvEditablePreview({
           </section>
         )}
         {(techWithContent.length > 0 || logicielsWithContent.length > 0) && (
-          <section className="cv-section">
+          <section className="cv-section" data-cv-section="competences">
             <h2 className="section-title">Compétences</h2>
             <div className="skills-grid">
               {(competences.techniques || []).map((item, i) => (
@@ -686,7 +707,7 @@ export default function CvEditablePreview({
           </section>
         )}
         {certifications.length > 0 && (
-          <section className="cv-section">
+          <section className="cv-section" data-cv-section="certifications">
             <h2 className="section-title">Certifications</h2>
             {certifications.map((cert, i) => {
               const oi = certificationsAll.indexOf(cert);
@@ -715,7 +736,7 @@ export default function CvEditablePreview({
           </section>
         )}
         {projets.length > 0 && (
-          <section className="cv-section">
+          <section className="cv-section" data-cv-section="projets">
             <h2 className="section-title">Projets</h2>
             {projets.map((proj, i) => {
               const oi = projetsAll.indexOf(proj);
@@ -837,7 +858,7 @@ export default function CvEditablePreview({
         <div className="cv-body">
           <div className="cv-main">
             {experiences.length > 0 && (
-            <section className="section-experiences">
+            <section className="section-experiences" data-cv-section="experiences">
               <h2 className="section-title">EXPÉRIENCE PROFESSIONNELLE</h2>
               <div className="experiences-list">
                 {experiences.slice(0, EDITABLE_PREVIEW_MAX_EXPERIENCES).map((exp, i) => {
@@ -882,7 +903,7 @@ export default function CvEditablePreview({
             )}
 
             {formations.length > 0 && (
-            <section className="section-formation">
+            <section className="section-formation" data-cv-section="formations">
               <h2 className="section-title">FORMATION</h2>
               {formations.map((form, i) => {
                 const origIndex = formationsAll.indexOf(form);
@@ -910,7 +931,7 @@ export default function CvEditablePreview({
             )}
 
             {projets.length > 0 && (
-              <section className="section-projets">
+              <section className="section-projets" data-cv-section="projets">
                 <h2 className="section-title">PROJETS</h2>
                 {projets.map((proj, i) => {
                   const origIndex = projetsAll.indexOf(proj);
@@ -931,7 +952,7 @@ export default function CvEditablePreview({
 
           <div className="cv-sidebar">
             {techWithContent.length > 0 && (
-              <section className="section-sidebar">
+              <section className="section-sidebar" data-cv-section="competences">
                 <h2 className="section-title">COMPÉTENCES</h2>
                 <h3 className="sidebar-category">Compétences techniques</h3>
                 {(competences.techniques || []).map((item, i) => (
@@ -952,7 +973,7 @@ export default function CvEditablePreview({
               </section>
             )}
             {certifications.length > 0 && (
-              <section className="section-sidebar" id="certifications">
+              <section className="section-sidebar" id="certifications" data-cv-section="certifications">
                 <h3 className="sidebar-category">Certifications</h3>
                 {certifications.map((cert, i) => {
                   const origIndex = certificationsAll.indexOf(cert);

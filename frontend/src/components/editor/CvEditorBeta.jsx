@@ -2,7 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { apiGet, apiPut } from '../../api';
 import { defaultCv } from '../../data/cvDefault';
-import { createDefaultLayout, sanitizeLayout } from '../../lib/cvLayoutModel.js';
+import {
+  createDefaultLayout,
+  frontendLayoutToScoringLayout,
+  isDefaultLayout,
+  sanitizeLayout,
+} from '../../lib/cvLayoutModel.js';
 import { useAutoSave } from '../../lib/useAutoSave.js';
 import CvEditablePreview from '../CvEditablePreview.jsx';
 
@@ -142,6 +147,17 @@ export default function CvEditorBeta({
     setLayout(sanitizeLayout(nextLayout));
   }, []);
 
+  /**
+   * Layout au format SCORING : transmis a `EditorAtsScoreBadge` quand le
+   * user a personnalise l ordre des sections / la sidebar. Si le layout
+   * est au defaut, on garde `null` -> le badge appelle l API avec juste
+   * `templateId` (rapide path).
+   */
+  const scoringLayout = useMemo(() => {
+    if (isDefaultLayout(layout)) return null;
+    return frontendLayoutToScoringLayout(layout, { templateId });
+  }, [layout, templateId]);
+
   if (loading) {
     return (
       <div className="cv-editor-beta cv-editor-beta--loading">
@@ -163,7 +179,11 @@ export default function CvEditorBeta({
         </div>
         <div className="cv-editor-beta-topbar-right">
           <AutoSaveIndicator state={autoSave.state} onRetry={handleRetry} />
-          <EditorAtsScoreBadge templateId={templateId} cv={cv} />
+          <EditorAtsScoreBadge
+            templateId={scoringLayout ? null : templateId}
+            layout={scoringLayout}
+            cv={cv}
+          />
           <button
             type="button"
             className={
@@ -196,6 +216,7 @@ export default function CvEditorBeta({
             onChange={handleCvChange}
             templateId={templateId}
             templateOptions={templateOptions}
+            layoutSectionsOrder={layout.sectionsOrder}
           />
         </main>
         <div id="cv-editor-beta-inspector" className="cv-editor-beta-inspector-slot">

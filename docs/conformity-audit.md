@@ -5,7 +5,7 @@ Ce document suit l'avancement de la mise en conformite avec `docs/guide-bonnes-p
 ## Statut global
 
 - Architecture backend (delegation services): en cours
-- Tests backend sensibles (auth/permissions/billing): en cours
+- Tests backend sensibles (auth/permissions): en cours
 - E2E parcours critiques: en cours
 - Sync docs/DoD: en cours
 

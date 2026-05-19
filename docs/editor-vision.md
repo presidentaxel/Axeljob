@@ -41,7 +41,6 @@ Stack haut niveau :
 | IA | Gemini (via `backend/services/adapter.py`, `offre_infer.py`) |
 | PDF | WeasyPrint (HTML/CSS → PDF) |
 | Templates | HTML + CSS statiques dans `templates/<id>/` |
-| Paiement | Stripe |
 
 Aujourd'hui, l'utilisateur édite son CV via un **formulaire à champs** (`frontend/src/components/ProfileView.jsx`) avec un aperçu PDF à droite. Le but de ce document est de décrire la **nouvelle expérience d'édition** que l'on veut livrer, en trois niveaux d'ambition (L1, L2, L3), accompagnée d'un système de **scoring ATS** unique sur le marché.
 

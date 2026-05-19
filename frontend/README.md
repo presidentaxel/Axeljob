@@ -37,7 +37,7 @@ Creer `frontend/.env` depuis `frontend/.env.example`, puis definir :
 Regle cle : seules les variables prefixees `VITE_` sont exposees au navigateur.
 
 > [!WARNING]
-> Ne jamais placer de secrets (service role, Stripe secret, tokens backend) dans des variables `VITE_*`.
+> Ne jamais placer de secrets (service role, tokens backend) dans des variables `VITE_*`.
 
 ## 4) Exigences qualite
 

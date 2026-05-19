@@ -668,6 +668,51 @@
   box-shadow: inset 3px 0 0 0 #6366f1;
 }
 
+/* P2.2.b : section non rendue dans le DOM du template courant.
+ * Grisee + cadenas + drag/boutons desactives. On garde la ligne visible
+ * pour que le user comprenne quelles sections existent dans son layout
+ * sans pouvoir les bouger.
+ */
+.editor-layout-item--locked {
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.editor-layout-item--locked .editor-layout-item-label,
+.editor-layout-item--locked .editor-layout-item-index {
+  color: #94a3b8;
+  background: transparent;
+}
+
+.editor-layout-item--locked .editor-layout-item-handle {
+  cursor: not-allowed;
+}
+
+/* Badge de zone (Principal / Sidebar) pour signaler que le reorder
+ * inter-zones n a pas d effet visuel sur le canvas. */
+.editor-layout-item-zone {
+  flex-shrink: 0;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.35rem;
+  border-radius: 0.25rem;
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.editor-layout-item-zone--sidebar {
+  background: #fef3c7;
+  color: #854d0e;
+}
+
+.editor-layout-item-zone--main {
+  background: #dcfce7;
+  color: #166534;
+}
+
 .editor-layout-item-handle {
   flex-shrink: 0;
   cursor: grab;

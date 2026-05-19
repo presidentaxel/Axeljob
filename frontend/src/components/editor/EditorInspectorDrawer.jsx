@@ -45,6 +45,7 @@ export default function EditorInspectorDrawer({
   onCvChange,
   layout,
   onLayoutChange,
+  sectionsAvailability,
 }) {
   const [activeTab, setActiveTab] = useState('style');
 
@@ -151,7 +152,11 @@ export default function EditorInspectorDrawer({
           </>
         )}
         {activeTab === 'layout' && (
-          <EditorLayoutPanel layout={layout} onLayoutChange={onLayoutChange} />
+          <EditorLayoutPanel
+            layout={layout}
+            onLayoutChange={onLayoutChange}
+            sectionsAvailability={sectionsAvailability}
+          />
         )}
         {activeTab === 'content' && (
           <EditorContentPanel cv={cv} onCvChange={onCvChange} />

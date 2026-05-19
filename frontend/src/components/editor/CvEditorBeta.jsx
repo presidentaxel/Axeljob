@@ -62,6 +62,14 @@ export default function CvEditorBeta({
    * sera en place, on initialisera depuis la reponse de `GET /api/cv`.
    */
   const [layout, setLayout] = useState(createDefaultLayout);
+  /**
+   * P2.2.b : etat decrivant quelles sections sont effectivement rendues
+   * dans le DOM et leur groupe (main / sidebar). Mis a jour par
+   * `CvEditablePreview` via le callback `onLayoutAvailabilityChange`.
+   * `null` au mount -> le drawer affiche toutes les sections comme
+   * verrouillees tant qu on n a pas recu de premiere mesure.
+   */
+  const [sectionsAvailability, setSectionsAvailability] = useState(null);
 
   /**
    * Template courant deduit de `templatesList` + `templateId` pour
@@ -217,6 +225,7 @@ export default function CvEditorBeta({
             templateId={templateId}
             templateOptions={templateOptions}
             layoutSectionsOrder={layout.sectionsOrder}
+            onLayoutAvailabilityChange={setSectionsAvailability}
           />
         </main>
         <div id="cv-editor-beta-inspector" className="cv-editor-beta-inspector-slot">
@@ -230,6 +239,7 @@ export default function CvEditorBeta({
             onCvChange={handleCvChange}
             layout={layout}
             onLayoutChange={handleLayoutChange}
+            sectionsAvailability={sectionsAvailability}
           />
         </div>
       </div>

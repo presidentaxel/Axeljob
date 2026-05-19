@@ -3,6 +3,7 @@ import { HiPhone, HiEnvelope, HiLink } from 'react-icons/hi2';
 import { apiUrl, apiGet } from '../api';
 import { applyA4PageFramesInHost, teardownA4PageFramesInHost } from '../lib/cvPreviewA4Pages';
 import { applyLayoutToDom } from '../lib/applyLayoutToDom';
+import { readSectionsAvailability } from '../lib/sectionsAvailability';
 import { sanitizeCssForStyleTag } from '../lib/sanitizeCssForStyle';
 import './CvEditablePreview.css';
 
@@ -180,6 +181,10 @@ export default function CvEditablePreview({
   // `useLayoutEffect` plus bas -- aucune branche conditionnelle dans le
   // JSX, ce qui evite toute regression sur le mode stable.
   layoutSectionsOrder = null,
+  // P2.2.b : callback optionnel appele apres chaque render pour
+  // remonter au parent quelles sections sont effectivement rendues
+  // (utilise par le drawer pour griser les sections non bougeables).
+  onLayoutAvailabilityChange = null,
 }) {
   const containerRef = useRef(null);
   const [templateCss, setTemplateCss] = useState('');
@@ -224,6 +229,20 @@ export default function CvEditablePreview({
     if (!wrap) return;
     applyLayoutToDom(wrap, layoutSectionsOrder);
   }, [templateId, cv, layoutSectionsOrder, previewHtmlWithInlineCss, layoutRefreshKey]);
+
+  /**
+   * P2.2.b : remonte au parent la liste des sections effectivement
+   * rendues, avec leur groupe DOM. Le drawer Mise en page s en sert
+   * pour griser les sections non bougeables et afficher un badge
+   * "Principal" / "Sidebar". No-op si `onLayoutAvailabilityChange`
+   * n est pas fourni (mode stable).
+   */
+  useEffect(() => {
+    if (typeof onLayoutAvailabilityChange !== 'function') return;
+    const wrap = containerRef.current;
+    if (!wrap) return;
+    onLayoutAvailabilityChange(readSectionsAvailability(wrap));
+  }, [templateId, cv, layoutSectionsOrder, previewHtmlWithInlineCss, layoutRefreshKey, onLayoutAvailabilityChange]);
 
   useLayoutEffect(() => {
     const wrap = containerRef.current;

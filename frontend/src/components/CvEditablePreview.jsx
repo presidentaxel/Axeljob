@@ -2,7 +2,6 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { HiPhone, HiEnvelope, HiLink } from 'react-icons/hi2';
 import { apiUrl, apiGet } from '../api';
 import { applyA4PageFramesInHost, teardownA4PageFramesInHost } from '../lib/cvPreviewA4Pages';
-import { applyLayoutToDom } from '../lib/applyLayoutToDom';
 import { sanitizeCssForStyleTag } from '../lib/sanitizeCssForStyle';
 import './CvEditablePreview.css';
 
@@ -174,12 +173,6 @@ export default function CvEditablePreview({
   onPhotoSessionExpired,
   previewHtmlWithInlineCss,
   layoutRefreshKey = '',
-  // P2.2 : ordre custom des sections rendu via reorder DOM post-render.
-  // Quand non fourni (mode stable ou pas de personnalisation), le rendu
-  // garde l ordre JSX naturel. Cette prop est consommee uniquement par
-  // `useLayoutEffect` plus bas -- aucune branche conditionnelle dans le
-  // JSX, ce qui evite toute regression sur le mode stable.
-  layoutSectionsOrder = null,
 }) {
   const containerRef = useRef(null);
   const [templateCss, setTemplateCss] = useState('');
@@ -212,25 +205,19 @@ export default function CvEditablePreview({
   }, [templateId, cssFromHtml]);
 
   /**
-   * P2.2 : reordonne les sections du DOM selon `layoutSectionsOrder` AVANT
-   * que `applyA4PageFramesInHost` ne calcule la pagination (sinon le
-   * layer A4 serait positionne sur l ancien ordre). Voir
-   * `lib/applyLayoutToDom.js` pour la strategie (insertBefore cible).
-   *
-   * No-op si `layoutSectionsOrder` n est pas fourni (mode stable).
+   * Note : les attributs `data-cv-section="..."` presents sur certaines
+   * sections du JSX sont des marqueurs hérites de l ancien pipeline
+   * "layout-aware" (modele zone-aware v2 en hibernation pour P3). Ils ne
+   * sont pas consommes en mode stable ni en mode Beta actuel, mais on
+   * les conserve : leur cout est nul et ils serviront de point d ancrage
+   * quand on rebranchera un canvas libre (P3).
    */
-  useLayoutEffect(() => {
-    const wrap = containerRef.current;
-    if (!wrap) return;
-    applyLayoutToDom(wrap, layoutSectionsOrder);
-  }, [templateId, cv, layoutSectionsOrder, previewHtmlWithInlineCss, layoutRefreshKey]);
-
   useLayoutEffect(() => {
     const wrap = containerRef.current;
     if (!wrap) return undefined;
     applyA4PageFramesInHost(wrap);
     return () => teardownA4PageFramesInHost(wrap);
-  }, [templateId, effectiveCss, contentDensity, cv, previewHtmlWithInlineCss, layoutRefreshKey, layoutSectionsOrder]);
+  }, [templateId, effectiveCss, contentDensity, cv, previewHtmlWithInlineCss, layoutRefreshKey]);
 
   // Même rythme que l’iframe (App.jsx) : HTML / polices / layout peuvent se stabiliser après le premier paint.
   useEffect(() => {

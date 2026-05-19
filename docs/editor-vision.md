@@ -1157,9 +1157,37 @@ dnd-kit / react-dnd).
 - [x] 19 nouveaux tests unitaires verts.
 - [x] 0 lint error sur les nouveaux fichiers.
 
-### 14.4 P2 — L2 Mise en page configurable (4 semaines)
+### 14.4 P2 — L2 Mise en page configurable (en hibernation, repris en P3)
 
-Livrables :
+> **Note du 19 mai 2026** : après itération sur l'UX (P2.1 → P2.4b),
+> on a constaté qu'une mise en page modulaire dans un *drawer latéral*
+> reste structurellement un produit dégradé par rapport à ce qu'on
+> doit livrer en P3 (canvas libre type Canva sur tout l'écran). Sur
+> décision produit, on a **retiré l'onglet « Mise en page » du
+> drawer** et abandonné le drag/drop par zones pour l'instant. La
+> mise en page modulaire complète sera réintroduite en P3 dans le
+> contexte d'un canvas libre où l'utilisateur compose son CV bloc à
+> bloc.
+>
+> **Ce qui reste dans le code (fondations pour P3)** :
+> - `frontend/src/lib/cvLayoutModelV2.js` + tests (modèle pur zone-aware).
+> - Persistance backend `cv_base.data.layout` (Supabase JSONB) +
+>   préservation au save (`save_cv_base`) + 5 tests Python.
+> - Les attributs `data-cv-section="..."` dans `CvEditablePreview.jsx`
+>   comme points d'ancrage pour un futur renderer layout-aware.
+>
+> **Ce qui a été supprimé** :
+> - `EditorLayoutPanel.jsx`, `EditorLayoutMiniMap.jsx` (UI obsolètes).
+> - `lib/sectionsAvailability.js` + tests (consommé uniquement par
+>   le panel v1).
+> - `lib/applyLayoutToDom.js` + tests (DOM patching sans renderer).
+>
+> Le score ATS « live sur layout custom » (P2.2) est aussi en pause :
+> tant que l'user ne peut pas modifier le layout côté front, le badge
+> ATS se base uniquement sur `templateId`. Quand P3 livre le canvas
+> libre, le scoring sera rebranché sur le modèle v2.
+
+#### Livrables initialement prévus (en attente de P3)
 - Schéma `layout` (côté front + Pydantic côté back).
 - Migration SQL `user_layouts`.
 - `layout_renderer.py`.

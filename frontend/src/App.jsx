@@ -35,7 +35,7 @@ import './styles/GuidedTour.css';
 import { formatApplicationDateLabel } from './lib/applicationDates';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from './lib/cvPreviewA4Pages';
 
-const ProfileView = lazyWithChunkReload(() => import('./components/ProfileView'));
+const ProfileView = lazyWithChunkReload(() => import('./components/editor/ProfileViewSwitcher'));
 const SettingsView = lazyWithChunkReload(() => import('./components/SettingsView'));
 const LandingPage = lazyWithChunkReload(() => import('./components/LandingPage'));
 const LegalPages = lazyWithChunkReload(() => import('./components/LegalPages'));

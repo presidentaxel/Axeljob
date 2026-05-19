@@ -10,9 +10,6 @@ import BetaModeToggle from './BetaModeToggle.jsx';
 export default function AppTopbar({
   session,
   usage,
-  checkoutLoading,
-  onUpgradeClick,
-  onProBadgeClick,
   onSignOutClick,
   onCookieSettingsClick,
 }) {
@@ -73,16 +70,6 @@ export default function AppTopbar({
       </nav>
       <div className="topbar-right">
         {session && <BetaModeToggle />}
-        {session && usage && usage.plan !== 'pro' && (
-          <button type="button" className="topbar-upgrade-btn" onClick={onUpgradeClick} disabled={checkoutLoading}>
-            {checkoutLoading ? '…' : 'Passer Pro'}
-          </button>
-        )}
-        {session && usage && usage.plan === 'pro' && (
-          <button type="button" className="topbar-pro-badge" onClick={onProBadgeClick}>
-            Pro
-          </button>
-        )}
         {session && (
           <div className="topbar-account-wrap" ref={accountWrapRef}>
             <button

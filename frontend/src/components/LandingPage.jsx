@@ -44,22 +44,6 @@ const BENEFITS = [
   { title: 'Suivi centralisé', desc: 'Toutes tes candidatures au même endroit : statuts, entretiens, relances et exports.' },
 ];
 
-const FREE_FEATURES = [
-  '3 adaptations de CV',
-  'Import PDF  / LinkedIn',
-  'Suivi de candidatures',
-  'Export PDF',
-];
-
-const PRO_FEATURES = [
-  'Adaptations illimitées',
-  'Import PDF  / LinkedIn',
-  'Suivi de candidatures illimité',
-  'Export PDF & dossier complet',
-  'Lettre de motivation IA',
-  'Support prioritaire',
-];
-
 function BurgerIcon({ open }) {
   return (
     <svg className="landing-burger-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden>
@@ -79,7 +63,7 @@ function BurgerIcon({ open }) {
   );
 }
 
-export default function LandingPage({ onCtaClick, onProClick }) {
+export default function LandingPage({ onCtaClick }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const drawerId = useId();
   const closeMenu = useCallback(() => setMenuOpen(false), []);
@@ -120,7 +104,6 @@ export default function LandingPage({ onCtaClick, onProClick }) {
             <span className="landing-brand">AxeL Job</span>
             <nav className="landing-nav" aria-label="Navigation principale">
               <a href="#comment">Comment ça marche</a>
-              <a href="#tarifs">Tarifs</a>
               <a href="#features">Fonctionnalités</a>
               <Link to="/ats">Qu&apos;est-ce que l&apos;ATS ?</Link>
               <Link to="/faq">FAQ</Link>
@@ -172,9 +155,6 @@ export default function LandingPage({ onCtaClick, onProClick }) {
                   <a href="#comment" onClick={closeMenu}>Comment ça marche</a>
                 </li>
                 <li>
-                  <a href="#tarifs" onClick={closeMenu}>Tarifs</a>
-                </li>
-                <li>
                   <a href="#features" onClick={closeMenu}>Fonctionnalités</a>
                 </li>
               </ul>
@@ -217,7 +197,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
                 <button type="button" className="btn btn-primary landing-cta-hero" onClick={onCtaClick}>
                   Essayer gratuitement
                 </button>
-                <span className="landing-hero-hint">3 adaptations offertes</span>
+                <span className="landing-hero-hint">100 % gratuit, sans limite</span>
               </div>
             </div>
             <div className="landing-hero-visual">
@@ -282,57 +262,6 @@ export default function LandingPage({ onCtaClick, onProClick }) {
         </div>
       </section>
 
-      <section id="tarifs" className="landing-section">
-        <div className="landing-container">
-          <h2 className="landing-section-title">Tarifs</h2>
-          <p className="landing-section-subtitle">Commence gratuitement. Passe Pro quand tu en as besoin.</p>
-          <div className="landing-pricing">
-            <div className="pricing-card">
-              <div className="pricing-card-header">
-                <h3 className="pricing-plan-name">Gratuit</h3>
-                <div className="pricing-price">
-                  <span className="pricing-amount">0€</span>
-                  <span className="pricing-period">pour toujours</span>
-                </div>
-              </div>
-              <ul className="pricing-features">
-                {FREE_FEATURES.map((f) => (
-                  <li key={f}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <button type="button" className="btn btn-secondary pricing-cta" onClick={onCtaClick}>
-                Commencer gratuitement
-              </button>
-            </div>
-
-            <div className="pricing-card pricing-card--pro">
-              <div className="pricing-badge">Populaire</div>
-              <div className="pricing-card-header">
-                <h3 className="pricing-plan-name">Pro</h3>
-                <div className="pricing-price">
-                  <span className="pricing-amount">10€</span>
-                  <span className="pricing-period">/ mois</span>
-                </div>
-              </div>
-              <ul className="pricing-features">
-                {PRO_FEATURES.map((f) => (
-                  <li key={f}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <button type="button" className="btn btn-primary pricing-cta" onClick={onProClick || onCtaClick}>
-                Passer Pro
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section id="features" className="landing-section">
         <div className="landing-container">
           <h2 className="landing-section-title">Fonctionnalités</h2>
@@ -367,7 +296,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
       <section className="landing-cta-bottom">
         <div className="landing-container">
           <h2>Prêt à décrocher le job de tes rêves ?</h2>
-          <p>Crée ton compte gratuit et teste 3 adaptations de CV.</p>
+          <p>Crée ton compte gratuit et profite de toutes les fonctionnalités sans limite.</p>
           <button type="button" className="btn btn-primary landing-cta-hero" onClick={onCtaClick}>
             Essayer gratuitement
           </button>
@@ -384,7 +313,6 @@ export default function LandingPage({ onCtaClick, onProClick }) {
             </p>
             <nav className="landing-footer-links" aria-label="Guides, FAQ et pages légales">
               <a href={`mailto:${CONTACT_EMAIL}?subject=Support%20AxeL%20Job`}>Support</a>
-              <Link to="/app?open=template-perso">Template personnalisé</Link>
               <Link to="/ats">CV et ATS</Link>
               <Link to="/faq">FAQ</Link>
               <Link to="/modeles-cv">Modèles de CV</Link>

@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { HiLockClosed, HiStar, HiOutlineStar } from 'react-icons/hi2';
-import { apiPost } from '../api';
+import { HiStar, HiOutlineStar } from 'react-icons/hi2';
 
 const PREVIEW_THUMBNAILS = {
   classic:   { bg: '#1e2a3a', sidebar: '#f4f4f2', accent: '#1e2a3a', layout: 'right-sidebar' },
@@ -66,9 +65,8 @@ function MiniPreview({ templateId, isActive }) {
   );
 }
 
-function TemplateCard({ template, isSelected, isLocked, isFavorite, onSelect, onToggleFavorite }) {
+function TemplateCard({ template, isSelected, isFavorite, onSelect, onToggleFavorite }) {
   const handleClick = () => {
-    if (isLocked) return;
     onSelect(template);
   };
   const handleStarClick = (e) => {
@@ -77,7 +75,6 @@ function TemplateCard({ template, isSelected, isLocked, isFavorite, onSelect, on
   };
 
   const handleCardKeyDown = (e) => {
-    if (isLocked) return;
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       handleClick();
@@ -87,20 +84,14 @@ function TemplateCard({ template, isSelected, isLocked, isFavorite, onSelect, on
   return (
     <div
       role="button"
-      tabIndex={isLocked ? -1 : 0}
-      className={`tpl-modal-card${isSelected ? ' tpl-modal-card--active' : ''}${isLocked ? ' tpl-modal-card--locked' : ''}`}
+      tabIndex={0}
+      className={`tpl-modal-card${isSelected ? ' tpl-modal-card--active' : ''}`}
       onClick={handleClick}
       onKeyDown={handleCardKeyDown}
       title={template.description}
-      aria-disabled={isLocked}
     >
       <div className="tpl-modal-card-preview">
         <MiniPreview templateId={template.id} isActive={isSelected} />
-        {isLocked && (
-          <span className="tpl-modal-card-lock" aria-hidden>
-            <HiLockClosed size={14} />
-          </span>
-        )}
       </div>
       <span className="tpl-modal-card-name">{template.name}</span>
       <button
@@ -116,56 +107,12 @@ function TemplateCard({ template, isSelected, isLocked, isFavorite, onSelect, on
   );
 }
 
-function CustomTemplateCard() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const handlePay = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      const { url } = await apiPost('/api/create-checkout-session-template-perso', {});
-      if (url) window.location.href = url;
-      else setError('Paiement non disponible.');
-    } catch (err) {
-      setError(err?.message || err?.detail || 'Impossible de lancer le paiement.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="tpl-modal-card tpl-modal-card--custom">
-      <span className="tpl-modal-card-custom-title">Template personnalisé</span>
-      <span className="tpl-modal-card-custom-price">5 €</span>
-      <p className="tpl-modal-card-custom-desc">
-        Envoie-nous ton design (PDF ou maquette), on l’adapte en code pour ton CV. Facturation unique.
-      </p>
-      <p className="tpl-modal-card-custom-resend">
-        Paiement sécurisé par Stripe. Après paiement, tu recevras un email avec la marche à suivre pour nous envoyer ton design.
-      </p>
-      <button
-        type="button"
-        className="tpl-modal-card-custom-btn btn btn-primary"
-        onClick={handlePay}
-        disabled={loading}
-      >
-        {loading ? 'Redirection…' : 'Payer 5 € (Stripe)'}
-      </button>
-      {error && <p className="tpl-modal-card-custom-error">{error}</p>}
-    </div>
-  );
-}
-
 export default function TemplateModal({
   open,
   onClose,
   templates,
   templateId,
   onChangeTemplate,
-  userPlan,
-  onUpgradeClick,
   favoriteIds,
   onToggleFavorite,
   initialTab,
@@ -198,10 +145,6 @@ export default function TemplateModal({
   if (!open) return null;
 
   const handleSelect = (t) => {
-    if (t.premium && userPlan !== 'pro') {
-      if (onUpgradeClick) onUpgradeClick();
-      return;
-    }
     onChangeTemplate(t.id);
     onClose();
   };
@@ -245,7 +188,6 @@ export default function TemplateModal({
                     key={t.id}
                     template={t}
                     isSelected={templateId === t.id}
-                    isLocked={t.premium && userPlan !== 'pro'}
                     isFavorite={favoriteIds.includes(t.id)}
                     onSelect={handleSelect}
                     onToggleFavorite={onToggleFavorite}
@@ -270,7 +212,6 @@ export default function TemplateModal({
                         key={t.id}
                         template={t}
                         isSelected={templateId === t.id}
-                        isLocked={t.premium && userPlan !== 'pro'}
                         isFavorite={favoriteIds.includes(t.id)}
                         onSelect={handleSelect}
                         onToggleFavorite={onToggleFavorite}
@@ -287,7 +228,6 @@ export default function TemplateModal({
                       key={t.id}
                       template={t}
                       isSelected={templateId === t.id}
-                      isLocked={t.premium && userPlan !== 'pro'}
                       isFavorite={true}
                       onSelect={handleSelect}
                       onToggleFavorite={onToggleFavorite}
@@ -299,9 +239,6 @@ export default function TemplateModal({
                     Aucun favori. Ajoute des favoris depuis la bibliothèque (étoile).
                   </p>
                 )}
-              </div>
-              <div className="tpl-modal-custom-wrap">
-                <CustomTemplateCard />
               </div>
             </div>
           )}

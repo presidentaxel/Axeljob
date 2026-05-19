@@ -545,8 +545,6 @@ export default function TemplatePicker({
   templateOptions,
   onChangeTemplate,
   onChangeOptions,
-  userPlan,
-  onUpgradeClick,
   openOptionsFromSupport,
   openOptionsNonce = 0,
   onOptionsModalClosed,
@@ -663,8 +661,6 @@ export default function TemplatePicker({
         templates={templates}
         templateId={templateId}
         onChangeTemplate={onChangeTemplate}
-        userPlan={userPlan}
-        onUpgradeClick={onUpgradeClick}
         favoriteIds={favoriteIds}
         onToggleFavorite={toggleFavorite}
         initialTab={initialTab}

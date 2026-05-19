@@ -364,36 +364,6 @@ body {
   flex-shrink: 0;
 }
 
-.topbar-upgrade-btn {
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 100px;
-  padding: 0.3rem 0.85rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s;
-  font-family: inherit;
-}
-
-.topbar-upgrade-btn:hover {
-  background: var(--accent-hover);
-}
-
-.topbar-pro-badge {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  color: #fff;
-  border: none;
-  border-radius: 100px;
-  padding: 0.25rem 0.7rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: inherit;
-  letter-spacing: 0.03em;
-}
-
 .topbar-user-btn {
   background: transparent;
   border: 1px solid var(--border);
@@ -495,14 +465,6 @@ body {
   }
   .topbar-link span {
     display: none;
-  }
-  .topbar-upgrade-btn {
-    font-size: 0.72rem;
-    padding: 0.25rem 0.6rem;
-  }
-  .topbar-pro-badge {
-    padding: 0.22rem 0.55rem;
-    font-size: 0.7rem;
   }
   .topbar-user-btn {
     width: 36px;
@@ -1088,26 +1050,6 @@ body {
 }
 
 /* Layout: topbar already sticky, app-main fills remaining height */
-
-/* Free plan upgrade banner */
-.free-plan-banner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  padding: 0.5rem 1rem;
-  background: linear-gradient(90deg, var(--accent-light, #eef2ff), rgba(139, 92, 246, 0.08));
-  border-bottom: 1px solid var(--border);
-  font-size: 0.82rem;
-  color: var(--text);
-  flex-shrink: 0;
-  flex-wrap: wrap;
-}
-
-.free-plan-banner .btn {
-  font-size: 0.78rem;
-  padding: 0.3rem 0.75rem;
-}
 
 /* Rappel discret tant qu’aucune candidature / adaptation enregistrée */
 .zero-adapt-banner {

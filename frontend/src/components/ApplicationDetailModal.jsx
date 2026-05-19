@@ -7,7 +7,7 @@ import { formatApplicationDateLabel } from '../lib/applicationDates';
 
 const DOC_LABELS = { lettre: 'Lettre de motivation', cv: 'CV', fiche: 'Fiche de poste' };
 
-export default function ApplicationDetailModal({ applicationDetailId, applications, onClose, onPosteUpdated, letterGenEnabled, onUpgradeClick }) {
+export default function ApplicationDetailModal({ applicationDetailId, applications, onClose, onPosteUpdated }) {
   const [applicationDetail, setApplicationDetail] = useState(null);
   const [editingPoste, setEditingPoste] = useState(false);
   const [posteDraft, setPosteDraft] = useState('');
@@ -308,18 +308,7 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
               {!detailLetterLoading && !detailLetterHtml && !applicationDetail.pdf_lettre_url && (
                 <div className="detail-lettre-empty">
                   <p>Aucune lettre pour cette candidature.</p>
-                  {letterGenEnabled ? (
-                    <button type="button" className="btn btn-primary" onClick={handleGenerateLetter} disabled={!applicationDetail.full_cv}>Générer la lettre</button>
-                  ) : (
-                    <div>
-                      <p style={{ fontSize: '0.9rem', color: 'var(--muted)', marginTop: '0.5rem' }}>La génération de lettre par IA est réservée au plan Pro.</p>
-                      {typeof onUpgradeClick === 'function' && (
-                        <button type="button" className="btn btn-primary" style={{ marginTop: '0.75rem' }} onClick={onUpgradeClick}>
-                          Passer en Pro
-                        </button>
-                      )}
-                    </div>
-                  )}
+                  <button type="button" className="btn btn-primary" onClick={handleGenerateLetter} disabled={!applicationDetail.full_cv}>Générer la lettre</button>
                 </div>
               )}
             </div>

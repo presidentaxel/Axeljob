@@ -1255,6 +1255,62 @@
   border-top: 1px solid var(--border);
 }
 
+/* Abonnement - résiliation légale */
+.profile-subscription-period {
+  font-size: 0.95rem;
+  margin: 0 0 0.75rem;
+  color: var(--text, #1e293b);
+}
+
+.profile-subscription-badge {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 6px;
+  background: var(--warning-bg, #fef3c7);
+  color: var(--warning-text, #92400e);
+}
+
+.profile-subscription-legal {
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--muted, #64748b);
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.85rem;
+  background: var(--surface-2, #f8fafc);
+  border-radius: 8px;
+  border-left: 3px solid var(--border, #e2e8f0);
+}
+
+.profile-subscription-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.profile-subscription-fallback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.profile-btn-cancel-sub {
+  border-color: var(--danger, #b91c1c);
+  color: var(--danger, #b91c1c);
+}
+
+.profile-btn-cancel-sub:hover:not(:disabled) {
+  background: rgba(185, 28, 28, 0.08);
+}
+
+.profile-cancel-sub-modal .profile-change-email-hint strong {
+  color: var(--text, #1e293b);
+}
+
 .profile-inline-code {
   font-family: ui-monospace, monospace;
   font-size: 0.88em;

@@ -25,7 +25,7 @@ import { NotFoundPage } from './components/ErrorPages';
 import { CONTACT_EMAIL, STORAGE_EXPORT_DIR, STORAGE_EXPORT_ATS_BLOCK_SNOOZE, STORAGE_PRE_EXPORT_TEMPLATE_OPTIONS_DONE, STORAGE_PDF_EXPORT_FILENAME_PATTERN, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
 import { buildAdaptedPdfFilename } from './lib/pdfExportFilename';
 import { getPdfSaveStartInDirectoryHandle } from './lib/pdfExportStartDirIdb';
-import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiSwatch, HiChevronDown, HiChevronUp } from 'react-icons/hi2';
+import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiCheck, HiSwatch, HiChevronDown, HiChevronUp } from 'react-icons/hi2';
 import { lazyWithChunkReload, clearChunkErrorReloadKey } from './lib/lazyChunkReload';
 import { APP_DEFAULT_ROUTE, getViewFromPathname, isKnownAppPathname } from './lib/appRoutes';
 import { syncRobotsMeta } from './lib/seoHead';
@@ -745,7 +745,9 @@ export default function App() {
   const [interviewDate, setInterviewDate] = useState('');
   const [sourceOffreValue, setSourceOffreValue] = useState('');
   const [statutModalSubmitting, setStatutModalSubmitting] = useState(false);
+  const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
   const [usage, setUsage] = useState(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [adaptStepIndex, setAdaptStepIndex] = useState(0);
   const [adaptStepLabels, setAdaptStepLabels] = useState([
     'Analyse des mots-clés',
@@ -1162,12 +1164,17 @@ export default function App() {
     if (session) {
       const params = new URLSearchParams(location.search);
       if (pathname === '/' || pathname === '/login') {
-        const nextPath = params.get('next');
-        const safeNext = nextPath && nextPath.startsWith('/app/') && !nextPath.includes('//') ? nextPath : null;
-        if (safeNext) {
-          navigate(safeNext, { replace: true });
+        if (params.get('plan') === 'pro') {
+          navigate(APP_DEFAULT_ROUTE, { replace: true });
+          setTimeout(() => handleUpgradeClick(), 500);
         } else {
-          navigate('/app', { replace: true });
+          const nextPath = params.get('next');
+          const safeNext = nextPath && nextPath.startsWith('/app/') && !nextPath.includes('//') ? nextPath : null;
+          if (safeNext) {
+            navigate(safeNext, { replace: true });
+          } else {
+            navigate('/app', { replace: true });
+          }
         }
       } else if (pathname === '/app' || pathname === '/app/') {
         const search = location.search || '';
@@ -2004,7 +2011,11 @@ export default function App() {
       setAdaptStreamMode(false);
       pendingAdaptResultRef.current = null;
       openPhase2AfterFirstAdaptRef.current = false;
-      setError(e.message || "Erreur.");
+      if (e.status === 402 || (e.status === 403 && (e.message || '').toLowerCase().includes('plafond')) || (e.message && e.message.includes('épuisé'))) {
+        setUpgradeModalVisible(true);
+      } else {
+        setError(e.message || "Erreur.");
+      }
       setChatMessages((prev) => [...prev, { role: 'assistant', content: 'Désolé, une erreur s\'est produite. ' + (e.message || '') }]);
       setAdapting(false);
     }
@@ -2092,7 +2103,11 @@ export default function App() {
           /* ignore localStorage */
         }
       } catch (e) {
-        setError(e.message || "Erreur.");
+        if (e.status === 402 || (e.status === 403 && (e.message || '').toLowerCase().includes('plafond')) || (e.message && e.message.includes('épuisé'))) {
+          setUpgradeModalVisible(true);
+        } else {
+          setError(e.message || "Erreur.");
+        }
         setChatMessages((prev) => [...prev, { role: 'assistant', content: 'Désolé, une erreur s\'est produite. ' + (e.message || '') }]);
       } finally {
         setAdaptPlanLoading(false);
@@ -2144,7 +2159,11 @@ export default function App() {
     } catch (e) {
       setApiAdaptDone(false);
       pendingAdaptResultRef.current = null;
-      setError(e.message || "Erreur.");
+      if (e.status === 402 || (e.status === 403 && (e.message || '').toLowerCase().includes('plafond')) || (e.message && e.message.includes('épuisé'))) {
+        setUpgradeModalVisible(true);
+      } else {
+        setError(e.message || "Erreur.");
+      }
       setChatMessages((prev) => [...prev, { role: 'assistant', content: 'Désolé, une erreur s\'est produite. ' + (e.message || '') }]);
       setAdapting(false);
     }
@@ -2165,6 +2184,82 @@ export default function App() {
         /* ignore */
       });
     setCvEditPanelOpen(false);
+  };
+
+  const [proModalVisible, setProModalVisible] = useState(false);
+
+  // Retour Stripe (abo Pro) : URL nettoyée + rafraîchissement plan (webhook peut prendre quelques secondes)
+  useEffect(() => {
+    if (!session || authLoading || !pathname.startsWith('/app')) return;
+    const params = new URLSearchParams(location.search);
+    const isProSuccess = params.get('success') === 'pro';
+    const isCheckoutCancel = params.get('cancel') === 'checkout';
+    if (!isProSuccess && !isCheckoutCancel) return;
+    params.delete('success');
+    params.delete('cancel');
+    const qs = params.toString();
+    navigate({ pathname: location.pathname, search: qs ? `?${qs}` : '' }, { replace: true });
+    if (!isProSuccess) return;
+    let cancelled = false;
+    (async () => {
+      for (let i = 0; i < 20; i++) {
+        if (cancelled) return;
+        try {
+          const data = await apiGet('/api/usage');
+          if (cancelled) return;
+          setUsage(data);
+          if (data?.plan === 'pro') {
+            setProModalVisible(true);
+            break;
+          }
+        } catch (_) { /* ignore */ }
+        await new Promise((r) => setTimeout(r, 500));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [session, authLoading, pathname, location.search, navigate]);
+
+  const handleUpgradeClick = () => {
+    setProModalVisible(true);
+  };
+
+  const handleStartCheckout = async () => {
+    setCheckoutLoading(true);
+    try {
+      const { url } = await apiPost('/api/create-checkout-session', {});
+      if (url) window.location.href = url;
+      else setError('Impossible de créer la session de paiement.');
+    } catch (e) {
+      setError(e.message || 'Paiement non disponible.');
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
+
+  const handleManageSubscriptionClick = () => {
+    setManageSubscriptionModalOpen(true);
+  };
+
+  const handleManageSubscriptionConfirm = async () => {
+    setCheckoutLoading(true);
+    setManageSubscriptionModalOpen(false);
+    if (cancelReason || cancelReasonText.trim()) {
+      try {
+        await apiPost('/api/cancel-feedback', { reason: cancelReason, comment: cancelReasonText.trim() });
+      } catch (_) { /* endpoint optionnel */ }
+    }
+    setCancelReason('');
+    setCancelReasonText('');
+    try {
+      const { url } = await apiPost('/api/create-portal-session', {});
+      if (url) window.location.href = url;
+      else setError('Impossible d\'accéder au portail de gestion.');
+    } catch (e) {
+      if (e.status === 503) setError('Le portail de gestion des abonnements n\'est pas disponible (paiement non configuré).');
+      else setError(e.message || 'Gestion non disponible.');
+    } finally {
+      setCheckoutLoading(false);
+    }
   };
 
   const onPreviewVariantChange = (v) => {
@@ -2633,6 +2728,9 @@ export default function App() {
 
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
   const [firstOfferNudgeOpen, setFirstOfferNudgeOpen] = useState(false);
+  const [manageSubscriptionModalOpen, setManageSubscriptionModalOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelReasonText, setCancelReasonText] = useState('');
 
   const handleSignOut = async () => {
     setSignOutConfirmOpen(false);
@@ -2803,7 +2901,7 @@ export default function App() {
     const marketing = renderPublicMarketingPage(pathname, navigate);
     if (marketing) return marketing;
     if (pathname === '/') {
-      return <Suspense fallback={<div className="landing" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}><LandingPage onCtaClick={() => navigate('/login')} /></Suspense>;
+      return <Suspense fallback={<div className="landing" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}><LandingPage onCtaClick={() => navigate('/login')} onProClick={() => navigate('/login?plan=pro')} /></Suspense>;
     }
     return <NotFoundPage />;
   }
@@ -2886,6 +2984,9 @@ export default function App() {
       <AppTopbar
         session={session}
         usage={usage}
+        checkoutLoading={checkoutLoading}
+        onUpgradeClick={handleUpgradeClick}
+        onProBadgeClick={() => setProModalVisible(true)}
         onCookieSettingsClick={() => {
           if (typeof window.axelOpenCookieSettings === 'function') window.axelOpenCookieSettings();
         }}
@@ -2950,6 +3051,17 @@ export default function App() {
             </div>
             <p className="page-subtitle">Colle une offre d'emploi, l'IA adapte ton CV. Affine par chat, puis exporte en PDF.</p>
           </header>
+          {usage && usage.plan === 'free' && usage.adaptations_used >= 2 && (
+            <div className="free-plan-banner">
+              <span>{(() => {
+                const rem = usage.adaptations_quota_remaining ?? (usage.adaptations_limit - usage.adaptations_used);
+                return rem <= 0 ? 'Tes adaptations gratuites sont épuisées.' : `Il te reste ${rem} adaptation${rem > 1 ? 's' : ''} gratuite${rem > 1 ? 's' : ''}.`;
+              })()}</span>
+              <button type="button" className="btn btn-primary btn-sm" onClick={handleUpgradeClick} disabled={checkoutLoading}>
+                {checkoutLoading ? '…' : 'Passer Pro - 10€/mois'}
+              </button>
+            </div>
+          )}
           {usage && usage.adaptations_used === 0 && (
             <div className="zero-adapt-banner" role="status">
               <span>
@@ -2963,6 +3075,9 @@ export default function App() {
                 {chatMessages.length === 0 && (
                   <div className="cv-chat-placeholder">
                     <p>{annonce.trim() ? "Demande à l'IA d'ajuster ton CV (ex. « Mets plus en valeur mon expérience en React »)." : "Colle l'annonce ou décris le poste. L'IA adaptera ton CV. Tu pourras affiner par message."}</p>
+                    {usage && usage.plan === 'free' && (
+                      <p className="usage-hint">{usage.adaptations_used} / {usage.adaptations_limit} adaptations gratuites</p>
+                    )}
                   </div>
                 )}
                 {chatMessages.map((m, i) => (
@@ -3135,7 +3250,7 @@ export default function App() {
                   openOptionsFromSupport={location.state?.supportHighlight?.openTemplateOptions}
                   openOptionsNonce={exportPrepTemplateOptionsNonce}
                   onOptionsModalClosed={handleTemplateOptionsModalAfterClose}
-                  openModalToTab={new URLSearchParams(location.search || '').get('open') === 'template-perso' ? 'mine' : null}
+                  openModalToTab={null}
                   onOpenFromUrlConsumed={() => navigate(location.pathname, { replace: true })}
                   optionsPreviewHtml={previewVariant === 'original' ? (originalPreviewHtml || previewHtmlFallback) : (modifiedPreviewHtml || previewHtmlFallback)}
                   optionsPreviewLoading={false}
@@ -3775,7 +3890,11 @@ export default function App() {
                     }
                   } catch (e) {
                     openPhase2AfterFirstAdaptRef.current = false;
-                    showError(e.message || "Erreur lors de l'adaptation.");
+                    if (e.status === 402 || (e.status === 403 && (e.message || '').toLowerCase().includes('plafond')) || (e.message && e.message.includes('épuisé'))) {
+                      setUpgradeModalVisible(true);
+                    } else {
+                      showError(e.message || "Erreur lors de l'adaptation.");
+                    }
                     setChatMessages([
                       { role: 'user', content: userPreview },
                       { role: 'assistant', content: 'Erreur : ' + (e.message || '') },
@@ -3805,7 +3924,7 @@ export default function App() {
             )}
           </header>
           <div className="page-content" data-analytics-section="profil_editor">
-            <ProfileView onSaveSuccess={handleProfileSaveSuccess} session={session} refreshKey={profileRefreshKey} templatesList={templatesList} templateId={templateId} templateOptions={templateOptions} onTemplateIdChange={setTemplateId} onTemplateOptionsChange={setTemplateOptions} onPhotoSessionExpired={handlePhotoSessionExpired} />
+            <ProfileView onSaveSuccess={handleProfileSaveSuccess} session={session} refreshKey={profileRefreshKey} usage={usage} onUpgradeClick={handleUpgradeClick} onUsageRefresh={loadUsage} onBillingPortalClick={() => setManageSubscriptionModalOpen(true)} templatesList={templatesList} templateId={templateId} templateOptions={templateOptions} onTemplateIdChange={setTemplateId} onTemplateOptionsChange={setTemplateOptions} onPhotoSessionExpired={handlePhotoSessionExpired} />
           </div>
         </div>
 
@@ -3870,6 +3989,8 @@ export default function App() {
             applications={applications}
             onClose={closeApplicationDetail}
             onPosteUpdated={loadApplications}
+            letterGenEnabled={usage?.plan === 'pro' || !!usage?.paywall_disabled}
+            onUpgradeClick={handleUpgradeClick}
           />
         )}
 
@@ -3900,6 +4021,93 @@ export default function App() {
                   Annuler
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {upgradeModalVisible && (
+          <div className="application-detail-overlay linkedin-sync-overlay" onClick={() => setUpgradeModalVisible(false)} role="dialog" aria-modal="true" aria-labelledby="upgrade-modal-title">
+            <div className="linkedin-sync-modal upgrade-modal" onClick={(e) => e.stopPropagation()}>
+              <h3 id="upgrade-modal-title">Crédits gratuits épuisés</h3>
+              <p className="profile-subtitle" style={{ marginTop: 0 }}>
+                Passe en Pro pour continuer à adapter tes CV sans limite.
+              </p>
+              <ul style={{ textAlign: 'left', margin: '1rem 0', paddingLeft: '1.25rem', color: 'var(--text)' }}>
+                <li>Adaptations IA illimitées</li>
+                <li>Suivi de candidatures illimité</li>
+                <li>Lettre de motivation ciblée</li>
+              </ul>
+              <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
+                <button type="button" className="btn btn-primary" onClick={() => { setUpgradeModalVisible(false); handleStartCheckout(); }} disabled={checkoutLoading}>
+                  {checkoutLoading ? 'Redirection…' : 'Passer en Pro - 10€/mois'}
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={() => setUpgradeModalVisible(false)}>
+                  Plus tard
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {proModalVisible && (
+          <div className="application-detail-overlay linkedin-sync-overlay" onClick={() => setProModalVisible(false)} role="dialog" aria-modal="true">
+            <div className="linkedin-sync-modal upgrade-modal pro-details-modal" onClick={(e) => e.stopPropagation()}>
+              {usage?.plan === 'pro' ? (
+                <>
+                  <div className="pro-badge-big">Pro</div>
+                  <h3>Tu es abonné Pro</h3>
+                  <p className="profile-subtitle" style={{ marginTop: 0 }}>
+                    Tu profites de tous les avantages du forfait Pro.
+                  </p>
+                  <ul className="pro-features-list">
+                    <li><span className="pro-check"><HiCheck size={14} strokeWidth={2.5} /></span>Adaptations IA illimitées</li>
+                    <li><span className="pro-check"><HiCheck size={14} strokeWidth={2.5} /></span>Suivi de candidatures illimité</li>
+                    <li><span className="pro-check"><HiCheck size={14} strokeWidth={2.5} /></span>Lettre de motivation ciblée</li>
+                  </ul>
+                  <div className="linkedin-sync-actions" style={{ marginTop: '1rem', flexDirection: 'column', gap: '0.5rem' }}>
+                    <button type="button" className="btn btn-secondary" onClick={() => { setProModalVisible(false); handleManageSubscriptionClick(); }} disabled={checkoutLoading}>
+                      {checkoutLoading ? 'Redirection…' : 'Gérer mon abonnement / Annuler'}
+                    </button>
+                    <button type="button" className="btn btn-ghost" onClick={() => setProModalVisible(false)}>
+                      Fermer
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3>Passer en Pro</h3>
+                  <p className="profile-subtitle" style={{ marginTop: 0 }}>
+                    Débloque tout le potentiel d'AxeL Job pour décrocher le poste idéal.
+                  </p>
+                  <div className="pro-comparison">
+                    <div className="pro-comparison-col">
+                      <h4>Gratuit</h4>
+                      <ul>
+                        <li>3 adaptations IA</li>
+                        <li>5 candidatures suivies</li>
+                        <li>Tous les templates</li>
+                      </ul>
+                    </div>
+                    <div className="pro-comparison-col pro-comparison-col--pro">
+                      <h4>Pro - 10€/mois</h4>
+                      <ul>
+                        <li><strong>Illimité</strong> - adaptations IA</li>
+                        <li><strong>Illimité</strong> - candidatures</li>
+                        <li>Lettre de motivation ciblée</li>
+                        <li>Tous les templates</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
+                    <button type="button" className="btn btn-primary" onClick={() => { setProModalVisible(false); handleStartCheckout(); }} disabled={checkoutLoading}>
+                      {checkoutLoading ? 'Redirection…' : 'Passer en Pro - 10€/mois'}
+                    </button>
+                    <button type="button" className="btn btn-secondary" onClick={() => setProModalVisible(false)}>
+                      Plus tard
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -3950,6 +4158,28 @@ export default function App() {
                 >
                   Plus tard
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {manageSubscriptionModalOpen && (
+          <div className="application-detail-overlay linkedin-sync-overlay" onClick={() => setManageSubscriptionModalOpen(false)} role="dialog" aria-modal="true" aria-labelledby="manage-sub-title">
+            <div className="linkedin-sync-modal" onClick={(e) => e.stopPropagation()}>
+              <h3 id="manage-sub-title">Gérer mon abonnement</h3>
+              <p className="profile-subtitle" style={{ marginTop: 0 }}>Tu seras redirigé vers le portail de gestion. Si tu envisages d&apos;annuler, peux-tu nous dire pourquoi ? (optionnel)</p>
+              <label className="input-label" style={{ display: 'block', marginTop: '0.75rem' }}>Raison</label>
+              <select className="input-field" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} style={{ width: '100%', marginTop: '0.25rem' }}>
+                <option value="">- Choisir -</option>
+                <option value="trop_cher">Trop cher</option>
+                <option value="pas_utile">Pas utile pour moi</option>
+                <option value="autre">Autre</option>
+              </select>
+              <label className="input-label" style={{ display: 'block', marginTop: '0.75rem' }}>Commentaire (optionnel)</label>
+              <textarea className="input-field" value={cancelReasonText} onChange={(e) => setCancelReasonText(e.target.value)} placeholder="Ton avis nous aide à nous améliorer…" rows={2} style={{ width: '100%', marginTop: '0.25rem', resize: 'vertical' }} />
+              <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
+                <button type="button" className="btn btn-primary" onClick={handleManageSubscriptionConfirm} disabled={checkoutLoading}>{checkoutLoading ? 'Redirection…' : 'Accéder au portail'}</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setManageSubscriptionModalOpen(false)}>Annuler</button>
               </div>
             </div>
           </div>

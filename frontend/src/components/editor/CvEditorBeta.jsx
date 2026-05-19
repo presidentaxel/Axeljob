@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { apiGet, apiPut } from '../../api';
 import { defaultCv } from '../../data/cvDefault';
+import { useAutoSave } from '../../lib/useAutoSave.js';
 import CvEditablePreview from '../CvEditablePreview.jsx';
 
+import AutoSaveIndicator from './AutoSaveIndicator.jsx';
 import EditorAtsScoreBadge from './EditorAtsScoreBadge.jsx';
 import EditorTemplateSelector from './EditorTemplateSelector.jsx';
 
@@ -18,29 +20,18 @@ import '../../styles/CvEditorBeta.css';
 const BODY_FULLSCREEN_CLASS = 'cv-editor-beta-fullscreen';
 
 /**
- * Editeur de CV Beta — squelette P1.1.
+ * Editeur de CV Beta — squelette L1 (cf. docs/editor-vision.md).
  *
- * Premiere brique de la nouvelle experience d edition decrite dans
- * `docs/editor-vision.md` (L1 -> L3). Objectifs pour cette etape :
+ *  1. Charge le CV via `GET /api/cv?profile=1`.
+ *  2. Affiche en plein ecran via `CvEditablePreview` (contentEditable).
+ *  3. Auto-sauvegarde via `PUT /api/cv` (debounce 1.5s, retry exponentiel,
+ *     beforeunload guard) — voir `lib/autoSaveScheduler.js`.
+ *  4. Badge score ATS qui se met a jour si le template change.
+ *  5. Selecteur de template dans la topbar editeur.
  *
- *  1. Charger le CV du user via `GET /api/cv?profile=1`.
- *  2. L'afficher en plein ecran via `CvEditablePreview` (contentEditable
- *     deja en place sur tous les champs principaux).
- *  3. Auto-sauvegarder via `PUT /api/cv` (debounce 1.5s).
- *  4. Afficher un badge score ATS qui se met a jour si le template change.
- *  5. Offrir un bouton "Revenir au mode stable" qui repositionne le toggle.
- *
- * P1.2 -> P1.5 etoffent : topbar editeur avancee, inspector drawer,
- * boutons + flottants, handles de drag. P2 introduit le schema `layout`
- * (mise en page configurable).
- *
- * IMPORTANT : ce composant cohabite avec `ProfileView.jsx` (mode stable).
- * Toute regression visible ici ne doit pas affecter le mode stable, et
- * inversement : pas d effet de bord global, pas de mutation de stores
- * partages.
+ * Cohabitation avec ProfileView.jsx (mode stable) : pas d effet de bord
+ * global, pas de mutation de stores partages.
  */
-
-const AUTO_SAVE_DELAY_MS = 1500;
 
 export default function CvEditorBeta({
   session: _session,
@@ -53,19 +44,26 @@ export default function CvEditorBeta({
   const [cv, setCv] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
-  const [saveStatus, setSaveStatus] = useState('idle');
-  const saveTimerRef = useRef(null);
-  const pendingCvRef = useRef(null);
 
   /**
-   * Active le mode plein ecran en injectant une classe sur `<body>`.
-   * Reversible au demontage (retour mode stable, navigation, etc.).
-   *
-   * On utilise `document.body` plutot qu un parent React car le
-   * `page-header` et le wrapper `page-content` sont rendus par App.jsx,
-   * hors de notre arbre. Ainsi on garde toute la maitrise des styles
-   * dans CvEditorBeta.css sans modifier App.jsx.
+   * `saveFn` est defini en `useCallback` pour pouvoir etre retenu via
+   * `saveFnKey` : quand templateId/templateOptions changent, on cree une
+   * nouvelle reference, et le scheduler est re-initialise (via la cle).
+   * Cela garantit qu un PUT en cours utilise toujours les bons template_*.
    */
+  const saveFn = useCallback(async (payload) => {
+    return apiPut('/api/cv', {
+      ...payload,
+      template_id: templateId,
+      template_options: templateOptions,
+    });
+  }, [templateId, templateOptions]);
+
+  const autoSave = useAutoSave({
+    saveFn,
+    saveFnKey: `${templateId}|${JSON.stringify(templateOptions || {})}`,
+  });
+
   useEffect(() => {
     if (typeof document === 'undefined' || !document.body) return undefined;
     document.body.classList.add(BODY_FULLSCREEN_CLASS);
@@ -94,37 +92,14 @@ export default function CvEditorBeta({
     return () => { aborted = true; };
   }, []);
 
-  const flushSave = useCallback(async () => {
-    const next = pendingCvRef.current;
-    if (!next) return;
-    pendingCvRef.current = null;
-    setSaveStatus('saving');
-    try {
-      await apiPut('/api/cv', {
-        ...next,
-        template_id: templateId,
-        template_options: templateOptions,
-      });
-      setSaveStatus('saved');
-    } catch (err) {
-      setSaveStatus('error');
-      console.error('[CvEditorBeta] auto-save echec', err);
-    }
-  }, [templateId, templateOptions]);
-
   const handleCvChange = useCallback((nextCv) => {
     setCv(nextCv);
-    pendingCvRef.current = nextCv;
-    setSaveStatus('pending');
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(flushSave, AUTO_SAVE_DELAY_MS);
-  }, [flushSave]);
+    autoSave.schedule(nextCv);
+  }, [autoSave]);
 
-  useEffect(() => {
-    return () => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    };
-  }, []);
+  const handleRetry = useCallback(() => {
+    autoSave.flush();
+  }, [autoSave]);
 
   if (loading) {
     return (
@@ -146,7 +121,7 @@ export default function CvEditorBeta({
           />
         </div>
         <div className="cv-editor-beta-topbar-right">
-          <SaveStatusPill status={saveStatus} />
+          <AutoSaveIndicator state={autoSave.state} onRetry={handleRetry} />
           <EditorAtsScoreBadge templateId={templateId} cv={cv} />
         </div>
       </header>
@@ -177,26 +152,10 @@ export default function CvEditorBeta({
   );
 }
 
-function SaveStatusPill({ status }) {
-  if (status === 'idle') return null;
-  const label = {
-    pending: 'Modifications…',
-    saving: 'Enregistrement…',
-    saved: 'Enregistré',
-    error: 'Erreur d’enregistrement',
-  }[status] || '';
-  return (
-    <span className={`cv-editor-beta-save-pill cv-editor-beta-save-pill--${status}`} role="status">
-      {label}
-    </span>
-  );
-}
-
 /**
  * Composant techniquement vide : sert uniquement a referencer les props
  * passees par le switcher pour eviter un warning eslint "defined but never
- * used" tant qu on n a pas branche le selecteur de template (P1.2).
- * A retirer en P1.2.
+ * used" tant qu on n a pas branche le drawer inspecteur (P1.4).
  */
 function SuppressUnusedWarnings({ onTemplateOptionsChange }) {
   void onTemplateOptionsChange;

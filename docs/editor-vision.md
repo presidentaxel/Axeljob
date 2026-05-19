@@ -1449,6 +1449,121 @@ Critères d'acceptation :
 - Le score ATS reflète honnêtement les risques.
 - Le PDF généré est identique au rendu écran (test snapshot).
 
+**Décisions produit (19 mai 2026, démarrage P3)** :
+- **Remplace l'éditeur Beta** : quand P3 sera assez mûr, le canvas libre
+  prendra la place de l'éditeur Beta actuel (pas de toggle "guidée /
+  libre" dans la topbar Beta).
+- **Point de départ utilisateur** : choix explicite entre **page blanche**
+  ou **partir d'un template existant** (qui sera converti en blocs libres
+  pré-placés).
+- **Approche incrémentale** : on découpe P3 en P3.0 → P3.10, chaque étape
+  petite, testée, commitée séparément. On peut s'arrêter à tout moment
+  sans casser le mode Beta actuel.
+
+#### 14.5.1 P3.0 — Modèle pur `cvLayoutModelV3` (livré, 19 mai 2026)
+
+Le canvas libre repose sur un modèle de données différent de v1/v2 :
+au lieu de "zones avec sections", on a une **liste de pages** et chaque
+page contient une **liste de blocs positionnés en coordonnées absolues
+(mm)** sur une feuille A4.
+
+**Implémentation** :
+
+| Rôle | Fichier |
+|---|---|
+| Modèle pur (constantes, sanitize, ops blocs/pages/theme, migration v1/v2→v3) | `frontend/src/lib/cvLayoutModelV3.js` |
+| Tests unitaires (`node --test`) | `frontend/tests/unit/cvLayoutModelV3.test.js` (46 tests) |
+
+**Forme canonique d'un layout v3** :
+
+```json
+{
+  "version": 3,
+  "format": "A4",
+  "grid": "free",
+  "unit": "mm",
+  "pages": [
+    {
+      "id": "page_xxx",
+      "blocks": [
+        { "id": "blk_xxx", "type": "identity",     "bind": ["prenom","nom","titre_professionnel"], "x": 10, "y": 10, "w": 190, "h": 22, "z": 1, "style": { "align": "left" } },
+        { "id": "blk_xxx", "type": "text",         "content": "Disponible des septembre",          "x": 10, "y": 275, "w": 100, "h": 8, "z": 1, "style": { "italic": true } },
+        { "id": "blk_xxx", "type": "shape:line",                                                    "x": 10, "y": 35,  "w": 190, "h": 0.5, "z": 1, "style": { "color": "#1e2a3a" } }
+      ]
+    }
+  ],
+  "theme": { "font_heading": "Inter", "color_accent": "#1e2a3a" }
+}
+```
+
+**Types de blocs supportés** :
+- **Sémantiques** (lient `cv` via `bind`) : `identity`, `photo`, `contact`,
+  `resume`, `experiences`, `formations`, `certifications`, `projets`,
+  `skills`, `languages`.
+- **Non sémantiques** (contenu inline dans `content`) : `text`, `title`,
+  `shape:line`, `shape:rect`, `icon`, `qrcode`.
+
+**API publique exposée (P3.0)** :
+
+```js
+// Creation
+createBlankLayoutV3()                  // page blanche, 0 bloc
+createStarterLayoutV3()                // 1 page avec 6 blocs semantiques pre-places
+
+// Validation / inspection
+sanitizeLayoutV3(input)                // re-clampe et nettoie un input quelconque
+sanitizeBlock(input)                   // sanitize d un bloc isole (null si type invalide)
+findBlock(layout, blockId)             // { pageIndex, blockIndex, block } | null
+listAllBlocks(layout)                  // tous les blocs, toutes pages
+isEmptyLayoutV3(layout)                // true si aucun bloc sur aucune page
+detectLayoutVersion(input)             // 0 | 1 | 2 | 3
+isLayoutV3Shape(input)                 // true si ca ressemble a du v3
+isSemanticBlockType(type) / isNonSemanticBlockType(type)
+
+// Mutations (toutes pures, retournent un NOUVEAU layout)
+addBlockToPage(layout, pageIndex, partial)
+removeBlock(layout, blockId)
+updateBlock(layout, blockId, patch)            // merge superficiel + style merge
+setBlockPosition / setBlockSize / moveBlockBy
+bringToFront(layout, blockId)                  // z = max + 1
+sendToBack(layout, blockId)                    // z = min - 1 (clamp 0)
+updateBlockStyle(layout, blockId, stylePatch)
+appendBlankPage(layout) / removePage(layout, pageIndex)   // refuse de supprimer la derniere
+updateTheme(layout, patch)
+migrateLayoutToV3(input)                       // v1 / v2 / inconnu -> starter (preserve theme)
+```
+
+**Choix techniques** :
+
+- **Unité = `mm`** (et non `px`/`%`) : aligné sur le rendu WeasyPrint
+  côté backend (qui pense en mm pour le PDF) et sur la norme A4. Évite
+  les arrondis pixel-perfect qui divergeraient entre preview et export.
+- **Clamps systématiques dans `sanitizeBlock`** : `w/h ≥ minimums`,
+  `x + w ≤ 210mm`, `y + h ≤ 297mm`, `z ≥ 0`. Toutes les ops passent par
+  `sanitizeBlock` au final → impossible de produire un bloc hors-page,
+  même via un patch malicieux.
+- **Migration v1/v2 → v3 = retombe sur le starter** : on n'essaie PAS de
+  reproduire pixel-perfect une mise en page modulaire (impossible sans
+  rendu réel + retour utilisateur P2 a montré que c'est fragile). On
+  préserve uniquement le `theme`. Quand on aura un convertisseur fidèle
+  template-par-template (P3.x), il viendra remplacer ce fallback.
+- **Pure JS, 0 dépendance React/DOM** → 100% testable sous `node --test`
+  (46 tests), portable backend si besoin (futur scoring L3).
+- **Immutabilité stricte** : chaque op retourne un nouveau layout. Pré-
+  requis pour le store undo/redo de P3.1.
+
+**Critères d'acceptation (P3.0)** :
+- [x] Le modèle est entièrement pur (aucun import React/DOM).
+- [x] `createBlankLayoutV3()` et `createStarterLayoutV3()` produisent
+      des layouts valides et sanitizables.
+- [x] `sanitizeBlock` filtre les types inconnus et clampe les coords
+      hors-page.
+- [x] Toutes les mutations retournent un nouveau layout (immuabilité).
+- [x] `migrateLayoutToV3` est idempotente sur du v3, retombe sur le
+      starter pour v1/v2/null tout en préservant le `theme`.
+- [x] 46 tests unitaires verts.
+- [x] 0 lint error sur le nouveau fichier.
+
 ### 14.6 P4 — Calibration et expansion (continu)
 
 - Job mensuel de recalibration des pondérations sur les ground truths collectées.

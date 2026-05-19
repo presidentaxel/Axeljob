@@ -119,6 +119,10 @@ try {
     npm run build
     Assert-NativeExit 'vite build'
 
+    Write-Phase 'Frontend (tests unitaires node:test)'
+    npm run test:unit
+    Assert-NativeExit 'node --test (npm run test:unit)'
+
     if ($WithE2E) {
         Write-Phase 'Frontend (Playwright)'
         npm run test:e2e

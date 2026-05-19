@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { HiDocumentText, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiChartBarSquare } from 'react-icons/hi2';
+import { HiDocumentText, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiChartBarSquare, HiCog6Tooth } from 'react-icons/hi2';
 
 /**
  * Barre de navigation workspace /app/* (séparée du shell pour lisibilité d’App.jsx).
@@ -53,6 +53,10 @@ export default function AppTopbar({
         <NavLink to="/app/profil" className={({ isActive }) => `topbar-link ${isActive ? 'active' : ''}`}>
           <HiPencilSquare size={18} />
           <span>Profil</span>
+        </NavLink>
+        <NavLink to="/app/settings" className={({ isActive }) => `topbar-link ${isActive ? 'active' : ''}`}>
+          <HiCog6Tooth size={18} />
+          <span>Settings</span>
         </NavLink>
         <NavLink to="/app/support" className={({ isActive }) => `topbar-link ${isActive ? 'active' : ''}`}>
           <HiChatBubbleLeftRight size={18} />

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
 import {
   apiGet,
@@ -14,7 +14,6 @@ import {
 } from '../api';
 import { supabase } from '../lib/supabase';
 import { defaultCv, newExpId, newFormId, newCertId, newProjId } from '../data/cvDefault';
-import { buildAdaptedPdfFilename } from '../lib/pdfExportFilename';
 import TemplatePicker from './TemplatePicker';
 import ReauthModal from './ReauthModal';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from '../lib/cvPreviewA4Pages';
@@ -165,14 +164,6 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
   const [importStepIndex, setImportStepIndex] = useState(0);
   const importStepTimerRef = useRef(null);
   const importFinalisationTimerRef = useRef(null);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteLoading, setInviteLoading] = useState(false);
-  const [inviteError, setInviteError] = useState('');
-  const [setPasswordOpen, setSetPasswordOpen] = useState(false);
-  const [setPasswordNew, setSetPasswordNew] = useState('');
-  const [setPasswordConfirm, setSetPasswordConfirm] = useState('');
-  const [setPasswordLoading, setSetPasswordLoading] = useState(false);
-  const [setPasswordError, setSetPasswordError] = useState('');
   const [cancelSubModalOpen, setCancelSubModalOpen] = useState(false);
   const [cancelSubLoading, setCancelSubLoading] = useState(false);
   const fileInputRef = useRef(null);
@@ -768,16 +759,6 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
     setTimeout(() => setMessage(''), 5000);
   };
 
-  const pdfExportFilenameExample = useMemo(
-    () => buildAdaptedPdfFilename('', {
-      prenom: cv.prenom,
-      nom: cv.nom,
-      poste: cv.titre_professionnel || 'Intitulé du poste',
-      entreprise: 'Entreprise',
-    }),
-    [cv.prenom, cv.nom, cv.titre_professionnel]
-  );
-
   if (loading) return <div className="profile-loading">Chargement du profil…</div>;
 
   return (
@@ -793,7 +774,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
             {importLoading ? 'Import…' : 'Importer un CV'}
           </button>
           <button type="button" className="btn btn-primary profile-save-btn" onClick={handleSave} disabled={saving}>
-            {saving ? 'Enregistrement…' : 'Enregistrer le CV'}
+            {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
           </button>
         </div>
       </div>
@@ -1062,18 +1043,6 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
         </div>
       </CollapsibleSection>
 
-      <CollapsibleSection title="Export du CV adapté (PDF)" defaultOpen={false}>
-        <p className="profile-section-desc">
-          Depuis l&apos;onglet CV, quand tu enregistres le PDF du CV <strong>adapté</strong> à une offre, le navigateur ouvre
-          la fenêtre d&apos;enregistrement avec un <strong>nom déjà proposé</strong> (ton prénom, nom et l&apos;intitulé de l&apos;offre).
-          Tu peux le modifier ou choisir un autre dossier à ce moment-là, comme pour n&apos;importe quel téléchargement.
-        </p>
-        <p className="profile-export-pdf-preview" role="status">
-          <strong>Exemple de nom suggéré</strong> (avec ton profil et un intitulé fictif)&nbsp;:{' '}
-          <span className="profile-export-filename-ex">{pdfExportFilenameExample}</span>
-        </p>
-      </CollapsibleSection>
-
       {usage?.plan === 'pro' && !usage?.paywall_disabled && (
         <CollapsibleSection title="Abonnement" defaultOpen={true}>
           <p className="profile-section-desc">Gère la résiliation depuis ici (exigence légale). La facturation détaillée reste disponible sur le portail sécurisé Stripe si besoin.</p>
@@ -1177,71 +1146,6 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
           </div>
         </div>
       )}
-
-      <CollapsibleSection title="Compte et sécurité" defaultOpen={false}>
-        <p className="profile-section-desc">Gère la sécurité de ton compte (mot de passe, invitations).</p>
-        <div className="profile-set-password-block">
-          <p className="profile-section-desc">Tu peux définir un mot de passe pour te connecter aussi par email et mot de passe (utile si tu n&apos;utilises que le lien magique ou Google/LinkedIn).</p>
-          <button type="button" className="btn btn-secondary" onClick={() => { setSetPasswordOpen(true); setSetPasswordNew(''); setSetPasswordConfirm(''); setSetPasswordError(''); }}>
-            Définir ou modifier mon mot de passe
-          </button>
-        </div>
-        {setPasswordOpen && (
-          <div className="profile-change-email-overlay" onClick={() => setSetPasswordOpen(false)} role="dialog" aria-modal="true">
-            <div className="profile-change-email-modal" onClick={(e) => e.stopPropagation()}>
-              <h3>Définir un mot de passe</h3>
-              <p className="profile-change-email-hint">Tu pourras ensuite te connecter avec ton email et ce mot de passe en plus du lien magique ou des réseaux sociaux.</p>
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                setSetPasswordError('');
-                if (setPasswordNew.length < 6) { setSetPasswordError('Le mot de passe doit faire au moins 6 caractères.'); return; }
-                if (setPasswordNew !== setPasswordConfirm) { setSetPasswordError('Les deux mots de passe ne correspondent pas.'); return; }
-                setSetPasswordLoading(true);
-                try {
-                  const { error: updateErr } = await supabase.auth.updateUser({ password: setPasswordNew });
-                  if (updateErr) throw updateErr;
-                  setMessage('Mot de passe enregistré. Tu peux maintenant te connecter avec ton email et ce mot de passe.');
-                  setSetPasswordOpen(false);
-                } catch (err) {
-                  setSetPasswordError(err?.message || 'Impossible de définir le mot de passe.');
-                } finally {
-                  setSetPasswordLoading(false);
-                }
-              }}>
-                <label>Nouveau mot de passe <input type="password" value={setPasswordNew} onChange={(e) => setSetPasswordNew(e.target.value)} placeholder="••••••••" className="auth-input" autoComplete="new-password" minLength={6} /></label>
-                <label>Confirmer le mot de passe <input type="password" value={setPasswordConfirm} onChange={(e) => setSetPasswordConfirm(e.target.value)} placeholder="••••••••" className="auth-input" autoComplete="new-password" minLength={6} /></label>
-                {setPasswordError && <div className="auth-error">{setPasswordError}</div>}
-                <div className="reauth-actions">
-                  <button type="submit" className="btn btn-primary" disabled={setPasswordLoading || setPasswordNew.length < 6 || setPasswordNew !== setPasswordConfirm}>{setPasswordLoading ? '…' : 'Enregistrer le mot de passe'}</button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setSetPasswordOpen(false)}>Annuler</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-        <div className="profile-invite-block">
-          <p className="profile-section-desc">Invite une personne qui n&apos;a pas encore de compte : elle recevra un email avec un lien pour s&apos;inscrire.</p>
-          <form className="profile-invite-form" onSubmit={async (e) => {
-            e.preventDefault();
-            setInviteError('');
-            if (!inviteEmail.trim()) return;
-            setInviteLoading(true);
-            try {
-              await apiPost('/api/invite', { email: inviteEmail.trim() });
-              setMessage('Invitation envoyée par email à ' + inviteEmail.trim());
-              setInviteEmail('');
-            } catch (err) {
-              setInviteError(err?.message || err?.detail || 'Impossible d\'envoyer l\'invitation.');
-            } finally {
-              setInviteLoading(false);
-            }
-          }}>
-            <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="email@exemple.fr" className="auth-input" />
-            <button type="submit" className="btn btn-secondary" disabled={inviteLoading}>{inviteLoading ? 'Envoi…' : 'Inviter par email'}</button>
-          </form>
-          {inviteError && <div className="auth-error">{inviteError}</div>}
-        </div>
-      </CollapsibleSection>
 
       <div className="profile-footer">
         <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>

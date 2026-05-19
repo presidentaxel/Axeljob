@@ -9,6 +9,7 @@ export const APP_ROUTES = {
   postule: `${APP_BASE}/postule`,
   profil: `${APP_BASE}/profil`,
   linkedin: `${APP_BASE}/linkedin`,
+  settings: `${APP_BASE}/settings`,
   support: `${APP_BASE}/support`,
   monitoring: `${APP_BASE}/monitoring`,
 };
@@ -30,6 +31,7 @@ export function getViewFromPathname(pathname) {
   if (pathname.startsWith(APP_ROUTES.postule)) return 'candidatures';
   if (pathname.startsWith(APP_ROUTES.profil)) return 'profil';
   if (pathname.startsWith(APP_ROUTES.linkedin)) return 'profil';
+  if (pathname.startsWith(APP_ROUTES.settings)) return 'settings';
   if (pathname.startsWith(APP_ROUTES.support)) return 'support';
   if (pathname.startsWith(APP_ROUTES.monitoring)) return 'monitoring';
   return 'cv';

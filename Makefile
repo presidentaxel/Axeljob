@@ -48,6 +48,7 @@ test-back:
 	$(VENV_PY) -m pytest tests --cov=backend --cov-report=term-missing --cov-fail-under=60
 
 test-front:
+	npm --prefix frontend run test:unit
 	npm --prefix frontend run test:e2e
 
 test: test-back test-front

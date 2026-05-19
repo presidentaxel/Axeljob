@@ -581,6 +581,13 @@ body {
   align-items: stretch;
 }
 
+/* Settings : page simple, contenu centré et scrollable. */
+.view-settings .page-content {
+  max-width: 920px;
+  width: 100%;
+  margin: 0 auto;
+}
+
 /* Support : hero + use cases + zone conv */
 .view-support {
   flex-direction: column;

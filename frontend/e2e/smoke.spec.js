@@ -70,4 +70,20 @@ test.describe('Smoke', () => {
     });
     expect(payload.url).toContain('checkout.stripe.test');
   });
+
+  /**
+   * L'onglet Settings (/app/settings) doit être reconnu comme une route
+   * workspace valide : pas de NotFoundPage, et la SPA se charge correctement.
+   * Sans session, le routeur redirige vers /login (comportement attendu).
+   * Ce test garde-fou détecterait notamment un retrait accidentel de la route
+   * dans appRoutes.js (clé `settings`) ou un rename de pathname.
+   */
+  test('la route /app/settings est reconnue par le SPA (pas de 404)', async ({ page }) => {
+    const consoleErrors = [];
+    page.on('pageerror', (err) => consoleErrors.push(String(err)));
+    await page.goto('/app/settings');
+    await expect(page).toHaveTitle(/AxeL Job/i);
+    await expect(page.getByText(/Page introuvable|404/i)).toHaveCount(0);
+    expect(consoleErrors).toEqual([]);
+  });
 });

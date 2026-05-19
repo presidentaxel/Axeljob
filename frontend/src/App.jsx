@@ -36,6 +36,7 @@ import { formatApplicationDateLabel } from './lib/applicationDates';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from './lib/cvPreviewA4Pages';
 
 const ProfileView = lazyWithChunkReload(() => import('./components/ProfileView'));
+const SettingsView = lazyWithChunkReload(() => import('./components/SettingsView'));
 const LandingPage = lazyWithChunkReload(() => import('./components/LandingPage'));
 const LegalPages = lazyWithChunkReload(() => import('./components/LegalPages'));
 const AtsPage = lazyWithChunkReload(() => import('./components/AtsPage'));
@@ -3934,6 +3935,16 @@ export default function App() {
           </header>
           <div className="page-content" data-analytics-section="profil_editor">
             <ProfileView onSaveSuccess={handleProfileSaveSuccess} session={session} refreshKey={profileRefreshKey} usage={usage} onUpgradeClick={handleUpgradeClick} onUsageRefresh={loadUsage} onBillingPortalClick={() => setManageSubscriptionModalOpen(true)} templatesList={templatesList} templateId={templateId} templateOptions={templateOptions} onTemplateIdChange={setTemplateId} onTemplateOptionsChange={setTemplateOptions} onPhotoSessionExpired={handlePhotoSessionExpired} />
+          </div>
+        </div>
+
+        <div id="viewSettings" className={`view-panel app-page view-settings ${view === 'settings' ? 'active' : ''}`} style={{ display: view === 'settings' ? 'flex' : 'none' }} data-analytics-section="settings_page">
+          <header className="page-header">
+            <h1 className="page-title">Settings</h1>
+            <p className="page-subtitle">Compte, sécurité et options d&apos;export du CV adapté.</p>
+          </header>
+          <div className="page-content">
+            <SettingsView session={session} />
           </div>
         </div>
 

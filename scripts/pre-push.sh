@@ -82,6 +82,9 @@ fi
 npm run lint
 npm run build
 
+phase "Frontend (tests unitaires node:test)"
+npm run test:unit
+
 if [[ "$WITH_E2E" -eq 1 ]]; then
   phase "Frontend (Playwright)"
   npm run test:e2e

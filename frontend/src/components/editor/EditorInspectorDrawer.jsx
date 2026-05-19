@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import {
   applyTemplateOptionsDefaults,
@@ -6,7 +6,13 @@ import {
   resetTemplateOptionsToDefaults,
 } from '../../lib/templateOptionsSchema.js';
 
+import EditorContentPanel from './EditorContentPanel.jsx';
 import EditorInspectorField from './EditorInspectorField.jsx';
+
+const TABS = [
+  { id: 'style', label: 'Style' },
+  { id: 'content', label: 'Contenu' },
+];
 
 /**
  * Drawer lateral d edition fine des options du template (couleurs, polices,
@@ -33,7 +39,11 @@ export default function EditorInspectorDrawer({
   templateOptions,
   onTemplateOptionsChange,
   onClose,
+  cv,
+  onCvChange,
 }) {
+  const [activeTab, setActiveTab] = useState('style');
+
   /** Valeurs effectivement passees aux champs (defauts + custom user). */
   const effectiveOptions = useMemo(
     () => applyTemplateOptionsDefaults(template, templateOptions),
@@ -78,48 +88,81 @@ export default function EditorInspectorDrawer({
         </button>
       </header>
 
-      <div className="editor-inspector-drawer-body">
-        {!hasGroups && (
-          <p className="editor-inspector-drawer-empty">
-            Ce template n’expose pas d’options de personnalisation.
-          </p>
-        )}
-        {groups.map((group) => (
-          <section
-            key={group.id}
-            className="editor-inspector-group"
-            aria-labelledby={`inspector-group-${group.id}`}
+      <nav className="editor-inspector-tabs" role="tablist" aria-label="Sections de l’inspecteur">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            aria-controls={`inspector-tab-${tab.id}`}
+            className={
+              activeTab === tab.id
+                ? 'editor-inspector-tab editor-inspector-tab--active'
+                : 'editor-inspector-tab'
+            }
+            onClick={() => setActiveTab(tab.id)}
           >
-            <h3
-              id={`inspector-group-${group.id}`}
-              className="editor-inspector-group-title"
-            >
-              {group.label}
-            </h3>
-            <div className="editor-inspector-group-fields">
-              {group.fields.map((field) => (
-                <EditorInspectorField
-                  key={field.key}
-                  field={field}
-                  value={effectiveOptions[field.key]}
-                  onChange={(next) => handleFieldChange(field, next)}
-                />
-              ))}
-            </div>
-          </section>
+            {tab.label}
+          </button>
         ))}
+      </nav>
+
+      <div
+        className="editor-inspector-drawer-body"
+        id={`inspector-tab-${activeTab}`}
+        role="tabpanel"
+      >
+        {activeTab === 'style' && (
+          <>
+            {!hasGroups && (
+              <p className="editor-inspector-drawer-empty">
+                Ce template n’expose pas d’options de personnalisation.
+              </p>
+            )}
+            {groups.map((group) => (
+              <section
+                key={group.id}
+                className="editor-inspector-group"
+                aria-labelledby={`inspector-group-${group.id}`}
+              >
+                <h3
+                  id={`inspector-group-${group.id}`}
+                  className="editor-inspector-group-title"
+                >
+                  {group.label}
+                </h3>
+                <div className="editor-inspector-group-fields">
+                  {group.fields.map((field) => (
+                    <EditorInspectorField
+                      key={field.key}
+                      field={field}
+                      value={effectiveOptions[field.key]}
+                      onChange={(next) => handleFieldChange(field, next)}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </>
+        )}
+        {activeTab === 'content' && (
+          <EditorContentPanel cv={cv} onCvChange={onCvChange} />
+        )}
       </div>
 
-      <footer className="editor-inspector-drawer-footer">
-        <button
-          type="button"
-          className="editor-inspector-reset"
-          onClick={handleReset}
-          disabled={!hasGroups}
-        >
-          Réinitialiser aux valeurs par défaut
-        </button>
-      </footer>
+      {activeTab === 'style' && (
+        <footer className="editor-inspector-drawer-footer">
+          <button
+            type="button"
+            className="editor-inspector-reset"
+            onClick={handleReset}
+            disabled={!hasGroups}
+          >
+            Réinitialiser aux valeurs par défaut
+          </button>
+        </footer>
+      )}
     </aside>
   );
 }

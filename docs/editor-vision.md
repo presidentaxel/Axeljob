@@ -1106,6 +1106,57 @@ page L2 (qui exposera le `layout` JSON plutôt que les `templateOptions`).
 - [x] Tests unitaires verts (15 nouveaux tests sur le schéma).
 - [x] Aucun lint warning sur les fichiers du drawer.
 
+#### 14.3.3 Panneau "Contenu" — add / remove / reorder (livré, P1.5)
+
+Second onglet du drawer inspecteur : permet de gérer les listes répétées du
+CV (expériences, formations, certifications, projets). Pour chaque item :
+boutons `↑` / `↓` pour réordonner, `×` pour supprimer ; en bas de section,
+bouton `+ Ajouter une <singular>`. Réordonnancement à la souris via
+drag-and-drop natif HTML5 (handle `⋮⋮`), sans dépendance externe (pas de
+dnd-kit / react-dnd).
+
+**Implémentation** :
+
+| Rôle | Fichier |
+|---|---|
+| Helpers purs (add / remove / move + reorder index) | `frontend/src/lib/cvSectionOps.js` |
+| Panneau React | `frontend/src/components/editor/EditorContentPanel.jsx` |
+| Système d'onglets Style / Contenu | `frontend/src/components/editor/EditorInspectorDrawer.jsx` |
+| Styles (items, drag highlight, +) | `frontend/src/styles/EditorInspector.css` |
+| Tests unitaires (`node --test`) | `frontend/tests/unit/cvSectionOps.test.js` (19 tests) |
+
+**Choix techniques** :
+
+- **Pourquoi pas inline dans `CvEditablePreview` ?** `CvEditablePreview` est
+  partagé avec le mode stable (utilisé dans `ProfileView` pour la preview).
+  Y ajouter des handles modifierait le DOM rendu et risquerait de casser
+  le mode stable. On garde l'isolation : tous les contrôles d'édition de
+  structure sont dans le drawer.
+- **Drag-and-drop natif HTML5** plutôt qu'une lib externe : aucun coût en
+  bundle, suffisant pour des listes de <50 items, accessibilité préservée
+  par les boutons `↑` / `↓` (qui restent les contrôles primaires pour le
+  clavier).
+- **Mutations pures** : `addItemToSection`, `removeItemFromSection`,
+  `moveItemInSection` retournent toujours un nouveau CV. Cela facilite les
+  tests, garantit l'absence de mutation accidentelle, et joue bien avec le
+  scheduler d'auto-save (qui détecte les changements par référence).
+- **`id` stable par item** : chaque item ajouté reçoit un id généré par
+  `generateItemId(prefix)` (base36 timestamp + random). Indispensable pour
+  les `key` React et pour l'identification côté backend.
+
+**Critères d'acceptation (P1.5)** :
+- [x] L'onglet "Contenu" est accessible dans le drawer inspecteur.
+- [x] Les 4 sections (Expériences, Formations, Certifications, Projets)
+      sont listées avec leur count.
+- [x] `+ Ajouter` crée un item vide, persisté via l'auto-save.
+- [x] `↑` / `↓` réordonnent l'item (désactivés aux bornes).
+- [x] `×` supprime l'item.
+- [x] Le handle `⋮⋮` permet le drag-and-drop, avec feedback visuel sur la
+      ligne survolée.
+- [x] Aucun item sans id (pour le rendu et la persistance).
+- [x] 19 nouveaux tests unitaires verts.
+- [x] 0 lint error sur les nouveaux fichiers.
+
 ### 14.4 P2 — L2 Mise en page configurable (4 semaines)
 
 Livrables :

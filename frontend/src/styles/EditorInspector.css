@@ -139,6 +139,46 @@
   outline-offset: 2px;
 }
 
+/* Onglets Style / Contenu (P1.5). */
+.editor-inspector-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.4rem 0.6rem 0;
+  border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
+}
+
+.editor-inspector-tab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  font-family: var(--editor-font-family);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+  padding: 0.5rem 0.8rem;
+  border-radius: 0.4rem 0.4rem 0 0;
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px; /* aligne sur le border-bottom du parent */
+}
+
+.editor-inspector-tab:hover {
+  color: #334155;
+  background: #f8fafc;
+}
+
+.editor-inspector-tab--active {
+  color: #4338ca;
+  border-bottom-color: #6366f1;
+}
+
+.editor-inspector-tab:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
 .editor-inspector-drawer-body {
   flex: 1;
   overflow-y: auto;
@@ -361,6 +401,192 @@
 }
 
 .editor-inspector-reset:focus-visible {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+}
+
+/* ============================================================
+ * Panneau "Contenu" (P1.5) : add / remove / reorder par section.
+ * ============================================================ */
+.editor-content-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.editor-content-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.editor-content-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.editor-content-section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+
+.editor-content-section-count {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.editor-content-section-empty {
+  margin: 0;
+  padding: 0.4rem 0.55rem;
+  background: #f8fafc;
+  border: 1px dashed #e2e8f0;
+  border-radius: 0.4rem;
+  font-size: 0.78rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+.editor-content-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.editor-content-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.4rem 0.35rem 0.25rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.4rem;
+  font-size: 0.8rem;
+  color: #1e293b;
+  transition: border-color 150ms ease, box-shadow 150ms ease, opacity 150ms ease,
+              background-color 150ms ease;
+}
+
+.editor-content-item--dragging {
+  opacity: 0.5;
+  background: #f1f5f9;
+}
+
+/* Indication visuelle de la cible quand on survole une autre ligne en
+ * cours de drag. Une barre verticale gauche violette pour rester
+ * accessible sur les couleurs neutres existantes. */
+.editor-content-item--over {
+  border-color: #6366f1;
+  box-shadow: inset 3px 0 0 0 #6366f1;
+}
+
+.editor-content-item-handle {
+  flex-shrink: 0;
+  cursor: grab;
+  color: #94a3b8;
+  user-select: none;
+  font-size: 0.85rem;
+  letter-spacing: -2px;
+  padding: 0 0.15rem;
+  line-height: 1;
+}
+
+.editor-content-item-handle:active {
+  cursor: grabbing;
+}
+
+.editor-content-item-label {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.editor-content-item-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
+}
+
+.editor-content-item-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #64748b;
+  font-family: var(--editor-font-family);
+  font-size: 0.85rem;
+  line-height: 1;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.3rem;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.editor-content-item-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #1e293b;
+  border-color: #cbd5e0;
+}
+
+.editor-content-item-btn:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 1px;
+}
+
+.editor-content-item-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.editor-content-item-btn--danger:hover:not(:disabled) {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.editor-content-add-btn {
+  appearance: none;
+  margin-top: 0.15rem;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e0;
+  color: #475569;
+  font-family: var(--editor-font-family);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+  width: 100%;
+  justify-content: center;
+}
+
+.editor-content-add-btn:hover {
+  background: #eef2ff;
+  border-color: #818cf8;
+  border-style: solid;
+  color: #4338ca;
+}
+
+.editor-content-add-btn:focus-visible {
   outline: none;
   border-color: #6366f1;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);

@@ -191,6 +191,8 @@ export default function CvEditorBeta({
             templateOptions={templateOptions}
             onTemplateOptionsChange={handleTemplateOptionsChange}
             onClose={handleInspectorClose}
+            cv={cv}
+            onCvChange={handleCvChange}
           />
         </div>
       </div>

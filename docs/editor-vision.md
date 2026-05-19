@@ -1059,6 +1059,53 @@ if (isBetaModeEnabled()) { ... }
 - [ ] (P1) Au moins une vue (`/app/profil`) bascule réellement sur l'expérience
       Beta quand le toggle est ON.
 
+#### 14.3.2 Drawer Inspecteur Style (livré, P1.4)
+
+Premier panneau structuré de l'éditeur Beta : permet d'éditer les options de
+template qui ne se prêtent pas à l'édition inline (couleurs, polices,
+affichage de la photo). Sert aussi de fondation au futur drawer de mise en
+page L2 (qui exposera le `layout` JSON plutôt que les `templateOptions`).
+
+**Implémentation** :
+
+| Rôle | Fichier |
+|---|---|
+| Schéma + sanitisation (pur, testable) | `frontend/src/lib/templateOptionsSchema.js` |
+| Drawer latéral | `frontend/src/components/editor/EditorInspectorDrawer.jsx` |
+| Champ générique (color / select / boolean) | `frontend/src/components/editor/EditorInspectorField.jsx` |
+| Styles dédiés | `frontend/src/styles/EditorInspector.css` |
+| Tests unitaires (`node --test`) | `frontend/tests/unit/templateOptionsSchema.test.js` |
+
+**Choix techniques** :
+
+- **Side-by-side, pas modal** : quand on ouvre le drawer, le canvas réduit sa
+  largeur pour laisser place au drawer (340px par défaut). L'utilisateur voit
+  l'effet en temps réel — c'est essentiel pour évaluer des changements de
+  couleur ou de typo. Sur écran <900px, le drawer passe en plein large sous
+  le canvas.
+- **Aucun appel réseau** : les changements n'affectent que `templateOptions`
+  qui est déjà persisté via le mécanisme d'auto-save existant. Le drawer n'a
+  jamais à connaître le backend.
+- **Schéma lu depuis le template** : la liste des champs et leurs `default`,
+  `choices`, `type` proviennent de `templates/<id>/meta.json` (champ
+  `options`). Aucun in-line de la liste des couleurs ou des polices : ajouter
+  un champ se fait uniquement côté template.
+- **Sanitisation systématique** : `sanitizeTemplateOptionValue` filtre toute
+  valeur invalide (hex malformé, choix hors `choices`) avant remontée vers le
+  parent. Empêche un user (ou un copy/paste corrompu) de stocker des valeurs
+  qui casseraient le rendu PDF côté backend.
+
+**Critères d'acceptation (P1.4)** :
+- [x] Le bouton "Inspecteur" est visible dans la topbar éditeur Beta.
+- [x] Les champs déclarés dans `meta.json` apparaissent regroupés (couleurs,
+      typographie, affichage).
+- [x] Une modification de couleur / police / toggle se voit immédiatement sur
+      le CV et est sauvegardée par l'auto-save existant.
+- [x] Le bouton "Réinitialiser aux valeurs par défaut" rétablit les options
+      du template courant.
+- [x] Tests unitaires verts (15 nouveaux tests sur le schéma).
+- [x] Aucun lint warning sur les fichiers du drawer.
+
 ### 14.4 P2 — L2 Mise en page configurable (4 semaines)
 
 Livrables :

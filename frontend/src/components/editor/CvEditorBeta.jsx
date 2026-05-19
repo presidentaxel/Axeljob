@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { apiGet, apiPut } from '../../api';
 import { defaultCv } from '../../data/cvDefault';
@@ -7,9 +7,11 @@ import CvEditablePreview from '../CvEditablePreview.jsx';
 
 import AutoSaveIndicator from './AutoSaveIndicator.jsx';
 import EditorAtsScoreBadge from './EditorAtsScoreBadge.jsx';
+import EditorInspectorDrawer from './EditorInspectorDrawer.jsx';
 import EditorTemplateSelector from './EditorTemplateSelector.jsx';
 
 import '../../styles/CvEditorBeta.css';
+import '../../styles/EditorInspector.css';
 
 /**
  * Classe injectee sur `<body>` quand l editeur Beta est monte. Permet aux
@@ -44,6 +46,17 @@ export default function CvEditorBeta({
   const [cv, setCv] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+
+  /**
+   * Template courant deduit de `templatesList` + `templateId` pour
+   * alimenter le drawer inspecteur (lecture de `options`). Si introuvable
+   * (template charge async, id manquant), le drawer affiche un etat vide.
+   */
+  const activeTemplate = useMemo(() => {
+    if (!Array.isArray(templatesList)) return null;
+    return templatesList.find((t) => t && t.id === templateId) || null;
+  }, [templatesList, templateId]);
 
   /**
    * `saveFn` est defini en `useCallback` pour pouvoir etre retenu via
@@ -101,6 +114,20 @@ export default function CvEditorBeta({
     autoSave.flush();
   }, [autoSave]);
 
+  const handleInspectorToggle = useCallback(() => {
+    setInspectorOpen((prev) => !prev);
+  }, []);
+
+  const handleInspectorClose = useCallback(() => {
+    setInspectorOpen(false);
+  }, []);
+
+  const handleTemplateOptionsChange = useCallback((nextOptions) => {
+    if (typeof onTemplateOptionsChange === 'function') {
+      onTemplateOptionsChange(nextOptions);
+    }
+  }, [onTemplateOptionsChange]);
+
   if (loading) {
     return (
       <div className="cv-editor-beta cv-editor-beta--loading">
@@ -123,6 +150,21 @@ export default function CvEditorBeta({
         <div className="cv-editor-beta-topbar-right">
           <AutoSaveIndicator state={autoSave.state} onRetry={handleRetry} />
           <EditorAtsScoreBadge templateId={templateId} cv={cv} />
+          <button
+            type="button"
+            className={
+              inspectorOpen
+                ? 'editor-inspector-toggle-btn editor-inspector-toggle-btn--active'
+                : 'editor-inspector-toggle-btn'
+            }
+            onClick={handleInspectorToggle}
+            aria-expanded={inspectorOpen}
+            aria-controls="cv-editor-beta-inspector"
+            title="Ouvrir l’inspecteur de style"
+          >
+            <span className="editor-inspector-toggle-icon" aria-hidden="true">⚙</span>
+            <span>Inspecteur</span>
+          </button>
         </div>
       </header>
 
@@ -132,32 +174,30 @@ export default function CvEditorBeta({
         </div>
       )}
 
-      <main className="cv-editor-beta-canvas">
-        <CvEditablePreview
-          cv={cv}
-          baseCv={cv}
-          onChange={handleCvChange}
-          templateId={templateId}
-          templateOptions={templateOptions}
-        />
-      </main>
+      <div className="cv-editor-beta-workspace">
+        <main className="cv-editor-beta-canvas">
+          <CvEditablePreview
+            cv={cv}
+            baseCv={cv}
+            onChange={handleCvChange}
+            templateId={templateId}
+            templateOptions={templateOptions}
+          />
+        </main>
+        <div id="cv-editor-beta-inspector">
+          <EditorInspectorDrawer
+            open={inspectorOpen}
+            template={activeTemplate}
+            templateOptions={templateOptions}
+            onTemplateOptionsChange={handleTemplateOptionsChange}
+            onClose={handleInspectorClose}
+          />
+        </div>
+      </div>
 
       <footer className="cv-editor-beta-statusbar">
-        <span>L1 inline · L2/L3 + drawer inspecteur à venir</span>
+        <span>L1 inline · L2/L3 + reorder de sections à venir</span>
       </footer>
-      {/* `onTemplateOptionsChange` sera branche en P1.4 quand on ajoutera
-          le drawer inspecteur (couleurs, polices, options du template). */}
-      <SuppressUnusedWarnings onTemplateOptionsChange={onTemplateOptionsChange} />
     </div>
   );
-}
-
-/**
- * Composant techniquement vide : sert uniquement a referencer les props
- * passees par le switcher pour eviter un warning eslint "defined but never
- * used" tant qu on n a pas branche le drawer inspecteur (P1.4).
- */
-function SuppressUnusedWarnings({ onTemplateOptionsChange }) {
-  void onTemplateOptionsChange;
-  return null;
 }

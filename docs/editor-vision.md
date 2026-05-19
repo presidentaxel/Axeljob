@@ -1166,6 +1166,72 @@ Livrables :
 - Drawer "Mise en page" avec drag de sections + ratio sidebar + thèmes.
 - Score ATS live qui réagit aux changements de layout.
 
+#### 14.4.1 Schéma `layout` côté front (livré, P2.0)
+
+Modèle pur en JavaScript, isolé de React et du DOM, pour pouvoir le tester
+et le réutiliser depuis un renderer ultérieur.
+
+| Rôle | Fichier |
+|---|---|
+| Modèle + helpers (sanitize, move, reset, default) | `frontend/src/lib/cvLayoutModel.js` |
+| Tests unitaires (`node --test`) | `frontend/tests/unit/cvLayoutModel.test.js` (18 tests) |
+
+**Forme du layout** :
+
+```js
+{
+  sectionsOrder: ['resume', 'experiences', 'formations', 'certifications', 'projets', 'competences'],
+  sidebarRatio: 0,        // 0 | 25 | 30 | 33 | 35 | 40 — voir SIDEBAR_RATIOS
+  theme: 'neutral',
+}
+```
+
+`sanitizeLayout(input)` est la seule porte d'entrée d'un layout externe :
+filtre les clés inconnues, dédoublonne, complète avec les clés canoniques
+manquantes, refuse les ratios hors liste. Le reste du code peut considérer
+le layout comme bien formé.
+
+#### 14.4.2 Onglet « Mise en page » dans le drawer (livré, P2.1)
+
+Troisième onglet du drawer inspecteur (à côté de Style et Contenu). Affiche
+les sections du CV dans l'ordre courant et permet de les réordonner via :
+- drag-and-drop natif HTML5 (handle `⋮⋮`), même pattern que P1.5 (réutilise
+  `computeReorderTargetIndex` de `lib/cvSectionOps.js`)
+- boutons `↑` / `↓` (accessibles clavier)
+
+Bouton « Réinitialiser l'ordre par défaut », désactivé si le layout est
+déjà au défaut (calcul via `isDefaultLayout`).
+
+| Rôle | Fichier |
+|---|---|
+| Panneau React | `frontend/src/components/editor/EditorLayoutPanel.jsx` |
+| Branchement (state local) | `frontend/src/components/editor/CvEditorBeta.jsx` |
+| Styles | `frontend/src/styles/EditorInspector.css` (section P2.1) |
+| Drawer (3e onglet) | `frontend/src/components/editor/EditorInspectorDrawer.jsx` |
+
+**Limites volontaires de l'état actuel** :
+- Le layout vit en **state local** de `CvEditorBeta`, **non persisté côté
+  backend**. La migration SQL `user_layouts` et le payload `PUT /api/cv`
+  étendu viendront en P2.3.
+- Le **rendu effectif** des sections selon `layout.sectionsOrder` n'est
+  pas encore branché. Le canvas continue de rendre l'ordre du template.
+  Ce sera l'objet de P2.2 (nouveau renderer ou patch DOM ciblé après le
+  rendu de `CvEditablePreview`).
+- Le **score ATS** ne réagit pas encore au layout custom (il utilise
+  uniquement `templateId`). Quand on aura le renderer + la persistance,
+  on basculera `EditorAtsScoreBadge` sur le layout custom (il accepte
+  déjà la prop `layout`, donc c'est juste un câblage).
+
+**Critères d'acceptation (P2.0 + P2.1)** :
+- [x] Modèle pur + 18 tests verts.
+- [x] Onglet « Mise en page » accessible dans le drawer.
+- [x] L'ordre se modifie via drag-and-drop ou flèches.
+- [x] Le bouton Réinitialiser fonctionne et se désactive au défaut.
+- [x] Aucun lint warning sur les nouveaux fichiers.
+- [ ] (P2.2) Le canvas reflète l'ordre choisi.
+- [ ] (P2.2) Le score ATS reflète l'ordre choisi.
+- [ ] (P2.3) Le layout est persisté en base et survit au reload.
+
 Critères d'acceptation :
 - Un user peut réordonner ses sections et le PDF reflète l'ordre.
 - Score ATS recalculé en < 100 ms après chaque changement.

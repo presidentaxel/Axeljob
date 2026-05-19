@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { apiGet, apiPut } from '../../api';
 import { defaultCv } from '../../data/cvDefault';
+import { createDefaultLayout, sanitizeLayout } from '../../lib/cvLayoutModel.js';
 import { useAutoSave } from '../../lib/useAutoSave.js';
 import CvEditablePreview from '../CvEditablePreview.jsx';
 
@@ -47,6 +48,15 @@ export default function CvEditorBeta({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  /**
+   * Layout local (ordre des sections, sidebar ratio, theme). Non persiste
+   * cote backend pour l instant -- la migration SQL `user_layouts` et le
+   * rendu effectif viendront en P2.2. Voir docs/editor-vision.md sec 6.
+   *
+   * On part toujours du layout par defaut au mount. Lorsque la persistance
+   * sera en place, on initialisera depuis la reponse de `GET /api/cv`.
+   */
+  const [layout, setLayout] = useState(createDefaultLayout);
 
   /**
    * Template courant deduit de `templatesList` + `templateId` pour
@@ -128,6 +138,10 @@ export default function CvEditorBeta({
     }
   }, [onTemplateOptionsChange]);
 
+  const handleLayoutChange = useCallback((nextLayout) => {
+    setLayout(sanitizeLayout(nextLayout));
+  }, []);
+
   if (loading) {
     return (
       <div className="cv-editor-beta cv-editor-beta--loading">
@@ -193,6 +207,8 @@ export default function CvEditorBeta({
             onClose={handleInspectorClose}
             cv={cv}
             onCvChange={handleCvChange}
+            layout={layout}
+            onLayoutChange={handleLayoutChange}
           />
         </div>
       </div>

@@ -71,6 +71,7 @@
 .editor-inspector-drawer {
   width: 340px;
   max-width: 100%;
+  flex-shrink: 0;
   background: #ffffff;
   border-left: 1px solid #e2e8f0;
   display: flex;

@@ -65,13 +65,14 @@ function PolitiqueConfidentialite() {
         <li><strong>Données de compte :</strong> adresse e-mail, nom (optionnel), fournies lors de l'inscription via Supabase Auth.</li>
         <li><strong>Données de profil / CV :</strong> informations professionnelles saisies ou importées (expériences, formations, compétences, coordonnées).</li>
         <li><strong>Données de candidatures :</strong> offres d'emploi enregistrées, statuts, documents générés.</li>
+        <li><strong>Données de paiement :</strong> gérées exclusivement par Stripe. Nous ne stockons aucun numéro de carte bancaire.</li>
         <li><strong>Données techniques :</strong> logs de connexion, adresse IP (pour la sécurité et le rate-limiting).</li>
       </ul>
 
       <h2>3. Finalités du traitement</h2>
       <ul>
         <li>Fournir le service de génération et d'adaptation de CV par IA.</li>
-        <li>Gérer votre compte utilisateur.</li>
+        <li>Gérer votre compte utilisateur et vos abonnements.</li>
         <li>Améliorer le service (métriques anonymisées).</li>
         <li>Assurer la sécurité du service.</li>
       </ul>
@@ -86,6 +87,7 @@ function PolitiqueConfidentialite() {
       <p>Vos données personnelles ne sont jamais vendues. Elles peuvent être partagées avec :</p>
       <ul>
         <li><strong>Supabase</strong> (hébergement de la base de données et authentification)</li>
+        <li><strong>Stripe</strong> (traitement des paiements)</li>
         <li><strong>Google Gemini</strong> (traitement IA - les données envoyées sont limitées au contenu du CV et de l'offre)</li>
         <li><strong>DigitalOcean</strong> (hébergement du serveur)</li>
         <li>
@@ -169,11 +171,15 @@ function CGU() {
         de la confidentialité de ses identifiants de connexion.
       </p>
 
-      <h2>4. Gratuité du service</h2>
+      <h2>4. Offres et tarifs</h2>
+      <ul>
+        <li><strong>Offre Gratuite :</strong> 3 adaptations de CV, import de documents, suivi de candidatures, export PDF.</li>
+        <li><strong>Offre Pro (10 €/mois) :</strong> adaptations illimitées, lettres de motivation IA, support prioritaire.</li>
+      </ul>
       <p>
-        Le service {SITE_NAME} est mis à disposition gratuitement, sans abonnement payant ni
-        achat intégré. L'ensemble des fonctionnalités (adaptations IA, suivi de candidatures,
-        export PDF, lettres de motivation, templates) est accessible sans frais.
+        Les paiements sont gérés par Stripe. L'abonnement Pro est mensuel et peut être résilié
+        à tout moment via le portail de gestion accessible dans l'application. La résiliation prend
+        effet à la fin de la période de facturation en cours.
       </p>
 
       <h2>5. Propriété des contenus</h2>

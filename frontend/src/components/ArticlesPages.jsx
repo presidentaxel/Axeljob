@@ -104,7 +104,7 @@ function ArticleLayout({ title, lead, sections, onBack, prose }) {
       <section className="content-cta">
         <div className="content-cta-inner">
           <h2>Un CV adapté à chaque offre, en un clic</h2>
-          <p>Essaie AxeL Job gratuitement. 100 % gratuit, sans carte bancaire.</p>
+          <p>Essaie AxeL Job gratuitement. 3 adaptations offertes, sans carte bancaire.</p>
           <Link to="/login" className="btn">Essayer gratuitement</Link>
         </div>
       </section>

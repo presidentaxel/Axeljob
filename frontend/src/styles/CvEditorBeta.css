@@ -3,14 +3,47 @@
  * Ces styles ne touchent pas a la version stable (ProfileView.jsx).
  */
 
+/* Mode plein ecran : masque le page-header parent (rendu par App.jsx) et
+ * neutralise le padding du page-content. La classe est ajoutee sur <body>
+ * par CvEditorBeta.jsx au mount et retiree au unmount, donc le mode stable
+ * ne voit jamais ces regles.
+ *
+ * Specificite : `body.cv-editor-beta-fullscreen .app-page X` = (0,3,1),
+ * superieure aux styles existants `.app-page X` = (0,2,0). Pas besoin
+ * d `!important` -- on garde la cascade propre.
+ */
+body.cv-editor-beta-fullscreen .app-page .page-header {
+  display: none;
+}
+
+body.cv-editor-beta-fullscreen .app-page .page-content {
+  padding: 0;
+  margin: 0;
+  max-width: none;
+  width: 100%;
+  height: 100%;
+}
+
+/* Le wrapper .view-profil a parfois ses propres styles (cf. App.css
+ * `.view-profil .page-content`) qui ajoutent du padding ou un grid. */
+body.cv-editor-beta-fullscreen .view-profil.app-page .page-content {
+  padding: 0;
+  margin: 0;
+  display: block;
+}
+
+body.cv-editor-beta-fullscreen .app-page {
+  padding: 0;
+}
+
 .cv-editor-beta {
   display: flex;
   flex-direction: column;
   min-height: 100%;
   background: #f8fafc;
-  border-radius: 0.5rem;
+  border-radius: 0;
   overflow: hidden;
-  border: 1px solid #e2e8f0;
+  border: none;
 }
 
 .cv-editor-beta--loading {
@@ -53,22 +86,6 @@
   font-size: 0.95rem;
   font-weight: 600;
   color: #1e293b;
-}
-
-.cv-editor-beta-back-btn {
-  background: white;
-  border: 1px solid #cbd5e0;
-  border-radius: 0.4rem;
-  padding: 0.35rem 0.7rem;
-  font-size: 0.8rem;
-  color: #475569;
-  cursor: pointer;
-  transition: background-color 150ms ease, border-color 150ms ease;
-}
-
-.cv-editor-beta-back-btn:hover {
-  background: #f1f5f9;
-  border-color: #94a3b8;
 }
 
 .cv-editor-beta-error {

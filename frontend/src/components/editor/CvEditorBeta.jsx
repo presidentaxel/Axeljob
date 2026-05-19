@@ -2,12 +2,19 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { apiGet, apiPut } from '../../api';
 import { defaultCv } from '../../data/cvDefault';
-import { useBetaMode } from '../../lib/useBetaMode.js';
 import CvEditablePreview from '../CvEditablePreview.jsx';
 
 import EditorAtsScoreBadge from './EditorAtsScoreBadge.jsx';
 
 import '../../styles/CvEditorBeta.css';
+
+/**
+ * Classe injectee sur `<body>` quand l editeur Beta est monte. Permet aux
+ * styles de CvEditorBeta.css de masquer le `page-header` et de neutraliser
+ * le padding/margin du `page-content` parent (qui vient d App.jsx),
+ * **sans toucher a App.jsx**.
+ */
+const BODY_FULLSCREEN_CLASS = 'cv-editor-beta-fullscreen';
 
 /**
  * Editeur de CV Beta — squelette P1.1.
@@ -41,13 +48,29 @@ export default function CvEditorBeta({
   onTemplateIdChange,
   onTemplateOptionsChange,
 }) {
-  const [, setBetaMode] = useBetaMode();
   const [cv, setCv] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [saveStatus, setSaveStatus] = useState('idle');
   const saveTimerRef = useRef(null);
   const pendingCvRef = useRef(null);
+
+  /**
+   * Active le mode plein ecran en injectant une classe sur `<body>`.
+   * Reversible au demontage (retour mode stable, navigation, etc.).
+   *
+   * On utilise `document.body` plutot qu un parent React car le
+   * `page-header` et le wrapper `page-content` sont rendus par App.jsx,
+   * hors de notre arbre. Ainsi on garde toute la maitrise des styles
+   * dans CvEditorBeta.css sans modifier App.jsx.
+   */
+  useEffect(() => {
+    if (typeof document === 'undefined' || !document.body) return undefined;
+    document.body.classList.add(BODY_FULLSCREEN_CLASS);
+    return () => {
+      document.body.classList.remove(BODY_FULLSCREEN_CLASS);
+    };
+  }, []);
 
   useEffect(() => {
     let aborted = false;
@@ -101,15 +124,6 @@ export default function CvEditorBeta({
     };
   }, []);
 
-  const handleDisableBeta = () => {
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-      flushSave().finally(() => setBetaMode(false));
-      return;
-    }
-    setBetaMode(false);
-  };
-
   if (loading) {
     return (
       <div className="cv-editor-beta cv-editor-beta--loading">
@@ -128,14 +142,6 @@ export default function CvEditorBeta({
         <div className="cv-editor-beta-topbar-right">
           <SaveStatusPill status={saveStatus} />
           <EditorAtsScoreBadge templateId={templateId} cv={cv} />
-          <button
-            type="button"
-            className="cv-editor-beta-back-btn"
-            onClick={handleDisableBeta}
-            title="Quitter le mode Beta et revenir à la version stable"
-          >
-            ← Mode stable
-          </button>
         </div>
       </header>
 

@@ -554,6 +554,30 @@ def _require_pro_for_letter_features(user_id: str | None) -> None:
         )
 
 
+def _enforce_free_adaptations_quota(user_id: str | None) -> None:
+    """Bloque (402) un user free qui a atteint sa limite d'adaptations IA.
+
+    Pro / paywall_disabled passent toujours. Limite gratuite = anchor +
+    FREE_ADAPTATIONS_LIMIT (3) + bonus configurable.
+    """
+    uid = user_id or "default"
+    plan = get_user_plan(uid)
+    no_paywall = get_paywall_disabled(uid)
+    if plan == "pro" or no_paywall:
+        return
+    count = count_quota_adaptations(uid)
+    cap = (
+        get_free_adaptation_count_anchor(uid)
+        + FREE_ADAPTATIONS_LIMIT
+        + get_free_adaptation_bonus(uid)
+    )
+    if count >= cap:
+        raise HTTPException(
+            status_code=402,
+            detail="Vous avez épuisé vos adaptations gratuites. Passez en Pro pour des adaptations illimitées.",
+        )
+
+
 def _safe_adaptation_id(adaptation_id: str) -> bool:
     if not adaptation_id or len(adaptation_id) > 80:
         return False
@@ -2529,18 +2553,7 @@ def _adapt_run_prepare(request: Request, body: AdaptRunBody) -> dict:
         ensure_implicit_free_adaptation_anchor(user_id)
     plan = get_user_plan(uid)
     no_paywall = get_paywall_disabled(uid)
-    if plan == "free" and not no_paywall:
-        count = count_quota_adaptations(uid)
-        cap = (
-            get_free_adaptation_count_anchor(uid)
-            + FREE_ADAPTATIONS_LIMIT
-            + get_free_adaptation_bonus(uid)
-        )
-        if count >= cap:
-            raise HTTPException(
-                status_code=402,
-                detail="Vous avez épuisé vos adaptations gratuites. Passez en Pro pour des adaptations illimitées.",
-            )
+    _enforce_free_adaptations_quota(user_id)
     adaptation_id = _adaptation_id_from_user_and_offer(user_id, description)
     if plan == "free" and not no_paywall:
         if (
@@ -3020,18 +3033,7 @@ def api_adapt(request: Request, body: AdaptBody):
         ensure_implicit_free_adaptation_anchor(user_id)
     plan = get_user_plan(uid)
     no_paywall = get_paywall_disabled(uid)
-    if plan == "free" and not no_paywall:
-        count = count_quota_adaptations(uid)
-        cap = (
-            get_free_adaptation_count_anchor(uid)
-            + FREE_ADAPTATIONS_LIMIT
-            + get_free_adaptation_bonus(uid)
-        )
-        if count >= cap:
-            raise HTTPException(
-                status_code=402,
-                detail="Vous avez épuisé vos adaptations gratuites. Passez en Pro pour des adaptations illimitées.",
-            )
+    _enforce_free_adaptations_quota(user_id)
     adaptation_id = _adaptation_id_from_user_and_offer(user_id, description)
     if plan == "free" and not no_paywall:
         if (

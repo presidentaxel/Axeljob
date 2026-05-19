@@ -55,6 +55,22 @@ test.describe('Smoke', () => {
     expect(status).toBe(200);
   });
 
+  test('parcours paiement: endpoint checkout mocké joignable', async ({ page }) => {
+    await page.route('**/api/create-checkout-session', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ url: 'https://checkout.stripe.test/session_123' }),
+      });
+    });
+    await page.goto('/');
+    const payload = await page.evaluate(async () => {
+      const r = await fetch('/api/create-checkout-session', { method: 'POST' });
+      return r.json();
+    });
+    expect(payload.url).toContain('checkout.stripe.test');
+  });
+
   /**
    * L'onglet Settings (/app/settings) doit être reconnu comme une route
    * workspace valide : pas de NotFoundPage, et la SPA se charge correctement.

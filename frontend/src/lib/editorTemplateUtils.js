@@ -3,36 +3,53 @@
  *
  * Volontairement separes des composants React pour rester testables sous
  * `node --test` (sans DOM ni React).
+ *
+ * Le concept "premium" et les templates personnalises (prefixe `custom_`)
+ * ont ete retires : tous les utilisateurs accedent a l ensemble des
+ * templates livres et personnalisent leur design via les options du
+ * template (couleurs, police, sidebar, etc.) plutot que via un template
+ * pre-existant marque comme custom.
  */
 
 /**
- * Trie une liste de templates pour l affichage dans le selecteur de la
- * topbar editeur :
- *   1. les templates ATS-safe / single-column en premier (recommandes pour
- *      le parsing) ;
- *   2. les autres ensuite ;
- *   3. les templates premium en bas de chaque groupe (sans les exclure).
+ * Trie et filtre la liste de templates pour le selecteur de la topbar
+ * editeur.
  *
- * L ordre est stable et determine par les tags. On evite de muter
- * l input (retour d un nouveau tableau).
+ *  1. Ecarte les templates personnalises (id `custom_*` ou tag `custom`).
+ *     Plus de notion de "templates persistes par utilisateur" depuis la
+ *     refonte du profil : chacun adapte son design via les options.
+ *  2. Place les templates ATS-safe / single-column en premier (heuristique
+ *     produit : ils donnent un meilleur score de parsing).
+ *  3. Trie ensuite alphabetiquement par `name` pour un ordre stable et
+ *     previsible.
+ *
+ * L input n est jamais mute (retour d un nouveau tableau).
  */
 export function sortTemplatesForEditor(templates) {
   if (!Array.isArray(templates)) return [];
-  const items = templates.filter(isTemplateLike);
+  const items = templates.filter(isOfficialTemplate);
   return [...items].sort((a, b) => {
     const aSafe = isAtsSafe(a) ? 0 : 1;
     const bSafe = isAtsSafe(b) ? 0 : 1;
     if (aSafe !== bSafe) return aSafe - bSafe;
-    const aPremium = a.premium ? 1 : 0;
-    const bPremium = b.premium ? 1 : 0;
-    if (aPremium !== bPremium) return aPremium - bPremium;
     return (a.name || a.id || '').localeCompare(b.name || b.id || '');
   });
 }
 
-/** Un template doit avoir au minimum un `id` non vide. */
-function isTemplateLike(item) {
-  return Boolean(item && typeof item === 'object' && typeof item.id === 'string' && item.id.length > 0);
+/**
+ * Un template "officiel" :
+ *  - a un `id` non vide,
+ *  - n est PAS un template personnalise (`custom_*` ou tag `custom`).
+ *
+ * Cette fonction est exportee pour pouvoir filtrer ailleurs (ex. badge
+ * recommandation, redirection en cas de templateId obsolete).
+ */
+export function isOfficialTemplate(item) {
+  if (!item || typeof item !== 'object') return false;
+  if (typeof item.id !== 'string' || item.id.length === 0) return false;
+  if (item.id.startsWith('custom_')) return false;
+  if (Array.isArray(item.tags) && item.tags.includes('custom')) return false;
+  return true;
 }
 
 /**
@@ -45,15 +62,10 @@ export function isAtsSafe(template) {
   return template.tags.includes('ats-safe') || template.tags.includes('single-column');
 }
 
-/**
- * Label affiche dans le `<option>` du selecteur. On ajoute un suffixe
- * discret quand le template est marque premium (le backend gere le paywall
- * effectif, on signale juste a l UX que le template est de cette categorie).
- */
+/** Label affiche dans le `<option>` du selecteur. */
 export function templateOptionLabel(template) {
   if (!template || typeof template !== 'object') return '';
-  const name = template.name || template.id || '?';
-  return template.premium ? `${name} (premium)` : name;
+  return template.name || template.id || '';
 }
 
 /**

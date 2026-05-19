@@ -7,6 +7,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   font-size: 0.75rem;
   font-weight: 500;
   color: #4a5568;

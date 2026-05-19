@@ -2,6 +2,9 @@
 
 import json
 import logging
+import threading
+import time
+from collections import OrderedDict
 from datetime import datetime, timezone
 
 from backend.config import (
@@ -12,16 +15,115 @@ from backend.config import (
     SUPABASE_URL,
     USE_SUPABASE,
     USE_SUPABASE_PG,
+    USER_PLAN_CACHE_TTL_SEC,
 )
 from backend.supabase_metrics import inc_pg_fallback
 
 logger = logging.getLogger(__name__)
+
+# Aligné sur main.FREE_ADAPTATIONS_LIMIT : au-delà, ancrage implicite possible.
+_FREE_ADAPTATIONS_BASE_LIMIT = 3
+
+_user_plan_lock = threading.Lock()
+# uid -> (plan, paywall_disabled, free_adaptation_bonus, free_adaptation_count_anchor, expire_monotonic)
+# OrderedDict pour éviction LRU O(1) bornée à _USER_PLAN_CACHE_MAX entrées : sans cap, le dict
+# grossit sans fin (un user vu une fois reste en RAM jusqu'au redémarrage).
+_USER_PLAN_CACHE_MAX = 5000
+_user_plan_cache: "OrderedDict[str, tuple[str, bool, int, int, float]]" = OrderedDict()
 
 
 def _warn_pg_fallback(operation: str, exc: BaseException) -> None:
     """PG direct indisponible : repli sur le client Supabase (PostgREST)."""
     inc_pg_fallback(operation)
     logger.info("Supabase PG → repli REST pour %s : %s", operation, exc)
+
+
+def _invalidate_user_plan_cache(uid: str) -> None:
+    with _user_plan_lock:
+        _user_plan_cache.pop(uid, None)
+
+
+def _user_plan_cache_purge_expired_locked(now: float) -> None:
+    """Supprime toutes les entrées expirées (appelé sous _user_plan_lock).
+
+    Léger : appelé seulement sur miss/insertion, pas à chaque hit. Limite la dérive RAM
+    quand des milliers d'utilisateurs distincts touchent l'API puis disparaissent.
+    """
+    if not _user_plan_cache:
+        return
+    expired = [k for k, v in _user_plan_cache.items() if v[4] <= now]
+    for k in expired:
+        _user_plan_cache.pop(k, None)
+
+
+def _user_plan_cache_set_locked(uid: str, value: tuple[str, bool, int, int, float]) -> None:
+    """Insère une entrée et applique la cap LRU (sous _user_plan_lock)."""
+    if uid in _user_plan_cache:
+        _user_plan_cache.move_to_end(uid)
+    _user_plan_cache[uid] = value
+    # Eviction LRU : pop oldest si dépassement
+    while len(_user_plan_cache) > _USER_PLAN_CACHE_MAX:
+        _user_plan_cache.popitem(last=False)
+
+
+def _fetch_user_plan_state(uid: str) -> tuple[str, bool, int, int]:
+    """Store : (plan, paywall_disabled, free_adaptation_bonus, free_adaptation_count_anchor)."""
+    sb = _get_supabase()
+    if not sb:
+        return "free", False, 0, 0
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg as spg
+
+            row = spg.get_user_plan_row(uid)
+            if row:
+                plan = "pro" if row[0] == "pro" else "free"
+                return plan, bool(row[1]), int(row[2]), int(row[3])
+            return "free", False, 0, 0
+        except Exception as e:
+            _warn_pg_fallback("get_user_plan_row", e)
+    try:
+        r = (
+            sb.table("user_plans")
+            .select("plan, paywall_disabled, free_adaptation_bonus, free_adaptation_count_anchor")
+            .eq("user_id", uid)
+            .limit(1)
+            .execute()
+        )
+        if r.data and len(r.data) > 0:
+            row = r.data[0]
+            plan = "pro" if row.get("plan") == "pro" else "free"
+            raw_bonus = row.get("free_adaptation_bonus")
+            try:
+                bonus = max(0, int(raw_bonus or 0))
+            except (TypeError, ValueError):
+                bonus = 0
+            raw_anchor = row.get("free_adaptation_count_anchor")
+            try:
+                anchor = max(0, int(raw_anchor or 0))
+            except (TypeError, ValueError):
+                anchor = 0
+            return plan, bool(row.get("paywall_disabled")), bonus, anchor
+    except Exception:
+        pass
+    return "free", False, 0, 0
+
+
+def _get_cached_user_plan_state(uid: str) -> tuple[str, bool, int, int]:
+    ttl = USER_PLAN_CACHE_TTL_SEC
+    if ttl <= 0:
+        return _fetch_user_plan_state(uid)
+    now = time.monotonic()
+    with _user_plan_lock:
+        hit = _user_plan_cache.get(uid)
+        if hit is not None and hit[4] > now:
+            _user_plan_cache.move_to_end(uid)
+            return hit[0], hit[1], hit[2], hit[3]
+    plan, pw, bonus, anchor = _fetch_user_plan_state(uid)
+    with _user_plan_lock:
+        _user_plan_cache_purge_expired_locked(now)
+        _user_plan_cache_set_locked(uid, (plan, pw, bonus, anchor, now + ttl))
+    return plan, pw, bonus, anchor
 
 
 CV_BASE_PATH = BASE_DIR / "cv_base.json"
@@ -829,7 +931,7 @@ def _application_is_active_non_archived(payload: dict | None) -> bool:
 
 
 def count_active_applications(user_id: str | None = None) -> int:
-    """Candidatures non archivées (Kanban actif)."""
+    """Candidatures non archivées (Kanban actif), pour le plafond FREE_APPLICATIONS_LIMIT."""
     uid = (user_id or "default").strip() or "default"
     sb = _get_supabase()
     if sb:
@@ -866,6 +968,204 @@ def count_active_applications(user_id: str | None = None) -> int:
         if _application_is_active_non_archived(data):
             n += 1
     return n
+
+
+def get_user_plan(user_id: str | None = None) -> str:
+    """Retourne 'free' ou 'pro'. Par défaut 'free' si pas de ligne."""
+    uid = (user_id or "default").strip() or "default"
+    if not _get_supabase():
+        return "free"
+    plan, _, _, _ = _get_cached_user_plan_state(uid)
+    return plan
+
+
+def get_paywall_disabled(user_id: str | None = None) -> bool:
+    """True si le paywall est désactivé pour cet utilisateur (option dans user_plans.paywall_disabled)."""
+    uid = (user_id or "default").strip() or "default"
+    if not _get_supabase():
+        return False
+    _, pw, _, _ = _get_cached_user_plan_state(uid)
+    return pw
+
+
+def get_free_adaptation_bonus(user_id: str | None = None) -> int:
+    """Crédits gratuits supplémentaires (user_plans.free_adaptation_bonus), 0 si pas de ligne ou sans Supabase."""
+    uid = (user_id or "default").strip() or "default"
+    if not _get_supabase():
+        return 0
+    _, _, bonus, _ = _get_cached_user_plan_state(uid)
+    return bonus
+
+
+def get_free_adaptation_count_anchor(user_id: str | None = None) -> int:
+    """Ancrage quota / affichage (user_plans.free_adaptation_count_anchor), 0 si absent."""
+    uid = (user_id or "default").strip() or "default"
+    if not _get_supabase():
+        return 0
+    _, _, _, anchor = _get_cached_user_plan_state(uid)
+    return anchor
+
+
+def ensure_implicit_free_adaptation_anchor(user_id: str | None = None) -> None:
+    """
+    Si l'utilisateur a déjà plus de 3 candidatures et que anchor/bonus sont encore à 0,
+    fixe free_adaptation_count_anchor sur le count actuel : jauge 0/3 + 3 essais sans SQL manuel.
+    Ne s'applique pas au user_id fictif « default », ni pro / paywall_disabled.
+    """
+    uid = (user_id or "default").strip() or "default"
+    if uid == "default":
+        return
+    sb = _get_supabase()
+    if not sb:
+        return
+    count = count_quota_adaptations(uid)
+    if count <= _FREE_ADAPTATIONS_BASE_LIMIT:
+        return
+    plan, pw, bonus, anchor = _fetch_user_plan_state(uid)
+    if plan == "pro" or pw:
+        return
+    if anchor != 0 or bonus != 0:
+        return
+    try:
+        if USE_SUPABASE_PG:
+            try:
+                from backend import supabase_pg as spg
+
+                spg.upsert_free_adaptation_count_anchor(uid, count)
+                _invalidate_user_plan_cache(uid)
+                return
+            except Exception as e:
+                _warn_pg_fallback("upsert_free_adaptation_count_anchor", e)
+        ex = sb.table("user_plans").select("user_id").eq("user_id", uid).limit(1).execute()
+        if ex.data:
+            sb.table("user_plans").update({"free_adaptation_count_anchor": count}).eq(
+                "user_id", uid
+            ).execute()
+        else:
+            sb.table("user_plans").insert(
+                {
+                    "user_id": uid,
+                    "plan": "free",
+                    "free_adaptation_count_anchor": count,
+                }
+            ).execute()
+        _invalidate_user_plan_cache(uid)
+    except Exception as e:
+        logger.warning("ensure_implicit_free_adaptation_anchor %s: %s", uid, e)
+
+
+def get_user_stripe_ids(user_id: str | None = None) -> tuple[str | None, str | None]:
+    """Retourne (stripe_customer_id, stripe_subscription_id) depuis user_plans."""
+    uid = (user_id or "default").strip() or "default"
+    sb = _get_supabase()
+    if not sb:
+        return None, None
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg as spg
+
+            row = spg.get_user_plan_stripe_fields(uid)
+            if row:
+                cid = row.get("stripe_customer_id")
+                sid = row.get("stripe_subscription_id")
+                return (
+                    str(cid).strip() if cid else None,
+                    str(sid).strip() if sid else None,
+                )
+            return None, None
+        except Exception as e:
+            _warn_pg_fallback("get_user_plan_stripe_fields", e)
+    try:
+        r = (
+            sb.table("user_plans")
+            .select("stripe_customer_id, stripe_subscription_id")
+            .eq("user_id", uid)
+            .limit(1)
+            .execute()
+        )
+        if r.data and len(r.data) > 0:
+            row = r.data[0]
+            cid = row.get("stripe_customer_id")
+            sid = row.get("stripe_subscription_id")
+            return (
+                str(cid).strip() if cid else None,
+                str(sid).strip() if sid else None,
+            )
+    except Exception:
+        pass
+    return None, None
+
+
+def find_user_id_by_stripe_subscription_id(subscription_id: str) -> str | None:
+    """user_id associé à un abonnement Stripe (pour webhooks)."""
+    sid = (subscription_id or "").strip()
+    if not sid or not _get_supabase():
+        return None
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg as spg
+
+            return spg.find_user_id_by_stripe_subscription_id(sid)
+        except Exception as e:
+            _warn_pg_fallback("find_user_id_by_stripe_subscription_id", e)
+    try:
+        r = (
+            _get_supabase()
+            .table("user_plans")
+            .select("user_id")
+            .eq("stripe_subscription_id", sid)
+            .limit(1)
+            .execute()
+        )
+        if r.data and len(r.data) > 0:
+            uid = r.data[0].get("user_id")
+            return str(uid).strip() if uid else None
+    except Exception:
+        pass
+    return None
+
+
+def set_user_plan(
+    user_id: str,
+    plan: str,
+    stripe_customer_id: str | None = None,
+    stripe_subscription_id: str | None = None,
+) -> None:
+    """Met à jour le plan utilisateur (free/pro). Créé la ligne si besoin."""
+    uid = (user_id or "default").strip() or "default"
+    sb = _get_supabase()
+    if not sb:
+        return
+    ts = datetime.now(timezone.utc).isoformat()
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg as spg
+
+            spg.upsert_user_plan(
+                uid,
+                plan,
+                ts,
+                stripe_customer_id=stripe_customer_id,
+                stripe_subscription_id=stripe_subscription_id,
+            )
+            _invalidate_user_plan_cache(uid)
+            return
+        except Exception as e:
+            _warn_pg_fallback("set_user_plan", e)
+    try:
+        row = {
+            "user_id": uid,
+            "plan": plan,
+            "updated_at": ts,
+        }
+        if stripe_customer_id is not None:
+            row["stripe_customer_id"] = stripe_customer_id
+        if stripe_subscription_id is not None:
+            row["stripe_subscription_id"] = stripe_subscription_id
+        sb.table("user_plans").upsert(row, on_conflict="user_id").execute()
+        _invalidate_user_plan_cache(uid)
+    except Exception:
+        raise
 
 
 def update_adaptation(adaptation_id: str, updates: dict, user_id: str | None = None) -> dict | None:

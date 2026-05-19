@@ -2,6 +2,11 @@
  * Tests unitaires des helpers du selecteur de templates dans l editeur Beta.
  *
  * `node --test` ; pas de framework additionnel.
+ *
+ * Couvre notamment :
+ *  - l exclusion des templates personnalises (custom_* / tag `custom`),
+ *  - le tri stable ATS-safe en premier,
+ *  - l immutabilite de l input.
  */
 
 import { test } from 'node:test';
@@ -10,16 +15,17 @@ import assert from 'node:assert/strict';
 import {
   findTemplateById,
   isAtsSafe,
+  isOfficialTemplate,
   sortTemplatesForEditor,
   templateOptionLabel,
 } from '../../src/lib/editorTemplateUtils.js';
 
 const TEMPLATES_FIXTURE = [
-  { id: 'creative', name: 'Creatif', tags: ['ats-safe', 'sidebar-left', 'premium'], premium: true },
-  { id: 'minimal', name: 'Minimal', tags: ['ats-safe', 'single-column'], premium: false },
-  { id: 'modern', name: 'Moderne', tags: ['ats-safe', 'sidebar-left'], premium: false },
-  { id: 'unknown', name: 'Inconnu', tags: ['weird-layout'], premium: false },
-  { id: 'classic', name: 'Classique', tags: ['ats-safe', 'sidebar'], premium: false },
+  { id: 'creative', name: 'Creatif', tags: ['ats-safe', 'sidebar-left'] },
+  { id: 'minimal', name: 'Minimal', tags: ['ats-safe', 'single-column'] },
+  { id: 'modern', name: 'Moderne', tags: ['ats-safe', 'sidebar-left'] },
+  { id: 'unknown', name: 'Inconnu', tags: ['weird-layout'] },
+  { id: 'classic', name: 'Classique', tags: ['ats-safe', 'sidebar'] },
 ];
 
 test('isAtsSafe true pour tag ats-safe', () => {
@@ -36,9 +42,32 @@ test('isAtsSafe false si pas de tag pertinent', () => {
   assert.equal(isAtsSafe(null), false);
 });
 
-test('templateOptionLabel ajoute le suffixe premium', () => {
+test('isOfficialTemplate true pour un template livre standard', () => {
+  assert.equal(isOfficialTemplate({ id: 'minimal', tags: ['ats-safe'] }), true);
+});
+
+test('isOfficialTemplate false pour prefixe custom_', () => {
+  // Regression : la refonte a supprime les templates personnalises.
+  // Ils ne doivent jamais apparaitre dans le selecteur editeur, meme
+  // s ils restent en base par accident pour des utilisateurs existants.
+  assert.equal(isOfficialTemplate({ id: 'custom_abc123', tags: [] }), false);
+});
+
+test('isOfficialTemplate false pour tag `custom`', () => {
+  assert.equal(isOfficialTemplate({ id: 'whatever', tags: ['custom', 'other'] }), false);
+});
+
+test('isOfficialTemplate false pour input invalide', () => {
+  assert.equal(isOfficialTemplate(null), false);
+  assert.equal(isOfficialTemplate({}), false);
+  assert.equal(isOfficialTemplate({ id: '' }), false);
+});
+
+test('templateOptionLabel retourne le name sans suffixe premium', () => {
+  // Regression : la notion premium a ete retiree. Aucun suffixe ne doit
+  // apparaitre meme si l API renvoyait encore un champ `premium: true`.
   assert.equal(templateOptionLabel({ id: 'x', name: 'X', premium: false }), 'X');
-  assert.equal(templateOptionLabel({ id: 'x', name: 'X', premium: true }), 'X (premium)');
+  assert.equal(templateOptionLabel({ id: 'x', name: 'X', premium: true }), 'X');
 });
 
 test('templateOptionLabel fallback sur id si name absent', () => {
@@ -50,11 +79,22 @@ test('templateOptionLabel renvoie chaine vide pour input invalide', () => {
   assert.equal(templateOptionLabel('not-an-object'), '');
 });
 
-test('sortTemplatesForEditor place les ATS-safe non-premium en premier', () => {
+test('sortTemplatesForEditor place les ATS-safe en premier puis alpha', () => {
   const sorted = sortTemplatesForEditor(TEMPLATES_FIXTURE);
   const ids = sorted.map((t) => t.id);
-  // ATS-safe non premium : classic, minimal, modern (alpha) ; puis premium ats-safe : creative ; puis non-ATS : unknown.
-  assert.deepEqual(ids, ['classic', 'minimal', 'modern', 'creative', 'unknown']);
+  // ATS-safe (alphabetique sur le name) : Classique, Creatif, Minimal, Moderne ;
+  // puis non-ATS : Inconnu.
+  assert.deepEqual(ids, ['classic', 'creative', 'minimal', 'modern', 'unknown']);
+});
+
+test('sortTemplatesForEditor exclut les templates personnalises', () => {
+  const sorted = sortTemplatesForEditor([
+    { id: 'minimal', name: 'Minimal', tags: ['ats-safe'] },
+    { id: 'custom_abc', name: 'Mon CV perso', tags: [] },
+    { id: 'modern', name: 'Moderne', tags: ['ats-safe', 'sidebar-left'] },
+    { id: 'shared_x', name: 'Tag custom', tags: ['custom'] },
+  ]);
+  assert.deepEqual(sorted.map((t) => t.id), ['minimal', 'modern']);
 });
 
 test('sortTemplatesForEditor ne mute pas l input', () => {

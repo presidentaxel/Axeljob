@@ -1,7 +1,17 @@
 /* Styles isoles de l editeur de CV Beta (mode opt-in via le toggle topbar).
  * Voir frontend/src/components/editor/CvEditorBeta.jsx.
  * Ces styles ne touchent pas a la version stable (ProfileView.jsx).
+ *
+ * Police : on aligne explicitement sur celle du software (`Plus Jakarta
+ * Sans`, definie dans App.css l.57). Les <select>, <button>, <input>
+ * natifs n heritent pas de `font-family` de maniere fiable cross-browser
+ * (notamment Chrome sur certains OS), d ou l usage d une variable locale.
  */
+.cv-editor-beta,
+body.cv-editor-beta-fullscreen .cv-editor-beta {
+  --editor-font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--editor-font-family);
+}
 
 /* Mode plein ecran : masque le page-header parent (rendu par App.jsx) et
  * neutralise le padding du page-content. La classe est ajoutee sur <body>
@@ -118,7 +128,7 @@ body.cv-editor-beta-fullscreen .app-page {
   font-size: 0.82rem;
   color: #1e293b;
   cursor: pointer;
-  font-family: inherit;
+  font-family: var(--editor-font-family);
   min-width: 9rem;
   line-height: 1.2;
   transition: border-color 150ms ease, box-shadow 150ms ease;
@@ -206,7 +216,7 @@ body.cv-editor-beta-fullscreen .app-page {
   letter-spacing: 0.02em;
   border: none;
   cursor: pointer;
-  font-family: inherit;
+  font-family: var(--editor-font-family, inherit);
 }
 .ats-badge--loading { background: #e2e8f0; color: #475569; cursor: default; }
 .ats-badge--error { background: #fee2e2; color: #991b1b; cursor: help; }

@@ -185,11 +185,16 @@ export default function CvEditablePreview({
     (cssFromHtml && cssFromHtml.length > 0) ? cssFromHtml : templateCss,
   );
 
-  // Fallback : charger le CSS par API (peut 404 en prod si la route n'est pas exposée)
+  // Fallback : charger le CSS par API (peut 404 en prod si la route n'est pas exposée).
+  // IMPORTANT : on ne vide PAS `templateCss` avant le fetch. Vider provoque un
+  // FOUC (Flash Of Unstyled Content) de 50-200 ms entre l'ancien et le nouveau
+  // template — visible sous forme d'un "tic" UX. On garde donc l'ancien CSS
+  // affiché le temps que le nouveau soit prêt, puis on swap atomiquement.
+  // Si le fetch échoue, on garde aussi l'ancien CSS : pire des cas, le rendu
+  // est légèrement décorrelé du nouveau templateId — préférable à un flash.
   useEffect(() => {
     if (cssFromHtml && cssFromHtml.length > 0) return;
     let cancelled = false;
-    setTemplateCss('');
     const tid = (templateId || 'minimal').trim();
     apiGet(`/api/templates/${tid}/template.css`)
       .then((css) => {

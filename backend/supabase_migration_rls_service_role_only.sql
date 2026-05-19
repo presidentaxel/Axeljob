@@ -20,9 +20,3 @@ drop policy if exists "Service role full access events" on public.events;
 create policy "Service role full access events"
   on public.events for all to service_role
   using (true) with check (true);
-
--- user_plans
-drop policy if exists "Service role full access user_plans" on public.user_plans;
-create policy "Service role full access user_plans"
-  on public.user_plans for all to service_role
-  using (true) with check (true);

@@ -45,10 +45,6 @@ from backend.config import (
     METRICS_AUTH_TOKEN,
     RESEND_API_KEY,
     RESEND_FROM_EMAIL,
-    STRIPE_PRICE_ID_PRO_MONTHLY,
-    STRIPE_PRICE_ID_TEMPLATE_PERSO,
-    STRIPE_SECRET_KEY,
-    STRIPE_WEBHOOK_SECRET,
     SUPPORT_ADMIN_EMAILS,
     SUPPORT_EMAIL,
     USE_SUPABASE,
@@ -78,21 +74,13 @@ from backend.db import (
     count_active_applications,
     count_quota_adaptations,
     download_application_doc_bytes,
-    ensure_implicit_free_adaptation_anchor,
-    find_user_id_by_stripe_subscription_id,
     get_adaptation,
-    get_free_adaptation_bonus,
-    get_free_adaptation_count_anchor,
-    get_paywall_disabled,
-    get_user_plan,
-    get_user_stripe_ids,
     hydrate_application_full_cv_photo,
     hydrate_application_pdf_urls,
     list_applications,
     load_cv_base,
     save_adaptation,
     save_cv_base,
-    set_user_plan,
     update_adaptation,
     upload_application_doc,
     upload_photo_to_storage,
@@ -107,7 +95,7 @@ from backend.gemini_usage import (
     usage_from_response,
 )
 from backend.security import check_user_input_for_injection
-from backend.services import billing_notifications, template_access
+from backend.services import template_access
 
 
 # --- Structured logging ---
@@ -544,15 +532,8 @@ def _adaptation_id_from_user_and_offer(user_id: str | None, description: str) ->
 
 
 def _require_pro_for_letter_features(user_id: str | None) -> None:
-    """Lettre générée par IA : réservée au plan Pro (sauf paywall_disabled)."""
-    uid = user_id or "default"
-    if get_paywall_disabled(uid):
-        return
-    if get_user_plan(uid) != "pro":
-        raise HTTPException(
-            status_code=403,
-            detail="La lettre de motivation IA est réservée au plan Pro.",
-        )
+    """Plus de paywall: la lettre IA est accessible à tous."""
+    return None
 
 
 def _safe_adaptation_id(adaptation_id: str) -> bool:
@@ -1505,32 +1486,20 @@ def api_ats_score_parsing(request: Request, body: _AtsScoreParsingBody):
     return _ats_handle_score_parsing(body)
 
 
-FREE_ADAPTATIONS_LIMIT = 3
-FREE_APPLICATIONS_LIMIT = 5
-
-
 def _effective_template_id_for_user(user_id: str | None, template_id: str | None) -> str:
-    from backend.template_registry import DEFAULT_TEMPLATE_ID, get_template
+    from backend.template_registry import DEFAULT_TEMPLATE_ID
 
     return template_access.effective_template_id_for_user(
         user_id=user_id,
         template_id=template_id,
         default_template_id=DEFAULT_TEMPLATE_ID,
-        get_template=get_template,
-        get_user_plan=get_user_plan,
-        get_paywall_disabled=get_paywall_disabled,
     )
 
 
 def _check_premium_template(user_id: str | None, template_id: str | None):
-    from backend.template_registry import get_template
-
     return template_access.check_premium_template_access(
         user_id=user_id,
         template_id=template_id,
-        get_template=get_template,
-        get_user_plan=get_user_plan,
-        get_paywall_disabled=get_paywall_disabled,
     )
 
 
@@ -1544,438 +1513,7 @@ def _check_custom_template_access(user_id: str | None, template_id: str | None):
     )
 
 
-@app.post("/api/create-checkout-session")
-def api_create_checkout_session(request: Request):
-    """Crée une session Stripe Checkout pour le plan Pro. Redirection vers Stripe."""
-    user_id = _require_user_id(request)
-    if not STRIPE_SECRET_KEY or not STRIPE_PRICE_ID_PRO_MONTHLY:
-        raise HTTPException(status_code=503, detail="Paiement non configuré.")
-    try:
-        import stripe
-
-        client = stripe.StripeClient(STRIPE_SECRET_KEY)
-        base = (FRONTEND_URL or "").rstrip("/")
-        session = client.checkout.sessions.create(
-            params={
-                "mode": "subscription",
-                "client_reference_id": user_id,
-                "allow_promotion_codes": True,
-                "line_items": [{"price": STRIPE_PRICE_ID_PRO_MONTHLY, "quantity": 1}],
-                "subscription_data": {"metadata": {"user_id": user_id}},
-                "success_url": f"{base}/app?success=pro",
-                "cancel_url": f"{base}/app?cancel=checkout",
-            }
-        )
-        return {"url": session.url}
-    except Exception as e:
-        logger.exception(e)
-        raise HTTPException(
-            status_code=500, detail="Erreur interne. Réessaie ou contacte le support."
-        )
-
-
-@app.post("/api/create-checkout-session-template-perso")
-def api_create_checkout_session_template_perso(request: Request):
-    """Crée une session Stripe Checkout one-shot pour le template personnalisé (5 €). Puis envoi email Resend après paiement."""
-    if not STRIPE_SECRET_KEY:
-        raise HTTPException(
-            status_code=503,
-            detail="STRIPE_SECRET_KEY manquante dans .env (Dashboard Stripe > Clés API).",
-        )
-    if not STRIPE_PRICE_ID_TEMPLATE_PERSO:
-        raise HTTPException(
-            status_code=503,
-            detail="STRIPE_PRICE_ID_TEMPLATE_PERSO manquant dans .env (Price one-time 5 € dans Stripe).",
-        )
-    try:
-        import stripe
-
-        client = stripe.StripeClient(STRIPE_SECRET_KEY)
-        base = (FRONTEND_URL or "").rstrip("/")
-        user_id = _get_user_id(request)
-        session = client.checkout.sessions.create(
-            params={
-                "mode": "payment",
-                "client_reference_id": user_id or "",
-                "line_items": [{"price": STRIPE_PRICE_ID_TEMPLATE_PERSO, "quantity": 1}],
-                "metadata": {"type": "template_perso"},
-                "success_url": f"{base}/app?success=template-perso",
-                "cancel_url": f"{base}/app?cancel=template-perso",
-            }
-        )
-        return {"url": session.url}
-    except Exception as e:
-        logger.exception(e)
-        raise HTTPException(
-            status_code=500, detail="Erreur interne. Réessaie ou contacte le support."
-        )
-
-
-def _primary_frontend_base_url() -> str:
-    return billing_notifications.primary_frontend_base_url(FRONTEND_URL)
-
-
-def _html_email_template_perso_confirmation() -> str:
-    return billing_notifications.html_email_template_perso_confirmation(FRONTEND_URL, SUPPORT_EMAIL)
-
-
-def _send_template_perso_email(to_email: str) -> bool:
-    return billing_notifications.send_template_perso_email(
-        to_email=to_email,
-        resend_api_key=RESEND_API_KEY,
-        resend_from_email=RESEND_FROM_EMAIL,
-        frontend_url=FRONTEND_URL,
-        support_email=SUPPORT_EMAIL,
-    )
-
-
-def _stripe_attr(obj, name: str):
-    if obj is None:
-        return None
-    if isinstance(obj, dict):
-        return obj.get(name)
-    return getattr(obj, name, None)
-
-
-def _stripe_period_end_label_fr(unix_ts: int | None) -> str:
-    if not unix_ts:
-        return ""
-    dt = datetime.fromtimestamp(int(unix_ts), tz=timezone.utc)
-    return dt.strftime("%d/%m/%Y")
-
-
-def _stripe_client():
-    return billing_notifications.stripe_client(STRIPE_SECRET_KEY)
-
-
-def _stripe_customer_id_for_user(client, user_id: str) -> str | None:
-    customers = client.customers.search(params={"query": f"metadata['user_id']:'{user_id}'"})
-    if customers.data:
-        return customers.data[0].id
-    sessions = client.checkout.sessions.list(params={"limit": 100})
-    for s in sessions.data:
-        if s.client_reference_id == user_id and s.customer:
-            cid = s.customer
-            return cid if isinstance(cid, str) else _stripe_attr(cid, "id")
-    return None
-
-
-def _stripe_first_active_subscription_id(client, customer_id: str) -> str | None:
-    lst = client.subscriptions.list(
-        params={"customer": customer_id, "status": "active", "limit": 10}
-    )
-    for s in lst.data:
-        sid = _stripe_attr(s, "id")
-        if sid:
-            return sid
-    return None
-
-
-# Cache des snapshots Stripe : /api/usage est appelé en polling par le frontend (toutes les
-# 30s ~). Sans cache, chaque appel = 1-2 round-trips Stripe API (200-500ms). Avec un TTL
-# court (90s), on divise par ~3 le nombre d'appels Stripe sans nuire à la réactivité de
-# l'affichage (résiliation programmée n'a pas besoin d'être à la seconde près).
 from backend.perf_cache import TTLCache as _TTLCache
-
-_STRIPE_SNAPSHOT_CACHE = _TTLCache(max_size=2000, ttl_sec=90.0)
-_STRIPE_SUB_RESOLVE_CACHE = _TTLCache(max_size=2000, ttl_sec=300.0)
-
-
-def _stripe_subscription_snapshot_dict(client, subscription_id: str) -> dict | None:
-    """Lecture seule : état affichage (fin de période, résiliation programmée). Cache TTL 90s."""
-    cached = _STRIPE_SNAPSHOT_CACHE.get(subscription_id)
-    if cached is not None:
-        return cached or None
-    try:
-        sub = client.subscriptions.retrieve(subscription_id)
-        cpe = _stripe_attr(sub, "current_period_end")
-        catp = bool(_stripe_attr(sub, "cancel_at_period_end"))
-        st = _stripe_attr(sub, "status") or ""
-        if cpe is None:
-            _STRIPE_SNAPSHOT_CACHE.set(subscription_id, "")
-            return None
-        cpe = int(cpe)
-        snap = {
-            "status": st,
-            "cancel_at_period_end": catp,
-            "current_period_end": cpe,
-            "current_period_end_iso": datetime.fromtimestamp(cpe, tz=timezone.utc).isoformat(),
-            "current_period_end_label": _stripe_period_end_label_fr(cpe),
-        }
-        _STRIPE_SNAPSHOT_CACHE.set(subscription_id, snap)
-        return snap
-    except Exception as e:
-        logger.info("Stripe subscription snapshot failed for %s: %s", subscription_id, e)
-        return None
-
-
-def _resolve_pro_subscription_id(client, user_id: str) -> tuple[str | None, str | None]:
-    """
-    Retourne (customer_id, subscription_id) pour l'abonnement Pro actif, ou (None, None).
-    Cache TTL 5min : la (customer, sub) résolue ne change quasiment jamais après l'achat ;
-    en cas de résiliation, _STRIPE_SNAPSHOT_CACHE expire en 90s donc l'UI reste à jour.
-    """
-    cached = _STRIPE_SUB_RESOLVE_CACHE.get(user_id)
-    if cached is not None:
-        return cached  # tuple (cust_id, sub_id)
-    cust_id, sub_id_db = get_user_stripe_ids(user_id)
-    if not cust_id:
-        cust_id = _stripe_customer_id_for_user(client, user_id)
-    if not cust_id:
-        result = (None, None)
-        _STRIPE_SUB_RESOLVE_CACHE.set(user_id, result)
-        return result
-    if sub_id_db:
-        try:
-            client.subscriptions.retrieve(sub_id_db)
-            result = (cust_id, sub_id_db)
-            _STRIPE_SUB_RESOLVE_CACHE.set(user_id, result)
-            return result
-        except Exception:
-            pass
-    active = _stripe_first_active_subscription_id(client, cust_id)
-    result = (cust_id, active)
-    _STRIPE_SUB_RESOLVE_CACHE.set(user_id, result)
-    return result
-
-
-def _invalidate_stripe_caches_for_user(user_id: str) -> None:
-    """À appeler quand on sait que l'abonnement vient de changer (cancel, webhook)."""
-    if user_id:
-        _STRIPE_SUB_RESOLVE_CACHE.invalidate(user_id)
-    # Snapshot indexé par sub_id : on ne connaît pas forcément lequel — laisser expirer naturellement.
-
-
-def _send_subscription_cancelled_email(to_email: str, period_end_label: str) -> bool:
-    return billing_notifications.send_subscription_cancelled_email(
-        to_email=to_email,
-        period_end_label=period_end_label,
-        resend_api_key=RESEND_API_KEY,
-        resend_from_email=RESEND_FROM_EMAIL,
-    )
-
-
-@app.post("/api/stripe-webhook")
-async def api_stripe_webhook(request: Request):
-    """Webhook Stripe : checkout.session.completed → Pro ; customer.subscription.deleted → free."""
-    if not STRIPE_SECRET_KEY or not STRIPE_WEBHOOK_SECRET:
-        raise HTTPException(status_code=503, detail="Webhook non configuré.")
-    payload = await request.body()
-    sig = request.headers.get("stripe-signature", "")
-    try:
-        import stripe
-
-        event = stripe.Webhook.construct_event(payload, sig, STRIPE_WEBHOOK_SECRET)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Payload invalide.")
-    except Exception as e:
-        if "signature" in str(e).lower():
-            raise HTTPException(status_code=400, detail="Signature invalide.")
-        raise
-    # set_user_plan / find_user_id_by_stripe_subscription_id / _send_template_perso_email
-    # font des appels DB + HTTP sync. On les déporte sur le ThreadPool pour ne pas bloquer
-    # l'event loop pendant que Stripe attend notre 200.
-    if event["type"] == "checkout.session.completed":
-        session = event["data"]["object"]
-        metadata = session.get("metadata") or {}
-        try:
-            if metadata.get("type") == "template_perso":
-                customer_details = session.get("customer_details") or {}
-                email = (
-                    customer_details.get("email") or session.get("customer_email") or ""
-                ).strip()
-                if email:
-                    await asyncio.to_thread(_send_template_perso_email, email)
-            else:
-                user_id = (session.get("client_reference_id") or "").strip()
-                if user_id:
-                    customer_id = session.get("customer")
-                    sub_id = session.get("subscription")
-                    stripe_customer_id = (
-                        customer_id
-                        if isinstance(customer_id, str)
-                        else (customer_id.id if customer_id else None)
-                    )
-                    stripe_sub_id = (
-                        sub_id if isinstance(sub_id, str) else (sub_id.id if sub_id else None)
-                    )
-                    await asyncio.to_thread(
-                        set_user_plan,
-                        user_id,
-                        "pro",
-                        stripe_customer_id=stripe_customer_id,
-                        stripe_subscription_id=stripe_sub_id,
-                    )
-                    _invalidate_stripe_caches_for_user(user_id)
-                    _invalidate_usage_cache(user_id)
-                    if stripe_sub_id:
-                        _STRIPE_SNAPSHOT_CACHE.invalidate(stripe_sub_id)
-                    logger.info("User %s set to pro after Stripe checkout", user_id)
-        except Exception as e:
-            logger.exception(
-                "Stripe webhook checkout.session.completed failed: %s (event_id=%s)",
-                e,
-                event.get("id"),
-            )
-            raise
-    elif event["type"] == "customer.subscription.deleted":
-        sub = event["data"]["object"]
-        try:
-            meta = sub.get("metadata") or {}
-            uid = (meta.get("user_id") or "").strip()
-            if not uid:
-                found = await asyncio.to_thread(
-                    find_user_id_by_stripe_subscription_id, sub.get("id") or ""
-                )
-                uid = (found or "").strip()
-            if uid:
-                await asyncio.to_thread(set_user_plan, uid, "free", stripe_subscription_id="")
-                _invalidate_stripe_caches_for_user(uid)
-                _invalidate_usage_cache(uid)
-                deleted_sub_id = (sub.get("id") or "").strip() if isinstance(sub, dict) else ""
-                if deleted_sub_id:
-                    _STRIPE_SNAPSHOT_CACHE.invalidate(deleted_sub_id)
-                logger.info("User %s set to free after Stripe subscription deleted", uid)
-        except Exception as e:
-            logger.exception(
-                "Stripe webhook customer.subscription.deleted failed: %s (event_id=%s)",
-                e,
-                event.get("id"),
-            )
-            raise
-    return {"received": True}
-
-
-@app.post("/api/create-portal-session")
-def api_create_portal_session(request: Request):
-    """Crée une session Stripe Customer Portal pour gérer l'abonnement."""
-    user_id = _require_user_id(request)
-    if not STRIPE_SECRET_KEY:
-        raise HTTPException(status_code=503, detail="Paiement non configuré.")
-    try:
-        import stripe
-
-        client = stripe.StripeClient(STRIPE_SECRET_KEY)
-        customers = client.customers.search(params={"query": f"metadata['user_id']:'{user_id}'"})
-        if not customers.data:
-            sessions = client.checkout.sessions.list(params={"limit": 100})
-            customer_id = None
-            for s in sessions.data:
-                if s.client_reference_id == user_id and s.customer:
-                    customer_id = s.customer if isinstance(s.customer, str) else s.customer.id
-                    break
-            if not customer_id:
-                raise HTTPException(status_code=404, detail="Aucun abonnement trouvé.")
-        else:
-            customer_id = customers.data[0].id
-        base = (FRONTEND_URL or "").rstrip("/")
-        portal = client.billing_portal.sessions.create(
-            params={
-                "customer": customer_id,
-                "return_url": f"{base}/app/profil",
-            }
-        )
-        return {"url": portal.url}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception(e)
-        raise HTTPException(status_code=500, detail="Erreur interne.")
-
-
-@app.post("/api/cancel-subscription")
-def api_cancel_subscription(request: Request):
-    """
-    Résiliation depuis l'app (obligation légale) : fin de période payée uniquement.
-    Utilise Stripe subscription.update(cancel_at_period_end=True), pas une annulation immédiate.
-    """
-    user_id = _require_user_id(request)
-    if not STRIPE_SECRET_KEY:
-        raise HTTPException(status_code=503, detail="Paiement non configuré.")
-    if get_paywall_disabled(user_id):
-        raise HTTPException(
-            status_code=400, detail="Ce compte n'a pas d'abonnement payant à résilier."
-        )
-    try:
-        import stripe
-
-        client = stripe.StripeClient(STRIPE_SECRET_KEY)
-        cust_id, sub_id = _resolve_pro_subscription_id(client, user_id)
-        if not cust_id or not sub_id:
-            raise HTTPException(status_code=404, detail="Aucun abonnement Stripe actif trouvé.")
-        sub = client.subscriptions.retrieve(sub_id)
-        sub_cust = _stripe_attr(sub, "customer")
-        if isinstance(sub_cust, dict):
-            sub_cust = sub_cust.get("id")
-        if sub_cust and cust_id and sub_cust != cust_id:
-            raise HTTPException(
-                status_code=403, detail="Cet abonnement n'est pas associé à ton compte."
-            )
-        st = (_stripe_attr(sub, "status") or "").lower()
-        if st not in ("active", "trialing"):
-            raise HTTPException(status_code=400, detail="Aucun abonnement actif à résilier.")
-        already = bool(_stripe_attr(sub, "cancel_at_period_end"))
-        if not already:
-            sub = client.subscriptions.update(sub_id, params={"cancel_at_period_end": True})
-            # On vient de modifier l'abonnement : invalide le cache pour que /api/usage
-            # prochain affiche immédiatement "résiliation programmée".
-            _STRIPE_SNAPSHOT_CACHE.invalidate(sub_id)
-        snap = _stripe_subscription_snapshot_dict(client, sub_id)
-        if not snap:
-            cpe = _stripe_attr(sub, "current_period_end")
-            if cpe:
-                cpe = int(cpe)
-                snap = {
-                    "status": _stripe_attr(sub, "status") or "",
-                    "cancel_at_period_end": bool(_stripe_attr(sub, "cancel_at_period_end")),
-                    "current_period_end": cpe,
-                    "current_period_end_iso": datetime.fromtimestamp(
-                        cpe, tz=timezone.utc
-                    ).isoformat(),
-                    "current_period_end_label": _stripe_period_end_label_fr(cpe),
-                }
-        # Mettre à jour les IDs en base si on les avait retrouvés dynamiquement
-        _, sub_db = get_user_stripe_ids(user_id)
-        if cust_id and (not sub_db or sub_db != sub_id):
-            set_user_plan(user_id, "pro", stripe_customer_id=cust_id, stripe_subscription_id=sub_id)
-            _invalidate_usage_cache(user_id)
-        user_email = (_get_user_email_from_jwt(request) or "").strip()
-        if user_email and snap and not already:
-            _send_subscription_cancelled_email(
-                user_email, snap.get("current_period_end_label") or ""
-            )
-        return {
-            "ok": True,
-            "already_scheduled": already,
-            **(snap or {}),
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception(e)
-        raise HTTPException(
-            status_code=500,
-            detail="Impossible de résilier pour le moment. Réessaie ou contacte le support.",
-        )
-
-
-class CancelFeedbackBody(BaseModel):
-    reason: str | None = None
-    comment: str | None = None
-
-
-@app.post("/api/cancel-feedback")
-def api_cancel_feedback(request: Request, body: CancelFeedbackBody):
-    """Enregistre un feedback optionnel avant accès au portail (ex. raison d'annulation)."""
-    user_id = _get_user_id(request)
-    if body.reason or (body.comment and body.comment.strip()):
-        logger.info(
-            "Cancel feedback user_id=%s reason=%s comment=%s",
-            user_id,
-            body.reason,
-            (body.comment or "")[:200],
-        )
-    return {"ok": True}
 
 
 class SupportTicketBody(BaseModel):
@@ -2203,9 +1741,7 @@ def api_support_reply(request: Request, body: SupportReplyBody):
 
 
 # /api/usage est appelé en polling toutes les 30s par le frontend (UsageContext).
-# Sans cache : 5-7 round-trips DB + 1-2 Stripe par appel × N users → vite saturant.
-# TTL court (15s) = on garde la réactivité (l'utilisateur voit son quota actualisé après
-# une adaptation), invalidation immédiate via _invalidate_usage_cache() après mutation.
+# TTL court (15s) = on garde la réactivité; invalidation immédiate via _invalidate_usage_cache() après mutation.
 _USAGE_CACHE = _TTLCache(max_size=5000, ttl_sec=15.0)
 
 
@@ -2216,55 +1752,25 @@ def _invalidate_usage_cache(user_id: str | None) -> None:
 
 @app.get("/api/usage")
 def api_usage(request: Request):
-    """Retourne les quotas (adaptations, candidatures) et le plan (free/pro)."""
+    """Retourne les compteurs d'usage. Tout est gratuit/illimité (plus de paywall)."""
     user_id = _get_user_id(request)
     uid = user_id or "default"
     cached = _USAGE_CACHE.get(uid)
     if cached is not None:
         return cached
-    if user_id:
-        ensure_implicit_free_adaptation_anchor(user_id)
-    plan = get_user_plan(uid)
-    no_paywall = get_paywall_disabled(uid)
     count_adapt = count_quota_adaptations(uid)
     count_active = count_active_applications(uid)
-    anchor = get_free_adaptation_count_anchor(uid)
-    bonus = get_free_adaptation_bonus(uid)
-    if plan == "pro" or no_paywall:
-        adaptations_used = count_adapt
-        adaptations_limit = 999999
-    else:
-        # Jauge toujours 0–3 à l’affichage ; quota réel = anchor + 3 + bonus.
-        rel = max(0, count_adapt - anchor)
-        adaptations_used = min(rel, FREE_ADAPTATIONS_LIMIT)
-        adaptations_limit = FREE_ADAPTATIONS_LIMIT
-    applications_limit = 999999 if (plan == "pro" or no_paywall) else FREE_APPLICATIONS_LIMIT
     user_email = _get_user_email_from_jwt(request)
     is_support = _is_support_admin(user_email)
-    stripe_subscription = None
-    if user_id and STRIPE_SECRET_KEY and plan == "pro" and not no_paywall:
-        try:
-            import stripe
-
-            client = stripe.StripeClient(STRIPE_SECRET_KEY)
-            _c, sub_id = _resolve_pro_subscription_id(client, user_id)
-            if sub_id:
-                stripe_subscription = _stripe_subscription_snapshot_dict(client, sub_id)
-        except Exception as e:
-            logger.info("api/usage stripe snapshot skipped: %s", e)
     payload = {
-        "plan": "pro" if no_paywall else plan,
-        "paywall_disabled": no_paywall,
-        "adaptations_used": adaptations_used,
-        "adaptations_limit": adaptations_limit,
+        "plan": "pro",
+        "paywall_disabled": True,
+        "adaptations_used": count_adapt,
+        "adaptations_limit": 999999,
         "applications_count": count_active,
-        "applications_limit": applications_limit,
+        "applications_limit": 999999,
         "is_support": is_support,
-        "stripe_subscription": stripe_subscription,
     }
-    if plan == "free" and not no_paywall:
-        free_cap = anchor + FREE_ADAPTATIONS_LIMIT + bonus
-        payload["adaptations_quota_remaining"] = max(0, free_cap - count_adapt)
     _USAGE_CACHE.set(uid, payload)
     return payload
 
@@ -2594,35 +2100,7 @@ def _adapt_run_prepare(request: Request, body: AdaptRunBody) -> dict:
         raise HTTPException(status_code=400, detail=str(e))
     selected_steps = _normalize_selected_step_ids(body.selected_step_ids)
     uid = user_id or "default"
-    if user_id:
-        ensure_implicit_free_adaptation_anchor(user_id)
-    plan = get_user_plan(uid)
-    no_paywall = get_paywall_disabled(uid)
-    if plan == "free" and not no_paywall:
-        count = count_quota_adaptations(uid)
-        cap = (
-            get_free_adaptation_count_anchor(uid)
-            + FREE_ADAPTATIONS_LIMIT
-            + get_free_adaptation_bonus(uid)
-        )
-        if count >= cap:
-            raise HTTPException(
-                status_code=402,
-                detail="Vous avez épuisé vos adaptations gratuites. Passez en Pro pour des adaptations illimitées.",
-            )
     adaptation_id = _adaptation_id_from_user_and_offer(user_id, description)
-    if plan == "free" and not no_paywall:
-        if (
-            not get_adaptation(adaptation_id, user_id=user_id)
-            and count_active_applications(uid) >= FREE_APPLICATIONS_LIMIT
-        ):
-            raise HTTPException(
-                status_code=403,
-                detail=(
-                    f"Plafond gratuit atteint : {FREE_APPLICATIONS_LIMIT} candidatures actives "
-                    "(archive d'anciennes entrées ou passe en Pro pour un suivi illimité)."
-                ),
-            )
     _track_analytics(
         request,
         event_log.EVENT_ADAPTATION_STARTED,
@@ -3085,35 +2563,7 @@ def api_adapt(request: Request, body: AdaptBody):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     uid = user_id or "default"
-    if user_id:
-        ensure_implicit_free_adaptation_anchor(user_id)
-    plan = get_user_plan(uid)
-    no_paywall = get_paywall_disabled(uid)
-    if plan == "free" and not no_paywall:
-        count = count_quota_adaptations(uid)
-        cap = (
-            get_free_adaptation_count_anchor(uid)
-            + FREE_ADAPTATIONS_LIMIT
-            + get_free_adaptation_bonus(uid)
-        )
-        if count >= cap:
-            raise HTTPException(
-                status_code=402,
-                detail="Vous avez épuisé vos adaptations gratuites. Passez en Pro pour des adaptations illimitées.",
-            )
     adaptation_id = _adaptation_id_from_user_and_offer(user_id, description)
-    if plan == "free" and not no_paywall:
-        if (
-            not get_adaptation(adaptation_id, user_id=user_id)
-            and count_active_applications(uid) >= FREE_APPLICATIONS_LIMIT
-        ):
-            raise HTTPException(
-                status_code=403,
-                detail=(
-                    f"Plafond gratuit atteint : {FREE_APPLICATIONS_LIMIT} candidatures actives "
-                    "(archive d'anciennes entrées ou passe en Pro pour un suivi illimité)."
-                ),
-            )
     _track_analytics(
         request,
         event_log.EVENT_ADAPTATION_STARTED,
@@ -3522,18 +2972,6 @@ def api_application_create(request: Request, body: ApplicationCreateBody):
         raise HTTPException(status_code=400, detail="Renseigne au moins le poste ou l'entreprise.")
     if body.statut not in STATUTS_CANDIDATURE:
         raise HTTPException(status_code=400, detail="Statut invalide")
-    ensure_implicit_free_adaptation_anchor(user_id)
-    plan = get_user_plan(uid)
-    no_pw = get_paywall_disabled(uid)
-    if plan == "free" and not no_pw:
-        if count_active_applications(uid) >= FREE_APPLICATIONS_LIMIT:
-            raise HTTPException(
-                status_code=403,
-                detail=(
-                    f"Plafond gratuit atteint : {FREE_APPLICATIONS_LIMIT} candidatures actives "
-                    "(archive d'anciennes entrées ou passe en Pro pour un suivi illimité)."
-                ),
-            )
     application_id = "manual_" + uuid_module.uuid4().hex[:12]
     now_iso = datetime.now(timezone.utc).isoformat()
     payload = {

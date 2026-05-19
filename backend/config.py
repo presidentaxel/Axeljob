@@ -35,17 +35,6 @@ def supabase_pg_pool_max() -> int:
     return _pg_pool_max()
 
 
-# Cache mémoire processus pour user_plans (plan + paywall) - 0 = désactivé
-def _user_plan_cache_ttl() -> float:
-    try:
-        return max(0.0, float(os.environ.get("USER_PLAN_CACHE_TTL_SEC", "30")))
-    except ValueError:
-        return 30.0
-
-
-USER_PLAN_CACHE_TTL_SEC = _user_plan_cache_ttl()
-
-
 # ThreadPool asyncio (tâches CPU / WeasyPrint) - réduire sur petit VPS
 def thread_pool_max_workers() -> int:
     try:
@@ -92,10 +81,6 @@ def _jwt_leeway_seconds() -> float:
 
 JWT_LEEWAY_SECONDS = _jwt_leeway_seconds()
 
-STRIPE_SECRET_KEY = _env("STRIPE_SECRET_KEY")
-STRIPE_PRICE_ID_PRO_MONTHLY = _env("STRIPE_PRICE_ID_PRO_MONTHLY")
-STRIPE_PRICE_ID_TEMPLATE_PERSO = _env("STRIPE_PRICE_ID_TEMPLATE_PERSO")
-STRIPE_WEBHOOK_SECRET = _env("STRIPE_WEBHOOK_SECRET")
 FRONTEND_URL = _env("CV_BOT_FRONTEND_URL") or _env("VITE_APP_URL")
 
 RESEND_API_KEY = _env("RESEND_API_KEY")

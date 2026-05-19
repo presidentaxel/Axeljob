@@ -5,7 +5,6 @@ from unittest.mock import patch
 from fastapi import HTTPException
 
 from backend import main
-from backend.services import billing_notifications
 
 
 class _FakeRequest:
@@ -89,39 +88,19 @@ class TestAuthGuards(unittest.TestCase):
 
 
 class TestTemplatePermissions(unittest.TestCase):
-    def test_check_custom_template_access_denied(self):
+    def test_check_custom_template_access_denied_when_not_owner(self):
         with patch("backend.db.can_user_use_custom_template", return_value=False):
             with self.assertRaises(HTTPException) as ctx:
                 main._check_custom_template_access("user_1", "custom_abc")
         self.assertEqual(ctx.exception.status_code, 403)
 
-    def test_check_premium_template_denied_for_free(self):
-        with (
-            patch("backend.template_registry.get_template", return_value={"premium": True}),
-            patch.object(main, "get_user_plan", return_value="free"),
-            patch.object(main, "get_paywall_disabled", return_value=False),
-        ):
-            with self.assertRaises(HTTPException) as ctx:
-                main._check_premium_template("user_1", "modern_premium")
-        self.assertEqual(ctx.exception.status_code, 402)
+    def test_check_custom_template_access_noop_for_builtin(self):
+        # Les templates non-custom passent toujours (plus de paywall premium).
+        self.assertIsNone(main._check_custom_template_access("user_1", "modern"))
 
-
-class TestBillingHelpers(unittest.TestCase):
-    def test_primary_frontend_base_url_first_origin(self):
-        out = billing_notifications.primary_frontend_base_url(
-            "https://a.example, https://b.example"
-        )
-        self.assertEqual(out, "https://a.example")
-
-    def test_send_template_perso_email_returns_false_without_key(self):
-        sent = billing_notifications.send_template_perso_email(
-            to_email="test@example.com",
-            resend_api_key="",
-            resend_from_email="AxeL Job <onboarding@resend.dev>",
-            frontend_url="https://job.example.com",
-            support_email="support@example.com",
-        )
-        self.assertFalse(sent)
+    def test_check_premium_template_is_noop(self):
+        # Le paywall premium a été désactivé : aucune exception attendue.
+        self.assertIsNone(main._check_premium_template("user_1", "bold"))
 
 
 if __name__ == "__main__":

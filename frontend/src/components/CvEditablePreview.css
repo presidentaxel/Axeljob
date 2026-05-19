@@ -57,15 +57,59 @@
 .cv-editable-preview [data-cv-field][contenteditable="true"] {
   outline: none;
   border-radius: 2px;
+  transition: background-color 110ms ease-out;
+}
+
+/* L1 polish — hover : indication discrete que la zone est cliquable.
+   On reste tres subtil pour ne pas perturber la lecture du CV. */
+.cv-editable-preview [data-cv-field][contenteditable="true"]:hover:not(:focus) {
+  background: rgba(79, 70, 229, 0.05);
+  cursor: text;
 }
 
 .cv-editable-preview [data-cv-field][contenteditable="true"]:focus {
-  background: transparent;
+  background: rgba(79, 70, 229, 0.07);
   outline: 2px solid rgba(79, 70, 229, 0.42);
   outline-offset: 1px;
   box-shadow: none;
 }
 
+/* L1 polish — placeholders.
+   Affiche un hint italique discret quand le champ est vide. Utilise
+   `currentColor` + opacite pour s adapter aussi bien au texte sombre
+   du body qu au texte clair d un header sombre (Impact/Executive).
+   `::before` est un pseudo-element : il n est PAS dans le DOM, donc
+   PAS pris en compte par `textContent` -> ne pollue jamais la sauvegarde. */
+.cv-editable-preview [data-cv-field][data-cv-empty][data-cv-placeholder]::before {
+  content: attr(data-cv-placeholder);
+  color: currentColor;
+  opacity: 0.38;
+  font-style: italic;
+  font-weight: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Au focus dans un champ vide : on attenue legerement le placeholder
+   pour donner la priorite visuelle au curseur clignotant. */
+.cv-editable-preview [data-cv-field][data-cv-empty]:focus[data-cv-placeholder]::before {
+  opacity: 0.28;
+}
+
+/* L1 polish — auto-grow visuel des champs multi-line vides.
+   Donne assez de largeur pour afficher le placeholder integral sans
+   forcer un saut a la ligne, sans non plus deformer le layout du
+   single-line. */
+.cv-editable-preview [data-cv-field][data-cv-empty][data-cv-multiline="true"] {
+  display: inline-block;
+  min-width: 14em;
+}
+
+/* Legacy : la classe `.cv-editable-empty` etait utilisee dans le JSX
+   pour donner une zone cliquable aux spans vides. Le placeholder
+   couvre desormais ce besoin ; on garde un min-width minimal pour ne
+   pas casser l ancien rendu sur d eventuelles zones non couvertes par
+   la config. */
 .cv-editable-preview .cv-editable-empty {
   min-width: 1em;
   min-height: 1em;

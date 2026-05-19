@@ -1157,6 +1157,73 @@ dnd-kit / react-dnd).
 - [x] 19 nouveaux tests unitaires verts.
 - [x] 0 lint error sur les nouveaux fichiers.
 
+#### 14.3.4 L1 polish — édition inline propre (livré, L1 polish)
+
+Une fois les fondations posées (P1.1 → P1.5), il restait l'expérience
+d'édition inline elle-même : les spans `contentEditable` étaient
+fonctionnels mais bruts (placeholder absent, Enter cassant le layout
+sur les champs single-line, pas de moyen d'annuler, paste multi-ligne
+non nettoyé). Cette itération corrige tout ça **sans toucher au JSX
+des templates**, via une couche de comportement attachée
+dynamiquement.
+
+**Implémentation** :
+
+| Rôle | Fichier |
+|---|---|
+| Mapping `path -> { placeholder, multiline }` + handlers (Enter / Escape / paste) | `frontend/src/lib/editableFieldBehavior.js` |
+| Attachement DOM (useEffect dans `CvEditablePreview`) | `frontend/src/components/CvEditablePreview.jsx` |
+| Styles placeholder + hover/focus enrichi + auto-grow multi-line | `frontend/src/components/CvEditablePreview.css` |
+| Tests unitaires (`node --test`) | `frontend/tests/unit/editableFieldBehavior.test.js` (17 tests) |
+
+**Choix techniques** :
+
+- **Pourquoi pas un composant `<EditableField>` ?** `CvEditablePreview`
+  contient ~80 spans `[data-cv-field]` répartis dans 4 templates
+  différents. Refactorer tous les spans en composant aurait été
+  invasif et risqué côté mode stable (partagé). On garde le JSX et on
+  attache la behavior via `useEffect` + `document.querySelectorAll`.
+- **Pure JS testable** : le mapping `path -> config` et tous les
+  handlers vivent dans `lib/editableFieldBehavior.js`, testable hors
+  React/jsdom avec un mock DOM minimal.
+- **Placeholders via `::before` + `attr()`** : zéro JSX touché, le
+  placeholder s'adapte automatiquement au texte (sombre sur fond clair,
+  clair sur fond sombre) grâce à `currentColor` + opacité 0.38.
+  `::before` n'est PAS dans le DOM donc PAS dans `textContent` -> ne
+  pollue jamais l'auto-save.
+- **Normalisation des paths** : `experiences.0.bullet_points.2` est
+  normalisé en `experiences.*.bullet_points.*` pour matcher un seul
+  motif côté config (un seul placeholder par TYPE de champ).
+- **Single-line vs multi-line** : déterminé par la config (ex.
+  `prenom: { multiline: false }`, `resume: { multiline: true }`).
+  Sur single-line, Enter blur + focus le champ suivant ; sur
+  multi-line, Enter insère un saut natif.
+- **Escape annule** : snapshot du `textContent` pris au focus, restauré
+  au keydown Escape + blur.
+- **Paste single-line nettoyé** : un coller multi-ligne dans un champ
+  nom / titre / dates est aplati (sauts → espace) avant insertion.
+
+**Critères d'acceptation (L1 polish)** :
+- [x] Quand un champ est vide, un placeholder italique discret
+      apparaît (ex. "Prénom", "Action ou résultat clé").
+- [x] Au focus, le placeholder s'atténue pour donner la priorité au
+      curseur.
+- [x] Hover : fond bleu très subtil + cursor `text` sur tous les
+      champs éditables.
+- [x] Focus : outline indigo 2px + fond bleu très clair (cohérent
+      avec le hover, sans clignotement à l'arrivée).
+- [x] Enter sur un champ single-line valide + passe au champ suivant
+      logique (`querySelectorAll('[data-cv-field]')` order).
+- [x] Enter sur un champ multi-line insère un saut de ligne natif.
+- [x] Escape restaure la valeur qu'avait le champ au focus + blur.
+- [x] Paste multi-ligne dans un single-line est aplati (sauts →
+      espace).
+- [x] Les champs multi-line vides ont une largeur minimale (`14em`)
+      suffisante pour afficher l'intégralité du placeholder.
+- [x] Aucun changement de JSX dans les templates (4 layouts).
+- [x] 17 tests unitaires verts (`editableFieldBehavior.test.js`).
+- [x] 0 lint error, 0 régression sur le build.
+
 ### 14.4 P2 — L2 Mise en page configurable (en hibernation, repris en P3)
 
 > **Note du 19 mai 2026** : après itération sur l'UX (P2.1 → P2.4b),

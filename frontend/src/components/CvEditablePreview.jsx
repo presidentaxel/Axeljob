@@ -3,6 +3,10 @@ import { HiPhone, HiEnvelope, HiLink } from 'react-icons/hi2';
 import { apiUrl, apiGet } from '../api';
 import { applyA4PageFramesInHost, teardownA4PageFramesInHost } from '../lib/cvPreviewA4Pages';
 import { sanitizeCssForStyleTag } from '../lib/sanitizeCssForStyle';
+import {
+  attachEditableFieldBehavior,
+  getEditableFieldConfig,
+} from '../lib/editableFieldBehavior';
 import './CvEditablePreview.css';
 
 /** Aligné sur le rendu serveur sans selection_a4 (main.py max_exp). */
@@ -233,6 +237,36 @@ export default function CvEditablePreview({
       window.clearTimeout(t2);
     };
   }, [templateId, effectiveCss, contentDensity, cv, previewHtmlWithInlineCss, layoutRefreshKey]);
+
+  /**
+   * L1 polish (edition inline propre).
+   *
+   * On attache la behavior enrichie (placeholders + Enter/Escape +
+   * paste single-line nettoye) sur chaque `[data-cv-field]` du
+   * container. Re-execute a chaque re-render du sous-arbre (templateId,
+   * cv, css, etc.) car React peut remplacer/recréer les nodes.
+   *
+   * Le cleanup retire scrupuleusement tous les listeners ET les
+   * attributs poses (data-cv-placeholder, data-cv-empty,
+   * data-cv-multiline) pour ne pas laisser de DOM "polluant".
+   */
+  useEffect(() => {
+    const wrap = containerRef.current;
+    if (!wrap) return undefined;
+    const fields = wrap.querySelectorAll('[data-cv-field]');
+    const cleanups = [];
+    for (const field of fields) {
+      const path = field.getAttribute('data-cv-field');
+      if (!path || path === '_noop') continue;
+      const cfg = getEditableFieldConfig(path);
+      cleanups.push(attachEditableFieldBehavior(field, cfg));
+    }
+    return () => {
+      for (const c of cleanups) {
+        try { c(); } catch (_) { /* ignore */ }
+      }
+    };
+  }, [templateId, cv, effectiveCss, previewHtmlWithInlineCss, layoutRefreshKey]);
 
   const handleBlur = useCallback(() => {
     if (!containerRef.current || !onChange) return;

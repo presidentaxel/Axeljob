@@ -5,6 +5,7 @@ import { defaultCv } from '../../data/cvDefault';
 import CvEditablePreview from '../CvEditablePreview.jsx';
 
 import EditorAtsScoreBadge from './EditorAtsScoreBadge.jsx';
+import EditorTemplateSelector from './EditorTemplateSelector.jsx';
 
 import '../../styles/CvEditorBeta.css';
 
@@ -45,6 +46,7 @@ export default function CvEditorBeta({
   session: _session,
   templateId,
   templateOptions,
+  templatesList,
   onTemplateIdChange,
   onTemplateOptionsChange,
 }) {
@@ -137,7 +139,11 @@ export default function CvEditorBeta({
       <header className="cv-editor-beta-topbar">
         <div className="cv-editor-beta-topbar-left">
           <span className="cv-editor-beta-badge">Mode Beta</span>
-          <span className="cv-editor-beta-title">Éditeur de CV — édition inline</span>
+          <EditorTemplateSelector
+            templates={templatesList}
+            templateId={templateId}
+            onTemplateIdChange={onTemplateIdChange}
+          />
         </div>
         <div className="cv-editor-beta-topbar-right">
           <SaveStatusPill status={saveStatus} />
@@ -162,15 +168,11 @@ export default function CvEditorBeta({
       </main>
 
       <footer className="cv-editor-beta-statusbar">
-        <span>L1 inline en construction · L2/L3 + drawer inspecteur à venir</span>
-        <span className="cv-editor-beta-statusbar-template">Template : {templateId}</span>
+        <span>L1 inline · L2/L3 + drawer inspecteur à venir</span>
       </footer>
-      {/* Les props onTemplateIdChange / onTemplateOptionsChange seront branchees
-          en P1.2 quand on ajoutera un selecteur de template a la topbar editeur. */}
-      <SuppressUnusedWarnings
-        onTemplateIdChange={onTemplateIdChange}
-        onTemplateOptionsChange={onTemplateOptionsChange}
-      />
+      {/* `onTemplateOptionsChange` sera branche en P1.4 quand on ajoutera
+          le drawer inspecteur (couleurs, polices, options du template). */}
+      <SuppressUnusedWarnings onTemplateOptionsChange={onTemplateOptionsChange} />
     </div>
   );
 }
@@ -196,8 +198,7 @@ function SaveStatusPill({ status }) {
  * used" tant qu on n a pas branche le selecteur de template (P1.2).
  * A retirer en P1.2.
  */
-function SuppressUnusedWarnings({ onTemplateIdChange, onTemplateOptionsChange }) {
-  void onTemplateIdChange;
+function SuppressUnusedWarnings({ onTemplateOptionsChange }) {
   void onTemplateOptionsChange;
   return null;
 }

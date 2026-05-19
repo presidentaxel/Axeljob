@@ -88,6 +88,64 @@ body.cv-editor-beta-fullscreen .app-page {
   color: #1e293b;
 }
 
+/* Selecteur de template dans la topbar editeur. */
+.editor-template-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.editor-template-selector-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.editor-template-selector-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: #ffffff;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%2364748b' d='M0 0l5 6 5-6z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 8px 5px;
+  border: 1px solid #cbd5e0;
+  border-radius: 0.4rem;
+  padding: 0.32rem 1.5rem 0.32rem 0.55rem;
+  font-size: 0.82rem;
+  color: #1e293b;
+  cursor: pointer;
+  font-family: inherit;
+  min-width: 9rem;
+  line-height: 1.2;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.editor-template-selector-select:hover {
+  border-color: #94a3b8;
+}
+
+.editor-template-selector-select:focus-visible {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+}
+
+.editor-template-selector-ats {
+  display: inline-block;
+  background: #dcfce7;
+  color: #14532d;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.3rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .cv-editor-beta-error {
   background: #fef2f2;
   color: #991b1b;

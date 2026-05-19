@@ -1,9 +1,9 @@
 {
   "id": "bold",
   "name": "Impact",
-  "description": "Template à fort impact visuel. En-tête pleine page, sections marquées, double colonne. Premium.",
-  "tags": ["ats-safe", "sidebar", "photo", "premium", "bold"],
-  "premium": true,
+  "description": "Template à fort impact visuel. En-tête pleine page, sections marquées, double colonne.",
+  "tags": ["ats-safe", "sidebar", "photo", "bold"],
+  "premium": false,
   "options": [
     {"key": "header_color", "type": "color", "default": "#1e293b", "label": "Couleur en-tête"},
     {"key": "sidebar_color", "type": "color", "default": "#f1f5f9", "label": "Couleur sidebar"},

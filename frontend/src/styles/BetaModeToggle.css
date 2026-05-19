@@ -1,0 +1,118 @@
+/* Toggle Stable / Beta dans la topbar.
+ * Styles isolés et dédiés pour ne pas dépendre du thème global.
+ * Voir frontend/src/components/BetaModeToggle.jsx.
+ */
+
+.beta-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #4a5568;
+  user-select: none;
+  cursor: pointer;
+  padding: 0.25rem 0.625rem;
+  border-radius: 0.5rem;
+  background-color: transparent;
+  transition: background-color 150ms ease;
+  margin-right: 0.5rem;
+  line-height: 1;
+  position: relative;
+}
+
+.beta-mode-toggle:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.beta-mode-toggle-checkbox {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.beta-mode-toggle-track {
+  position: relative;
+  display: inline-block;
+  width: 34px;
+  height: 18px;
+  background-color: #cbd5e0;
+  border-radius: 999px;
+  transition: background-color 200ms ease;
+  flex-shrink: 0;
+}
+
+.beta-mode-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background-color: #fff;
+  border-radius: 50%;
+  transition: transform 200ms ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.beta-mode-toggle--on .beta-mode-toggle-track {
+  background-color: #6366f1;
+}
+
+.beta-mode-toggle--on .beta-mode-toggle-thumb {
+  transform: translateX(16px);
+}
+
+.beta-mode-toggle-label-left,
+.beta-mode-toggle-label-right {
+  white-space: nowrap;
+  transition: color 150ms ease, font-weight 150ms ease;
+}
+
+.beta-mode-toggle--on .beta-mode-toggle-label-right {
+  color: #6366f1;
+  font-weight: 700;
+}
+
+.beta-mode-toggle:not(.beta-mode-toggle--on) .beta-mode-toggle-label-left {
+  color: #2d3748;
+  font-weight: 600;
+}
+
+.beta-mode-toggle-badge {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.3rem;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-left: 0.3rem;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.beta-mode-toggle-checkbox:focus-visible + .beta-mode-toggle-track {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+/* En dessous de 720px, on cache les labels textuels et ne garde que
+ * le toggle + le badge BETA quand actif (la topbar est déjà chargée). */
+@media (max-width: 720px) {
+  .beta-mode-toggle-label-left,
+  .beta-mode-toggle-label-right {
+    display: none;
+  }
+  .beta-mode-toggle--on::after {
+    content: 'BETA';
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    padding: 0.1rem 0.35rem;
+    border-radius: 0.3rem;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+}

@@ -1008,6 +1008,57 @@ Critères d'acceptation :
 - Auto-save toujours sous 2s.
 - Aucune régression sur l'export PDF.
 
+#### 14.3.1 Toggle Stable / Beta (déjà livré, P0.5)
+
+Pour éviter le big-bang lors du switch vers la nouvelle expérience, un toggle est
+exposé en permanence dans la topbar de l'app (`AppTopbar.jsx`, juste avant le
+menu compte). Tant qu'il n'est pas activé, l'utilisateur reste sur la version
+stable (formulaires de profil actuels, `ProfileView`, etc.). Quand il est activé,
+l'application exposera progressivement les écrans L1 → L3 sans réécrire la
+version stable.
+
+**Implémentation** :
+
+| Rôle | Fichier |
+|---|---|
+| Storage + dispatch (module pur, testable hors React) | `frontend/src/lib/betaMode.js` |
+| Hook React de consommation | `frontend/src/lib/useBetaMode.js` |
+| Composant UI (slider topbar) | `frontend/src/components/BetaModeToggle.jsx` |
+| Styles dédiés | `frontend/src/styles/BetaModeToggle.css` |
+| Tests unitaires (`node --test`) | `frontend/tests/unit/betaMode.test.js` |
+
+**Contrat d'API publique** (à utiliser pour brancher les nouvelles vues) :
+
+```js
+import { isBetaModeEnabled, setBetaModeEnabled, subscribeBetaMode } from '../lib/betaMode.js';
+import { useBetaMode } from '../lib/useBetaMode.js';
+
+// Côté composant React
+const [betaEnabled, setBetaEnabled] = useBetaMode();
+return betaEnabled ? <NewCvEditor/> : <ProfileView/>;
+
+// Hors React (route guard, lib, etc.)
+if (isBetaModeEnabled()) { ... }
+```
+
+**Comportement attendu** :
+- Persistance dans `localStorage` sous la clé versionnée `cv_bot_beta_mode_v1`
+  (renommer la clé en `_v2` quand on migrera ou nettoiera).
+- Tolérance aux storages indisponibles (mode privé) : `setBetaModeEnabled`
+  retourne `false`, l'UI doit savoir le signaler proprement.
+- Synchronisation cross-onglets via l'event natif `storage` et cross-composants
+  via le CustomEvent `cv-bot:beta-mode-changed`.
+- Aucune régression visuelle ni fonctionnelle quand le toggle est OFF : c'est
+  un opt-in pur.
+
+**Critères d'acceptation du toggle (P0.5)** :
+- [x] Le toggle est visible et opérationnel dans `topbar-right`.
+- [x] L'état persiste après reload.
+- [x] Tous les tests unitaires `npm run test:unit` passent.
+- [x] Aucun lint error introduit dans les fichiers nouveaux.
+- [ ] (P1) Au moins une vue (`/app/profil`) bascule réellement sur l'expérience
+      Beta quand le toggle est ON.
+
 ### 14.4 P2 — L2 Mise en page configurable (4 semaines)
 
 Livrables :

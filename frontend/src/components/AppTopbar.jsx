@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { HiDocumentText, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiChartBarSquare, HiCog6Tooth } from 'react-icons/hi2';
 
+import BetaModeToggle from './BetaModeToggle.jsx';
+
 /**
  * Barre de navigation workspace /app/* (séparée du shell pour lisibilité d’App.jsx).
  */
@@ -70,6 +72,7 @@ export default function AppTopbar({
         )}
       </nav>
       <div className="topbar-right">
+        {session && <BetaModeToggle />}
         {session && usage && usage.plan !== 'pro' && (
           <button type="button" className="topbar-upgrade-btn" onClick={onUpgradeClick} disabled={checkoutLoading}>
             {checkoutLoading ? '…' : 'Passer Pro'}

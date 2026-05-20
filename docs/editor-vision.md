@@ -1796,6 +1796,15 @@ autres blocs), priorité magnétique sur la grille. Fichiers :
 Le badge ATS en mode canvas libre envoie le `layout` v3 courant (plus le
 `template_id`). Version scoring : `2026.05.1`.
 
+#### 14.5.9 Robustesse ATS + P3.10 pagination (livré)
+
+**ATS** : debounce 550 ms, retry (3 tentatives), empreinte layout stable,
+pause pendant drag/resize, conservation du dernier score en erreur, bouton
+réessayer. Fichiers : `useAtsScoreFetching.js`, `atsScoreLayoutFingerprint.js`.
+
+**P3.10** : `layoutPagination.js` — blocs dont le bas dépasse 297 mm sont
+déplacés sur la page suivante à la fin du drag/resize (`pagination:auto`).
+
 ### 14.6 P4 — Calibration et expansion (continu)
 
 - Job mensuel de recalibration des pondérations sur les ground truths collectées.

@@ -49,9 +49,19 @@ function BlockText({ children, className = '' }) {
   return <span className={className}>{children}</span>;
 }
 
+function SectionHeading({ label, titleStyle, zone }) {
+  if (!label) return null;
+  const cls = [
+    'free-canvas-block__section-title',
+    titleStyle ? `free-canvas-block__section-title--${titleStyle}` : '',
+    zone === 'sidebar' ? 'free-canvas-block__section-title--sidebar' : '',
+  ].filter(Boolean).join(' ');
+  return <h3 className={cls}>{label}</h3>;
+}
+
 function SemanticBlockBody({ block, cv, editing = false }) {
   const { type, bind, limit, style = {} } = block;
-  const format = style.format || 'default';
+  const format = style.format || style.list_format || 'default';
 
   switch (type) {
     case 'identity': {
@@ -59,7 +69,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       const nom = getFieldDisplayValue(cv, 'nom');
       const title = getFieldDisplayValue(cv, 'titre_professionnel');
       return (
-        <div className="free-canvas-block__identity">
+        <div className={`free-canvas-block__identity${style.identity_divider ? ' free-canvas-block__identity--divider' : ''}`}>
           <div className="free-canvas-block__identity-name" style={{ textAlign: style.align || 'left' }}>
             {editing ? (
               <>
@@ -76,7 +86,13 @@ function SemanticBlockBody({ block, cv, editing = false }) {
             )}
           </div>
           {(editing || title) ? (
-            <div className="free-canvas-block__identity-title">
+            <div
+              className={
+                style.title_accent
+                  ? 'free-canvas-block__identity-title free-canvas-block__identity-title--accent'
+                  : 'free-canvas-block__identity-title'
+              }
+            >
               {editing ? (
                 <CanvasEditableField path="titre_professionnel" editing>
                   {title || 'Titre professionnel'}
@@ -95,9 +111,22 @@ function SemanticBlockBody({ block, cv, editing = false }) {
         return <div className="free-canvas-block__photo-placeholder" aria-hidden="true" />;
       }
       const round = style.shape === 'circle';
+      const borderCls = style.photo_border === 'light'
+        ? 'free-canvas-block__photo--border-light'
+        : style.photo_border === 'accent'
+          ? 'free-canvas-block__photo--border-accent'
+          : style.photo_border === 'accent-thick'
+            ? 'free-canvas-block__photo--border-accent'
+            : style.photo_border === 'accent-thin'
+              ? 'free-canvas-block__photo--border-accent'
+              : '';
       return (
         <img
-          className={round ? 'free-canvas-block__photo free-canvas-block__photo--round' : 'free-canvas-block__photo'}
+          className={[
+            'free-canvas-block__photo',
+            round ? 'free-canvas-block__photo--round' : '',
+            borderCls,
+          ].filter(Boolean).join(' ')}
           src={src}
           alt=""
         />
@@ -108,10 +137,20 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       const email = getFieldDisplayValue(cv, 'email');
       const linkedin = getFieldDisplayValue(cv, 'linkedin');
       return (
-        <div className="free-canvas-block__contact">
+        <div
+          className={[
+            'free-canvas-block__contact',
+            style.contact_divider ? 'free-canvas-block__contact--divider' : '',
+            style.contact_uppercase ? 'free-canvas-block__contact--uppercase' : '',
+            style.contact_icons ? 'free-canvas-block__contact--icons' : '',
+          ].filter(Boolean).join(' ')}
+        >
+          {style.section_label ? (
+            <SectionHeading label={style.section_label} titleStyle={style.title_style} zone={style.zone} />
+          ) : null}
           {(editing || tel) ? (
             <p>
-              <HiPhone size={12} aria-hidden />
+              <HiPhone size={12} className="free-canvas-block__contact-icon" aria-hidden />
               {' '}
               {editing ? (
                 <CanvasEditableField path="telephone" editing>{tel || 'Téléphone'}</CanvasEditableField>
@@ -122,7 +161,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
           ) : null}
           {(editing || email) ? (
             <p>
-              <HiEnvelope size={12} aria-hidden />
+              <HiEnvelope size={12} className="free-canvas-block__contact-icon" aria-hidden />
               {' '}
               {editing ? (
                 <CanvasEditableField path="email" editing>{email || 'Email'}</CanvasEditableField>
@@ -133,7 +172,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
           ) : null}
           {(editing || linkedin) ? (
             <p>
-              <HiLink size={12} aria-hidden />
+              <HiLink size={12} className="free-canvas-block__contact-icon" aria-hidden />
               {' '}
               {editing ? (
                 <CanvasEditableField path="linkedin" editing>{linkedin || 'LinkedIn'}</CanvasEditableField>
@@ -147,7 +186,11 @@ function SemanticBlockBody({ block, cv, editing = false }) {
     }
     case 'resume':
       return (
-        <p className="free-canvas-block__resume">
+        <div className="free-canvas-block__section-list">
+          {style.section_label ? (
+            <SectionHeading label={style.section_label} titleStyle={style.title_style} zone={style.zone} />
+          ) : null}
+          <p className="free-canvas-block__resume">
           {editing ? (
             <CanvasEditableField path={bind?.length ? bind[0] : 'resume'} editing tag="span">
               {resolveBoundText(cv, bind.length ? bind : 'resume') || 'Résumé professionnel'}
@@ -155,14 +198,19 @@ function SemanticBlockBody({ block, cv, editing = false }) {
           ) : (
             <BlockText>{resolveBoundText(cv, bind.length ? bind : 'resume')}</BlockText>
           )}
-        </p>
+          </p>
+        </div>
       );
     case 'experiences': {
       const items = resolveExperiences(cv, limit);
       if (items.length === 0) return <p className="free-canvas-block__placeholder">Expériences</p>;
       return (
         <div className="free-canvas-block__section-list">
-          <h3 className="free-canvas-block__section-title">{SECTION_LABELS.experiences}</h3>
+          <SectionHeading
+            label={style.section_label || SECTION_LABELS.experiences}
+            titleStyle={style.title_style}
+            zone={style.zone}
+          />
           {items.map((exp, i) => {
             const idx = findCvArrayIndex(cv, 'experiences', exp);
             if (idx < 0) return null;
@@ -232,7 +280,11 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       if (items.length === 0) return <p className="free-canvas-block__placeholder">Formations</p>;
       return (
         <div className="free-canvas-block__section-list">
-          <h3 className="free-canvas-block__section-title">{SECTION_LABELS.formations}</h3>
+          <SectionHeading
+            label={style.section_label || SECTION_LABELS.formations}
+            titleStyle={style.title_style}
+            zone={style.zone}
+          />
           {items.map((f, i) => {
             const idx = findCvArrayIndex(cv, 'formations', f);
             if (idx < 0) return null;
@@ -271,7 +323,11 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       if (items.length === 0) return <p className="free-canvas-block__placeholder">Certifications</p>;
       return (
         <div className="free-canvas-block__section-list">
-          <h3 className="free-canvas-block__section-title">{SECTION_LABELS.certifications}</h3>
+          <SectionHeading
+            label={style.section_label || SECTION_LABELS.certifications}
+            titleStyle={style.title_style}
+            zone={style.zone}
+          />
           {items.map((c, i) => {
             const idx = findCvArrayIndex(cv, 'certifications', c);
             if (idx < 0) return null;
@@ -295,7 +351,11 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       if (items.length === 0) return <p className="free-canvas-block__placeholder">Projets</p>;
       return (
         <div className="free-canvas-block__section-list">
-          <h3 className="free-canvas-block__section-title">{SECTION_LABELS.projets}</h3>
+          <SectionHeading
+            label={style.section_label || SECTION_LABELS.projets}
+            titleStyle={style.title_style}
+            zone={style.zone}
+          />
           {items.map((p, i) => {
             const idx = findCvArrayIndex(cv, 'projets', p);
             if (idx < 0) return null;
@@ -334,8 +394,16 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       if (items.length === 0) return <p className="free-canvas-block__placeholder">Langues</p>;
       return (
         <div className="free-canvas-block__section-list">
-          <h3 className="free-canvas-block__section-title">{SECTION_LABELS.languages}</h3>
-          <p>{items.map((l) => `${l.langue}${l.niveau ? ` (${l.niveau})` : ''}`).join(', ')}</p>
+          <SectionHeading
+            label={style.section_label || SECTION_LABELS.languages}
+            titleStyle={style.title_style}
+            zone={style.zone}
+          />
+          <ul className="free-canvas-block__skill-list">
+            {items.map((l, i) => (
+              <li key={i}>{`${l.langue}${l.niveau ? ` - ${l.niveau}` : ''}`}</li>
+            ))}
+          </ul>
         </div>
       );
     }

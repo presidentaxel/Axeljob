@@ -436,6 +436,12 @@
   border-radius: 0;
 }
 
+.free-canvas-block__identity--divider .free-canvas-block__identity-name {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 2mm;
+  margin-bottom: 2mm;
+}
+
 .free-canvas-block__identity-name {
   font-size: 14pt;
   font-weight: 700;

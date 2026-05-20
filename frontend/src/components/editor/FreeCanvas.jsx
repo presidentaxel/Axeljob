@@ -14,6 +14,7 @@ import {
 import { computePageScale, scaledPageHeightPx } from '../../lib/freeCanvasScale.js';
 import { snapBlockGeometry, snapBlockPosition } from '../../lib/freeCanvasSnap.js';
 import '../../styles/FreeCanvas.css';
+import '../../styles/CanvasTemplateFidelity.css';
 
 function SnapGuides({ guides }) {
   if (!guides?.length) return null;
@@ -296,6 +297,8 @@ export default function FreeCanvas({
   const fontBody = theme.font_body || fontHeading;
   const sidebarColor = theme.color_sidebar || accent;
   const headerColor = theme.color_header || accent;
+  const sectionTitleColor = theme.color_section_title || accent;
+  const tplId = theme.template_id;
   const scaledHeight = scaledPageHeightPx(scale);
 
   const placeLabel = placementPreset?.type === 'icon'
@@ -331,6 +334,7 @@ export default function FreeCanvas({
               <div
                 className={[
                   'free-canvas-page',
+                  tplId ? `free-canvas-page--tpl-${tplId}` : '',
                   interactable ? 'free-canvas-page--interactive' : '',
                   interactable && showGrid ? 'free-canvas-page--grid' : '',
                   placing ? 'free-canvas-page--placing' : '',
@@ -343,6 +347,7 @@ export default function FreeCanvas({
                   ['--free-canvas-accent']: accent,
                   ['--free-canvas-sidebar']: sidebarColor,
                   ['--free-canvas-header']: headerColor,
+                  ['--free-canvas-section-title']: sectionTitleColor,
                   ['--free-canvas-font-heading']: fontHeading,
                 }}
                 data-page-index={pageIndex}

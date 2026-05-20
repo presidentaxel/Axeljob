@@ -44,6 +44,7 @@ export function blockStyleToCss(style = {}) {
   const css = {};
   const s = rest;
   if (s.font_family) css.fontFamily = s.font_family;
+  if (s.color_body) css.color = s.color_body;
   if (s.font_size != null) css.fontSize = `${s.font_size}pt`;
   if (s.color) css.color = s.color;
   if (s.align) css.textAlign = s.align;

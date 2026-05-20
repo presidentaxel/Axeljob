@@ -1,0 +1,216 @@
+/* Styles canvas calqués sur templates/*.css — actifs via .free-canvas-page--tpl-{id} */
+
+/* ---------- Moderne ---------- */
+.free-canvas-page--tpl-modern {
+  font-family: Inter, Arial, sans-serif;
+}
+
+.free-canvas-page--tpl-modern .free-canvas-block__inner--zone-sidebar .free-canvas-block__identity-name {
+  font-size: 13pt;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 2mm;
+  margin-bottom: 2mm;
+}
+
+.free-canvas-page--tpl-modern .free-canvas-block__photo--border-light {
+  box-shadow: 0 0 0 0.8mm rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+}
+
+.free-canvas-page--tpl-modern .free-canvas-block__section-title--sidebar {
+  font-size: 8pt;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.94);
+  border-bottom: 1px solid rgba(186, 230, 253, 0.35);
+  text-transform: uppercase;
+}
+
+.free-canvas-page--tpl-modern .free-canvas-block__section-title--underline-accent {
+  font-size: 9.5pt;
+  color: var(--free-canvas-accent);
+  border-bottom: 0.5mm solid var(--free-canvas-accent);
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.free-canvas-page--tpl-modern .free-canvas-block__resume {
+  font-style: italic;
+  text-align: justify;
+  color: #444;
+}
+
+.free-canvas-page--tpl-modern .free-canvas-block__exp-dates {
+  font-weight: 700;
+  font-size: 8.5pt;
+}
+
+/* ---------- Créatif ---------- */
+.free-canvas-page--tpl-creative {
+  font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+}
+
+.free-canvas-page--tpl-creative .free-canvas-block__photo--border-accent {
+  box-shadow: 0 0 0 0.8mm var(--free-canvas-accent);
+  border-radius: 50%;
+}
+
+.free-canvas-page--tpl-creative .free-canvas-block__section-title--sidebar,
+.free-canvas-page--tpl-creative .free-canvas-block__section-title--sidebar-creative {
+  font-size: 8.5pt;
+  color: var(--free-canvas-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.free-canvas-page--tpl-creative .free-canvas-block__contact--divider {
+  padding: 2mm 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.free-canvas-page--tpl-creative .free-canvas-block__section-title--creative-main {
+  font-size: 10pt;
+  color: var(--free-canvas-sidebar);
+  text-transform: uppercase;
+  border-bottom: 0.5mm solid var(--free-canvas-accent);
+  letter-spacing: 0.04em;
+}
+
+/* ---------- Executive ---------- */
+.free-canvas-page--tpl-executive .free-canvas-block__inner--zone-main {
+  font-family: Inter, Arial, sans-serif;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__section-title--executive-main {
+  font-family: var(--free-canvas-font-heading);
+  font-size: 10pt;
+  font-weight: 700;
+  color: var(--free-canvas-section-title, #0f172a);
+  border-bottom: 0.4mm solid var(--free-canvas-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__section-title--sidebar-category {
+  font-family: var(--free-canvas-font-heading);
+  font-size: 9pt;
+  font-weight: 700;
+  color: var(--free-canvas-accent);
+  letter-spacing: 0.04em;
+  border: none;
+  text-transform: none;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__exp-dates {
+  color: var(--free-canvas-accent);
+  font-weight: 600;
+  font-size: 8.5pt;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__exp-role {
+  font-style: italic;
+  color: #555;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__inner--zone-header .free-canvas-block__identity-title {
+  font-style: italic;
+  opacity: 0.9;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__contact--icons .free-canvas-block__contact-icon {
+  color: var(--free-canvas-accent);
+}
+
+/* ---------- Impact (bold) ---------- */
+.free-canvas-page--tpl-bold {
+  font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+  color: #1e293b;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__section-title--bold-main {
+  font-size: 10pt;
+  font-weight: 800;
+  color: #1e293b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-left: 1mm solid var(--free-canvas-accent);
+  padding-left: 2mm;
+  border-bottom: none;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__section-title--bold-sidebar {
+  font-size: 8.5pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  border-left: 0.8mm solid var(--free-canvas-accent);
+  padding-left: 1.5mm;
+  color: #1e293b;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__identity-title--accent {
+  color: var(--free-canvas-accent);
+  font-weight: 600;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__exp-dates {
+  color: var(--free-canvas-accent);
+  font-weight: 700;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__contact--uppercase {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 8.5pt;
+}
+
+/* ---------- Classique ---------- */
+.free-canvas-page--tpl-classic .free-canvas-block__section-title--classic-main {
+  font-size: 9pt;
+  font-weight: 700;
+  color: var(--free-canvas-accent);
+  border-bottom: 0.35mm solid var(--free-canvas-accent);
+  text-transform: uppercase;
+}
+
+/* ---------- Minimal ---------- */
+.free-canvas-page--tpl-minimal .free-canvas-block__section-title--minimal-section {
+  font-family: var(--free-canvas-font-heading);
+  font-size: 10.5pt;
+  font-weight: 700;
+  color: var(--free-canvas-accent);
+  border-bottom: 0.35mm solid var(--free-canvas-accent);
+  padding-bottom: 1mm;
+}
+
+/* ---------- Élégant ---------- */
+.free-canvas-page--tpl-elegant {
+  color: #2d3748;
+}
+
+.free-canvas-page--tpl-elegant .free-canvas-block__section-title--elegant-section {
+  font-family: var(--free-canvas-font-heading);
+  font-size: 10pt;
+  font-weight: 700;
+  color: var(--free-canvas-accent);
+  border-bottom: 0.3mm solid #e2e8f0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Listes sidebar (pas chips) */
+.free-canvas-block__skill-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.free-canvas-block__skill-list li {
+  font-size: inherit;
+  line-height: 1.35;
+  margin: 0 0 0.5mm;
+  opacity: 0.92;
+}
+
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__skill-list li {
+  color: rgba(255, 255, 255, 0.92);
+}

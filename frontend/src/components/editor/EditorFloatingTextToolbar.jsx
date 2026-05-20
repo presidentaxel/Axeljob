@@ -17,15 +17,9 @@ import {
   queryCommandState,
   toggleTextCase,
 } from '../../lib/canvasRichTextFormat.js';
+import { CANVAS_FONT_FAMILIES } from '../../lib/canvasFontOptions.js';
 import { blockSupportsTextToolbar } from '../../lib/canvasBlockToolbar.js';
 import '../../styles/EditorFloatingTextToolbar.css';
-
-const FONT_FAMILIES = [
-  { value: 'Inter, sans-serif', label: 'Inter' },
-  { value: "'Plus Jakarta Sans', sans-serif", label: 'Plus Jakarta Sans' },
-  { value: "'Open Sans', sans-serif", label: 'Open Sans' },
-  { value: 'Georgia, serif', label: 'Georgia' },
-];
 
 const ALIGN_CYCLE = ['left', 'center', 'right', 'justify'];
 const ALIGN_CMD = {
@@ -199,11 +193,11 @@ export default function EditorFloatingTextToolbar({
         <>
           <select
             className="editor-floating-toolbar__font"
-            value={style.font_family || FONT_FAMILIES[2].value}
+            value={style.font_family || CANVAS_FONT_FAMILIES[0].value}
             onMouseDown={(e) => e.stopPropagation()}
             onChange={(e) => patchStyle('font_family', e.target.value)}
           >
-            {FONT_FAMILIES.map((f) => (
+            {CANVAS_FONT_FAMILIES.map((f) => (
               <option key={f.value} value={f.value}>{f.label}</option>
             ))}
           </select>

@@ -292,7 +292,10 @@ export default function FreeCanvas({
   const pages = Array.isArray(layout?.pages) ? layout.pages : [];
   const theme = layout?.theme || {};
   const accent = theme.color_accent || '#1e2a3a';
-  const fontHeading = theme.font_heading || 'Inter';
+  const fontHeading = theme.font_heading || 'Inter, sans-serif';
+  const fontBody = theme.font_body || fontHeading;
+  const sidebarColor = theme.color_sidebar || accent;
+  const headerColor = theme.color_header || accent;
   const scaledHeight = scaledPageHeightPx(scale);
 
   const placeLabel = placementPreset?.type === 'icon'
@@ -336,8 +339,11 @@ export default function FreeCanvas({
                   width: `${PAGE_WIDTH_MM}mm`,
                   height: `${PAGE_HEIGHT_MM}mm`,
                   transform: `scale(${scale})`,
-                  fontFamily: fontHeading,
+                  fontFamily: fontBody,
                   ['--free-canvas-accent']: accent,
+                  ['--free-canvas-sidebar']: sidebarColor,
+                  ['--free-canvas-header']: headerColor,
+                  ['--free-canvas-font-heading']: fontHeading,
                 }}
                 data-page-index={pageIndex}
                 onPointerDown={interactable ? handlePageBackgroundPointerDown : undefined}

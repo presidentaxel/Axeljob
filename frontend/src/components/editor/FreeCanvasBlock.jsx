@@ -576,6 +576,7 @@ export default function FreeCanvasBlock({
   const { id, type, x, y, w, h, z, style: blockStyle } = block;
   const innerTypography = blockStyleToCss(blockStyle);
   const typographyOverride = blockHasTypographyOverride(blockStyle);
+  const zone = blockStyle?.zone;
   const handleAutoHeight = (newHmm) => {
     if (typeof onBlockAutoHeight !== 'function' || !id) return;
     if (newHmm > h + 0.5) onBlockAutoHeight(id, newHmm);
@@ -638,6 +639,7 @@ export default function FreeCanvasBlock({
         ref={innerRef}
         className={[
           'free-canvas-block__inner',
+          zone ? `free-canvas-block__inner--zone-${zone}` : '',
           typographyOverride ? 'free-canvas-block__inner--typography' : '',
           editing ? 'free-canvas-block__inner--editing' : '',
         ].filter(Boolean).join(' ')}

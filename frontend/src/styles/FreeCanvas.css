@@ -377,6 +377,65 @@
   font-weight: inherit;
 }
 
+/* Zones template (sidebar / header / main) */
+.free-canvas-block__inner--zone-sidebar,
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__identity-name,
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__identity-title,
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__contact p,
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__section-title,
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__section-list,
+.free-canvas-block__inner--zone-sidebar p {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__section-title {
+  border-bottom-color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__chip {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.free-canvas-block__inner--zone-header,
+.free-canvas-block__inner--zone-header .free-canvas-block__identity-name,
+.free-canvas-block__inner--zone-header .free-canvas-block__identity-title,
+.free-canvas-block__inner--zone-header .free-canvas-block__contact p,
+.free-canvas-block__inner--zone-header .free-canvas-block__resume,
+.free-canvas-block__inner--zone-header p {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.free-canvas-block__inner--zone-header .free-canvas-block__identity-title {
+  font-style: italic;
+  opacity: 0.9;
+}
+
+.free-canvas-block__inner--zone-main .free-canvas-block__section-title {
+  color: var(--free-canvas-accent, #3182ce);
+  border-bottom: 0.25mm solid var(--free-canvas-accent, #3182ce);
+}
+
+.free-canvas-block__inner--zone-sidebar-light .free-canvas-block__section-title {
+  color: var(--free-canvas-accent, #1e2a3a);
+  border-bottom: 0.25mm solid var(--free-canvas-accent, #1e2a3a);
+}
+
+.free-canvas-block[data-block-type='shape:rect'] {
+  pointer-events: none;
+}
+
+.free-canvas-block[data-block-type='shape:rect'].free-canvas-block--selected {
+  pointer-events: auto;
+}
+
+.free-canvas-block__shape-rect {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+
 .free-canvas-block__identity-name {
   font-size: 14pt;
   font-weight: 700;

@@ -243,21 +243,36 @@ function NonSemanticBlockBody({ block }) {
   }
 }
 
+function blockClassName({ selected, dragging, interactable }) {
+  const parts = ['free-canvas-block'];
+  if (interactable) parts.push('free-canvas-block--interactive');
+  if (selected) parts.push('free-canvas-block--selected');
+  if (dragging) parts.push('free-canvas-block--dragging');
+  return parts.join(' ');
+}
+
 /**
- * Rendu read-only d un bloc layout v3 (position absolue en mm sur la page).
+ * Rendu d un bloc layout v3 (position absolue en mm sur la page).
+ * P3.3 : pointer handlers pour selection + drag (via FreeCanvas parent).
  */
-export default function FreeCanvasBlock({ block, cv, selected = false }) {
+export default function FreeCanvasBlock({
+  block,
+  cv,
+  selected = false,
+  dragging = false,
+  interactable = false,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
+}) {
   if (!block || typeof block !== 'object') return null;
   const { id, type, x, y, w, h, z } = block;
   const isNonSemantic = isNonSemanticBlockType(type);
 
   return (
     <div
-      className={
-        selected
-          ? 'free-canvas-block free-canvas-block--selected'
-          : 'free-canvas-block'
-      }
+      className={blockClassName({ selected, dragging, interactable })}
       data-block-id={id}
       data-block-type={type}
       style={{
@@ -265,11 +280,21 @@ export default function FreeCanvasBlock({ block, cv, selected = false }) {
         top: `${y}mm`,
         width: `${w}mm`,
         height: `${h}mm`,
-        zIndex: z,
+        zIndex: dragging ? 9999 : z,
       }}
-      title={type}
+      title={interactable ? `${type} — glisser pour déplacer` : type}
+      onPointerDown={interactable && onPointerDown ? (e) => onPointerDown(e, block) : undefined}
+      onPointerMove={interactable && onPointerMove ? onPointerMove : undefined}
+      onPointerUp={interactable && onPointerUp ? onPointerUp : undefined}
+      onPointerCancel={interactable && onPointerCancel ? onPointerCancel : undefined}
     >
-      <div className="free-canvas-block__inner">
+      <div
+        className={
+          selected
+            ? 'free-canvas-block__inner free-canvas-block__inner--selected'
+            : 'free-canvas-block__inner'
+        }
+      >
         {isNonSemantic
           ? <NonSemanticBlockBody block={block} />
           : <SemanticBlockBody block={block} cv={cv} />}

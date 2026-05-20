@@ -7,6 +7,7 @@ import {
   createStarterLayoutV3,
   isEmptyLayoutV3,
   migrateLayoutToV3,
+  setBlockPosition,
 } from '../../lib/cvLayoutModelV3.js';
 import { useAutoSave } from '../../lib/useAutoSave.js';
 import { useLayoutHistory } from '../../lib/useLayoutHistory.js';
@@ -55,14 +56,16 @@ export default function CvEditorBeta({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
-  /** `guided` = L1 CvEditablePreview ; `free` = canvas libre read-only (P3.2). */
+  /** `guided` = L1 CvEditablePreview ; `free` = canvas libre (P3.2+). */
   const [editorViewMode, setEditorViewMode] = useState('guided');
+  const [selectedBlockId, setSelectedBlockId] = useState(null);
 
   const layoutHistory = useLayoutHistory(() => createBlankLayoutV3(), {
     keyboardShortcuts: editorViewMode === 'free',
   });
   const {
     layout,
+    commit: commitLayout,
     undo: undoLayout,
     redo: redoLayout,
     reset: resetLayout,
@@ -199,6 +202,19 @@ export default function CvEditorBeta({
 
   const showCanvasStarterPicker = editorViewMode === 'free' && isEmptyLayoutV3(layout);
 
+  const handleSelectBlock = useCallback((blockId) => {
+    setSelectedBlockId(blockId);
+  }, []);
+
+  const handleBlockPositionChange = useCallback((blockId, pos, commitOptions) => {
+    const next = setBlockPosition(layout, blockId, pos);
+    commitLayout(next, commitOptions);
+  }, [layout, commitLayout]);
+
+  const handleDragEndPersist = useCallback(() => {
+    if (cv) autoSave.schedule(cv);
+  }, [cv, autoSave]);
+
   if (loading) {
     return (
       <div className="cv-editor-beta cv-editor-beta--loading">
@@ -326,7 +342,14 @@ export default function CvEditorBeta({
                   </div>
                 </div>
               )}
-              <FreeCanvas layout={layout} cv={cv} />
+              <FreeCanvas
+                layout={layout}
+                cv={cv}
+                selectedBlockId={selectedBlockId}
+                onSelectBlock={handleSelectBlock}
+                onBlockPositionChange={handleBlockPositionChange}
+                onDragEnd={handleDragEndPersist}
+              />
             </>
           )}
         </main>
@@ -346,7 +369,7 @@ export default function CvEditorBeta({
       <footer className="cv-editor-beta-statusbar">
         <span>
           {editorViewMode === 'free'
-            ? 'Canvas libre L3 (aperçu) · déplacement bientôt'
+            ? 'Canvas libre L3 · glissez les blocs (Ctrl+Z pour annuler)'
             : 'L1 inline · basculez sur Canvas libre pour l’aperçu L3'}
         </span>
       </footer>

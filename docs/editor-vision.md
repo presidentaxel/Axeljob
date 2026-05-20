@@ -1672,6 +1672,34 @@ encore de drag / resize — objectif = valider le pipeline
 - [x] Choix page blanche vs starter au premier démarrage sans layout.
 - [x] 11 tests unitaires purs + build frontend OK.
 
+#### 14.5.4 P3.3 — Sélection + drag natif (livré, 19 mai 2026)
+
+**Comportement P3.2 clarifié** : chaque bloc avait `overflow: auto` sur
+`.free-canvas-block__inner` — d’où des **barres de scroll à l’intérieur**
+des sections (expériences, etc.) quand le contenu dépassait la hauteur
+fixe du bloc starter. C’était un compromis read-only, **pas** la vision
+Canva finale. Depuis P3.3 : `overflow: hidden` par défaut ; scroll
+uniquement sur le bloc **sélectionné** (lecture du débordement en
+attendant l’auto-grow P3.10).
+
+**Implémentation** :
+
+| Rôle | Fichier |
+|---|---|
+| Conversion delta souris (px) → mm selon `scale` | `frontend/src/lib/freeCanvasDrag.js` |
+| Pointer capture + drag sur blocs | `frontend/src/components/editor/FreeCanvas.jsx` |
+| Curseur grab/grabbing, z-index élevé au drag | `frontend/src/styles/FreeCanvas.css` |
+| `commit(layout)` avec `groupKey: drag:<blockId>` (coalescing undo) | `CvEditorBeta.jsx` + `useLayoutHistory` |
+| Tests | `freeCanvasDrag.test.js` (4) |
+
+**Critères d'acceptation (P3.3)** :
+- [x] Clic sur un bloc → sélection (contour indigo).
+- [x] Clic sur la page vide → désélection.
+- [x] Glisser un bloc → position mise à jour en mm (clamp page).
+- [x] Un seul pas undo pour tout un drag (coalescing `groupKey`).
+- [x] Auto-save déclenché à la fin du drag.
+- [x] Plus de scroll interne sur tous les blocs par défaut.
+
 ### 14.6 P4 — Calibration et expansion (continu)
 
 - Job mensuel de recalibration des pondérations sur les ground truths collectées.

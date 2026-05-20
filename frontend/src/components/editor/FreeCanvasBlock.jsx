@@ -24,6 +24,7 @@ import {
 import { isNonSemanticBlockType } from '../../lib/cvLayoutModelV3.js';
 import { RESIZE_HANDLES } from '../../lib/freeCanvasResize.js';
 import CanvasEditableField from './CanvasEditableField.jsx';
+import CanvasIconGlyph from './CanvasIconGlyph.jsx';
 
 const SECTION_LABELS = {
   experiences: 'Expérience professionnelle',
@@ -377,17 +378,10 @@ function NonSemanticBlockBody({ block, editing = false }) {
   switch (type) {
     case 'text': {
       const textStyle = {
-        fontStyle: style.italic ? 'italic' : undefined,
-        fontSize: style.font_size ? `${style.font_size}pt` : undefined,
-        fontFamily: style.font_family || undefined,
-        textAlign: style.align,
-        color: style.color,
+        textAlign: style.align || 'left',
         opacity: style.opacity ?? 1,
-        fontWeight: style.bold ? 700 : undefined,
-        textDecoration: [
-          style.underline ? 'underline' : '',
-          style.strikethrough ? 'line-through' : '',
-        ].filter(Boolean).join(' ') || undefined,
+        margin: 0,
+        minHeight: '1em',
       };
       return (
         <EditableRichText
@@ -405,17 +399,9 @@ function NonSemanticBlockBody({ block, editing = false }) {
     }
     case 'title': {
       const titleStyle = {
-        textAlign: style.align,
-        color: style.color,
-        fontSize: style.font_size ? `${style.font_size}pt` : undefined,
-        fontFamily: style.font_family || undefined,
+        textAlign: style.align || 'left',
         opacity: style.opacity ?? 1,
-        fontWeight: style.bold ? 700 : undefined,
-        fontStyle: style.italic ? 'italic' : undefined,
-        textDecoration: [
-          style.underline ? 'underline' : '',
-          style.strikethrough ? 'line-through' : '',
-        ].filter(Boolean).join(' ') || undefined,
+        margin: 0,
       };
       return (
         <EditableRichText
@@ -437,31 +423,47 @@ function NonSemanticBlockBody({ block, editing = false }) {
         return <div className="free-canvas-block__image-placeholder">Image</div>;
       }
       const shape = style.shape || 'rect';
-      const radius = shape === 'circle' ? '50%' : shape === 'rounded' ? '12px' : '0';
+      const radiusMm = style.border_radius_mm;
+      const radius = radiusMm > 0
+        ? `${radiusMm}mm`
+        : shape === 'circle'
+          ? '50%'
+          : shape === 'rounded'
+            ? '12px'
+            : '0';
+      const focalX = style.focal_x ?? 50;
+      const focalY = style.focal_y ?? 50;
+      const zoom = style.image_zoom ?? 1;
       return (
-        <img
-          className="free-canvas-block__image"
-          src={src}
-          alt=""
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: style.object_fit || 'cover',
-            objectPosition: style.object_position || 'center',
-            borderRadius: radius,
-            opacity: style.opacity ?? 1,
-          }}
-        />
+        <div className="free-canvas-block__image-frame" style={{ borderRadius: radius, opacity: style.opacity ?? 1 }}>
+          <img
+            className="free-canvas-block__image"
+            src={src}
+            alt=""
+            style={{
+              objectFit: 'cover',
+              objectPosition: `${focalX}% ${focalY}%`,
+              transform: `scale(${zoom})`,
+              transformOrigin: `${focalX}% ${focalY}%`,
+            }}
+          />
+        </div>
       );
     }
-    case 'shape:line':
+    case 'shape:line': {
+      const stroke = style.stroke_width ?? block.h ?? 0.6;
       return (
         <div
           className="free-canvas-block__shape-line"
-          style={{ backgroundColor: style.color || '#1e293b' }}
+          style={{
+            backgroundColor: style.color || '#1e293b',
+            height: `${stroke}mm`,
+            marginTop: `${Math.max(0, ((block.h || stroke) - stroke) / 2)}mm`,
+          }}
           role="presentation"
         />
       );
+    }
     case 'shape:rect':
       return (
         <div
@@ -472,15 +474,12 @@ function NonSemanticBlockBody({ block, editing = false }) {
       );
     case 'icon':
       return (
-        <div
-          className={
-            block.icon_name
-              ? 'free-canvas-block__icon'
-              : 'free-canvas-block__icon free-canvas-block__icon--empty'
-          }
-          aria-hidden="true"
-        >
-          {block.icon_name || 'Icône'}
+        <div className="free-canvas-block__icon" aria-hidden="true">
+          {block.icon_name ? (
+            <CanvasIconGlyph name={block.icon_name} color={style.color || '#1e293b'} size="100%" />
+          ) : (
+            <span className="free-canvas-block__icon--empty">Icône</span>
+          )}
         </div>
       );
     case 'qrcode':
@@ -533,6 +532,7 @@ export default function FreeCanvasBlock({
   onResizePointerUp,
   onResizePointerCancel,
   onDoubleClickEdit,
+  onImageEdit,
   onInnerBlur,
   onBlockElementRef,
   locked = false,
@@ -561,8 +561,13 @@ export default function FreeCanvasBlock({
   };
 
   const handleDoubleClick = (e) => {
-    if (!canEdit || !interactable) return;
+    if (!interactable) return;
     e.stopPropagation();
+    if (type === 'image' && typeof onImageEdit === 'function') {
+      onImageEdit(block.id);
+      return;
+    }
+    if (!canEdit) return;
     if (typeof onDoubleClickEdit === 'function') onDoubleClickEdit(block.id);
   };
 

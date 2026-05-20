@@ -18,6 +18,7 @@ import {
   bringToFront,
   createBlankLayoutV3,
   createStarterLayoutV3,
+  duplicateBlock,
   findBlock,
   isEmptyLayoutV3,
   migrateLayoutToV3,
@@ -26,6 +27,7 @@ import {
   setBlockPosition,
   updateBlock,
   updateBlockStyle,
+  updateTheme,
 } from '../../lib/cvLayoutModelV3.js';
 import { applyLayoutPagination, layoutHasPageOverflow } from '../../lib/layoutPagination.js';
 import { useAutoSave } from '../../lib/useAutoSave.js';
@@ -38,6 +40,7 @@ import EditorAtsScoreBadge from './EditorAtsScoreBadge.jsx';
 import EditorBlockChromeToolbar from './EditorBlockChromeToolbar.jsx';
 import EditorCanvaSidebar from './EditorCanvaSidebar.jsx';
 import EditorFloatingTextToolbar from './EditorFloatingTextToolbar.jsx';
+import EditorImageEditPopover from './EditorImageEditPopover.jsx';
 import EditorInspectorDrawer from './EditorInspectorDrawer.jsx';
 import EditorTemplateSelector from './EditorTemplateSelector.jsx';
 
@@ -88,6 +91,7 @@ export default function CvEditorBeta({
   const [pdfExporting, setPdfExporting] = useState(false);
   const [showCanvasGrid, setShowCanvasGrid] = useState(false);
   const [canvasSnapEnabled, setCanvasSnapEnabled] = useState(true);
+  const [imageEditBlockId, setImageEditBlockId] = useState(null);
   const layoutRef = useRef(null);
 
   const layoutHistory = useLayoutHistory(() => createBlankLayoutV3(), {
@@ -289,6 +293,17 @@ export default function CvEditorBeta({
     if (cv) autoSave.schedule(cv);
   }, [layout, commitLayout, cv, autoSave]);
 
+  const handleInsertIconBlock = useCallback((preset) => {
+    if (!preset) return;
+    const placement = suggestNewBlockPlacement(layout, 0, preset);
+    const partial = { ...preset, ...placement };
+    const next = addBlockToPage(layout, 0, partial);
+    commitLayout(next);
+    const newId = getLastBlockIdOnPage(next, 0);
+    if (newId) setSelectedBlockId(newId);
+    if (cv) autoSave.schedule(cv);
+  }, [layout, commitLayout, cv, autoSave]);
+
   const handleInsertImageBlock = useCallback((preset) => {
     if (!preset) return;
     const placement = suggestNewBlockPlacement(layout, 0, preset);
@@ -297,6 +312,41 @@ export default function CvEditorBeta({
     commitLayout(next);
     const newId = getLastBlockIdOnPage(next, 0);
     if (newId) setSelectedBlockId(newId);
+    if (cv) autoSave.schedule(cv);
+  }, [layout, commitLayout, cv, autoSave]);
+
+  const handleDuplicateSelectedBlock = useCallback(() => {
+    if (!selectedBlockId) return;
+    const next = duplicateBlock(layout, selectedBlockId);
+    commitLayout(next);
+    const newId = getLastBlockIdOnPage(next, 0);
+    if (newId) setSelectedBlockId(newId);
+    if (cv) autoSave.schedule(cv);
+  }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
+
+  const handleImageEdit = useCallback((blockId) => {
+    setSelectedBlockId(blockId);
+    setImageEditBlockId(blockId);
+    setEditingBlockId(null);
+  }, []);
+
+  const handleApplyTemplateTheme = useCallback((template) => {
+    if (!template || !layout) return;
+    const patch = {};
+    const opts = template.options;
+    if (Array.isArray(opts)) {
+      opts.forEach((o) => {
+        if (o?.key === 'accent_color' && o.default) patch.color_accent = o.default;
+        if (o?.key === 'header_color' && o.default && !patch.color_accent) {
+          patch.color_accent = o.default;
+        }
+      });
+    } else if (opts && typeof opts === 'object') {
+      if (opts.accent_color) patch.color_accent = opts.accent_color;
+    }
+    if (Object.keys(patch).length === 0) return;
+    const next = updateTheme(layout, patch);
+    commitLayout(next);
     if (cv) autoSave.schedule(cv);
   }, [layout, commitLayout, cv, autoSave]);
 
@@ -318,7 +368,13 @@ export default function CvEditorBeta({
 
   const handleBlockStylePatch = useCallback((stylePatch) => {
     if (!selectedBlockId) return;
-    const next = updateBlockStyle(layout, selectedBlockId, stylePatch);
+    let next = updateBlockStyle(layout, selectedBlockId, stylePatch);
+    if (stylePatch.stroke_width != null) {
+      const found = findBlock(layout, selectedBlockId);
+      if (found?.block?.type === 'shape:line') {
+        next = updateBlock(next, selectedBlockId, { h: stylePatch.stroke_width });
+      }
+    }
     commitLayout(next);
     if (cv) autoSave.schedule(cv);
   }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
@@ -580,14 +636,16 @@ export default function CvEditorBeta({
         {editorViewMode === 'free' && !showCanvasStarterPicker && (
           <EditorCanvaSidebar
             disabled={loading || !layout}
+            templatesList={templatesList}
             showGrid={showCanvasGrid}
             snapEnabled={canvasSnapEnabled}
             onShowGridChange={setShowCanvasGrid}
             onSnapEnabledChange={setCanvasSnapEnabled}
             onInsertBlock={handleInsertBlock}
             onInsertImageBlock={handleInsertImageBlock}
-            onPickStarter={handlePickStarterCanvas}
+            onInsertIconBlock={handleInsertIconBlock}
             onPickBlank={handlePickBlankCanvas}
+            onApplyTemplateTheme={handleApplyTemplateTheme}
             onLoadProposal={handleLoadLayoutProposal}
             onSaveProposal={handleSaveLayoutProposal}
           />
@@ -639,6 +697,7 @@ export default function CvEditorBeta({
                 onCanvasInteractionChange={setCanvasBusy}
                 onStartBlockEdit={handleStartBlockEdit}
                 onCommitBlockEdit={handleCommitBlockEdit}
+                onImageEdit={handleImageEdit}
                 onSelectedBlockRect={setSelectedBlockRect}
               />
               {selectedBlock && selectedBlockRect && (
@@ -647,6 +706,7 @@ export default function CvEditorBeta({
                   anchorRect={selectedBlockRect}
                   locked={Boolean(selectedBlock.locked)}
                   onDelete={handleDeleteSelectedBlock}
+                  onDuplicate={handleDuplicateSelectedBlock}
                   onToggleLock={handleToggleBlockLock}
                 />
               )}
@@ -656,6 +716,16 @@ export default function CvEditorBeta({
                   anchorRect={selectedBlockRect}
                   isEditing={editingBlockId === selectedBlock.id}
                   onBlockStylePatch={handleBlockStylePatch}
+                  onBlockPatch={handleBlockPatch}
+                />
+              )}
+              {imageEditBlockId && selectedBlock?.type === 'image' && selectedBlockRect && (
+                <EditorImageEditPopover
+                  block={selectedBlock}
+                  anchorRect={selectedBlockRect}
+                  onBlockPatch={handleBlockPatch}
+                  onBlockStylePatch={handleBlockStylePatch}
+                  onClose={() => setImageEditBlockId(null)}
                 />
               )}
             </>

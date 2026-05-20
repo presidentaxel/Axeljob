@@ -24,8 +24,8 @@ export function listLayoutProposals() {
 }
 
 export function saveLayoutProposal(name, layout) {
-  const trimmed = (name || '').trim();
-  if (!trimmed || !layout) return null;
+  const trimmed = (name || '').trim() || 'mon modèle';
+  if (!layout) return null;
   const id = `prop_${Date.now()}`;
   const entry = {
     id,

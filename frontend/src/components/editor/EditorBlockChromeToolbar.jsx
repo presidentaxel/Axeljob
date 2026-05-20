@@ -1,4 +1,4 @@
-import { HiLockClosed, HiLockOpen, HiTrash } from 'react-icons/hi2';
+import { HiDocumentDuplicate, HiLockClosed, HiLockOpen, HiTrash } from 'react-icons/hi2';
 import '../../styles/EditorBlockChromeToolbar.css';
 
 /**
@@ -9,6 +9,7 @@ export default function EditorBlockChromeToolbar({
   anchorRect,
   locked = false,
   onDelete,
+  onDuplicate,
   onToggleLock,
 }) {
   if (!block || !anchorRect) return null;
@@ -28,6 +29,15 @@ export default function EditorBlockChromeToolbar({
       }}
       onPointerDown={(e) => e.stopPropagation()}
     >
+      <button
+        type="button"
+        className="editor-block-chrome-toolbar__btn"
+        title="Dupliquer le bloc"
+        onClick={onDuplicate}
+      >
+        <HiDocumentDuplicate size={16} aria-hidden />
+        <span>Dupliquer</span>
+      </button>
       <button
         type="button"
         className="editor-block-chrome-toolbar__btn editor-block-chrome-toolbar__btn--danger"

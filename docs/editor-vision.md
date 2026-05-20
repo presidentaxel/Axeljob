@@ -1827,8 +1827,9 @@ rétroaction, puis personnalisation IA (flux adaptation existant).
 | Phase | Contenu |
 |-------|---------|
 | P4.1 | Édition inline (`contentEditable`, double-clic, sync `cv` / `block.content`) |
-| P4.2a | Sidebar rail + drawer (Modèles, Éléments, Texte, Importer, Outils) — grille/snap optionnels |
-| P4.2b | Toolbar formatage claire, déplaçable, riche texte à la sélection ; barre chrome (suppr/verrou) |
+| P4.2a | Sidebar rail + drawer (Modèles, Éléments, Texte, Icônes, Importer, Outils) |
+| P4.2b | Toolbar type Canva (sélection partielle, Position) ; chrome suppr/dupliquer/verrou |
+| P4.2c | Images compressées à l’import ; édition image au double-clic (cadrage, zoom) |
 | P4.3 | Pont guidé → canvas (« Mise en page libre ») ; propositions layout (localStorage) ; Suppr = supprimer bloc |
 | P4.4 | Optimiser pour ATS ; PDF via `layout_renderer` si `layout` v3 |
 

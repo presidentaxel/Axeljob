@@ -423,6 +423,22 @@ export function removeBlock(layout, blockId) {
   }));
 }
 
+/** Duplique un bloc sur la même page (décalage léger, nouvel id). */
+export function duplicateBlock(layout, blockId, options = {}) {
+  const found = findBlock(layout, blockId);
+  if (!found) return layout;
+  const { block, pageIndex } = found;
+  const copy = sanitizeBlock({
+    ...block,
+    id: undefined,
+    x: (block.x || 0) + 5,
+    y: (block.y || 0) + 5,
+    locked: false,
+  }, options);
+  if (!copy) return layout;
+  return addBlockToPage(layout, pageIndex, copy, options);
+}
+
 /**
  * Patch generique d un bloc : merge superficiel. Le caller fournit un
  * `patch` partiel ; on re-sanitize l ensemble pour conserver les

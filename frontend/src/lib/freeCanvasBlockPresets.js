@@ -22,7 +22,6 @@ export const INSERT_TOOLBAR_ITEMS = Object.freeze([
   { type: 'title', label: 'Titre', description: 'Titre de section' },
   { type: 'shape:line', label: 'Trait', description: 'Ligne horizontale' },
   { type: 'shape:rect', label: 'Bandeau', description: 'Rectangle de fond' },
-  { type: 'icon', label: 'Icône', description: 'Pictogramme décoratif' },
 ]);
 
 const PRESETS_BY_TYPE = Object.freeze({
@@ -44,7 +43,7 @@ const PRESETS_BY_TYPE = Object.freeze({
     type: 'shape:line',
     w: PAGE_USABLE_WIDTH_MM,
     h: 0.6,
-    style: { color: '#1e293b' },
+    style: { color: '#1e293b', stroke_width: 0.6 },
   },
   'shape:rect': {
     type: 'shape:rect',

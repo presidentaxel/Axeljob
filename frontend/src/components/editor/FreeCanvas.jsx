@@ -52,6 +52,7 @@ export default function FreeCanvas({
   onCanvasInteractionChange,
   onStartBlockEdit,
   onCommitBlockEdit,
+  onImageEdit,
   onSelectedBlockRect,
   showGrid = false,
   snapEnabled = true,
@@ -296,6 +297,7 @@ export default function FreeCanvas({
                     onResizePointerUp={handleResizePointerUp}
                     onResizePointerCancel={handleResizePointerUp}
                     onDoubleClickEdit={onStartBlockEdit}
+                    onImageEdit={onImageEdit}
                     onInnerBlur={onCommitBlockEdit}
                     locked={Boolean(block.locked)}
                     onBlockElementRef={(blockId, el) => {

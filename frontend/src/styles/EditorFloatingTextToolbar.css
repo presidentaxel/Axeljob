@@ -1,6 +1,9 @@
 .editor-floating-toolbar {
   position: fixed;
-  z-index: 10050;
+  z-index: 3;
+  top: calc(var(--cv-editor-beta-topbar-h, 52px) + 8px);
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   flex-wrap: wrap;
   align-items: center;

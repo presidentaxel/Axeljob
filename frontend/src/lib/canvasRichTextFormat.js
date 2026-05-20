@@ -222,10 +222,29 @@ function flipCase(text) {
   return text.toLowerCase();
 }
 
+export function getEditingBlockInnerRoot() {
+  if (typeof document === 'undefined') return null;
+  return document.querySelector('.free-canvas-block--editing .free-canvas-block__inner');
+}
+
 export function applyStyleToEditableRoot(stylePatch) {
   const root = getActiveEditableRoot();
-  if (!root) return;
-  Object.assign(root.style, stylePatch);
+  if (root) {
+    Object.assign(root.style, stylePatch);
+    return true;
+  }
+  return applyStyleToBlockEditables(getEditingBlockInnerRoot(), stylePatch);
+}
+
+/** Applique un style à tous les champs éditables du bloc en cours d’édition. */
+export function applyStyleToBlockEditables(blockRootEl, stylePatch) {
+  if (!blockRootEl || !stylePatch) return false;
+  const fields = blockRootEl.querySelectorAll(
+    '.canvas-editable-field, .free-canvas-block__text--editing, .free-canvas-block__title--editing',
+  );
+  if (!fields.length) return false;
+  fields.forEach((el) => Object.assign(el.style, stylePatch));
+  return true;
 }
 
 export function readRichHtmlFromRoot(rootEl, blockType) {

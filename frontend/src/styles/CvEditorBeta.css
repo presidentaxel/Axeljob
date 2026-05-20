@@ -77,6 +77,10 @@ body.cv-editor-beta-fullscreen .view-profil.app-page .page-content {
   color: #64748b;
 }
 
+.cv-editor-beta {
+  --cv-editor-beta-topbar-h: 52px;
+}
+
 .cv-editor-beta-topbar {
   display: flex;
   align-items: center;

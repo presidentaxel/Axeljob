@@ -27,9 +27,11 @@ import {
   setBlockPosition,
   updateBlock,
   updateBlockStyle,
+  isAutoHeightBlockType,
 } from '../../lib/cvLayoutModelV3.js';
 import { applyLayoutPagination, layoutHasPageOverflow } from '../../lib/layoutPagination.js';
 import { reflowColumnBlocksOnPage } from '../../lib/layoutReflow.js';
+import { moveBlockToPage } from '../../lib/canvasPageTransfer.js';
 import { useAutoSave } from '../../lib/useAutoSave.js';
 import { useLayoutHistory } from '../../lib/useLayoutHistory.js';
 import CvEditablePreview from '../CvEditablePreview.jsx';
@@ -37,7 +39,6 @@ import FreeCanvas from './FreeCanvas.jsx';
 
 import AutoSaveIndicator from './AutoSaveIndicator.jsx';
 import EditorAtsScoreBadge from './EditorAtsScoreBadge.jsx';
-import EditorBlockChromeToolbar from './EditorBlockChromeToolbar.jsx';
 import EditorCanvaSidebar from './EditorCanvaSidebar.jsx';
 import EditorFloatingTextToolbar from './EditorFloatingTextToolbar.jsx';
 import EditorImageEditPopover from './EditorImageEditPopover.jsx';
@@ -96,6 +97,8 @@ export default function CvEditorBeta({
   const [placementPreset, setPlacementPreset] = useState(null);
   const autoHeightPendingRef = useRef(new Map());
   const autoHeightTimerRef = useRef(null);
+  const suppressAutoHeightUntilRef = useRef(0);
+  const [canvasResizing, setCanvasResizing] = useState(false);
   const layoutRef = useRef(null);
 
   const layoutHistory = useLayoutHistory(() => createBlankLayoutV3(), {
@@ -261,10 +264,18 @@ export default function CvEditorBeta({
     commitLayout(next, commitOptions);
   }, [layout, commitLayout]);
 
-  const handleBlockResizeChange = useCallback((blockId, patch, commitOptions) => {
-    const next = updateBlock(layout, blockId, patch);
+  const handleBlockMove = useCallback((blockId, pos, targetPageIndex, commitOptions) => {
+    const found = findBlock(layout, blockId);
+    if (!found?.block) return;
+    const ti = typeof targetPageIndex === 'number' ? targetPageIndex : found.pageIndex;
+    const next = moveBlockToPage(layout, blockId, ti, pos);
     commitLayout(next, commitOptions);
   }, [layout, commitLayout]);
+
+  const handleBlockResizeChange = useCallback((blockId, patch, commitOptions) => {
+    const next = updateBlock(layoutRef.current, blockId, patch);
+    commitLayout(next, commitOptions);
+  }, [commitLayout]);
 
   const flushAutoHeights = useCallback(() => {
     const pending = autoHeightPendingRef.current;
@@ -284,20 +295,34 @@ export default function CvEditorBeta({
     for (let pi = 0; pi < (next.pages?.length || 0); pi += 1) {
       next = reflowColumnBlocksOnPage(next, pi);
     }
-    if (layoutHasPageOverflow(next)) {
-      next = applyLayoutPagination(next);
-    }
     commitLayout(next, { groupKey: 'autoheight' });
   }, [commitLayout]);
 
   const handleBlockAutoHeight = useCallback((blockId, newHmm) => {
+    if (Date.now() < suppressAutoHeightUntilRef.current) return;
     autoHeightPendingRef.current.set(blockId, newHmm);
     if (autoHeightTimerRef.current) clearTimeout(autoHeightTimerRef.current);
     autoHeightTimerRef.current = setTimeout(() => {
       autoHeightTimerRef.current = null;
       flushAutoHeights();
-    }, 32);
+    }, 120);
   }, [flushAutoHeights]);
+
+  const handleResizeStart = useCallback(() => {
+    setCanvasResizing(true);
+    suppressAutoHeightUntilRef.current = Date.now() + 2000;
+  }, []);
+
+  const handleResizeEnd = useCallback((blockId) => {
+    setCanvasResizing(false);
+    suppressAutoHeightUntilRef.current = Date.now() + 400;
+    if (blockId) {
+      const found = findBlock(layoutRef.current, blockId);
+      if (found?.block && isAutoHeightBlockType(found.block.type)) {
+        autoHeightPendingRef.current.delete(blockId);
+      }
+    }
+  }, []);
 
   useEffect(() => () => {
     if (autoHeightTimerRef.current) clearTimeout(autoHeightTimerRef.current);
@@ -305,15 +330,8 @@ export default function CvEditorBeta({
 
   const handleDragEndPersist = useCallback(() => {
     setCanvasBusy(false);
-    if (editorViewMode === 'free') {
-      const current = layoutRef.current;
-      if (layoutHasPageOverflow(current)) {
-        const paginated = applyLayoutPagination(current);
-        commitLayout(paginated, { groupKey: 'pagination:auto' });
-      }
-    }
     if (cv) autoSave.schedule(cv);
-  }, [editorViewMode, commitLayout, cv, autoSave]);
+  }, [cv, autoSave]);
 
   const handleBeginPlacement = useCallback((preset) => {
     if (!preset) return;
@@ -721,7 +739,11 @@ export default function CvEditorBeta({
                 onCancelPlacement={handleCancelPlacement}
                 onSelectBlock={handleSelectBlock}
                 onBlockPositionChange={handleBlockPositionChange}
+                onBlockMove={handleBlockMove}
                 onBlockResizeChange={handleBlockResizeChange}
+                onResizeStart={handleResizeStart}
+                onResizeEnd={handleResizeEnd}
+                suppressAutoHeight={canvasResizing}
                 onDragEnd={handleDragEndPersist}
                 onCanvasInteractionChange={setCanvasBusy}
                 onStartBlockEdit={handleStartBlockEdit}
@@ -730,20 +752,9 @@ export default function CvEditorBeta({
                 onSelectedBlockRect={setSelectedBlockRect}
                 onBlockAutoHeight={handleBlockAutoHeight}
               />
-              {selectedBlock && selectedBlockRect && (
-                <EditorBlockChromeToolbar
-                  block={selectedBlock}
-                  anchorRect={selectedBlockRect}
-                  locked={Boolean(selectedBlock.locked)}
-                  onDelete={handleDeleteSelectedBlock}
-                  onDuplicate={handleDuplicateSelectedBlock}
-                  onToggleLock={handleToggleBlockLock}
-                />
-              )}
-              {selectedBlock && selectedBlockRect && blockSupportsStyleToolbar(selectedBlock.type) && (
+              {selectedBlock && blockSupportsStyleToolbar(selectedBlock.type) && (
                 <EditorFloatingTextToolbar
                   block={selectedBlock}
-                  anchorRect={selectedBlockRect}
                   isEditing={editingBlockId === selectedBlock.id}
                   onBlockStylePatch={handleBlockStylePatch}
                   onOpenPositionPanel={handleOpenPositionPanel}

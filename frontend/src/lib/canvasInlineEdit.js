@@ -51,6 +51,17 @@ export function findCvArrayIndex(cv, arrayKey, item) {
   return all.indexOf(item);
 }
 
+/** Valeur d'un champ contentEditable (HTML si formatage inline, sinon texte). */
+export function fieldValueFromEditableEl(el) {
+  if (!el) return '';
+  const html = (el.innerHTML || '').trim();
+  if (!html || html === '<br>') return '';
+  if (/<(?:b|strong|i|em|u|s|strike|span|font)\b/i.test(html)) {
+    return html;
+  }
+  return (el.textContent || '').trim();
+}
+
 /**
  * Lit les champs [data-cv-field] sous root et applique sur une copie du CV.
  */
@@ -62,7 +73,7 @@ export function applyCvFieldsFromRoot(cv, rootEl) {
   fields.forEach((el) => {
     const path = el.getAttribute('data-cv-field');
     if (!path) return;
-    setByPath(next, path, (el.textContent || '').trim());
+    setByPath(next, path, fieldValueFromEditableEl(el));
   });
   return next;
 }
@@ -72,7 +83,7 @@ export function readBlockContentFromRoot(rootEl, blockType) {
   if (!rootEl) return '';
   const sel = blockType === 'title' ? '.free-canvas-block__title' : '.free-canvas-block__text';
   const el = rootEl.querySelector(
-    `${sel}, .free-canvas-block__title--editing, .free-canvas-block__text--editing`,
+    `${sel}, .free-canvas-block__title--editing, .free-canvas-block__text--editing, [data-canvas-block-content]`,
   );
   if (!el) return '';
   const html = (el.innerHTML || '').trim();
@@ -83,4 +94,8 @@ export function readBlockContentFromRoot(rootEl, blockType) {
 export function getFieldDisplayValue(cv, path) {
   const v = getByPath(cv, path);
   return typeof v === 'string' ? v : '';
+}
+
+export function fieldValueLooksLikeHtml(value) {
+  return typeof value === 'string' && /<[a-z][\s\S]*>/i.test(value);
 }

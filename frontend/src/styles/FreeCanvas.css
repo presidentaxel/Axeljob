@@ -136,6 +136,18 @@
   touch-action: none;
 }
 
+.free-canvas-block--interactive.free-canvas-block--editing {
+  cursor: default;
+}
+
+.free-canvas-block--editing .free-canvas-block__inner {
+  cursor: text;
+}
+
+.free-canvas-block--editing .free-canvas-block__inner * {
+  cursor: text;
+}
+
 .free-canvas-block--interactive::after {
   content: '';
   position: absolute;

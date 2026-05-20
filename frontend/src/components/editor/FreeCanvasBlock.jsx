@@ -11,6 +11,7 @@ import {
   attachEditableFieldBehavior,
   getEditableFieldConfig,
 } from '../../lib/editableFieldBehavior.js';
+import { fieldValueLooksLikeHtml } from '../../lib/canvasInlineEdit.js';
 import {
   resolveCompetenceList,
   resolveBoundStringList,
@@ -48,8 +49,12 @@ function photoSrc(cv) {
 }
 
 function BlockText({ children, className = '' }) {
-  if (!children) return <span className={`free-canvas-block__empty ${className}`}> </span>;
-  return <span className={className}>{children}</span>;
+  const text = typeof children === 'string' ? children : '';
+  if (!text) return <span className={`free-canvas-block__empty ${className}`}> </span>;
+  if (fieldValueLooksLikeHtml(text)) {
+    return <span className={className} dangerouslySetInnerHTML={{ __html: text }} />;
+  }
+  return <span className={className}>{text}</span>;
 }
 
 function SectionHeading({ label, titleStyle, zone }) {

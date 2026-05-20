@@ -464,7 +464,7 @@ export function updateBlock(layout, blockId, patch) {
   if (patch && patch.style && typeof patch.style === 'object') {
     merged.style = { ...(found.block.style || {}), ...patch.style };
   }
-  const allowPageOverflow = layout?.grid === 'free' && found.pageIndex === 0;
+  const allowPageOverflow = layout?.grid === 'free';
   const cleaned = sanitizeBlock(merged, { allowPageOverflow, pageIndex: found.pageIndex });
   if (!cleaned) return layout;
   return withPagesUpdate(layout, found.pageIndex, (page) => ({

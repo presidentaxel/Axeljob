@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   HiBars3BottomLeft,
   HiBars3,
@@ -10,10 +10,12 @@ import {
   applyColorToSelection,
   applyFontFamilyToSelection,
   applyFontSizeToSelection,
+  applyStyleToBlockEditables,
+  applyStyleToEditableRoot,
   bumpFontSizesBy,
   applyRichTextCommand,
   applyRichTextCommandWithFallback,
-  applyStyleToEditableRoot,
+  getEditingBlockInnerRoot,
   hasTextSelection,
   queryCommandState,
   toggleTextCase,
@@ -46,15 +48,11 @@ function formatAction(event, fn) {
 
 export default function EditorFloatingTextToolbar({
   block,
-  anchorRect,
   isEditing = false,
   onBlockStylePatch,
   onOpenPositionPanel,
 }) {
-  const dragRef = useRef(null);
   const colorInputRef = useRef(null);
-  const [pos, setPos] = useState(null);
-  const [dragging, setDragging] = useState(false);
   const [effectsOpen, setEffectsOpen] = useState(false);
   const [, tick] = useState(0);
 
@@ -65,43 +63,7 @@ export default function EditorFloatingTextToolbar({
     return () => document.removeEventListener('selectionchange', onSel);
   }, [isEditing]);
 
-  useEffect(() => {
-    if (!anchorRect) return;
-    const top = anchorRect.top + anchorRect.height + 10;
-    const left = Math.max(8, anchorRect.left);
-    setPos((prev) => {
-      if (prev && prev.top === top && prev.left === left) return prev;
-      return { top, left };
-    });
-  }, [anchorRect?.top, anchorRect?.left, anchorRect?.width, anchorRect?.height]);
-
-  const onDragStart = useCallback((e) => {
-    if (!e.target.closest('.editor-floating-toolbar__handle')) return;
-    e.preventDefault();
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const origin = { ...pos };
-    dragRef.current = { startX, startY, origin };
-    setDragging(true);
-    const onMove = (ev) => {
-      const d = dragRef.current;
-      if (!d) return;
-      setPos({
-        top: d.origin.top + (ev.clientY - d.startY),
-        left: d.origin.left + (ev.clientX - d.startX),
-      });
-    };
-    const onUp = () => {
-      dragRef.current = null;
-      setDragging(false);
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-  }, [pos]);
-
-  if (!block || !anchorRect || !pos) return null;
+  if (!block || !blockSupportsTextToolbar(block.type)) return null;
 
   const style = block.style || {};
   const isLine = block.type === 'shape:line';
@@ -130,7 +92,10 @@ export default function EditorFloatingTextToolbar({
         align: { textAlign: value },
         opacity: { opacity: value },
       };
-      if (map[key]) applyStyleToEditableRoot(map[key]);
+      if (map[key]) {
+        applyStyleToEditableRoot(map[key]);
+        applyStyleToBlockEditables(getEditingBlockInnerRoot(), map[key]);
+      }
     }
   };
 
@@ -142,6 +107,12 @@ export default function EditorFloatingTextToolbar({
           applyFontSizeToSelection(Math.min(48, Math.max(6, fontSize + delta)));
           return;
         }
+        const next = Math.min(48, Math.max(6, fontSize + delta));
+        const map = { fontSize: `${next}pt` };
+        applyStyleToEditableRoot(map);
+        applyStyleToBlockEditables(getEditingBlockInnerRoot(), map);
+        if (typeof onBlockStylePatch === 'function') onBlockStylePatch({ font_size: next });
+        return;
       }
       patchStyle('font_size', Math.min(48, Math.max(6, fontSize + delta)));
     });
@@ -177,16 +148,12 @@ export default function EditorFloatingTextToolbar({
 
   return (
     <div
-      className={`editor-floating-toolbar${dragging ? ' editor-floating-toolbar--dragging' : ''}`}
+      className="editor-floating-toolbar"
       role="toolbar"
-      style={{ top: `${pos.top}px`, left: `${pos.left}px` }}
+      aria-label="Formatage du bloc"
       onPointerDown={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <div className="editor-floating-toolbar__handle" onPointerDown={onDragStart} title="Déplacer" aria-hidden>
-        ⋮⋮
-      </div>
-
       {isLine && (
         <>
           <button type="button" className="editor-floating-toolbar__color-btn" title="Couleur" onMouseDown={openColorPicker}>

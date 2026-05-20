@@ -13,3 +13,20 @@ export function clientPointToPageMm(clientX, clientY, pageElement) {
     y: ((clientY - rect.top) / rect.height) * PAGE_HEIGHT_MM,
   };
 }
+
+/** Page canvas (.free-canvas-page) sous le pointeur. */
+export function findPageElementAtPoint(clientX, clientY) {
+  if (typeof document === 'undefined') return null;
+  const stack = document.elementsFromPoint(clientX, clientY);
+  for (const el of stack) {
+    const page = el.closest?.('.free-canvas-page[data-page-index]');
+    if (page) return page;
+  }
+  return null;
+}
+
+export function pageIndexFromElement(pageEl) {
+  if (!pageEl) return 0;
+  const n = parseInt(pageEl.getAttribute('data-page-index') || '0', 10);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}

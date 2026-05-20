@@ -8,16 +8,16 @@ import {
 import { applyAtsLayoutOptimizations } from '../../lib/atsLayoutOptimize.js';
 import { saveLayoutProposal } from '../../lib/layoutProposalsStorage.js';
 import { defaultCv } from '../../data/cvDefault';
+import { blockSupportsStyleToolbar } from '../../lib/canvasBlockToolbar.js';
+import { getLastBlockIdOnPage } from '../../lib/freeCanvasBlockPresets.js';
 import {
-  createInsertBlockPreset,
-  getLastBlockIdOnPage,
-  suggestNewBlockPlacement,
-} from '../../lib/freeCanvasBlockPresets.js';
+  createCanvasLayoutBlank,
+  createCanvasLayoutForTemplate,
+} from '../../lib/layoutTemplatePresets.js';
 import {
   addBlockToPage,
   bringToFront,
   createBlankLayoutV3,
-  createStarterLayoutV3,
   duplicateBlock,
   findBlock,
   isEmptyLayoutV3,
@@ -27,7 +27,6 @@ import {
   setBlockPosition,
   updateBlock,
   updateBlockStyle,
-  updateTheme,
 } from '../../lib/cvLayoutModelV3.js';
 import { applyLayoutPagination, layoutHasPageOverflow } from '../../lib/layoutPagination.js';
 import { useAutoSave } from '../../lib/useAutoSave.js';
@@ -92,6 +91,8 @@ export default function CvEditorBeta({
   const [showCanvasGrid, setShowCanvasGrid] = useState(false);
   const [canvasSnapEnabled, setCanvasSnapEnabled] = useState(true);
   const [imageEditBlockId, setImageEditBlockId] = useState(null);
+  const [sidebarSection, setSidebarSection] = useState('elements');
+  const [placementPreset, setPlacementPreset] = useState(null);
   const layoutRef = useRef(null);
 
   const layoutHistory = useLayoutHistory(() => createBlankLayoutV3(), {
@@ -236,18 +237,11 @@ export default function CvEditorBeta({
   }, [onTemplateOptionsChange]);
 
   const handlePickBlankCanvas = useCallback(() => {
-    const next = createBlankLayoutV3();
+    setPlacementPreset(null);
+    const next = createCanvasLayoutBlank();
     resetLayout(next);
     if (cv) autoSave.schedule(cv);
   }, [resetLayout, cv, autoSave]);
-
-  const handlePickStarterCanvas = useCallback(() => {
-    const next = createStarterLayoutV3();
-    resetLayout(next);
-    if (cv) autoSave.schedule(cv);
-  }, [resetLayout, cv, autoSave]);
-
-  const showCanvasStarterPicker = editorViewMode === 'free' && isEmptyLayoutV3(layout);
 
   const selectedBlock = useMemo(() => {
     if (!selectedBlockId || editorViewMode !== 'free') return null;
@@ -269,6 +263,13 @@ export default function CvEditorBeta({
     commitLayout(next, commitOptions);
   }, [layout, commitLayout]);
 
+  const handleBlockAutoHeight = useCallback((blockId, newHmm) => {
+    const found = findBlock(layout, blockId);
+    if (!found?.block || newHmm <= (found.block.h ?? 0)) return;
+    const next = updateBlock(layout, blockId, { h: newHmm });
+    commitLayout(next, { groupKey: 'autoheight' });
+  }, [layout, commitLayout]);
+
   const handleDragEndPersist = useCallback(() => {
     setCanvasBusy(false);
     if (editorViewMode === 'free') {
@@ -281,39 +282,35 @@ export default function CvEditorBeta({
     if (cv) autoSave.schedule(cv);
   }, [editorViewMode, commitLayout, cv, autoSave]);
 
-  const handleInsertBlock = useCallback((type) => {
-    const preset = createInsertBlockPreset(type);
+  const handleBeginPlacement = useCallback((preset) => {
     if (!preset) return;
-    const placement = suggestNewBlockPlacement(layout, 0, preset);
-    const partial = { ...preset, ...placement };
-    const next = addBlockToPage(layout, 0, partial);
-    commitLayout(next);
-    const newId = getLastBlockIdOnPage(next, 0);
-    if (newId) setSelectedBlockId(newId);
-    if (cv) autoSave.schedule(cv);
-  }, [layout, commitLayout, cv, autoSave]);
+    setPlacementPreset(preset);
+  }, []);
 
-  const handleInsertIconBlock = useCallback((preset) => {
-    if (!preset) return;
-    const placement = suggestNewBlockPlacement(layout, 0, preset);
-    const partial = { ...preset, ...placement };
-    const next = addBlockToPage(layout, 0, partial);
-    commitLayout(next);
-    const newId = getLastBlockIdOnPage(next, 0);
-    if (newId) setSelectedBlockId(newId);
-    if (cv) autoSave.schedule(cv);
-  }, [layout, commitLayout, cv, autoSave]);
+  const handleCancelPlacement = useCallback(() => {
+    setPlacementPreset(null);
+  }, []);
 
-  const handleInsertImageBlock = useCallback((preset) => {
-    if (!preset) return;
-    const placement = suggestNewBlockPlacement(layout, 0, preset);
-    const partial = { ...preset, ...placement };
-    const next = addBlockToPage(layout, 0, partial);
+  const handlePlaceBlockAt = useCallback((pageIndex, xMm, yMm) => {
+    if (!placementPreset) return;
+    const w = placementPreset.w ?? 20;
+    const h = placementPreset.h ?? 10;
+    const partial = {
+      ...placementPreset,
+      x: Math.max(0, xMm - w / 2),
+      y: Math.max(0, yMm - h / 2),
+    };
+    const next = addBlockToPage(layout, pageIndex, partial);
     commitLayout(next);
-    const newId = getLastBlockIdOnPage(next, 0);
+    const newId = getLastBlockIdOnPage(next, pageIndex);
     if (newId) setSelectedBlockId(newId);
+    setPlacementPreset(null);
     if (cv) autoSave.schedule(cv);
-  }, [layout, commitLayout, cv, autoSave]);
+  }, [placementPreset, layout, commitLayout, cv, autoSave]);
+
+  const handleOpenPositionPanel = useCallback(() => {
+    setSidebarSection('position');
+  }, []);
 
   const handleDuplicateSelectedBlock = useCallback(() => {
     if (!selectedBlockId) return;
@@ -330,25 +327,13 @@ export default function CvEditorBeta({
     setEditingBlockId(null);
   }, []);
 
-  const handleApplyTemplateTheme = useCallback((template) => {
-    if (!template || !layout) return;
-    const patch = {};
-    const opts = template.options;
-    if (Array.isArray(opts)) {
-      opts.forEach((o) => {
-        if (o?.key === 'accent_color' && o.default) patch.color_accent = o.default;
-        if (o?.key === 'header_color' && o.default && !patch.color_accent) {
-          patch.color_accent = o.default;
-        }
-      });
-    } else if (opts && typeof opts === 'object') {
-      if (opts.accent_color) patch.color_accent = opts.accent_color;
-    }
-    if (Object.keys(patch).length === 0) return;
-    const next = updateTheme(layout, patch);
-    commitLayout(next);
+  const handleApplyCanvasTemplate = useCallback((template) => {
+    if (!template) return;
+    setPlacementPreset(null);
+    const next = createCanvasLayoutForTemplate(template);
+    resetLayout(next);
     if (cv) autoSave.schedule(cv);
-  }, [layout, commitLayout, cv, autoSave]);
+  }, [resetLayout, cv, autoSave]);
 
   const handleToggleBlockLock = useCallback(() => {
     if (!selectedBlockId) return;
@@ -366,6 +351,13 @@ export default function CvEditorBeta({
     if (cv) autoSave.schedule(cv);
   }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
 
+  const handleBlockPatchById = useCallback((blockId, patch) => {
+    if (!blockId) return;
+    const next = updateBlock(layout, blockId, patch);
+    commitLayout(next);
+    if (cv) autoSave.schedule(cv);
+  }, [layout, commitLayout, cv, autoSave]);
+
   const handleBlockStylePatch = useCallback((stylePatch) => {
     if (!selectedBlockId) return;
     let next = updateBlockStyle(layout, selectedBlockId, stylePatch);
@@ -379,19 +371,31 @@ export default function CvEditorBeta({
     if (cv) autoSave.schedule(cv);
   }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
 
-  const handleBlockBringToFront = useCallback(() => {
-    if (!selectedBlockId) return;
-    const next = bringToFront(layout, selectedBlockId);
+  const handleBlockBringToFront = useCallback((blockId) => {
+    const id = blockId || selectedBlockId;
+    if (!id) return;
+    const next = bringToFront(layout, id);
     commitLayout(next);
     if (cv) autoSave.schedule(cv);
   }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
 
-  const handleBlockSendToBack = useCallback(() => {
-    if (!selectedBlockId) return;
-    const next = sendToBack(layout, selectedBlockId);
+  const handleBlockSendToBack = useCallback((blockId) => {
+    const id = blockId || selectedBlockId;
+    if (!id) return;
+    const next = sendToBack(layout, id);
     commitLayout(next);
     if (cv) autoSave.schedule(cv);
   }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
+
+  const handleBlockZStep = useCallback((blockId, delta) => {
+    if (!blockId) return;
+    const found = findBlock(layout, blockId);
+    if (!found?.block) return;
+    const z = Math.max(0, (found.block.z ?? 0) + delta);
+    const next = updateBlock(layout, blockId, { z });
+    commitLayout(next);
+    if (cv) autoSave.schedule(cv);
+  }, [layout, commitLayout, cv, autoSave]);
 
   const handleDeleteSelectedBlock = useCallback(() => {
     if (!selectedBlockId) return;
@@ -430,11 +434,8 @@ export default function CvEditorBeta({
   }, [layout, cv, commitLayout, handleCvChange]);
 
   const handleSwitchToFreeCanvas = useCallback(() => {
-    if (isEmptyLayoutV3(layout)) {
-      resetLayout(createStarterLayoutV3());
-    }
     setEditorViewMode('free');
-  }, [layout, resetLayout]);
+  }, []);
 
   const handleOptimizeAtsLayout = useCallback(() => {
     if (!layout) return;
@@ -564,11 +565,13 @@ export default function CvEditorBeta({
               </button>
             </div>
           )}
-          <EditorTemplateSelector
-            templates={templatesList}
-            templateId={templateId}
-            onTemplateIdChange={onTemplateIdChange}
-          />
+          {editorViewMode === 'guided' && (
+            <EditorTemplateSelector
+              templates={templatesList}
+              templateId={templateId}
+              onTemplateIdChange={onTemplateIdChange}
+            />
+          )}
         </div>
         <div className="cv-editor-beta-topbar-right">
           <AutoSaveIndicator state={autoSave.state} onRetry={handleRetry} />
@@ -633,19 +636,27 @@ export default function CvEditorBeta({
             : 'cv-editor-beta-workspace'
         }
       >
-        {editorViewMode === 'free' && !showCanvasStarterPicker && (
+        {editorViewMode === 'free' && (
           <EditorCanvaSidebar
             disabled={loading || !layout}
+            openSection={sidebarSection}
+            onOpenSectionChange={setSidebarSection}
+            placementActive={Boolean(placementPreset)}
+            layout={layout}
+            selectedBlockId={selectedBlockId}
             templatesList={templatesList}
             showGrid={showCanvasGrid}
             snapEnabled={canvasSnapEnabled}
             onShowGridChange={setShowCanvasGrid}
             onSnapEnabledChange={setCanvasSnapEnabled}
-            onInsertBlock={handleInsertBlock}
-            onInsertImageBlock={handleInsertImageBlock}
-            onInsertIconBlock={handleInsertIconBlock}
+            onBeginPlacement={handleBeginPlacement}
+            onSelectBlock={handleSelectBlock}
+            onBlockPatch={handleBlockPatchById}
+            onBlockBringToFront={handleBlockBringToFront}
+            onBlockSendToBack={handleBlockSendToBack}
+            onBlockZStep={handleBlockZStep}
             onPickBlank={handlePickBlankCanvas}
-            onApplyTemplateTheme={handleApplyTemplateTheme}
+            onApplyCanvasTemplate={handleApplyCanvasTemplate}
             onLoadProposal={handleLoadLayoutProposal}
             onSaveProposal={handleSaveLayoutProposal}
           />
@@ -662,27 +673,6 @@ export default function CvEditorBeta({
             />
           ) : (
             <>
-              {showCanvasStarterPicker && (
-                <div className="free-canvas-starter-picker" role="region" aria-label="Démarrer le canvas">
-                  <p className="free-canvas-starter-picker__title">Comment voulez-vous commencer ?</p>
-                  <div className="free-canvas-starter-picker__actions">
-                    <button
-                      type="button"
-                      className="free-canvas-starter-picker__btn"
-                      onClick={handlePickStarterCanvas}
-                    >
-                      Partir d’un modèle (blocs pré-placés)
-                    </button>
-                    <button
-                      type="button"
-                      className="free-canvas-starter-picker__btn free-canvas-starter-picker__btn--secondary"
-                      onClick={handlePickBlankCanvas}
-                    >
-                      Page blanche
-                    </button>
-                  </div>
-                </div>
-              )}
               <FreeCanvas
                 layout={layout}
                 cv={cv}
@@ -690,6 +680,9 @@ export default function CvEditorBeta({
                 editingBlockId={editingBlockId}
                 showGrid={showCanvasGrid}
                 snapEnabled={canvasSnapEnabled}
+                placementPreset={placementPreset}
+                onPlaceBlockAt={handlePlaceBlockAt}
+                onCancelPlacement={handleCancelPlacement}
                 onSelectBlock={handleSelectBlock}
                 onBlockPositionChange={handleBlockPositionChange}
                 onBlockResizeChange={handleBlockResizeChange}
@@ -699,6 +692,7 @@ export default function CvEditorBeta({
                 onCommitBlockEdit={handleCommitBlockEdit}
                 onImageEdit={handleImageEdit}
                 onSelectedBlockRect={setSelectedBlockRect}
+                onBlockAutoHeight={handleBlockAutoHeight}
               />
               {selectedBlock && selectedBlockRect && (
                 <EditorBlockChromeToolbar
@@ -710,13 +704,13 @@ export default function CvEditorBeta({
                   onToggleLock={handleToggleBlockLock}
                 />
               )}
-              {selectedBlock && selectedBlockRect && (
+              {selectedBlock && selectedBlockRect && blockSupportsStyleToolbar(selectedBlock.type) && (
                 <EditorFloatingTextToolbar
                   block={selectedBlock}
                   anchorRect={selectedBlockRect}
                   isEditing={editingBlockId === selectedBlock.id}
                   onBlockStylePatch={handleBlockStylePatch}
-                  onBlockPatch={handleBlockPatch}
+                  onOpenPositionPanel={handleOpenPositionPanel}
                 />
               )}
               {imageEditBlockId && selectedBlock?.type === 'image' && selectedBlockRect && (

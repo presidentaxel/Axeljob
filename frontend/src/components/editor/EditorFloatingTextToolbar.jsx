@@ -3,6 +3,7 @@ import {
   HiBars3BottomLeft,
   HiBars3,
   HiBars3BottomRight,
+  HiBars4,
   HiListBullet,
 } from 'react-icons/hi2';
 import {
@@ -10,11 +11,13 @@ import {
   applyFontFamilyToSelection,
   applyFontSizeToSelection,
   applyRichTextCommand,
-  applyStyleToSelection,
-  getActiveEditableRoot,
+  applyRichTextCommandWithFallback,
+  applyStyleToEditableRoot,
   hasTextSelection,
   queryCommandState,
+  toggleTextCase,
 } from '../../lib/canvasRichTextFormat.js';
+import { blockSupportsTextToolbar } from '../../lib/canvasBlockToolbar.js';
 import '../../styles/EditorFloatingTextToolbar.css';
 
 const FONT_FAMILIES = [
@@ -24,28 +27,38 @@ const FONT_FAMILIES = [
   { value: 'Georgia, serif', label: 'Georgia' },
 ];
 
-const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 34];
+const ALIGN_CYCLE = ['left', 'center', 'right', 'justify'];
+const ALIGN_CMD = {
+  left: 'justifyLeft',
+  center: 'justifyCenter',
+  right: 'justifyRight',
+  justify: 'justifyFull',
+};
 
 function AlignIcon({ align }) {
   if (align === 'center') return <HiBars3 size={18} aria-hidden />;
   if (align === 'right') return <HiBars3BottomRight size={18} aria-hidden />;
+  if (align === 'justify') return <HiBars4 size={18} aria-hidden />;
   return <HiBars3BottomLeft size={18} aria-hidden />;
 }
 
-/**
- * Toolbar Canva-like : formatage sur sélection en édition, sinon bloc entier.
- */
+/** Empêche la perte de focus/selection sur contentEditable au clic toolbar. */
+function formatAction(event, fn) {
+  event.preventDefault();
+  event.stopPropagation();
+  fn();
+}
+
 export default function EditorFloatingTextToolbar({
   block,
   anchorRect,
   isEditing = false,
   onBlockStylePatch,
-  onBlockPatch,
+  onOpenPositionPanel,
 }) {
   const dragRef = useRef(null);
   const [pos, setPos] = useState(null);
   const [dragging, setDragging] = useState(false);
-  const [positionOpen, setPositionOpen] = useState(false);
   const [effectsOpen, setEffectsOpen] = useState(false);
   const [, tick] = useState(0);
 
@@ -58,11 +71,13 @@ export default function EditorFloatingTextToolbar({
 
   useEffect(() => {
     if (!anchorRect) return;
-    setPos({
-      top: anchorRect.top + anchorRect.height + 10,
-      left: Math.max(8, anchorRect.left),
+    const top = anchorRect.top + anchorRect.height + 10;
+    const left = Math.max(8, anchorRect.left);
+    setPos((prev) => {
+      if (prev && prev.top === top && prev.left === left) return prev;
+      return { top, left };
     });
-  }, [anchorRect]);
+  }, [anchorRect?.top, anchorRect?.left, anchorRect?.width, anchorRect?.height]);
 
   const onDragStart = useCallback((e) => {
     if (!e.target.closest('.editor-floating-toolbar__handle')) return;
@@ -94,38 +109,58 @@ export default function EditorFloatingTextToolbar({
 
   const style = block.style || {};
   const isLine = block.type === 'shape:line';
-  const isText = block.type === 'text' || block.type === 'title';
-  const selectionMode = isEditing && (hasTextSelection() || getActiveEditableRoot());
+  const isIcon = block.type === 'icon';
+  const showText = blockSupportsTextToolbar(block.type);
+  const fontSize = style.font_size || 12;
+  const align = style.align || 'left';
 
   const patchStyle = (key, value) => {
-    if (selectionMode && isText) {
+    if (isEditing && showText && hasTextSelection()) {
       if (key === 'color') applyColorToSelection(value);
       else if (key === 'font_family') applyFontFamilyToSelection(value);
       else if (key === 'font_size') applyFontSizeToSelection(value);
-      else if (key === 'opacity') applyStyleToSelection({ opacity: value });
       return;
     }
     if (typeof onBlockStylePatch === 'function') onBlockStylePatch({ [key]: value });
+    if (isEditing && showText) {
+      const map = {
+        font_size: { fontSize: `${value}pt` },
+        font_family: { fontFamily: value },
+        color: { color: value },
+        align: { textAlign: value },
+        opacity: { opacity: value },
+      };
+      if (map[key]) applyStyleToEditableRoot(map[key]);
+    }
   };
 
-  const runCmd = (cmd, val) => {
-    if (selectionMode) {
-      applyRichTextCommand(cmd, val);
+  const runCmd = (cmd) => {
+    if (isEditing && showText) {
+      applyRichTextCommandWithFallback(cmd);
       return;
     }
-    if (!isText && typeof onBlockStylePatch === 'function') {
-      const map = {
-        bold: { bold: !style.bold },
-        italic: { italic: !style.italic },
-        underline: { underline: !style.underline },
-        strikeThrough: { strikethrough: !style.strikethrough },
-      };
-      if (map[cmd]) onBlockStylePatch(map[cmd]);
-    }
+    if (!showText || typeof onBlockStylePatch !== 'function') return;
+    const map = {
+      bold: { bold: !style.bold },
+      italic: { italic: !style.italic },
+      underline: { underline: !style.underline },
+      strikeThrough: { strikethrough: !style.strikethrough },
+    };
+    if (map[cmd]) onBlockStylePatch(map[cmd]);
   };
 
-  const fontSize = style.font_size || 12;
-  const align = style.align || 'left';
+  const cycleAlign = () => {
+    const idx = ALIGN_CYCLE.indexOf(align);
+    const next = ALIGN_CYCLE[(idx + 1) % ALIGN_CYCLE.length];
+    if (isEditing && showText) {
+      applyRichTextCommandWithFallback(ALIGN_CMD[next]);
+      if (!hasTextSelection() && typeof onBlockStylePatch === 'function') {
+        onBlockStylePatch({ align: next });
+      }
+      return;
+    }
+    patchStyle('align', next);
+  };
 
   return (
     <div
@@ -141,27 +176,31 @@ export default function EditorFloatingTextToolbar({
 
       {isLine && (
         <>
-          <label className="editor-floating-toolbar__color-btn" title="Couleur du trait">
+          <label className="editor-floating-toolbar__color-btn" title="Couleur">
             <span className="editor-floating-toolbar__color-a">A</span>
-            <input
-              type="color"
-              value={style.color || '#1e293b'}
-              onChange={(e) => patchStyle('color', e.target.value)}
-            />
+            <input type="color" value={style.color || '#1e293b'} onChange={(e) => patchStyle('color', e.target.value)} />
           </label>
           <div className="editor-floating-toolbar__size-stepper">
-            <button type="button" onClick={() => patchStyle('stroke_width', Math.max(0.2, (style.stroke_width || 0.6) - 0.2))}>−</button>
+            <button type="button" onMouseDown={(e) => formatAction(e, () => patchStyle('stroke_width', Math.max(0.2, (style.stroke_width || 0.6) - 0.2)))}>−</button>
             <span>{(style.stroke_width || 0.6).toFixed(1)} mm</span>
-            <button type="button" onClick={() => patchStyle('stroke_width', Math.min(8, (style.stroke_width || 0.6) + 0.2))}>+</button>
+            <button type="button" onMouseDown={(e) => formatAction(e, () => patchStyle('stroke_width', Math.min(8, (style.stroke_width || 0.6) + 0.2)))}>+</button>
           </div>
         </>
       )}
 
-      {isText && (
+      {isIcon && (
+        <label className="editor-floating-toolbar__color-btn" title="Couleur icône">
+          <span className="editor-floating-toolbar__color-a">A</span>
+          <input type="color" value={style.color || '#1e293b'} onChange={(e) => patchStyle('color', e.target.value)} />
+        </label>
+      )}
+
+      {showText && (
         <>
           <select
             className="editor-floating-toolbar__font"
             value={style.font_family || FONT_FAMILIES[2].value}
+            onMouseDown={(e) => e.stopPropagation()}
             onChange={(e) => patchStyle('font_family', e.target.value)}
           >
             {FONT_FAMILIES.map((f) => (
@@ -169,101 +208,64 @@ export default function EditorFloatingTextToolbar({
             ))}
           </select>
           <div className="editor-floating-toolbar__size-stepper">
-            <button
-              type="button"
-              onClick={() => patchStyle('font_size', Math.max(6, fontSize - 1))}
-            >
-              −
-            </button>
+            <button type="button" onMouseDown={(e) => formatAction(e, () => patchStyle('font_size', Math.max(6, fontSize - 1)))}>−</button>
             <span>{fontSize}</span>
-            <button
-              type="button"
-              onClick={() => patchStyle('font_size', Math.min(48, fontSize + 1))}
-            >
-              +
-            </button>
+            <button type="button" onMouseDown={(e) => formatAction(e, () => patchStyle('font_size', Math.min(48, fontSize + 1)))}>+</button>
           </div>
-          <label className="editor-floating-toolbar__color-btn" title="Couleur du texte">
+          <label className="editor-floating-toolbar__color-btn" title="Couleur">
             <span className="editor-floating-toolbar__color-a editor-floating-toolbar__color-a--rainbow">A</span>
-            <input
-              type="color"
-              value={style.color || '#1e293b'}
-              onChange={(e) => patchStyle('color', e.target.value)}
-            />
+            <input type="color" value={style.color || '#1e293b'} onChange={(e) => patchStyle('color', e.target.value)} />
           </label>
           <button
             type="button"
-            className={selectionMode ? (queryCommandState('bold') ? 'is-active' : '') : (style.bold ? 'is-active' : '')}
-            onClick={() => runCmd('bold')}
+            className={isEditing && hasTextSelection() ? (queryCommandState('bold') ? 'is-active' : '') : (style.bold ? 'is-active' : '')}
+            onMouseDown={(e) => formatAction(e, () => runCmd('bold'))}
+          ><strong>B</strong></button>
+          <button
+            type="button"
+            className={isEditing && hasTextSelection() ? (queryCommandState('italic') ? 'is-active' : '') : (style.italic ? 'is-active' : '')}
+            onMouseDown={(e) => formatAction(e, () => runCmd('italic'))}
+          ><em>I</em></button>
+          <button
+            type="button"
+            className={isEditing && hasTextSelection() ? (queryCommandState('underline') ? 'is-active' : '') : (style.underline ? 'is-active' : '')}
+            onMouseDown={(e) => formatAction(e, () => runCmd('underline'))}
+          ><span className="editor-floating-toolbar__u">U</span></button>
+          <button
+            type="button"
+            className={isEditing && hasTextSelection() ? (queryCommandState('strikeThrough') ? 'is-active' : '') : (style.strikethrough ? 'is-active' : '')}
+            onMouseDown={(e) => formatAction(e, () => runCmd('strikeThrough'))}
+          ><span className="editor-floating-toolbar__s">S</span></button>
+          <button
+            type="button"
+            className="editor-floating-toolbar__case-btn"
+            title="Majuscules / minuscules"
+            onMouseDown={(e) => formatAction(e, () => toggleTextCase())}
           >
-            <strong>B</strong>
+            <span className="editor-floating-toolbar__case-big">A</span>
+            <span className="editor-floating-toolbar__case-small">a</span>
           </button>
           <button
             type="button"
-            className={selectionMode ? (queryCommandState('italic') ? 'is-active' : '') : (style.italic ? 'is-active' : '')}
-            onClick={() => runCmd('italic')}
+            className="is-active"
+            title="Alignement (cliquer pour changer)"
+            onMouseDown={(e) => formatAction(e, cycleAlign)}
           >
-            <em>I</em>
+            <AlignIcon align={align} />
           </button>
           <button
             type="button"
-            className={selectionMode ? (queryCommandState('underline') ? 'is-active' : '') : (style.underline ? 'is-active' : '')}
-            onClick={() => runCmd('underline')}
+            title="Liste"
+            onMouseDown={(e) => formatAction(e, () => applyRichTextCommandWithFallback('insertUnorderedList'))}
           >
-            <span className="editor-floating-toolbar__u">U</span>
-          </button>
-          <button
-            type="button"
-            className={selectionMode ? (queryCommandState('strikeThrough') ? 'is-active' : '') : (style.strikethrough ? 'is-active' : '')}
-            onClick={() => runCmd('strikeThrough')}
-          >
-            <span className="editor-floating-toolbar__s">S</span>
-          </button>
-          <button type="button" title="Casse" onClick={() => applyRichTextCommand('formatBlock', 'p')}>
-            aA
-          </button>
-          <div className="editor-floating-toolbar__align-group">
-            {['left', 'center', 'right'].map((a) => (
-              <button
-                key={a}
-                type="button"
-                className={align === a ? 'is-active' : ''}
-                title={`Aligner ${a}`}
-                onClick={() => {
-                  if (selectionMode) {
-                    const cmd = a === 'center' ? 'justifyCenter' : a === 'right' ? 'justifyRight' : 'justifyLeft';
-                    applyRichTextCommand(cmd);
-                  } else {
-                    patchStyle('align', a);
-                  }
-                }}
-              >
-                <AlignIcon align={a} />
-              </button>
-            ))}
-          </div>
-          <button type="button" title="Liste à puces" onClick={() => applyRichTextCommand('insertUnorderedList')}>
             <HiListBullet size={18} aria-hidden />
           </button>
-          <button
-            type="button"
-            className={effectsOpen ? 'is-active' : ''}
-            onClick={() => setEffectsOpen((v) => !v)}
-          >
-            Effets
-          </button>
+          <button type="button" className={effectsOpen ? 'is-active' : ''} onClick={() => setEffectsOpen((v) => !v)}>Effets</button>
           {effectsOpen && (
             <div className="editor-floating-toolbar__popover">
               <label>
                 Transparence
-                <input
-                  type="range"
-                  min="0.2"
-                  max="1"
-                  step="0.05"
-                  value={style.opacity ?? 1}
-                  onChange={(e) => patchStyle('opacity', parseFloat(e.target.value))}
-                />
+                <input type="range" min="0.2" max="1" step="0.05" value={style.opacity ?? 1} onChange={(e) => patchStyle('opacity', parseFloat(e.target.value))} />
               </label>
             </div>
           )}
@@ -272,26 +274,14 @@ export default function EditorFloatingTextToolbar({
 
       <button
         type="button"
-        className={`editor-floating-toolbar__position-btn${positionOpen ? ' is-active' : ''}`}
-        onClick={() => setPositionOpen((v) => !v)}
+        className="editor-floating-toolbar__position-btn"
+        onClick={() => {
+          setEffectsOpen(false);
+          onOpenPositionPanel?.();
+        }}
       >
         Position
       </button>
-      {positionOpen && (
-        <div className="editor-floating-toolbar__popover editor-floating-toolbar__popover--position">
-          {['x', 'y', 'w', 'h', 'z'].map((key) => (
-            <label key={key}>
-              {key.toUpperCase()}
-              <input
-                type="number"
-                step={key === 'z' ? 1 : 0.5}
-                value={block[key] ?? 0}
-                onChange={(e) => onBlockPatch?.({ [key]: parseFloat(e.target.value) || 0 })}
-              />
-            </label>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

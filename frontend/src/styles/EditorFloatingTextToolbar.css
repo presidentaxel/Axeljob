@@ -194,3 +194,21 @@
   border: 1px solid #cbd5e1;
   border-radius: 6px;
 }
+
+.editor-floating-toolbar__case-btn {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+  line-height: 1;
+}
+
+.editor-floating-toolbar__case-big {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.editor-floating-toolbar__case-small {
+  font-size: 0.65rem;
+  font-weight: 600;
+  opacity: 0.85;
+}

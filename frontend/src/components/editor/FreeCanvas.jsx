@@ -1,5 +1,6 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import FreeCanvasBlock from './FreeCanvasBlock.jsx';
+import { clientPointToPageMm } from '../../lib/canvasPlacement.js';
 import { PAGE_HEIGHT_MM, PAGE_WIDTH_MM } from '../../lib/cvLayoutModelV3.js';
 import {
   clientDeltaToMmDelta,
@@ -54,9 +55,13 @@ export default function FreeCanvas({
   onCommitBlockEdit,
   onImageEdit,
   onSelectedBlockRect,
+  onBlockAutoHeight,
   showGrid = false,
   snapEnabled = true,
   interactable = true,
+  placementPreset = null,
+  onPlaceBlockAt,
+  onCancelPlacement,
 }) {
   const viewportRef = useRef(null);
   const blockElementsRef = useRef({});
@@ -102,19 +107,42 @@ export default function FreeCanvas({
     setCanvasBusy(false);
   }, [clearGuides, setCanvasBusy]);
 
+  const lastReportedRectRef = useRef(null);
+
   useLayoutEffect(() => {
     if (!selectedBlockId || typeof onSelectedBlockRect !== 'function') {
-      if (typeof onSelectedBlockRect === 'function') onSelectedBlockRect(null);
-      return;
+      if (lastReportedRectRef.current != null) {
+        lastReportedRectRef.current = null;
+        onSelectedBlockRect(null);
+      }
+      return undefined;
     }
     const el = blockElementsRef.current[selectedBlockId];
     if (!el) {
+      lastReportedRectRef.current = null;
       onSelectedBlockRect(null);
-      return;
+      return undefined;
     }
     const update = () => {
       const rect = el.getBoundingClientRect();
-      onSelectedBlockRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
+      const next = {
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      };
+      const prev = lastReportedRectRef.current;
+      if (
+        prev
+        && prev.top === next.top
+        && prev.left === next.left
+        && prev.width === next.width
+        && prev.height === next.height
+      ) {
+        return;
+      }
+      lastReportedRectRef.current = next;
+      onSelectedBlockRect(next);
     };
     update();
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
@@ -230,10 +258,36 @@ export default function FreeCanvas({
     if (wasResizing && typeof onDragEnd === 'function') onDragEnd();
   }, [endResize, onDragEnd]);
 
+  const [placeCursor, setPlaceCursor] = useState(null);
+  const placing = Boolean(placementPreset);
+
+  useEffect(() => {
+    if (!placing) {
+      setPlaceCursor(null);
+      return undefined;
+    }
+    const onMove = (e) => setPlaceCursor({ x: e.clientX, y: e.clientY });
+    const onKey = (e) => {
+      if (e.key === 'Escape') onCancelPlacement?.();
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [placing, onCancelPlacement]);
+
   const handlePageBackgroundPointerDown = useCallback((event) => {
     if (event.target !== event.currentTarget) return;
+    if (placing && typeof onPlaceBlockAt === 'function') {
+      const pageIndex = parseInt(event.currentTarget.getAttribute('data-page-index') || '0', 10);
+      const pt = clientPointToPageMm(event.clientX, event.clientY, event.currentTarget);
+      onPlaceBlockAt(pageIndex, pt.x, pt.y);
+      return;
+    }
     if (typeof onSelectBlock === 'function') onSelectBlock(null);
-  }, [onSelectBlock]);
+  }, [onSelectBlock, placing, onPlaceBlockAt]);
 
   const pages = Array.isArray(layout?.pages) ? layout.pages : [];
   const theme = layout?.theme || {};
@@ -241,12 +295,22 @@ export default function FreeCanvas({
   const fontHeading = theme.font_heading || 'Inter';
   const scaledHeight = scaledPageHeightPx(scale);
 
+  const placeLabel = placementPreset?.type === 'icon'
+    ? 'Icône'
+    : placementPreset?.type === 'image'
+      ? 'Image'
+      : placementPreset?.type || 'Élément';
+
   return (
-    <div className="free-canvas" ref={viewportRef}>
-      {interactable && (
-        <p className="free-canvas-hint-banner" role="status">
-          Double-clic sur un bloc texte pour éditer · glisser pour déplacer · poignées pour redimensionner
-        </p>
+    <div className={`free-canvas${placing ? ' free-canvas--placing' : ''}`} ref={viewportRef}>
+      {placing && placeCursor && (
+        <div
+          className="free-canvas-placement-ghost"
+          style={{ left: placeCursor.x, top: placeCursor.y }}
+          aria-hidden
+        >
+          {placeLabel}
+        </div>
       )}
       <div
         className="free-canvas-pages"
@@ -266,6 +330,7 @@ export default function FreeCanvas({
                   'free-canvas-page',
                   interactable ? 'free-canvas-page--interactive' : '',
                   interactable && showGrid ? 'free-canvas-page--grid' : '',
+                  placing ? 'free-canvas-page--placing' : '',
                 ].filter(Boolean).join(' ')}
                 style={{
                   width: `${PAGE_WIDTH_MM}mm`,
@@ -299,6 +364,7 @@ export default function FreeCanvas({
                     onDoubleClickEdit={onStartBlockEdit}
                     onImageEdit={onImageEdit}
                     onInnerBlur={onCommitBlockEdit}
+                    onBlockAutoHeight={onBlockAutoHeight}
                     locked={Boolean(block.locked)}
                     onBlockElementRef={(blockId, el) => {
                       if (el) blockElementsRef.current[blockId] = el;
@@ -307,7 +373,7 @@ export default function FreeCanvas({
                   />
                 ))}
                 {blocks.length === 0 && pageIndex === 0 && (
-                  <p className="free-canvas-page-empty">Page blanche — ajoutez des blocs (bientôt)</p>
+                  <p className="free-canvas-page-empty">Page vide — glissez un élément depuis la barre latérale</p>
                 )}
               </div>
             </div>

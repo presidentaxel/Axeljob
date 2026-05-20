@@ -11,8 +11,21 @@ import {
 const START = { x: 10, y: 20, w: 50, h: 30 };
 
 test('RESIZE_HANDLES et resizeGroupKey', () => {
-  assert.equal(RESIZE_HANDLES.length, 4);
+  assert.equal(RESIZE_HANDLES.length, 8);
   assert.equal(resizeGroupKey('b1'), 'resize:b1');
+});
+
+test('computeResizedBlock : bord E agrandit w seulement', () => {
+  const r = computeResizedBlock(START, 'e', { dx: 8, dy: 0 });
+  assert.equal(r.x, 10);
+  assert.equal(r.w, 58);
+  assert.equal(r.h, 30);
+});
+
+test('computeResizedBlock : bord S agrandit h seulement', () => {
+  const r = computeResizedBlock(START, 's', { dx: 0, dy: 6 });
+  assert.equal(r.h, 36);
+  assert.equal(r.w, 50);
 });
 
 test('computeResizedBlock : coin SE agrandit w et h', () => {

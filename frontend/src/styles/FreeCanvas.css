@@ -204,6 +204,11 @@
   border-radius: 2px;
 }
 
+.free-canvas-block--editing[data-block-type='text'],
+.free-canvas-block--editing[data-block-type='title'] {
+  overflow: visible;
+}
+
 .free-canvas-block__text--editing,
 .free-canvas-block__title--editing,
 .canvas-editable-field {
@@ -287,6 +292,34 @@
   cursor: nwse-resize;
 }
 
+.free-canvas-resize-handle--n {
+  left: 50%;
+  top: -1mm;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.free-canvas-resize-handle--s {
+  left: 50%;
+  bottom: -1mm;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.free-canvas-resize-handle--e {
+  right: -1mm;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+
+.free-canvas-resize-handle--w {
+  left: -1mm;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+
 .free-canvas-block__inner {
   position: relative;
   z-index: 1;
@@ -313,6 +346,35 @@
   display: none;
   width: 0;
   height: 0;
+}
+
+.free-canvas-block__inner--editing {
+  overflow: visible !important;
+  height: auto !important;
+  min-height: 100%;
+  max-height: none !important;
+}
+
+.free-canvas-block__inner--typography .free-canvas-block__identity-name,
+.free-canvas-block__inner--typography .free-canvas-block__identity-title,
+.free-canvas-block__inner--typography .free-canvas-block__contact p,
+.free-canvas-block__inner--typography .free-canvas-block__resume,
+.free-canvas-block__inner--typography .free-canvas-block__section-title,
+.free-canvas-block__inner--typography .free-canvas-block__section-list,
+.free-canvas-block__inner--typography .free-canvas-block__section-list p,
+.free-canvas-block__inner--typography .free-canvas-block__exp,
+.free-canvas-block__inner--typography .free-canvas-block__exp-header,
+.free-canvas-block__inner--typography .free-canvas-block__exp-role,
+.free-canvas-block__inner--typography .free-canvas-block__exp-dates,
+.free-canvas-block__inner--typography .free-canvas-block__text,
+.free-canvas-block__inner--typography .free-canvas-block__title {
+  font-size: inherit !important;
+  font-family: inherit !important;
+  color: inherit !important;
+}
+
+.free-canvas-block__inner--typography .free-canvas-block__identity-name {
+  font-weight: inherit;
 }
 
 .free-canvas-block__identity-name {
@@ -490,6 +552,29 @@
 
 .free-canvas-block__empty {
   opacity: 0.35;
+}
+
+.free-canvas--placing {
+  cursor: crosshair;
+}
+
+.free-canvas-page--placing {
+  cursor: crosshair;
+}
+
+.free-canvas-placement-ghost {
+  position: fixed;
+  z-index: 10040;
+  transform: translate(-50%, -50%);
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #4338ca;
+  background: rgba(238, 242, 255, 0.95);
+  border: 1px dashed #818cf8;
+  border-radius: 8px;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
 }
 
 /* Choix de demarrage (page blanche vs starter) — CvEditorBeta */

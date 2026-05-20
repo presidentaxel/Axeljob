@@ -21,6 +21,8 @@ import {
   resolvePhotoUrl,
   resolveProjets,
 } from '../../lib/freeCanvasContent.js';
+import { blockHasTypographyOverride, blockStyleToCss } from '../../lib/canvasBlockToolbar.js';
+import { MM_TO_PX } from '../../lib/freeCanvasScale.js';
 import { isNonSemanticBlockType } from '../../lib/cvLayoutModelV3.js';
 import { RESIZE_HANDLES } from '../../lib/freeCanvasResize.js';
 import CanvasEditableField from './CanvasEditableField.jsx';
@@ -342,7 +344,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
   }
 }
 
-function EditableRichText({ tag, className, style, editing, html }) {
+function EditableRichText({ tag, className, style, editing, html, onAutoHeight }) {
   const Tag = tag;
   const ref = useRef(null);
   useEffect(() => {
@@ -350,6 +352,18 @@ function EditableRichText({ tag, className, style, editing, html }) {
       ref.current.innerHTML = html || '';
     }
   }, [editing, html]);
+
+  const reportHeight = () => {
+    if (!editing || !ref.current || typeof onAutoHeight !== 'function') return;
+    const padMm = 3;
+    const hMm = ref.current.scrollHeight / MM_TO_PX + padMm;
+    onAutoHeight(hMm);
+  };
+
+  useEffect(() => {
+    if (editing) reportHeight();
+  }, [editing]);
+
   if (editing) {
     return (
       <Tag
@@ -359,6 +373,7 @@ function EditableRichText({ tag, className, style, editing, html }) {
         contentEditable
         suppressContentEditableWarning
         data-canvas-block-content="1"
+        onInput={reportHeight}
         onPointerDown={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
       />
@@ -373,7 +388,7 @@ function EditableRichText({ tag, className, style, editing, html }) {
   );
 }
 
-function NonSemanticBlockBody({ block, editing = false }) {
+function NonSemanticBlockBody({ block, editing = false, onAutoHeight }) {
   const { type, content = '', style = {} } = block;
   switch (type) {
     case 'text': {
@@ -382,6 +397,8 @@ function NonSemanticBlockBody({ block, editing = false }) {
         opacity: style.opacity ?? 1,
         margin: 0,
         minHeight: '1em',
+        height: 'auto',
+        overflow: 'visible',
       };
       return (
         <EditableRichText
@@ -394,6 +411,7 @@ function NonSemanticBlockBody({ block, editing = false }) {
           style={textStyle}
           editing={editing}
           html={content || 'Texte libre'}
+          onAutoHeight={onAutoHeight}
         />
       );
     }
@@ -402,6 +420,8 @@ function NonSemanticBlockBody({ block, editing = false }) {
         textAlign: style.align || 'left',
         opacity: style.opacity ?? 1,
         margin: 0,
+        height: 'auto',
+        overflow: 'visible',
       };
       return (
         <EditableRichText
@@ -414,6 +434,7 @@ function NonSemanticBlockBody({ block, editing = false }) {
           style={titleStyle}
           editing={editing}
           html={content || 'Titre'}
+          onAutoHeight={onAutoHeight}
         />
       );
     }
@@ -535,6 +556,7 @@ export default function FreeCanvasBlock({
   onImageEdit,
   onInnerBlur,
   onBlockElementRef,
+  onBlockAutoHeight,
   locked = false,
 }) {
   const innerRef = useRef(null);
@@ -551,7 +573,13 @@ export default function FreeCanvasBlock({
   }, [editing, block?.id]);
 
   if (!block || typeof block !== 'object') return null;
-  const { id, type, x, y, w, h, z } = block;
+  const { id, type, x, y, w, h, z, style: blockStyle } = block;
+  const innerTypography = blockStyleToCss(blockStyle);
+  const typographyOverride = blockHasTypographyOverride(blockStyle);
+  const handleAutoHeight = (newHmm) => {
+    if (typeof onBlockAutoHeight !== 'function' || !id) return;
+    if (newHmm > h + 0.5) onBlockAutoHeight(id, newHmm);
+  };
   const isNonSemantic = isNonSemanticBlockType(type);
   const canEdit = isCanvasInlineEditableType(type);
 
@@ -608,11 +636,22 @@ export default function FreeCanvasBlock({
     >
       <div
         ref={innerRef}
-        className="free-canvas-block__inner"
+        className={[
+          'free-canvas-block__inner',
+          typographyOverride ? 'free-canvas-block__inner--typography' : '',
+          editing ? 'free-canvas-block__inner--editing' : '',
+        ].filter(Boolean).join(' ')}
+        style={innerTypography}
         onBlur={editing ? handleInnerBlur : undefined}
       >
         {isNonSemantic
-          ? <NonSemanticBlockBody block={block} editing={editing} />
+          ? (
+            <NonSemanticBlockBody
+              block={block}
+              editing={editing}
+              onAutoHeight={(type === 'text' || type === 'title') ? handleAutoHeight : undefined}
+            />
+          )
           : <SemanticBlockBody block={block} cv={cv} editing={editing} />}
       </div>
       {locked && (

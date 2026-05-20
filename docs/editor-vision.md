@@ -1749,6 +1749,31 @@ texte, titre, trait (`shape:line`), bandeau (`shape:rect`), icône.
 - [x] Layout persisté via auto-save en mode libre.
 - [x] Barre masquée tant que le picker « page blanche / modèle » est affiché.
 
+#### 14.5.7 P3.6 — Inspecteur du bloc sélectionné (livré, 19 mai 2026)
+
+Onglet **Bloc** dans le drawer (mode canvas libre, bloc sélectionné) :
+position/taille en mm, z-index, premier/arrière plan, contenu
+(texte libre / icône / limite), style (alignement, couleur, format…).
+
+**Implémentation** :
+
+| Rôle | Fichier |
+|---|---|
+| Schéma des champs par type | `frontend/src/lib/blockInspectorSchema.js` |
+| Panneau React | `frontend/src/components/editor/EditorBlockInspectorPanel.jsx` |
+| Onglet dynamique dans le drawer | `EditorInspectorDrawer.jsx` |
+| Wiring commit layout | `CvEditorBeta.jsx` |
+| Styles | `EditorInspector.css` |
+| Tests | `blockInspectorSchema.test.js` (5) |
+
+**Critères d'acceptation (P3.6)** :
+- [x] Onglet Bloc visible quand un bloc est sélectionné sur le canvas.
+- [x] Modification x/y/w/h/z reflétée en direct sur le canvas.
+- [x] Texte libre / titre éditable dans l’inspecteur.
+- [x] Blocs sémantiques : hint + contenu via onglet Contenu.
+- [x] Boutons premier plan / arrière-plan.
+- [x] Styles pertinents par type (couleur trait, format expériences, etc.).
+
 ### 14.6 P4 — Calibration et expansion (continu)
 
 - Job mensuel de recalibration des pondérations sur les ground truths collectées.

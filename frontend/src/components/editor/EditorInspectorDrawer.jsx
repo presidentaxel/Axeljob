@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
   applyTemplateOptionsDefaults,
@@ -6,10 +6,11 @@ import {
   resetTemplateOptionsToDefaults,
 } from '../../lib/templateOptionsSchema.js';
 
+import EditorBlockInspectorPanel from './EditorBlockInspectorPanel.jsx';
 import EditorContentPanel from './EditorContentPanel.jsx';
 import EditorInspectorField from './EditorInspectorField.jsx';
 
-const TABS = [
+const BASE_TABS = [
   { id: 'style', label: 'Style' },
   { id: 'content', label: 'Contenu' },
 ];
@@ -41,8 +42,28 @@ export default function EditorInspectorDrawer({
   onClose,
   cv,
   onCvChange,
+  /** Mode canvas libre : onglet Bloc si un bloc est selectionne (P3.6). */
+  selectedBlock = null,
+  onBlockPatch,
+  onBlockStylePatch,
+  onBlockBringToFront,
+  onBlockSendToBack,
 }) {
   const [activeTab, setActiveTab] = useState('style');
+
+  const tabs = useMemo(() => {
+    const list = [...BASE_TABS];
+    if (selectedBlock) list.push({ id: 'block', label: 'Bloc' });
+    return list;
+  }, [selectedBlock]);
+
+  useEffect(() => {
+    if (selectedBlock?.id) {
+      setActiveTab('block');
+    } else {
+      setActiveTab((tab) => (tab === 'block' ? 'style' : tab));
+    }
+  }, [selectedBlock?.id]);
 
   /** Valeurs effectivement passees aux champs (defauts + custom user). */
   const effectiveOptions = useMemo(
@@ -89,7 +110,7 @@ export default function EditorInspectorDrawer({
       </header>
 
       <nav className="editor-inspector-tabs" role="tablist" aria-label="Sections de l’inspecteur">
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
@@ -148,6 +169,15 @@ export default function EditorInspectorDrawer({
         )}
         {activeTab === 'content' && (
           <EditorContentPanel cv={cv} onCvChange={onCvChange} />
+        )}
+        {activeTab === 'block' && (
+          <EditorBlockInspectorPanel
+            block={selectedBlock}
+            onBlockPatch={onBlockPatch}
+            onBlockStylePatch={onBlockStylePatch}
+            onBringToFront={onBlockBringToFront}
+            onSendToBack={onBlockSendToBack}
+          />
         )}
       </div>
 

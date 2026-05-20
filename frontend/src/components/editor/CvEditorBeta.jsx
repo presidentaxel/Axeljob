@@ -9,13 +9,17 @@ import {
 } from '../../lib/freeCanvasBlockPresets.js';
 import {
   addBlockToPage,
+  bringToFront,
   createBlankLayoutV3,
   createStarterLayoutV3,
+  findBlock,
   isEmptyLayoutV3,
   migrateLayoutToV3,
   removeBlock,
+  sendToBack,
   setBlockPosition,
   updateBlock,
+  updateBlockStyle,
 } from '../../lib/cvLayoutModelV3.js';
 import { useAutoSave } from '../../lib/useAutoSave.js';
 import { useLayoutHistory } from '../../lib/useLayoutHistory.js';
@@ -211,6 +215,12 @@ export default function CvEditorBeta({
 
   const showCanvasStarterPicker = editorViewMode === 'free' && isEmptyLayoutV3(layout);
 
+  const selectedBlock = useMemo(() => {
+    if (!selectedBlockId || editorViewMode !== 'free') return null;
+    const found = findBlock(layout, selectedBlockId);
+    return found?.block ?? null;
+  }, [layout, selectedBlockId, editorViewMode]);
+
   const handleSelectBlock = useCallback((blockId) => {
     setSelectedBlockId(blockId);
   }, []);
@@ -240,6 +250,34 @@ export default function CvEditorBeta({
     if (newId) setSelectedBlockId(newId);
     if (cv) autoSave.schedule(cv);
   }, [layout, commitLayout, cv, autoSave]);
+
+  const handleBlockPatch = useCallback((patch) => {
+    if (!selectedBlockId) return;
+    const next = updateBlock(layout, selectedBlockId, patch);
+    commitLayout(next);
+    if (cv) autoSave.schedule(cv);
+  }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
+
+  const handleBlockStylePatch = useCallback((stylePatch) => {
+    if (!selectedBlockId) return;
+    const next = updateBlockStyle(layout, selectedBlockId, stylePatch);
+    commitLayout(next);
+    if (cv) autoSave.schedule(cv);
+  }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
+
+  const handleBlockBringToFront = useCallback(() => {
+    if (!selectedBlockId) return;
+    const next = bringToFront(layout, selectedBlockId);
+    commitLayout(next);
+    if (cv) autoSave.schedule(cv);
+  }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
+
+  const handleBlockSendToBack = useCallback(() => {
+    if (!selectedBlockId) return;
+    const next = sendToBack(layout, selectedBlockId);
+    commitLayout(next);
+    if (cv) autoSave.schedule(cv);
+  }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
 
   const handleDeleteSelectedBlock = useCallback(() => {
     if (!selectedBlockId) return;
@@ -414,6 +452,11 @@ export default function CvEditorBeta({
             onClose={handleInspectorClose}
             cv={cv}
             onCvChange={handleCvChange}
+            selectedBlock={editorViewMode === 'free' ? selectedBlock : null}
+            onBlockPatch={handleBlockPatch}
+            onBlockStylePatch={handleBlockStylePatch}
+            onBlockBringToFront={handleBlockBringToFront}
+            onBlockSendToBack={handleBlockSendToBack}
           />
         </div>
       </div>

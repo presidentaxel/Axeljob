@@ -1637,6 +1637,41 @@ const { layout, commit, undo, redo, reset, canUndo, canRedo, historyDepth } =
 - [x] 21 tests unitaires verts sur le store pur.
 - [x] 0 lint error, 0 dépendance ajoutée au `package.json`.
 
+#### 14.5.3 P3.2 — `<FreeCanvas>` read-only (livré, 19 mai 2026)
+
+Premier rendu **visible** du canvas libre : une page A4 (ou plusieurs)
+avec les blocs positionnés en `mm`, contenu CV résolu via `bind`. Pas
+encore de drag / resize — objectif = valider le pipeline
+`layout v3 + cv → pixels`.
+
+**Implémentation** :
+
+| Rôle | Fichier |
+|---|---|
+| Composant page + scale viewport | `frontend/src/components/editor/FreeCanvas.jsx` |
+| Rendu d’un bloc (sémantique + décoratif) | `frontend/src/components/editor/FreeCanvasBlock.jsx` |
+| Échelle A4 (mm → px, `ResizeObserver`) | `frontend/src/lib/freeCanvasScale.js` |
+| Résolution `bind` → texte / listes CV | `frontend/src/lib/freeCanvasContent.js` |
+| Styles page + blocs + picker démarrage | `frontend/src/styles/FreeCanvas.css` |
+| Intégration Beta (toggle + hydratation layout) | `frontend/src/components/editor/CvEditorBeta.jsx` |
+| Tests purs | `freeCanvasScale.test.js` (5), `freeCanvasContent.test.js` (6) |
+
+**Intégration dans l’éditeur Beta** :
+- Toggle topbar **Édition guidée** / **Canvas libre** (L1 inchangé en mode guidé).
+- Hydratation : `layout` API → `migrateLayoutToV3` ; absence de layout →
+  page blanche + **picker** « Partir d’un modèle » / « Page blanche ».
+- Boutons Annuler / Rétablir + raccourcis clavier actifs en mode libre.
+- Auto-save envoie `layout` uniquement en mode canvas libre (non vide).
+
+**Critères d'acceptation (P3.2)** :
+- [x] La page A4 s’affiche centrée et mise à l’échelle dans le viewport.
+- [x] Les blocs du `createStarterLayoutV3()` apparaissent aux coords `x/y/w/h`.
+- [x] Les blocs sémantiques affichent le contenu du CV (identity, expériences, …).
+- [x] Les blocs `text`, `title`, `shape:line`, etc. s’affichent en read-only.
+- [x] Toggle guidé / libre sans régression sur L1.
+- [x] Choix page blanche vs starter au premier démarrage sans layout.
+- [x] 11 tests unitaires purs + build frontend OK.
+
 ### 14.6 P4 — Calibration et expansion (continu)
 
 - Job mensuel de recalibration des pondérations sur les ground truths collectées.

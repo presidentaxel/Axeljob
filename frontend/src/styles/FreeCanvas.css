@@ -1,0 +1,305 @@
+/* Canvas libre L3 — apercu read-only (P3.2) */
+
+.free-canvas {
+  width: 100%;
+  max-width: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.free-canvas-readonly-banner {
+  margin: 0 0 0.75rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.78rem;
+  color: #475569;
+  background: #e0e7ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 0.35rem;
+  text-align: center;
+  max-width: 42rem;
+}
+
+.free-canvas-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.free-canvas-page-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.free-canvas-page {
+  position: relative;
+  background: #ffffff;
+  box-shadow:
+    0 1px 3px rgba(15, 23, 42, 0.08),
+    0 8px 24px rgba(15, 23, 42, 0.1);
+  border-radius: 2px;
+  transform-origin: top center;
+  overflow: hidden;
+  color: #1e293b;
+  font-size: 9pt;
+  line-height: 1.4;
+  box-sizing: border-box;
+}
+
+.free-canvas-page-empty {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 10pt;
+  margin: 0;
+  pointer-events: none;
+}
+
+/* Bloc positionne en mm (coords inline depuis le composant) */
+.free-canvas-block {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 1px;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.free-canvas-block--selected {
+  border-color: rgba(99, 102, 241, 0.65);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.free-canvas-block__inner {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  padding: 1mm 1.5mm;
+  box-sizing: border-box;
+}
+
+.free-canvas-block__identity-name {
+  font-size: 14pt;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--free-canvas-accent, #1e293b);
+}
+
+.free-canvas-block__identity-title {
+  font-size: 10pt;
+  margin-top: 1mm;
+  color: #475569;
+}
+
+.free-canvas-block__contact p {
+  margin: 0 0 0.5mm;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 8pt;
+  color: #334155;
+}
+
+.free-canvas-block__resume {
+  margin: 0;
+  font-size: 9pt;
+  color: #334155;
+}
+
+.free-canvas-block__section-title {
+  margin: 0 0 2mm;
+  font-size: 9.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--free-canvas-accent, #1e293b);
+  border-bottom: 0.4mm solid var(--free-canvas-accent, #1e293b);
+  padding-bottom: 0.5mm;
+}
+
+.free-canvas-block__section-list {
+  font-size: 8.5pt;
+}
+
+.free-canvas-block__exp {
+  margin-bottom: 2mm;
+}
+
+.free-canvas-block__exp-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 2mm;
+  font-weight: 600;
+}
+
+.free-canvas-block__exp-dates {
+  font-weight: 500;
+  color: var(--free-canvas-accent, #64748b);
+  white-space: nowrap;
+  font-size: 8pt;
+}
+
+.free-canvas-block__exp-role {
+  color: #64748b;
+  font-size: 8pt;
+  margin-bottom: 0.5mm;
+}
+
+.free-canvas-block__bullets {
+  margin: 0.5mm 0 0 3mm;
+  padding: 0;
+  list-style: disc;
+}
+
+.free-canvas-block__bullets li {
+  margin-bottom: 0.3mm;
+}
+
+.free-canvas-block__formation-line {
+  margin: 0 0 1mm;
+}
+
+.free-canvas-block__formation-date {
+  font-weight: 500;
+  color: #64748b;
+}
+
+.free-canvas-block__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1mm;
+}
+
+.free-canvas-block__chip {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 2px;
+  padding: 0.5mm 2mm;
+  font-size: 8pt;
+}
+
+.free-canvas-block__photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.free-canvas-block__photo--round {
+  border-radius: 50%;
+}
+
+.free-canvas-block__photo-placeholder {
+  width: 100%;
+  height: 100%;
+  background: #e2e8f0;
+  border-radius: 2px;
+}
+
+.free-canvas-block__text,
+.free-canvas-block__title {
+  margin: 0;
+}
+
+.free-canvas-block__title {
+  font-size: 11pt;
+  font-weight: 700;
+  color: var(--free-canvas-accent, #1e293b);
+}
+
+.free-canvas-block__shape-line {
+  width: 100%;
+  height: 100%;
+  min-height: 0.5mm;
+}
+
+.free-canvas-block__shape-rect {
+  width: 100%;
+  height: 100%;
+}
+
+.free-canvas-block__icon,
+.free-canvas-block__qrcode {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  font-size: 8pt;
+  color: #64748b;
+}
+
+.free-canvas-block__placeholder {
+  margin: 0;
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 8pt;
+}
+
+.free-canvas-block__empty {
+  opacity: 0.35;
+}
+
+/* Choix de demarrage (page blanche vs starter) — CvEditorBeta */
+.free-canvas-starter-picker {
+  width: 100%;
+  max-width: 32rem;
+  margin: 0 auto 1rem;
+  padding: 1rem 1.25rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  text-align: center;
+}
+
+.free-canvas-starter-picker__title {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.free-canvas-starter-picker__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.free-canvas-starter-picker__btn {
+  border: none;
+  border-radius: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #fff;
+  font-family: var(--editor-font-family, inherit);
+}
+
+.free-canvas-starter-picker__btn:hover {
+  filter: brightness(1.05);
+}
+
+.free-canvas-starter-picker__btn--secondary {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.free-canvas-starter-picker__btn--secondary:hover {
+  background: #e2e8f0;
+  filter: none;
+}

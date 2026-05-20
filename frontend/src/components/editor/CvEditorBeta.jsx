@@ -2,8 +2,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { apiGet, apiPut } from '../../api';
 import { defaultCv } from '../../data/cvDefault';
+import {
+  createBlankLayoutV3,
+  createStarterLayoutV3,
+  isEmptyLayoutV3,
+  migrateLayoutToV3,
+} from '../../lib/cvLayoutModelV3.js';
 import { useAutoSave } from '../../lib/useAutoSave.js';
+import { useLayoutHistory } from '../../lib/useLayoutHistory.js';
 import CvEditablePreview from '../CvEditablePreview.jsx';
+import FreeCanvas from './FreeCanvas.jsx';
 
 import AutoSaveIndicator from './AutoSaveIndicator.jsx';
 import EditorAtsScoreBadge from './EditorAtsScoreBadge.jsx';
@@ -47,6 +55,20 @@ export default function CvEditorBeta({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  /** `guided` = L1 CvEditablePreview ; `free` = canvas libre read-only (P3.2). */
+  const [editorViewMode, setEditorViewMode] = useState('guided');
+
+  const layoutHistory = useLayoutHistory(() => createBlankLayoutV3(), {
+    keyboardShortcuts: editorViewMode === 'free',
+  });
+  const {
+    layout,
+    undo: undoLayout,
+    redo: redoLayout,
+    reset: resetLayout,
+    canUndo: canUndoLayout,
+    canRedo: canRedoLayout,
+  } = layoutHistory;
   /**
    * Note (mai 2026) : l UI de mise en page modulaire (P2.4b) a ete
    * retiree apres feedback utilisateur. La place naturelle de ce
@@ -84,12 +106,18 @@ export default function CvEditorBeta({
    * (`save_cv_base`) garde la valeur existante en base intacte.
    */
   const saveFn = useCallback(async (payload) => {
-    return apiPut('/api/cv', {
+    const body = {
       ...payload,
       template_id: templateId,
       template_options: templateOptions,
-    });
-  }, [templateId, templateOptions]);
+    };
+    // En mode canvas libre, on persiste le layout v3 present.
+    // En mode guide, on omet `layout` -> preservation backend (P2.3).
+    if (editorViewMode === 'free' && layout && !isEmptyLayoutV3(layout)) {
+      body.layout = layout;
+    }
+    return apiPut('/api/cv', body);
+  }, [templateId, templateOptions, editorViewMode, layout]);
 
   const autoSave = useAutoSave({
     saveFn,
@@ -112,21 +140,27 @@ export default function CvEditorBeta({
       .then((data) => {
         if (aborted) return;
         const incoming = data && typeof data === 'object' ? data : {};
-        // On retire `layout` du cv : il reste persiste cote backend mais
-        // n a plus de consommateur UI dans l editeur Beta (cf. note plus
-        // haut). A reprendre en P3 quand on aura le canvas libre.
-        const { layout: _layout, ...cvPayload } = incoming;
-        setCv({ ...defaultCv, ...cvPayload });
+        const { layout: rawLayout, ...cvPayload } = incoming;
+        const baseCv = typeof defaultCv === 'function' ? defaultCv() : defaultCv;
+        setCv({ ...baseCv, ...cvPayload });
+        // Pas de layout en base -> page blanche + picker (blank vs starter).
+        // Sinon migration v1/v2/v3 vers la forme canonique v3.
+        const hydratedLayout = rawLayout
+          ? migrateLayoutToV3(rawLayout)
+          : createBlankLayoutV3();
+        resetLayout(hydratedLayout);
         setLoading(false);
       })
       .catch((err) => {
         if (aborted) return;
         setLoadError(err?.message || 'Impossible de charger le CV');
-        setCv({ ...defaultCv });
+        const baseCv = typeof defaultCv === 'function' ? defaultCv() : defaultCv;
+        setCv({ ...baseCv });
+        resetLayout(createBlankLayoutV3());
         setLoading(false);
       });
     return () => { aborted = true; };
-  }, []);
+  }, [resetLayout]);
 
   const handleCvChange = useCallback((nextCv) => {
     setCv(nextCv);
@@ -151,6 +185,20 @@ export default function CvEditorBeta({
     }
   }, [onTemplateOptionsChange]);
 
+  const handlePickBlankCanvas = useCallback(() => {
+    const next = createBlankLayoutV3();
+    resetLayout(next);
+    if (cv) autoSave.schedule(cv);
+  }, [resetLayout, cv, autoSave]);
+
+  const handlePickStarterCanvas = useCallback(() => {
+    const next = createStarterLayoutV3();
+    resetLayout(next);
+    if (cv) autoSave.schedule(cv);
+  }, [resetLayout, cv, autoSave]);
+
+  const showCanvasStarterPicker = editorViewMode === 'free' && isEmptyLayoutV3(layout);
+
   if (loading) {
     return (
       <div className="cv-editor-beta cv-editor-beta--loading">
@@ -164,6 +212,54 @@ export default function CvEditorBeta({
       <header className="cv-editor-beta-topbar">
         <div className="cv-editor-beta-topbar-left">
           <span className="cv-editor-beta-badge">Mode Beta</span>
+          <div className="cv-editor-beta-view-toggle" role="group" aria-label="Mode d’édition">
+            <button
+              type="button"
+              className={
+                editorViewMode === 'guided'
+                  ? 'cv-editor-beta-view-btn cv-editor-beta-view-btn--active'
+                  : 'cv-editor-beta-view-btn'
+              }
+              onClick={() => setEditorViewMode('guided')}
+              aria-pressed={editorViewMode === 'guided'}
+            >
+              Édition guidée
+            </button>
+            <button
+              type="button"
+              className={
+                editorViewMode === 'free'
+                  ? 'cv-editor-beta-view-btn cv-editor-beta-view-btn--active'
+                  : 'cv-editor-beta-view-btn'
+              }
+              onClick={() => setEditorViewMode('free')}
+              aria-pressed={editorViewMode === 'free'}
+            >
+              Canvas libre
+            </button>
+          </div>
+          {editorViewMode === 'free' && (
+            <div className="cv-editor-beta-history-btns">
+              <button
+                type="button"
+                className="cv-editor-beta-history-btn"
+                onClick={undoLayout}
+                disabled={!canUndoLayout}
+                title="Annuler (Ctrl+Z)"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                className="cv-editor-beta-history-btn"
+                onClick={redoLayout}
+                disabled={!canRedoLayout}
+                title="Rétablir (Ctrl+Shift+Z)"
+              >
+                Rétablir
+              </button>
+            </div>
+          )}
           <EditorTemplateSelector
             templates={templatesList}
             templateId={templateId}
@@ -199,13 +295,40 @@ export default function CvEditorBeta({
 
       <div className="cv-editor-beta-workspace">
         <main className="cv-editor-beta-canvas">
-          <CvEditablePreview
-            cv={cv}
-            baseCv={cv}
-            onChange={handleCvChange}
-            templateId={templateId}
-            templateOptions={templateOptions}
-          />
+          {editorViewMode === 'guided' ? (
+            <CvEditablePreview
+              cv={cv}
+              baseCv={cv}
+              onChange={handleCvChange}
+              templateId={templateId}
+              templateOptions={templateOptions}
+            />
+          ) : (
+            <>
+              {showCanvasStarterPicker && (
+                <div className="free-canvas-starter-picker" role="region" aria-label="Démarrer le canvas">
+                  <p className="free-canvas-starter-picker__title">Comment voulez-vous commencer ?</p>
+                  <div className="free-canvas-starter-picker__actions">
+                    <button
+                      type="button"
+                      className="free-canvas-starter-picker__btn"
+                      onClick={handlePickStarterCanvas}
+                    >
+                      Partir d’un modèle (blocs pré-placés)
+                    </button>
+                    <button
+                      type="button"
+                      className="free-canvas-starter-picker__btn free-canvas-starter-picker__btn--secondary"
+                      onClick={handlePickBlankCanvas}
+                    >
+                      Page blanche
+                    </button>
+                  </div>
+                </div>
+              )}
+              <FreeCanvas layout={layout} cv={cv} />
+            </>
+          )}
         </main>
         <div id="cv-editor-beta-inspector" className="cv-editor-beta-inspector-slot">
           <EditorInspectorDrawer
@@ -221,7 +344,11 @@ export default function CvEditorBeta({
       </div>
 
       <footer className="cv-editor-beta-statusbar">
-        <span>L1 inline · canvas libre L3 à venir</span>
+        <span>
+          {editorViewMode === 'free'
+            ? 'Canvas libre L3 (aperçu) · déplacement bientôt'
+            : 'L1 inline · basculez sur Canvas libre pour l’aperçu L3'}
+        </span>
       </footer>
     </div>
   );

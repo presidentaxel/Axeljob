@@ -88,6 +88,54 @@
   transition: none;
 }
 
+.free-canvas-block--resizing {
+  transition: none;
+}
+
+/* Poignees de redimensionnement (P3.4) — visibles si bloc selectionne */
+.free-canvas-resize-handles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10002;
+}
+
+.free-canvas-resize-handle {
+  position: absolute;
+  width: 2.8mm;
+  height: 2.8mm;
+  background: #ffffff;
+  border: 2px solid #6366f1;
+  border-radius: 1px;
+  box-sizing: border-box;
+  pointer-events: auto;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.15);
+}
+
+.free-canvas-resize-handle--nw {
+  left: -1.2mm;
+  top: -1.2mm;
+  cursor: nwse-resize;
+}
+
+.free-canvas-resize-handle--ne {
+  right: -1.2mm;
+  top: -1.2mm;
+  cursor: nesw-resize;
+}
+
+.free-canvas-resize-handle--sw {
+  left: -1.2mm;
+  bottom: -1.2mm;
+  cursor: nesw-resize;
+}
+
+.free-canvas-resize-handle--se {
+  right: -1.2mm;
+  bottom: -1.2mm;
+  cursor: nwse-resize;
+}
+
 .free-canvas-block--selected {
   border-color: rgba(99, 102, 241, 0.65);
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);

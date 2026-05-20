@@ -11,6 +11,7 @@ import {
   resolveProjets,
 } from '../../lib/freeCanvasContent.js';
 import { isNonSemanticBlockType } from '../../lib/cvLayoutModelV3.js';
+import { RESIZE_HANDLES } from '../../lib/freeCanvasResize.js';
 
 const SECTION_LABELS = {
   experiences: 'Expérience professionnelle',
@@ -243,11 +244,12 @@ function NonSemanticBlockBody({ block }) {
   }
 }
 
-function blockClassName({ selected, dragging, interactable }) {
+function blockClassName({ selected, dragging, resizing, interactable }) {
   const parts = ['free-canvas-block'];
   if (interactable) parts.push('free-canvas-block--interactive');
   if (selected) parts.push('free-canvas-block--selected');
   if (dragging) parts.push('free-canvas-block--dragging');
+  if (resizing) parts.push('free-canvas-block--resizing');
   return parts.join(' ');
 }
 
@@ -260,11 +262,16 @@ export default function FreeCanvasBlock({
   cv,
   selected = false,
   dragging = false,
+  resizing = false,
   interactable = false,
   onPointerDown,
   onPointerMove,
   onPointerUp,
   onPointerCancel,
+  onResizePointerDown,
+  onResizePointerMove,
+  onResizePointerUp,
+  onResizePointerCancel,
 }) {
   if (!block || typeof block !== 'object') return null;
   const { id, type, x, y, w, h, z } = block;
@@ -272,7 +279,7 @@ export default function FreeCanvasBlock({
 
   return (
     <div
-      className={blockClassName({ selected, dragging, interactable })}
+      className={blockClassName({ selected, dragging, resizing, interactable })}
       data-block-id={id}
       data-block-type={type}
       style={{
@@ -280,7 +287,7 @@ export default function FreeCanvasBlock({
         top: `${y}mm`,
         width: `${w}mm`,
         height: `${h}mm`,
-        zIndex: dragging ? 9999 : z,
+        zIndex: dragging || resizing ? 9999 : z,
       }}
       title={interactable ? `${type} — glisser pour déplacer` : type}
       onPointerDown={interactable && onPointerDown ? (e) => onPointerDown(e, block) : undefined}
@@ -293,6 +300,21 @@ export default function FreeCanvasBlock({
           ? <NonSemanticBlockBody block={block} />
           : <SemanticBlockBody block={block} cv={cv} />}
       </div>
+      {selected && interactable && onResizePointerDown && (
+        <div className="free-canvas-resize-handles" aria-hidden="true">
+          {RESIZE_HANDLES.map((handle) => (
+            <span
+              key={handle}
+              className={`free-canvas-resize-handle free-canvas-resize-handle--${handle}`}
+              data-resize-handle={handle}
+              onPointerDown={(e) => onResizePointerDown(e, block, handle)}
+              onPointerMove={onResizePointerMove || undefined}
+              onPointerUp={onResizePointerUp || undefined}
+              onPointerCancel={onResizePointerCancel || onResizePointerUp || undefined}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

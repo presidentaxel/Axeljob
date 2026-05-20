@@ -6,18 +6,15 @@ import {
   dragGroupKey,
   positionAfterDrag,
 } from '../../lib/freeCanvasDrag.js';
+import {
+  computeResizedBlock,
+  resizeGroupKey,
+} from '../../lib/freeCanvasResize.js';
 import { computePageScale, scaledPageHeightPx } from '../../lib/freeCanvasScale.js';
 import '../../styles/FreeCanvas.css';
 
 /**
- * Canvas libre (P3.2 read-only, P3.3 drag).
- *
- * Props :
- *  - layout, cv
- *  - selectedBlockId, onSelectBlock(blockId|null)
- *  - onBlockPositionChange(blockId, { x, y }, { groupKey? })
- *  - onDragEnd : optionnel, appele au pointerup apres un drag (ex. auto-save)
- *  - interactable (defaut true) : selection + drag
+ * Canvas libre (P3.2–P3.4) : rendu, selection, drag, resize.
  */
 export default function FreeCanvas({
   layout,
@@ -25,13 +22,16 @@ export default function FreeCanvas({
   selectedBlockId = null,
   onSelectBlock,
   onBlockPositionChange,
+  onBlockResizeChange,
   onDragEnd,
   interactable = true,
 }) {
   const viewportRef = useRef(null);
   const [scale, setScale] = useState(1);
   const [draggingBlockId, setDraggingBlockId] = useState(null);
+  const [resizingBlockId, setResizingBlockId] = useState(null);
   const dragSessionRef = useRef(null);
+  const resizeSessionRef = useRef(null);
 
   useLayoutEffect(() => {
     const el = viewportRef.current;
@@ -51,8 +51,13 @@ export default function FreeCanvas({
     setDraggingBlockId(null);
   }, []);
 
+  const endResize = useCallback(() => {
+    resizeSessionRef.current = null;
+    setResizingBlockId(null);
+  }, []);
+
   const handleBlockPointerDown = useCallback((event, block) => {
-    if (!interactable || !block?.id) return;
+    if (!interactable || !block?.id || resizeSessionRef.current) return;
     if (typeof onBlockPositionChange !== 'function') return;
     event.preventDefault();
     event.stopPropagation();
@@ -92,6 +97,48 @@ export default function FreeCanvas({
     if (wasDragging && typeof onDragEnd === 'function') onDragEnd();
   }, [endDrag, onDragEnd]);
 
+  const handleResizePointerDown = useCallback((event, block, handle) => {
+    if (!interactable || !block?.id || typeof onBlockResizeChange !== 'function') return;
+    event.preventDefault();
+    event.stopPropagation();
+    endDrag();
+    if (typeof onSelectBlock === 'function') onSelectBlock(block.id);
+    resizeSessionRef.current = {
+      blockId: block.id,
+      handle,
+      startBlock: { x: block.x, y: block.y, w: block.w, h: block.h },
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+    };
+    setResizingBlockId(block.id);
+    if (typeof event.currentTarget?.setPointerCapture === 'function') {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+  }, [interactable, onSelectBlock, onBlockResizeChange, endDrag]);
+
+  const handleResizePointerMove = useCallback((event) => {
+    const session = resizeSessionRef.current;
+    if (!session || typeof onBlockResizeChange !== 'function') return;
+    const dxPx = event.clientX - session.startClientX;
+    const dyPx = event.clientY - session.startClientY;
+    const deltaMm = clientDeltaToMmDelta(dxPx, dyPx, scale);
+    const patch = computeResizedBlock(session.startBlock, session.handle, deltaMm);
+    onBlockResizeChange(session.blockId, patch, { groupKey: resizeGroupKey(session.blockId) });
+  }, [scale, onBlockResizeChange]);
+
+  const handleResizePointerUp = useCallback((event) => {
+    const session = resizeSessionRef.current;
+    if (!session) return;
+    if (typeof event.currentTarget?.releasePointerCapture === 'function') {
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch (_) { /* ignore */ }
+    }
+    const wasResizing = Boolean(session);
+    endResize();
+    if (wasResizing && typeof onDragEnd === 'function') onDragEnd();
+  }, [endResize, onDragEnd]);
+
   const handlePageBackgroundPointerDown = useCallback((event) => {
     if (event.target !== event.currentTarget) return;
     if (typeof onSelectBlock === 'function') onSelectBlock(null);
@@ -107,7 +154,7 @@ export default function FreeCanvas({
     <div className="free-canvas" ref={viewportRef}>
       {interactable && (
         <p className="free-canvas-hint-banner" role="status">
-          Glissez les blocs pour les déplacer · contenu rogné dans le cadre (pas de scroll interne) · taille / typo à venir
+          Glissez pour déplacer · poignées des coins pour redimensionner · le cadre ne suit pas le texte automatiquement
         </p>
       )}
       <div
@@ -146,11 +193,16 @@ export default function FreeCanvas({
                     cv={cv}
                     selected={selectedBlockId === block.id}
                     dragging={draggingBlockId === block.id}
+                    resizing={resizingBlockId === block.id}
                     interactable={interactable}
                     onPointerDown={handleBlockPointerDown}
                     onPointerMove={handleBlockPointerMove}
                     onPointerUp={handleBlockPointerUp}
                     onPointerCancel={handleBlockPointerUp}
+                    onResizePointerDown={handleResizePointerDown}
+                    onResizePointerMove={handleResizePointerMove}
+                    onResizePointerUp={handleResizePointerUp}
+                    onResizePointerCancel={handleResizePointerUp}
                   />
                 ))}
                 {blocks.length === 0 && pageIndex === 0 && (

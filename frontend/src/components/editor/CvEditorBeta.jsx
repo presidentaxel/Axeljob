@@ -8,6 +8,7 @@ import {
   isEmptyLayoutV3,
   migrateLayoutToV3,
   setBlockPosition,
+  updateBlock,
 } from '../../lib/cvLayoutModelV3.js';
 import { useAutoSave } from '../../lib/useAutoSave.js';
 import { useLayoutHistory } from '../../lib/useLayoutHistory.js';
@@ -211,6 +212,11 @@ export default function CvEditorBeta({
     commitLayout(next, commitOptions);
   }, [layout, commitLayout]);
 
+  const handleBlockResizeChange = useCallback((blockId, patch, commitOptions) => {
+    const next = updateBlock(layout, blockId, patch);
+    commitLayout(next, commitOptions);
+  }, [layout, commitLayout]);
+
   const handleDragEndPersist = useCallback(() => {
     if (cv) autoSave.schedule(cv);
   }, [cv, autoSave]);
@@ -348,6 +354,7 @@ export default function CvEditorBeta({
                 selectedBlockId={selectedBlockId}
                 onSelectBlock={handleSelectBlock}
                 onBlockPositionChange={handleBlockPositionChange}
+                onBlockResizeChange={handleBlockResizeChange}
                 onDragEnd={handleDragEndPersist}
               />
             </>
@@ -369,7 +376,7 @@ export default function CvEditorBeta({
       <footer className="cv-editor-beta-statusbar">
         <span>
           {editorViewMode === 'free'
-            ? 'Canvas libre L3 · glissez les blocs (Ctrl+Z pour annuler)'
+            ? 'Canvas libre L3 · glisser / redimensionner (Ctrl+Z)'
             : 'L1 inline · basculez sur Canvas libre pour l’aperçu L3'}
         </span>
       </footer>

@@ -1702,6 +1702,30 @@ Contenu / édition guidée). L’auto-grow optionnel reste prévu en P3.10.
 - [x] Auto-save déclenché à la fin du drag.
 - [x] Aucun scroll interne dans les blocs (contenu rogné, cadre 100 %).
 
+#### 14.5.5 P3.4 — Redimensionnement (poignées aux coins) (livré, 19 mai 2026)
+
+**Note produit — cadre vs contenu** : les blocs **ne s’agrandissent pas
+avec le texte** (pas d’auto-grow en P3.4). C’est voulu type Canva : taille
+= propriété du layout en mm. Contenu trop long = rogné jusqu’à ce que
+l’utilisateur **tire une poignée** ou réduise le contenu / la typo (plus
+tard). L’auto-grow optionnel reste en P3.10 si besoin.
+
+**Implémentation** :
+
+| Rôle | Fichier |
+|---|---|
+| Calcul resize nw/ne/sw/se en mm + clamps page | `frontend/src/lib/freeCanvasResize.js` |
+| Poignées sur bloc sélectionné + pointer capture | `FreeCanvasBlock.jsx`, `FreeCanvas.jsx` |
+| `updateBlock` + coalescing `resize:<blockId>` | `CvEditorBeta.jsx` |
+| Tests | `freeCanvasResize.test.js` (5) |
+
+**Critères d'acceptation (P3.4)** :
+- [x] Bloc sélectionné → 4 poignées aux coins.
+- [x] Drag poignée → `w/h` (et `x/y` si coin ouest/nord) mis à jour en mm.
+- [x] Un undo pour tout un redimensionnement (coalescing).
+- [x] Tailles min et limites page respectées.
+- [x] Pas d’auto-grow : l’utilisateur agrandit le cadre pour voir la fin du contenu.
+
 ### 14.6 P4 — Calibration et expansion (continu)
 
 - Job mensuel de recalibration des pondérations sur les ground truths collectées.

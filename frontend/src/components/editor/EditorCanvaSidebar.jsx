@@ -18,6 +18,7 @@ import {
 import { deleteLayoutProposal, listLayoutProposals } from '../../lib/layoutProposalsStorage.js';
 import CanvasIconGlyph from './CanvasIconGlyph.jsx';
 import EditorCanvaPositionDrawer from './EditorCanvaPositionDrawer.jsx';
+import TemplateMiniPreview from './TemplateMiniPreview.jsx';
 import '../../styles/EditorCanvaSidebar.css';
 
 const SECTIONS = [
@@ -34,16 +35,6 @@ const TEXT_PRESETS = [
   { type: 'title', label: 'Titre de section' },
   { type: 'text', label: 'Paragraphe' },
 ];
-
-const TEMPLATE_THUMB_STYLES = {
-  modern: 'linear-gradient(135deg, #2d3748 0%, #3182ce 100%)',
-  minimal: 'linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%)',
-  classic: 'linear-gradient(135deg, #1e3a5f 0%, #64748b 100%)',
-  executive: 'linear-gradient(135deg, #0f172a 0%, #475569 100%)',
-  creative: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 100%)',
-  bold: 'linear-gradient(135deg, #dc2626 0%, #f97316 100%)',
-  elegant: 'linear-gradient(135deg, #292524 0%, #a8a29e 100%)',
-};
 
 const IMAGE_SHAPES = [
   { value: 'rect', label: 'Rectangle' },
@@ -195,7 +186,6 @@ export default function EditorCanvaSidebar({
               <div className="editor-canva-template-grid">
                 {(templatesList || []).map((t) => {
                   if (!t?.id) return null;
-                  const bg = TEMPLATE_THUMB_STYLES[t.id] || 'linear-gradient(135deg, #e2e8f0, #94a3b8)';
                   return (
                     <button
                       key={t.id}
@@ -205,7 +195,9 @@ export default function EditorCanvaSidebar({
                       title={t.description || t.name}
                       onClick={() => onApplyCanvasTemplate?.(t)}
                     >
-                      <span className="editor-canva-template-card__thumb" style={{ background: bg }} />
+                      <span className="editor-canva-template-card__thumb">
+                        <TemplateMiniPreview templateId={t.id} />
+                      </span>
                       <span className="editor-canva-template-card__name">{t.name || t.id}</span>
                     </button>
                   );

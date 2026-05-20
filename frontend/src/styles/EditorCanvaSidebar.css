@@ -50,16 +50,21 @@
 }
 
 .editor-canva-drawer {
-  width: 220px;
+  width: 300px;
+  min-width: 300px;
+  max-width: 300px;
   padding: 14px 12px;
+  overflow-x: hidden;
   overflow-y: auto;
   background: #ffffff;
   box-shadow: 4px 0 12px rgba(15, 23, 42, 0.04);
+  box-sizing: border-box;
 }
 
 .editor-canva-drawer--position {
-  width: 300px;
-  min-width: 300px;
+  width: 340px;
+  min-width: 340px;
+  max-width: 340px;
 }
 
 .editor-canva-drawer__title {
@@ -220,6 +225,7 @@
   display: block;
   height: 52px;
   width: 100%;
+  overflow: hidden;
 }
 
 .editor-canva-template-card__name {

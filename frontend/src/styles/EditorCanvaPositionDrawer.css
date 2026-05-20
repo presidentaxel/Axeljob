@@ -1,8 +1,13 @@
+.editor-canva-position-drawer {
+  min-width: 0;
+}
+
 .editor-canva-position-drawer__geom {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  gap: 8px;
   margin-bottom: 12px;
+  min-width: 0;
 }
 
 .editor-canva-position-drawer__geom label {
@@ -15,6 +20,9 @@
 }
 
 .editor-canva-position-drawer__geom input {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 4px 6px;
   border: 1px solid #cbd5e1;
   border-radius: 4px;
@@ -29,12 +37,17 @@
 }
 
 .editor-canva-position-drawer__z-actions button {
-  padding: 4px 8px;
-  font-size: 0.68rem;
+  flex: 1 1 calc(50% - 4px);
+  min-width: 0;
+  padding: 6px 6px;
+  font-size: 0.65rem;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   background: #f8fafc;
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .editor-canva-position-drawer__layers {

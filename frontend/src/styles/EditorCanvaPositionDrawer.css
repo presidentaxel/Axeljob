@@ -1,0 +1,76 @@
+.editor-canva-position-drawer__geom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.editor-canva-position-drawer__geom label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.editor-canva-position-drawer__geom input {
+  padding: 4px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.editor-canva-position-drawer__z-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.editor-canva-position-drawer__z-actions button {
+  padding: 4px 8px;
+  font-size: 0.68rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.editor-canva-position-drawer__layers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(50vh, 360px);
+  overflow-y: auto;
+}
+
+.editor-canva-position-drawer__layer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fff;
+  text-align: left;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.editor-canva-position-drawer__layer:hover {
+  background: #f8fafc;
+}
+
+.editor-canva-position-drawer__layer--active {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.editor-canva-position-drawer__layer-z {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #94a3b8;
+  min-width: 1.5rem;
+}

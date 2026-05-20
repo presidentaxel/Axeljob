@@ -1774,6 +1774,28 @@ position/taille en mm, z-index, premier/arrière plan, contenu
 - [x] Boutons premier plan / arrière-plan.
 - [x] Styles pertinents par type (couleur trait, format expériences, etc.).
 
+#### 14.5.8 P3.7–P3.9 — Snap, rendu backend, score ATS L3 (livré)
+
+**P3.7** : grille 5 mm, guides magnétiques (bords page, centre, marges, quarts,
+autres blocs), priorité magnétique sur la grille. Fichiers :
+`freeCanvasSnap.js`, `FreeCanvas.jsx`, `FreeCanvas.css`.
+
+**P3.8** : `backend/services/layout_renderer.py` + `layout_bindings.py` ;
+`POST /api/render-html` accepte `layout` v3. Tests : `test_layout_renderer.py`.
+
+**P3.9** : règles ATS canvas libre (`grid == "free"`) dans
+`backend/services/ats_score/rules/free_canvas.py` :
+
+| Règle | Delta |
+| --- | --- |
+| `malus_free_canvas_reading_order` | −3 par inversion d’ordre sémantique (plafond −9) |
+| `malus_identity_not_first` | −5 si l’identité n’est pas lue en premier |
+| `malus_experiences_before_resume` | −5 si expériences avant le résumé |
+| `malus_contact_low_on_page` | −3 si contact sous 30 % hauteur page |
+
+Le badge ATS en mode canvas libre envoie le `layout` v3 courant (plus le
+`template_id`). Version scoring : `2026.05.1`.
+
 ### 14.6 P4 — Calibration et expansion (continu)
 
 - Job mensuel de recalibration des pondérations sur les ground truths collectées.

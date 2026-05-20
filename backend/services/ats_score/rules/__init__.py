@@ -11,7 +11,7 @@ regles, et section 12.4 pour les anti-patterns interdits.
 
 from __future__ import annotations
 
-from backend.services.ats_score.rules import content, layout, meta, typography
+from backend.services.ats_score.rules import content, free_canvas, layout, meta, typography
 
 # Ordre stable, repris tel quel dans l'UI pour expliquer le score.
 # Convention : penalites lourdes d'abord, puis penalites moyennes,
@@ -26,6 +26,10 @@ parsing_rules: tuple = (
     layout.rule_multi_column,
     layout.rule_sidebar_present,
     layout.rule_free_canvas_text_positions,
+    free_canvas.rule_free_canvas_reading_order,
+    free_canvas.rule_identity_not_first_in_reading,
+    free_canvas.rule_experiences_before_resume,
+    free_canvas.rule_contact_far_from_top,
     typography.rule_exotic_font,
     typography.rule_body_font_size_out_of_range,
     # --- Penalites legeres

@@ -9,4 +9,4 @@ les scores produits. Permet de :
 Format : ``YYYY.MM`` ou ``YYYY.MM.patch`` pour les corrections mineures.
 """
 
-SCORING_VERSION = "2026.05"
+SCORING_VERSION = "2026.05.1"

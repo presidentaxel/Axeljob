@@ -366,7 +366,11 @@ export default function CvEditorBeta({
         </div>
         <div className="cv-editor-beta-topbar-right">
           <AutoSaveIndicator state={autoSave.state} onRetry={handleRetry} />
-          <EditorAtsScoreBadge templateId={templateId} cv={cv} />
+          <EditorAtsScoreBadge
+            templateId={editorViewMode === 'free' ? undefined : templateId}
+            layout={editorViewMode === 'free' ? layout : undefined}
+            cv={cv}
+          />
           <button
             type="button"
             className={

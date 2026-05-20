@@ -357,6 +357,7 @@ class PdfBody(BaseModel):
     template_id: str | None = None
     template_options: dict | None = None
     selection_a4: dict | None = None
+    layout: dict | None = None
 
 
 class ExportDossierBody(BaseModel):
@@ -3241,6 +3242,14 @@ def _cv_pdf_bytes_same_as_download(
             except Exception:
                 pass
     selection_a4 = body.selection_a4
+    from backend.services.generator import generer_pdf_bytes_from_html
+
+    if isinstance(body.layout, dict) and body.layout:
+        from backend.services.layout_renderer import render_html as render_layout_html
+
+        html = render_layout_html(cv, body.layout, for_preview=False)
+        return generer_pdf_bytes_from_html(html, BASE_DIR, cv, offre, template_id=body.template_id)
+
     # for_pdf=True : pas d'injection "preview_responsive" (overflow/height qui font disparaître tout sous WeasyPrint).
     # On garde for_preview=True pour la classe .cv-preview et le template, puis on force layout + couleurs via le CSS d'export.
     html = _render_cv_html(
@@ -3251,8 +3260,6 @@ def _cv_pdf_bytes_same_as_download(
         template_options=body.template_options,
         selection_a4=selection_a4,
     )
-    from backend.services.generator import generer_pdf_bytes_from_html
-
     return generer_pdf_bytes_from_html(html, BASE_DIR, cv, offre, template_id=body.template_id)
 
 

@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { apiGet, apiPut } from '../../api';
+import { apiGet, apiPostBlob, apiPut } from '../../api';
+import {
+  applyCvFieldsFromRoot,
+  readBlockContentFromRoot,
+} from '../../lib/canvasInlineEdit.js';
+import { applyAtsLayoutOptimizations } from '../../lib/atsLayoutOptimize.js';
+import { saveLayoutProposal } from '../../lib/layoutProposalsStorage.js';
 import { defaultCv } from '../../data/cvDefault';
 import {
   createInsertBlockPreset,
@@ -25,15 +31,18 @@ import { applyLayoutPagination, layoutHasPageOverflow } from '../../lib/layoutPa
 import { useAutoSave } from '../../lib/useAutoSave.js';
 import { useLayoutHistory } from '../../lib/useLayoutHistory.js';
 import CvEditablePreview from '../CvEditablePreview.jsx';
-import EditorInsertToolbar from './EditorInsertToolbar.jsx';
 import FreeCanvas from './FreeCanvas.jsx';
 
 import AutoSaveIndicator from './AutoSaveIndicator.jsx';
 import EditorAtsScoreBadge from './EditorAtsScoreBadge.jsx';
+import EditorBlockChromeToolbar from './EditorBlockChromeToolbar.jsx';
+import EditorCanvaSidebar from './EditorCanvaSidebar.jsx';
+import EditorFloatingTextToolbar from './EditorFloatingTextToolbar.jsx';
 import EditorInspectorDrawer from './EditorInspectorDrawer.jsx';
 import EditorTemplateSelector from './EditorTemplateSelector.jsx';
 
 import '../../styles/CvEditorBeta.css';
+import '../../styles/EditorCanvaSidebar.css';
 import '../../styles/EditorInspector.css';
 
 /**
@@ -73,7 +82,12 @@ export default function CvEditorBeta({
   /** `guided` = L1 CvEditablePreview ; `free` = canvas libre (P3.2+). */
   const [editorViewMode, setEditorViewMode] = useState('guided');
   const [selectedBlockId, setSelectedBlockId] = useState(null);
+  const [editingBlockId, setEditingBlockId] = useState(null);
+  const [selectedBlockRect, setSelectedBlockRect] = useState(null);
   const [canvasBusy, setCanvasBusy] = useState(false);
+  const [pdfExporting, setPdfExporting] = useState(false);
+  const [showCanvasGrid, setShowCanvasGrid] = useState(false);
+  const [canvasSnapEnabled, setCanvasSnapEnabled] = useState(true);
   const layoutRef = useRef(null);
 
   const layoutHistory = useLayoutHistory(() => createBlankLayoutV3(), {
@@ -153,6 +167,16 @@ export default function CvEditorBeta({
       document.body.classList.remove(BODY_FULLSCREEN_CLASS);
     };
   }, []);
+
+  useEffect(() => {
+    if (editorViewMode === 'free') {
+      setInspectorOpen(false);
+      setEditingBlockId(null);
+    } else {
+      setSelectedBlockRect(null);
+      setEditingBlockId(null);
+    }
+  }, [editorViewMode]);
 
   useEffect(() => {
     let aborted = false;
@@ -265,6 +289,26 @@ export default function CvEditorBeta({
     if (cv) autoSave.schedule(cv);
   }, [layout, commitLayout, cv, autoSave]);
 
+  const handleInsertImageBlock = useCallback((preset) => {
+    if (!preset) return;
+    const placement = suggestNewBlockPlacement(layout, 0, preset);
+    const partial = { ...preset, ...placement };
+    const next = addBlockToPage(layout, 0, partial);
+    commitLayout(next);
+    const newId = getLastBlockIdOnPage(next, 0);
+    if (newId) setSelectedBlockId(newId);
+    if (cv) autoSave.schedule(cv);
+  }, [layout, commitLayout, cv, autoSave]);
+
+  const handleToggleBlockLock = useCallback(() => {
+    if (!selectedBlockId) return;
+    const found = findBlock(layout, selectedBlockId);
+    if (!found?.block) return;
+    const next = updateBlock(layout, selectedBlockId, { locked: !found.block.locked });
+    commitLayout(next);
+    if (cv) autoSave.schedule(cv);
+  }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
+
   const handleBlockPatch = useCallback((patch) => {
     if (!selectedBlockId) return;
     const next = updateBlock(layout, selectedBlockId, patch);
@@ -298,8 +342,100 @@ export default function CvEditorBeta({
     const next = removeBlock(layout, selectedBlockId);
     commitLayout(next);
     setSelectedBlockId(null);
+    setEditingBlockId(null);
     if (cv) autoSave.schedule(cv);
   }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
+
+  const handleStartBlockEdit = useCallback((blockId) => {
+    setSelectedBlockId(blockId);
+    setEditingBlockId(blockId);
+  }, []);
+
+  const handleCommitBlockEdit = useCallback((blockId, rootEl) => {
+    if (!blockId || !layout) {
+      setEditingBlockId(null);
+      return;
+    }
+    const found = findBlock(layout, blockId);
+    if (!found?.block) {
+      setEditingBlockId(null);
+      return;
+    }
+    const { block } = found;
+    if (block.type === 'text' || block.type === 'title') {
+      const content = readBlockContentFromRoot(rootEl, block.type);
+      const next = updateBlock(layout, blockId, { content });
+      commitLayout(next);
+    } else if (cv && rootEl) {
+      const nextCv = applyCvFieldsFromRoot(cv, rootEl);
+      handleCvChange(nextCv);
+    }
+    setEditingBlockId(null);
+  }, [layout, cv, commitLayout, handleCvChange]);
+
+  const handleSwitchToFreeCanvas = useCallback(() => {
+    if (isEmptyLayoutV3(layout)) {
+      resetLayout(createStarterLayoutV3());
+    }
+    setEditorViewMode('free');
+  }, [layout, resetLayout]);
+
+  const handleOptimizeAtsLayout = useCallback(() => {
+    if (!layout) return;
+    const next = applyAtsLayoutOptimizations(layout);
+    commitLayout(next, { groupKey: 'ats:optimize' });
+    if (cv) autoSave.schedule(cv);
+  }, [layout, commitLayout, cv, autoSave]);
+
+  const handleExportLayoutPdf = useCallback(async () => {
+    if (!cv || !layout || pdfExporting) return;
+    setPdfExporting(true);
+    try {
+      const { blob, filename } = await apiPostBlob('/api/pdf', {
+        cv,
+        template_id: templateId,
+        layout,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'cv-canvas.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('[cv-editor-beta] export PDF layout', err);
+    } finally {
+      setPdfExporting(false);
+    }
+  }, [cv, layout, templateId, pdfExporting]);
+
+  const handleSaveLayoutProposal = useCallback((name) => {
+    if (!layout) return;
+    saveLayoutProposal(name, layout);
+  }, [layout]);
+
+  const handleLoadLayoutProposal = useCallback((proposalLayout) => {
+    if (!proposalLayout) return;
+    const next = migrateLayoutToV3(proposalLayout);
+    resetLayout(next);
+    setSelectedBlockId(null);
+    if (cv) autoSave.schedule(cv);
+  }, [resetLayout, cv, autoSave]);
+
+  useEffect(() => {
+    if (editorViewMode !== 'free') return undefined;
+    const onKeyDown = (e) => {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      if (document.activeElement?.isContentEditable && editingBlockId) return;
+      if (!selectedBlockId) return;
+      e.preventDefault();
+      handleDeleteSelectedBlock();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [editorViewMode, selectedBlockId, editingBlockId, handleDeleteSelectedBlock]);
 
   if (loading) {
     return (
@@ -340,14 +476,14 @@ export default function CvEditorBeta({
               Canvas libre
             </button>
           </div>
-          {editorViewMode === 'free' && selectedBlockId && (
+          {editorViewMode === 'guided' && (
             <button
               type="button"
-              className="cv-editor-beta-history-btn cv-editor-beta-delete-block-btn"
-              onClick={handleDeleteSelectedBlock}
-              title="Supprimer le bloc sélectionné"
+              className="cv-editor-beta-bridge-btn"
+              onClick={handleSwitchToFreeCanvas}
+              title="Composer la mise en page en blocs"
             >
-              Supprimer bloc
+              Mise en page libre
             </button>
           )}
           {editorViewMode === 'free' && (
@@ -386,21 +522,45 @@ export default function CvEditorBeta({
             cv={cv}
             paused={editorViewMode === 'free' && canvasBusy}
           />
-          <button
-            type="button"
-            className={
-              inspectorOpen
-                ? 'editor-inspector-toggle-btn editor-inspector-toggle-btn--active'
-                : 'editor-inspector-toggle-btn'
-            }
-            onClick={handleInspectorToggle}
-            aria-expanded={inspectorOpen}
-            aria-controls="cv-editor-beta-inspector"
-            title="Ouvrir l’inspecteur de style"
-          >
-            <span className="editor-inspector-toggle-icon" aria-hidden="true">⚙</span>
-            <span>Inspecteur</span>
-          </button>
+          {editorViewMode === 'free' && (
+            <>
+              <button
+                type="button"
+                className="cv-editor-beta-history-btn"
+                onClick={handleOptimizeAtsLayout}
+                disabled={loading || !layout}
+                title="Réordonner les blocs pour la lecture ATS"
+              >
+                Optimiser ATS
+              </button>
+              <button
+                type="button"
+                className="cv-editor-beta-history-btn"
+                onClick={handleExportLayoutPdf}
+                disabled={loading || !layout || pdfExporting}
+                title="Exporter le PDF depuis le layout canvas"
+              >
+                {pdfExporting ? 'PDF…' : 'PDF canvas'}
+              </button>
+            </>
+          )}
+          {editorViewMode === 'guided' && (
+            <button
+              type="button"
+              className={
+                inspectorOpen
+                  ? 'editor-inspector-toggle-btn editor-inspector-toggle-btn--active'
+                  : 'editor-inspector-toggle-btn'
+              }
+              onClick={handleInspectorToggle}
+              aria-expanded={inspectorOpen}
+              aria-controls="cv-editor-beta-inspector"
+              title="Ouvrir l’inspecteur de style"
+            >
+              <span className="editor-inspector-toggle-icon" aria-hidden="true">⚙</span>
+              <span>Inspecteur</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -410,14 +570,29 @@ export default function CvEditorBeta({
         </div>
       )}
 
-      {editorViewMode === 'free' && !showCanvasStarterPicker && (
-        <EditorInsertToolbar
-          onInsert={handleInsertBlock}
-          disabled={loading || !layout}
-        />
-      )}
-
-      <div className="cv-editor-beta-workspace">
+      <div
+        className={
+          editorViewMode === 'free'
+            ? 'cv-editor-beta-workspace cv-editor-beta-workspace--canva'
+            : 'cv-editor-beta-workspace'
+        }
+      >
+        {editorViewMode === 'free' && !showCanvasStarterPicker && (
+          <EditorCanvaSidebar
+            disabled={loading || !layout}
+            showGrid={showCanvasGrid}
+            snapEnabled={canvasSnapEnabled}
+            onShowGridChange={setShowCanvasGrid}
+            onSnapEnabledChange={setCanvasSnapEnabled}
+            onInsertBlock={handleInsertBlock}
+            onInsertImageBlock={handleInsertImageBlock}
+            onPickStarter={handlePickStarterCanvas}
+            onPickBlank={handlePickBlankCanvas}
+            onLoadProposal={handleLoadLayoutProposal}
+            onSaveProposal={handleSaveLayoutProposal}
+          />
+        )}
+        <div className="cv-editor-beta-canva-column">
         <main className="cv-editor-beta-canvas">
           {editorViewMode === 'guided' ? (
             <CvEditablePreview
@@ -454,38 +629,64 @@ export default function CvEditorBeta({
                 layout={layout}
                 cv={cv}
                 selectedBlockId={selectedBlockId}
+                editingBlockId={editingBlockId}
+                showGrid={showCanvasGrid}
+                snapEnabled={canvasSnapEnabled}
                 onSelectBlock={handleSelectBlock}
                 onBlockPositionChange={handleBlockPositionChange}
                 onBlockResizeChange={handleBlockResizeChange}
                 onDragEnd={handleDragEndPersist}
                 onCanvasInteractionChange={setCanvasBusy}
+                onStartBlockEdit={handleStartBlockEdit}
+                onCommitBlockEdit={handleCommitBlockEdit}
+                onSelectedBlockRect={setSelectedBlockRect}
               />
+              {selectedBlock && selectedBlockRect && (
+                <EditorBlockChromeToolbar
+                  block={selectedBlock}
+                  anchorRect={selectedBlockRect}
+                  locked={Boolean(selectedBlock.locked)}
+                  onDelete={handleDeleteSelectedBlock}
+                  onToggleLock={handleToggleBlockLock}
+                />
+              )}
+              {selectedBlock && selectedBlockRect && (
+                <EditorFloatingTextToolbar
+                  block={selectedBlock}
+                  anchorRect={selectedBlockRect}
+                  isEditing={editingBlockId === selectedBlock.id}
+                  onBlockStylePatch={handleBlockStylePatch}
+                />
+              )}
             </>
           )}
         </main>
-        <div id="cv-editor-beta-inspector" className="cv-editor-beta-inspector-slot">
-          <EditorInspectorDrawer
-            open={inspectorOpen}
-            template={activeTemplate}
-            templateOptions={templateOptions}
-            onTemplateOptionsChange={handleTemplateOptionsChange}
-            onClose={handleInspectorClose}
-            cv={cv}
-            onCvChange={handleCvChange}
-            selectedBlock={editorViewMode === 'free' ? selectedBlock : null}
-            onBlockPatch={handleBlockPatch}
-            onBlockStylePatch={handleBlockStylePatch}
-            onBlockBringToFront={handleBlockBringToFront}
-            onBlockSendToBack={handleBlockSendToBack}
-          />
         </div>
+        {editorViewMode === 'guided' && (
+          <div id="cv-editor-beta-inspector" className="cv-editor-beta-inspector-slot">
+            <EditorInspectorDrawer
+              open={inspectorOpen}
+              template={activeTemplate}
+              templateOptions={templateOptions}
+              onTemplateOptionsChange={handleTemplateOptionsChange}
+              onClose={handleInspectorClose}
+              cv={cv}
+              onCvChange={handleCvChange}
+              selectedBlock={null}
+              onBlockPatch={handleBlockPatch}
+              onBlockStylePatch={handleBlockStylePatch}
+              onBlockBringToFront={handleBlockBringToFront}
+              onBlockSendToBack={handleBlockSendToBack}
+            />
+          </div>
+        )}
       </div>
 
       <footer className="cv-editor-beta-statusbar">
         <span>
           {editorViewMode === 'free'
-            ? 'Canvas libre · insérer, déplacer, redimensionner (Ctrl+Z)'
-            : 'L1 inline · basculez sur Canvas libre pour l’aperçu L3'}
+            ? 'Canvas libre · double-clic pour éditer · sidebar Canva · Ctrl+Z'
+            : 'Édition guidée · « Mise en page libre » pour composer en blocs'}
         </span>
       </footer>
     </div>

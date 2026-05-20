@@ -1,0 +1,46 @@
+.editor-block-chrome-toolbar {
+  position: fixed;
+  z-index: 10040;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+  pointer-events: auto;
+}
+
+.editor-block-chrome-toolbar__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #334155;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.editor-block-chrome-toolbar__btn:hover {
+  background: #f1f5f9;
+}
+
+.editor-block-chrome-toolbar__btn--active {
+  background: #eef2ff;
+  border-color: #a5b4fc;
+  color: #3730a3;
+}
+
+.editor-block-chrome-toolbar__btn--danger {
+  color: #b91c1c;
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.editor-block-chrome-toolbar__btn--danger:hover {
+  background: #fee2e2;
+}

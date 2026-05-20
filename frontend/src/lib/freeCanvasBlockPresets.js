@@ -65,6 +65,25 @@ const PRESETS_BY_TYPE = Object.freeze({
  * Fabrique un bloc partiel pret pour `addBlockToPage` (sans x/y/z).
  * Retourne null si type inconnu.
  */
+/**
+ * Preset bloc image décorative (import sidebar).
+ */
+export function createImageBlockPreset(imageSrc, style = {}) {
+  if (!imageSrc) return null;
+  return {
+    type: 'image',
+    image_src: imageSrc,
+    w: 40,
+    h: 40,
+    style: {
+      shape: 'rect',
+      object_fit: 'cover',
+      object_position: 'center',
+      ...style,
+    },
+  };
+}
+
 export function createInsertBlockPreset(type) {
   const preset = PRESETS_BY_TYPE[type];
   if (!preset) return null;

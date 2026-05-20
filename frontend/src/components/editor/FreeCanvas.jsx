@@ -44,14 +44,21 @@ export default function FreeCanvas({
   layout,
   cv,
   selectedBlockId = null,
+  editingBlockId = null,
   onSelectBlock,
   onBlockPositionChange,
   onBlockResizeChange,
   onDragEnd,
   onCanvasInteractionChange,
+  onStartBlockEdit,
+  onCommitBlockEdit,
+  onSelectedBlockRect,
+  showGrid = false,
+  snapEnabled = true,
   interactable = true,
 }) {
   const viewportRef = useRef(null);
+  const blockElementsRef = useRef({});
   const [scale, setScale] = useState(1);
   const [draggingBlockId, setDraggingBlockId] = useState(null);
   const [resizingBlockId, setResizingBlockId] = useState(null);
@@ -94,7 +101,33 @@ export default function FreeCanvas({
     setCanvasBusy(false);
   }, [clearGuides, setCanvasBusy]);
 
+  useLayoutEffect(() => {
+    if (!selectedBlockId || typeof onSelectedBlockRect !== 'function') {
+      if (typeof onSelectedBlockRect === 'function') onSelectedBlockRect(null);
+      return;
+    }
+    const el = blockElementsRef.current[selectedBlockId];
+    if (!el) {
+      onSelectedBlockRect(null);
+      return;
+    }
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      onSelectedBlockRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
+    };
+    update();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
+    if (ro) ro.observe(el);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      if (ro) ro.disconnect();
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [selectedBlockId, editingBlockId, layout, scale, onSelectedBlockRect]);
+
   const handleBlockPointerDown = useCallback((event, block) => {
+    if (editingBlockId === block?.id) return;
+    if (block?.locked) return;
     if (!interactable || !block?.id || resizeSessionRef.current) return;
     if (typeof onBlockPositionChange !== 'function') return;
     event.preventDefault();
@@ -111,7 +144,7 @@ export default function FreeCanvas({
     if (typeof event.currentTarget?.setPointerCapture === 'function') {
       event.currentTarget.setPointerCapture(event.pointerId);
     }
-  }, [interactable, onSelectBlock, onBlockPositionChange, setCanvasBusy]);
+  }, [interactable, onSelectBlock, onBlockPositionChange, setCanvasBusy, editingBlockId]);
 
   const handleBlockPointerMove = useCallback((event) => {
     const session = dragSessionRef.current;
@@ -120,14 +153,16 @@ export default function FreeCanvas({
     const dyPx = event.clientY - session.startClientY;
     const deltaMm = clientDeltaToMmDelta(dxPx, dyPx, scale);
     const pos = positionAfterDrag(session.startMm, deltaMm);
-    const snapped = snapBlockPosition(pos, layout, session.blockId);
+    const snapped = snapEnabled
+      ? snapBlockPosition(pos, layout, session.blockId)
+      : { ...pos, guides: [] };
     setActiveGuides(snapped.guides);
     onBlockPositionChange(
       session.blockId,
       { x: snapped.x, y: snapped.y },
       { groupKey: dragGroupKey(session.blockId) },
     );
-  }, [scale, layout, onBlockPositionChange]);
+  }, [scale, layout, onBlockPositionChange, snapEnabled]);
 
   const handleBlockPointerUp = useCallback((event) => {
     const session = dragSessionRef.current;
@@ -143,6 +178,7 @@ export default function FreeCanvas({
   }, [endDrag, onDragEnd]);
 
   const handleResizePointerDown = useCallback((event, block, handle) => {
+    if (block?.locked) return;
     if (!interactable || !block?.id || typeof onBlockResizeChange !== 'function') return;
     event.preventDefault();
     event.stopPropagation();
@@ -169,14 +205,16 @@ export default function FreeCanvas({
     const dyPx = event.clientY - session.startClientY;
     const deltaMm = clientDeltaToMmDelta(dxPx, dyPx, scale);
     const patch = computeResizedBlock(session.startBlock, session.handle, deltaMm);
-    const snapped = snapBlockGeometry(patch, layout, session.blockId, session.handle);
+    const snapped = snapEnabled
+      ? snapBlockGeometry(patch, layout, session.blockId, session.handle)
+      : { ...patch, guides: [] };
     setActiveGuides(snapped.guides);
     onBlockResizeChange(
       session.blockId,
       { x: snapped.x, y: snapped.y, w: snapped.w, h: snapped.h },
       { groupKey: resizeGroupKey(session.blockId) },
     );
-  }, [scale, layout, onBlockResizeChange]);
+  }, [scale, layout, onBlockResizeChange, snapEnabled]);
 
   const handleResizePointerUp = useCallback((event) => {
     const session = resizeSessionRef.current;
@@ -206,7 +244,7 @@ export default function FreeCanvas({
     <div className="free-canvas" ref={viewportRef}>
       {interactable && (
         <p className="free-canvas-hint-banner" role="status">
-          Grille 5 mm · alignement magnétique au drag · poignées des coins pour redimensionner
+          Double-clic sur un bloc texte pour éditer · glisser pour déplacer · poignées pour redimensionner
         </p>
       )}
       <div
@@ -223,11 +261,11 @@ export default function FreeCanvas({
               style={{ height: `${scaledHeight}px` }}
             >
               <div
-                className={
-                  interactable
-                    ? 'free-canvas-page free-canvas-page--interactive free-canvas-page--grid'
-                    : 'free-canvas-page'
-                }
+                className={[
+                  'free-canvas-page',
+                  interactable ? 'free-canvas-page--interactive' : '',
+                  interactable && showGrid ? 'free-canvas-page--grid' : '',
+                ].filter(Boolean).join(' ')}
                 style={{
                   width: `${PAGE_WIDTH_MM}mm`,
                   height: `${PAGE_HEIGHT_MM}mm`,
@@ -245,6 +283,7 @@ export default function FreeCanvas({
                     block={block}
                     cv={cv}
                     selected={selectedBlockId === block.id}
+                    editing={editingBlockId === block.id}
                     dragging={draggingBlockId === block.id}
                     resizing={resizingBlockId === block.id}
                     interactable={interactable}
@@ -256,6 +295,13 @@ export default function FreeCanvas({
                     onResizePointerMove={handleResizePointerMove}
                     onResizePointerUp={handleResizePointerUp}
                     onResizePointerCancel={handleResizePointerUp}
+                    onDoubleClickEdit={onStartBlockEdit}
+                    onInnerBlur={onCommitBlockEdit}
+                    locked={Boolean(block.locked)}
+                    onBlockElementRef={(blockId, el) => {
+                      if (el) blockElementsRef.current[blockId] = el;
+                      else delete blockElementsRef.current[blockId];
+                    }}
                   />
                 ))}
                 {blocks.length === 0 && pageIndex === 0 && (

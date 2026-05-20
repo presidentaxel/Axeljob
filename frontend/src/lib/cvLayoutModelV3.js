@@ -95,6 +95,7 @@ export const SEMANTIC_BLOCK_TYPES = Object.freeze([
 export const NON_SEMANTIC_BLOCK_TYPES = Object.freeze([
   'text',
   'title',
+  'image',
   'shape:line',
   'shape:rect',
   'icon',
@@ -221,7 +222,12 @@ export function sanitizeBlock(input, { idHelpers, allowPageOverflow = false, pag
     if (type === 'qrcode' && typeof input.target_url === 'string') {
       out.target_url = input.target_url;
     }
+    if (type === 'image' && typeof input.image_src === 'string') {
+      out.image_src = input.image_src;
+    }
   }
+
+  if (input.locked === true) out.locked = true;
 
   return out;
 }

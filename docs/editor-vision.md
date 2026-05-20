@@ -1249,10 +1249,9 @@ dynamiquement.
 >   le panel v1).
 > - `lib/applyLayoutToDom.js` + tests (DOM patching sans renderer).
 >
-> Le score ATS « live sur layout custom » (P2.2) est aussi en pause :
-> tant que l'user ne peut pas modifier le layout côté front, le badge
-> ATS se base uniquement sur `templateId`. Quand P3 livre le canvas
-> libre, le scoring sera rebranché sur le modèle v2.
+> Le score ATS « live sur layout custom » (P2.2) est **livré** en mode
+> canvas libre : le badge envoie le `layout` v3 (règles L3, version
+> `2026.05.1`). En mode guidé, le score reste basé sur `template_id`.
 
 #### Livrables initialement prévus (en attente de P3)
 - Schéma `layout` (côté front + Pydantic côté back).
@@ -1449,16 +1448,19 @@ Critères d'acceptation :
 - Le score ATS reflète honnêtement les risques.
 - Le PDF généré est identique au rendu écran (test snapshot).
 
-**Décisions produit (19 mai 2026, démarrage P3)** :
-- **Remplace l'éditeur Beta** : quand P3 sera assez mûr, le canvas libre
-  prendra la place de l'éditeur Beta actuel (pas de toggle "guidée /
-  libre" dans la topbar Beta).
-- **Point de départ utilisateur** : choix explicite entre **page blanche**
-  ou **partir d'un template existant** (qui sera converti en blocs libres
-  pré-placés).
-- **Approche incrémentale** : on découpe P3 en P3.0 → P3.10, chaque étape
-  petite, testée, commitée séparément. On peut s'arrêter à tout moment
-  sans casser le mode Beta actuel.
+**Décisions produit (mises à jour mai 2026)** :
+- **Dual-mode permanent** : **Édition guidée** (L1, texte structuré, drawer
+  Style/Contenu) et **Canvas libre** (L3, composition bloc à bloc) coexistent.
+  Le canvas sert à composer des mises en page et des modèles ; le guidé sert
+  à retoucher rapidement le contenu structuré (boutons « Retoucher le contenu »
+  / « Mise en page libre »).
+- **Point de départ canvas** : page blanche ou starter v3 (blocs pré-placés).
+- **P3.0 → P3.10 livré** (voir §14.5.1–14.5.10). P3.5 (barre Insérer) et P3.6
+  (onglet Bloc drawer) sont **dépréciés en mode libre** au profit de la
+  sidebar Canva + toolbar flottante (P4).
+- **Score ATS layout** : actif en mode libre (`EditorAtsScoreBadge` + `layout` v3).
+- **Clamp page 1** : débordement temporaire autorisé sous le pli A4, puis spill
+  auto vers page 2 (P3.10).
 
 #### 14.5.1 P3.0 — Modèle pur `cvLayoutModelV3` (livré, 19 mai 2026)
 
@@ -1538,10 +1540,10 @@ migrateLayoutToV3(input)                       // v1 / v2 / inconnu -> starter (
 - **Unité = `mm`** (et non `px`/`%`) : aligné sur le rendu WeasyPrint
   côté backend (qui pense en mm pour le PDF) et sur la norme A4. Évite
   les arrondis pixel-perfect qui divergeraient entre preview et export.
-- **Clamps systématiques dans `sanitizeBlock`** : `w/h ≥ minimums`,
-  `x + w ≤ 210mm`, `y + h ≤ 297mm`, `z ≥ 0`. Toutes les ops passent par
-  `sanitizeBlock` au final → impossible de produire un bloc hors-page,
-  même via un patch malicieux.
+- **Clamps dans `sanitizeBlock`** : `w/h ≥ minimums`, `x + w ≤ 210mm`,
+  `z ≥ 0`. Sur la **page 1 en mode libre**, `y` peut temporairement dépasser
+  le pli (headroom ~150 mm) pour permettre le spill P3.10 ; les pages suivantes
+  restent clampées dans A4.
 - **Migration v1/v2 → v3 = retombe sur le starter** : on n'essaie PAS de
   reproduire pixel-perfect une mise en page modulaire (impossible sans
   rendu réel + retour utilisateur P2 a montré que c'est fragile). On
@@ -1805,7 +1807,41 @@ réessayer. Fichiers : `useAtsScoreFetching.js`, `atsScoreLayoutFingerprint.js`.
 **P3.10** : `layoutPagination.js` — blocs dont le bas dépasse 297 mm sont
 déplacés sur la page suivante à la fin du drag/resize (`pagination:auto`).
 
-### 14.6 P4 — Calibration et expansion (continu)
+#### 14.5.10 Bilan P3 (état livré)
+
+| ID | Statut |
+|----|--------|
+| P3.0–P3.4 | Livré |
+| P3.5 | Livré, UI remplacée par sidebar P4 |
+| P3.6 | Livré, remplacé par toolbar flottante en mode libre |
+| P3.7–P3.10 | Livré |
+| Export PDF layout v3 | Partiel (`layout_renderer` + `render-html` ; PDF via P4.4) |
+| Bouton « Optimiser pour ATS » | P4.4 |
+| Auto-grow bloc | Reporté P4+ |
+
+### 14.6 P4 — Canva total (en cours)
+
+**Objectif** : expérience type Canva sur le CV, avec score ATS en boucle de
+rétroaction, puis personnalisation IA (flux adaptation existant).
+
+| Phase | Contenu |
+|-------|---------|
+| P4.1 | Édition inline (`contentEditable`, double-clic, sync `cv` / `block.content`) |
+| P4.2a | Sidebar rail + drawer (Modèles, Éléments, Texte, Importer, Outils) — grille/snap optionnels |
+| P4.2b | Toolbar formatage claire, déplaçable, riche texte à la sélection ; barre chrome (suppr/verrou) |
+| P4.3 | Pont guidé → canvas (« Mise en page libre ») ; propositions layout (localStorage) ; Suppr = supprimer bloc |
+| P4.4 | Optimiser pour ATS ; PDF via `layout_renderer` si `layout` v3 |
+
+### 14.7 Abandonné / hiberné (ne pas réimplémenter tel quel)
+
+- **UI L2 drawer « Mise en page »** (P2.1–P2.4b) : drag zones dans le drawer —
+  abandonné UX ; remplacé par canvas libre P3/P4.
+- **Fichiers supprimés** : `EditorLayoutPanel`, `EditorLayoutMiniMap`,
+  `applyLayoutToDom`, `sectionsAvailability`.
+- **Conservé** : `cvLayoutModelV2.js`, persistance `data.layout`, `data-cv-section`
+  dans `CvEditablePreview`, score ATS templates (P0).
+
+### 14.8 P4+ — Calibration et expansion (continu)
 
 - Job mensuel de recalibration des pondérations sur les ground truths collectées.
 - Nouveaux blocs (timeline, graphique de compétences, …).

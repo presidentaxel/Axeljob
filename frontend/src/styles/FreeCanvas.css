@@ -153,6 +153,49 @@
   border-color: rgba(79, 70, 229, 0.28);
 }
 
+.free-canvas-block__image {
+  display: block;
+  pointer-events: none;
+}
+
+.free-canvas-block__image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
+.free-canvas-block--locked {
+  outline: 1px dashed #94a3b8;
+}
+
+.free-canvas-block__lock-badge {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 0.65rem;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.free-canvas-block--editing .free-canvas-block__inner {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.free-canvas-block__text--editing,
+.free-canvas-block__title--editing,
+.canvas-editable-field {
+  cursor: text;
+  outline: none;
+  min-height: 1em;
+}
+
 .free-canvas-block--interactive.free-canvas-block--selected::after {
   inset: -0.5mm;
   border: 2px solid #4f46e5;

@@ -20,6 +20,7 @@ async function fetchWithRetry(input) {
       return await fetchAtsScoreParsing(input);
     } catch (err) {
       lastErr = err;
+      if (err?.status === 429) break;
     }
   }
   throw lastErr || new Error('Erreur ATS');

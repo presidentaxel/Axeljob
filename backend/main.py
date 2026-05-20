@@ -347,6 +347,7 @@ class RenderHtmlBody(BaseModel):
     template_id: str | None = None
     template_options: dict | None = None
     selection_a4: dict | None = None
+    layout: dict | None = None
 
 
 class PdfBody(BaseModel):
@@ -1500,6 +1501,12 @@ def api_render_html(request: Request, body: RenderHtmlBody):
                     cv = {**cv, "photo_url": url}
             except Exception:
                 pass
+    if isinstance(body.layout, dict) and body.layout:
+        from backend.services.layout_renderer import render_html as render_layout_html
+
+        html = render_layout_html(cv, body.layout, for_preview=True)
+        return HTMLResponse(html)
+
     html = _render_cv_html(
         cv,
         base_cv=body.base_cv,

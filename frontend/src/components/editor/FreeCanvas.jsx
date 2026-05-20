@@ -11,7 +11,31 @@ import {
   resizeGroupKey,
 } from '../../lib/freeCanvasResize.js';
 import { computePageScale, scaledPageHeightPx } from '../../lib/freeCanvasScale.js';
+import { snapBlockGeometry, snapBlockPosition } from '../../lib/freeCanvasSnap.js';
 import '../../styles/FreeCanvas.css';
+
+function SnapGuides({ guides }) {
+  if (!guides?.length) return null;
+  return (
+    <div className="free-canvas-snap-guides" aria-hidden="true">
+      {guides.map((g, i) => (
+        <div
+          key={`${g.type}-${g.pos}-${g.role || 'edge'}-${i}`}
+          className={[
+            'free-canvas-snap-guide',
+            `free-canvas-snap-guide--${g.type}`,
+            g.role === 'center' ? 'free-canvas-snap-guide--center' : '',
+          ].filter(Boolean).join(' ')}
+          style={
+            g.type === 'v'
+              ? { left: `${g.pos}mm` }
+              : { top: `${g.pos}mm` }
+          }
+        />
+      ))}
+    </div>
+  );
+}
 
 /**
  * Canvas libre (P3.2–P3.4) : rendu, selection, drag, resize.
@@ -30,6 +54,7 @@ export default function FreeCanvas({
   const [scale, setScale] = useState(1);
   const [draggingBlockId, setDraggingBlockId] = useState(null);
   const [resizingBlockId, setResizingBlockId] = useState(null);
+  const [activeGuides, setActiveGuides] = useState([]);
   const dragSessionRef = useRef(null);
   const resizeSessionRef = useRef(null);
 
@@ -46,15 +71,19 @@ export default function FreeCanvas({
     return () => ro.disconnect();
   }, []);
 
+  const clearGuides = useCallback(() => setActiveGuides([]), []);
+
   const endDrag = useCallback(() => {
     dragSessionRef.current = null;
     setDraggingBlockId(null);
-  }, []);
+    clearGuides();
+  }, [clearGuides]);
 
   const endResize = useCallback(() => {
     resizeSessionRef.current = null;
     setResizingBlockId(null);
-  }, []);
+    clearGuides();
+  }, [clearGuides]);
 
   const handleBlockPointerDown = useCallback((event, block) => {
     if (!interactable || !block?.id || resizeSessionRef.current) return;
@@ -81,8 +110,14 @@ export default function FreeCanvas({
     const dyPx = event.clientY - session.startClientY;
     const deltaMm = clientDeltaToMmDelta(dxPx, dyPx, scale);
     const pos = positionAfterDrag(session.startMm, deltaMm);
-    onBlockPositionChange(session.blockId, pos, { groupKey: dragGroupKey(session.blockId) });
-  }, [scale, onBlockPositionChange]);
+    const snapped = snapBlockPosition(pos, layout, session.blockId);
+    setActiveGuides(snapped.guides);
+    onBlockPositionChange(
+      session.blockId,
+      { x: snapped.x, y: snapped.y },
+      { groupKey: dragGroupKey(session.blockId) },
+    );
+  }, [scale, layout, onBlockPositionChange]);
 
   const handleBlockPointerUp = useCallback((event) => {
     const session = dragSessionRef.current;
@@ -123,8 +158,14 @@ export default function FreeCanvas({
     const dyPx = event.clientY - session.startClientY;
     const deltaMm = clientDeltaToMmDelta(dxPx, dyPx, scale);
     const patch = computeResizedBlock(session.startBlock, session.handle, deltaMm);
-    onBlockResizeChange(session.blockId, patch, { groupKey: resizeGroupKey(session.blockId) });
-  }, [scale, onBlockResizeChange]);
+    const snapped = snapBlockGeometry(patch, layout, session.blockId, session.handle);
+    setActiveGuides(snapped.guides);
+    onBlockResizeChange(
+      session.blockId,
+      { x: snapped.x, y: snapped.y, w: snapped.w, h: snapped.h },
+      { groupKey: resizeGroupKey(session.blockId) },
+    );
+  }, [scale, layout, onBlockResizeChange]);
 
   const handleResizePointerUp = useCallback((event) => {
     const session = resizeSessionRef.current;
@@ -154,7 +195,7 @@ export default function FreeCanvas({
     <div className="free-canvas" ref={viewportRef}>
       {interactable && (
         <p className="free-canvas-hint-banner" role="status">
-          Glissez pour déplacer · poignées des coins pour redimensionner · le cadre ne suit pas le texte automatiquement
+          Grille 5 mm · alignement magnétique au drag · poignées des coins pour redimensionner
         </p>
       )}
       <div
@@ -173,7 +214,7 @@ export default function FreeCanvas({
               <div
                 className={
                   interactable
-                    ? 'free-canvas-page free-canvas-page--interactive'
+                    ? 'free-canvas-page free-canvas-page--interactive free-canvas-page--grid'
                     : 'free-canvas-page'
                 }
                 style={{
@@ -186,6 +227,7 @@ export default function FreeCanvas({
                 data-page-index={pageIndex}
                 onPointerDown={interactable ? handlePageBackgroundPointerDown : undefined}
               >
+                {interactable && <SnapGuides guides={activeGuides} />}
                 {blocks.map((block) => (
                   <FreeCanvasBlock
                     key={block.id}

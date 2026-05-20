@@ -71,6 +71,12 @@ export const PAGE_USABLE_WIDTH_MM = PAGE_WIDTH_MM - 2 * PAGE_MARGIN_MM;
 export const BLOCK_MIN_WIDTH_MM = 5;
 export const BLOCK_MIN_HEIGHT_MM = 3;
 
+/**
+ * Marge sous la page 1 (mm) avant spill P3.10 : permet de placer un bloc
+ * sous le pli A4 le temps du drag, puis pagination auto vers page 2.
+ */
+export const PAGE_OVERFLOW_HEADROOM_MM = 150;
+
 /** Types de blocs SEMANTIQUES (lies au cv via `bind`). */
 export const SEMANTIC_BLOCK_TYPES = Object.freeze([
   'identity',
@@ -159,7 +165,7 @@ export function isNonSemanticBlockType(type) {
  *
  * Retourne `null` si le bloc est irrecuperable (type inconnu).
  */
-export function sanitizeBlock(input, { idHelpers } = {}) {
+export function sanitizeBlock(input, { idHelpers, allowPageOverflow = false, pageIndex = 0 } = {}) {
   if (!input || typeof input !== 'object') return null;
   const type = typeof input.type === 'string' ? input.type : null;
   if (!type || !ALL_TYPES_SET.has(type)) return null;
@@ -183,10 +189,13 @@ export function sanitizeBlock(input, { idHelpers } = {}) {
     0,
     PAGE_WIDTH_MM - w,
   );
+  const yMax = allowPageOverflow && pageIndex === 0
+    ? PAGE_HEIGHT_MM + PAGE_OVERFLOW_HEADROOM_MM - h
+    : PAGE_HEIGHT_MM - h;
   const y = clamp(
     isFiniteNumber(input.y) ? input.y : PAGE_MARGIN_MM,
     0,
-    PAGE_HEIGHT_MM - h,
+    Math.max(0, yMax),
   );
   const z = isFiniteNumber(input.z) && input.z >= 0
     ? Math.floor(input.z)
@@ -421,7 +430,8 @@ export function updateBlock(layout, blockId, patch) {
   if (patch && patch.style && typeof patch.style === 'object') {
     merged.style = { ...(found.block.style || {}), ...patch.style };
   }
-  const cleaned = sanitizeBlock(merged);
+  const allowPageOverflow = layout?.grid === 'free' && found.pageIndex === 0;
+  const cleaned = sanitizeBlock(merged, { allowPageOverflow, pageIndex: found.pageIndex });
   if (!cleaned) return layout;
   return withPagesUpdate(layout, found.pageIndex, (page) => ({
     ...page,

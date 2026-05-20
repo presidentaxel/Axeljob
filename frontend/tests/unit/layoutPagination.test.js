@@ -6,7 +6,12 @@ import {
   blockOverflowsPage,
   listOverflowingBlocksOnPage,
 } from '../../src/lib/layoutPagination.js';
-import { PAGE_HEIGHT_MM } from '../../src/lib/cvLayoutModelV3.js';
+import {
+  PAGE_HEIGHT_MM,
+  addBlockToPage,
+  createBlankLayoutV3,
+  setBlockPosition,
+} from '../../src/lib/cvLayoutModelV3.js';
 
 test('blockOverflowsPage detecte le depassement', () => {
   assert.equal(blockOverflowsPage({ y: 280, h: 30 }), true);
@@ -35,4 +40,25 @@ test('applyLayoutPagination deplace vers page 2', () => {
   assert.equal(next.pages[1].blocks.length, 1);
   assert.equal(next.pages[1].blocks[0].id, 'fall');
   assert.ok(next.pages[1].blocks[0].y < 50);
+});
+
+test('canvas libre : position sous le pli puis spill cree la page 2', () => {
+  let layout = createBlankLayoutV3();
+  layout = addBlockToPage(layout, 0, {
+    id: 'low',
+    type: 'text',
+    content: 'bas',
+    x: 15,
+    y: 280,
+    w: 50,
+    h: 35,
+    z: 1,
+  });
+  layout = setBlockPosition(layout, 'low', { x: 15, y: 300 });
+  const moved = layout.pages[0].blocks.find((b) => b.id === 'low');
+  assert.ok(moved.y + moved.h > PAGE_HEIGHT_MM, 'le bloc doit pouvoir depasser le pli avant spill');
+  const paginated = applyLayoutPagination(layout);
+  assert.equal(paginated.pages.length, 2);
+  assert.equal(paginated.pages[0].blocks.length, 0);
+  assert.equal(paginated.pages[1].blocks[0].id, 'low');
 });

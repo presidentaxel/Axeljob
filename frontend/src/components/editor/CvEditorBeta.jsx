@@ -21,7 +21,7 @@ import {
   updateBlock,
   updateBlockStyle,
 } from '../../lib/cvLayoutModelV3.js';
-import { applyLayoutPagination } from '../../lib/layoutPagination.js';
+import { applyLayoutPagination, layoutHasPageOverflow } from '../../lib/layoutPagination.js';
 import { useAutoSave } from '../../lib/useAutoSave.js';
 import { useLayoutHistory } from '../../lib/useLayoutHistory.js';
 import CvEditablePreview from '../CvEditablePreview.jsx';
@@ -244,8 +244,9 @@ export default function CvEditorBeta({
   const handleDragEndPersist = useCallback(() => {
     setCanvasBusy(false);
     if (editorViewMode === 'free') {
-      const paginated = applyLayoutPagination(layoutRef.current);
-      if (paginated !== layoutRef.current) {
+      const current = layoutRef.current;
+      if (layoutHasPageOverflow(current)) {
+        const paginated = applyLayoutPagination(current);
         commitLayout(paginated, { groupKey: 'pagination:auto' });
       }
     }

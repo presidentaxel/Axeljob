@@ -38,6 +38,7 @@ import {
   findBlock,
   isEmptyLayoutV3,
   isLayoutV3Shape,
+  isAutoHeightBlockType,
   isNonSemanticBlockType,
   isSemanticBlockType,
   listAllBlocks,
@@ -95,6 +96,13 @@ test('isSemanticBlockType / isNonSemanticBlockType', () => {
   assert.ok(!isNonSemanticBlockType('experiences'));
   assert.ok(!isSemanticBlockType('inconnu'));
   assert.ok(!isNonSemanticBlockType('inconnu'));
+});
+
+test('isAutoHeightBlockType : texte sémantique sauf photo', () => {
+  assert.ok(isAutoHeightBlockType('experiences'));
+  assert.ok(isAutoHeightBlockType('text'));
+  assert.ok(!isAutoHeightBlockType('photo'));
+  assert.ok(!isAutoHeightBlockType('shape:rect'));
 });
 
 // ---------------------------------------------------------------------------

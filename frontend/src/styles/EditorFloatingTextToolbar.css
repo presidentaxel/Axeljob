@@ -88,6 +88,9 @@
   color: #0f172a;
   font-size: 0.85rem;
   cursor: pointer;
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
 }
 
 .editor-floating-toolbar button:hover {
@@ -106,19 +109,25 @@
   justify-content: center;
   width: 32px;
   height: 32px;
+  min-width: 32px;
+  padding: 0;
   border-radius: 8px;
   cursor: pointer;
+  z-index: 2;
+  flex-shrink: 0;
 }
 
 .editor-floating-toolbar__color-btn:hover {
   background: #f1f5f9;
 }
 
-.editor-floating-toolbar__color-btn input[type="color"] {
-  position: absolute;
-  inset: 0;
+.editor-floating-toolbar__color-input-hidden {
+  position: fixed;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
   opacity: 0;
-  cursor: pointer;
+  pointer-events: none;
 }
 
 .editor-floating-toolbar__color-a {

@@ -10,6 +10,7 @@ import {
   applyColorToSelection,
   applyFontFamilyToSelection,
   applyFontSizeToSelection,
+  bumpFontSizesBy,
   applyRichTextCommand,
   applyRichTextCommandWithFallback,
   applyStyleToEditableRoot,
@@ -51,6 +52,7 @@ export default function EditorFloatingTextToolbar({
   onOpenPositionPanel,
 }) {
   const dragRef = useRef(null);
+  const colorInputRef = useRef(null);
   const [pos, setPos] = useState(null);
   const [dragging, setDragging] = useState(false);
   const [effectsOpen, setEffectsOpen] = useState(false);
@@ -108,6 +110,10 @@ export default function EditorFloatingTextToolbar({
   const fontSize = style.font_size || 12;
   const align = style.align || 'left';
 
+  const openColorPicker = (e) => {
+    formatAction(e, () => colorInputRef.current?.click());
+  };
+
   const patchStyle = (key, value) => {
     if (isEditing && showText && hasTextSelection()) {
       if (key === 'color') applyColorToSelection(value);
@@ -126,6 +132,19 @@ export default function EditorFloatingTextToolbar({
       };
       if (map[key]) applyStyleToEditableRoot(map[key]);
     }
+  };
+
+  const stepFontSize = (e, delta) => {
+    formatAction(e, () => {
+      if (isEditing && showText) {
+        if (bumpFontSizesBy(delta)) return;
+        if (hasTextSelection()) {
+          applyFontSizeToSelection(Math.min(48, Math.max(6, fontSize + delta)));
+          return;
+        }
+      }
+      patchStyle('font_size', Math.min(48, Math.max(6, fontSize + delta)));
+    });
   };
 
   const runCmd = (cmd) => {
@@ -170,10 +189,18 @@ export default function EditorFloatingTextToolbar({
 
       {isLine && (
         <>
-          <label className="editor-floating-toolbar__color-btn" title="Couleur">
+          <button type="button" className="editor-floating-toolbar__color-btn" title="Couleur" onMouseDown={openColorPicker}>
             <span className="editor-floating-toolbar__color-a">A</span>
-            <input type="color" value={style.color || '#1e293b'} onChange={(e) => patchStyle('color', e.target.value)} />
-          </label>
+          </button>
+          <input
+            ref={colorInputRef}
+            type="color"
+            className="editor-floating-toolbar__color-input-hidden"
+            value={style.color || '#1e293b'}
+            onChange={(e) => patchStyle('color', e.target.value)}
+            tabIndex={-1}
+            aria-hidden
+          />
           <div className="editor-floating-toolbar__size-stepper">
             <button type="button" onMouseDown={(e) => formatAction(e, () => patchStyle('stroke_width', Math.max(0.2, (style.stroke_width || 0.6) - 0.2)))}>−</button>
             <span>{(style.stroke_width || 0.6).toFixed(1)} mm</span>
@@ -183,10 +210,20 @@ export default function EditorFloatingTextToolbar({
       )}
 
       {isIcon && (
-        <label className="editor-floating-toolbar__color-btn" title="Couleur icône">
-          <span className="editor-floating-toolbar__color-a">A</span>
-          <input type="color" value={style.color || '#1e293b'} onChange={(e) => patchStyle('color', e.target.value)} />
-        </label>
+        <>
+          <button type="button" className="editor-floating-toolbar__color-btn" title="Couleur icône" onMouseDown={openColorPicker}>
+            <span className="editor-floating-toolbar__color-a">A</span>
+          </button>
+          <input
+            ref={colorInputRef}
+            type="color"
+            className="editor-floating-toolbar__color-input-hidden"
+            value={style.color || '#1e293b'}
+            onChange={(e) => patchStyle('color', e.target.value)}
+            tabIndex={-1}
+            aria-hidden
+          />
+        </>
       )}
 
       {showText && (
@@ -202,14 +239,22 @@ export default function EditorFloatingTextToolbar({
             ))}
           </select>
           <div className="editor-floating-toolbar__size-stepper">
-            <button type="button" onMouseDown={(e) => formatAction(e, () => patchStyle('font_size', Math.max(6, fontSize - 1)))}>−</button>
+            <button type="button" onMouseDown={(e) => stepFontSize(e, -1)}>−</button>
             <span>{fontSize}</span>
-            <button type="button" onMouseDown={(e) => formatAction(e, () => patchStyle('font_size', Math.min(48, fontSize + 1)))}>+</button>
+            <button type="button" onMouseDown={(e) => stepFontSize(e, 1)}>+</button>
           </div>
-          <label className="editor-floating-toolbar__color-btn" title="Couleur">
+          <button type="button" className="editor-floating-toolbar__color-btn" title="Couleur" onMouseDown={openColorPicker}>
             <span className="editor-floating-toolbar__color-a editor-floating-toolbar__color-a--rainbow">A</span>
-            <input type="color" value={style.color || '#1e293b'} onChange={(e) => patchStyle('color', e.target.value)} />
-          </label>
+          </button>
+          <input
+            ref={colorInputRef}
+            type="color"
+            className="editor-floating-toolbar__color-input-hidden"
+            value={style.color || '#1e293b'}
+            onChange={(e) => patchStyle('color', e.target.value)}
+            tabIndex={-1}
+            aria-hidden
+          />
           <button
             type="button"
             className={isEditing && hasTextSelection() ? (queryCommandState('bold') ? 'is-active' : '') : (style.bold ? 'is-active' : '')}

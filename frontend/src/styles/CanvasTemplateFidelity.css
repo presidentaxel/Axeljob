@@ -127,40 +127,152 @@
   color: #1e293b;
 }
 
+.free-canvas-page--tpl-bold .free-canvas-block__inner--zone-main .free-canvas-block__section-title {
+  border-bottom: none;
+  color: #1e293b;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__inner--zone-sidebar-light .free-canvas-block__section-title {
+  border-bottom: none;
+  color: #1e293b;
+}
+
 .free-canvas-page--tpl-bold .free-canvas-block__section-title--bold-main {
   font-size: 10pt;
   font-weight: 800;
   color: #1e293b;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  border-left: 1mm solid var(--free-canvas-accent);
-  padding-left: 2mm;
+  border-left: 1.05mm solid var(--free-canvas-accent);
+  padding: 0.8mm 0 0.8mm 2.1mm;
+  margin: 0 0 1.6mm;
   border-bottom: none;
 }
 
-.free-canvas-page--tpl-bold .free-canvas-block__section-title--bold-sidebar {
+.free-canvas-page--tpl-bold .free-canvas-block__section-title--bold-sidebar-section {
+  font-size: 10pt;
+  font-weight: 800;
+  color: #1e293b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-left: 1.05mm solid var(--free-canvas-accent);
+  padding: 0.8mm 0 0.8mm 2.1mm;
+  margin: 0 0 2.1mm;
+  border-bottom: none;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__sidebar-category,
+.free-canvas-page--tpl-bold .free-canvas-block__sidebar-category--bold-sidebar-category {
   font-size: 8.5pt;
   font-weight: 800;
-  text-transform: uppercase;
-  border-left: 0.8mm solid var(--free-canvas-accent);
-  padding-left: 1.5mm;
   color: #1e293b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-left: 0.8mm solid var(--free-canvas-accent);
+  padding-left: 1.6mm;
+  margin: 0 0 1.3mm;
 }
 
-.free-canvas-page--tpl-bold .free-canvas-block__identity-title--accent {
-  color: var(--free-canvas-accent);
+.free-canvas-page--tpl-bold .free-canvas-block__identity--inline-title {
+  margin: 0;
+  font-size: 20pt;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__identity--inline-title .free-canvas-block__identity-name {
+  display: inline;
+  white-space: nowrap;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__identity--inline-title .free-canvas-block__identity-sep {
+  font-weight: 400;
+  opacity: 0.4;
+  margin: 0 1mm;
+  color: #fff;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__identity--inline-title .free-canvas-block__identity-title--accent {
+  font-size: 11pt;
   font-weight: 600;
+  color: var(--free-canvas-accent) !important;
+  font-style: normal !important;
+  opacity: 1;
+  display: inline;
 }
 
-.free-canvas-page--tpl-bold .free-canvas-block__exp-dates {
+.free-canvas-page--tpl-bold .free-canvas-block__inner--zone-header .free-canvas-block__identity-title--accent {
+  font-style: normal;
+  opacity: 1;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__photo--border-accent {
+  border: 0.8mm solid var(--free-canvas-accent);
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__contact--header-bar {
+  text-align: center;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__contact--header-bar .free-canvas-block__contact-icon {
   color: var(--free-canvas-accent);
-  font-weight: 700;
+  vertical-align: middle;
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block__contact--uppercase {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-size: 8.5pt;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__exp--bold {
+  margin-bottom: 1.8mm;
+  padding-bottom: 1.6mm;
+  border-bottom: 0.26mm solid #f1f5f9;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__exp--bold:last-child {
+  border-bottom: none;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__exp--bold .free-canvas-block__ats-label {
+  font-size: 0.9em;
+  color: #999;
+  font-weight: 400;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__exp--bold .free-canvas-block__exp-entreprise strong {
+  color: #1e293b;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__exp-dates {
+  color: var(--free-canvas-accent);
+  font-weight: 700;
+  font-size: 8.5pt;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__exp--bold .free-canvas-block__exp-role {
+  font-size: 9pt;
+  font-weight: 600;
+  color: #64748b;
+  margin: 0.3mm 0 0.8mm;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__exp-clients {
+  font-style: italic;
+  font-size: 8pt;
+  color: #94a3b8;
+  margin: 0.8mm 0 0;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__sidebar-item {
+  font-size: 8.5pt;
+  color: #475569;
+  line-height: 1.45;
+  margin: 0 0 0.3mm;
 }
 
 /* ---------- Classique ---------- */

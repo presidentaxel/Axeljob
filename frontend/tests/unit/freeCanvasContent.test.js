@@ -6,6 +6,7 @@ import {
   normalizeBind,
   resolveBoundText,
   resolveBoundStringList,
+  resolveCompetenceList,
   resolveExperiences,
   resolveFormations,
 } from '../../src/lib/freeCanvasContent.js';
@@ -42,6 +43,24 @@ test('resolveBoundText : identity', () => {
 
 test('resolveBoundStringList : competences', () => {
   assert.deepEqual(resolveBoundStringList(CV, 'competences.techniques'), ['JS', 'Python']);
+});
+
+test('resolveCompetenceList : bind string (pas bind[0])', () => {
+  const cv = {
+    competences: {
+      techniques: ['Excel'],
+      logiciels: ['Python', 'Git'],
+      autres: ['Permis B'],
+    },
+  };
+  assert.deepEqual(resolveCompetenceList(cv, 'competences.logiciels'), ['Python', 'Git']);
+  assert.deepEqual(resolveCompetenceList(cv, 'competences.autres'), ['Permis B']);
+  assert.deepEqual(resolveCompetenceList(cv, 'competences.techniques'), ['Excel']);
+});
+
+test('resolveCompetenceList : alias informatiques', () => {
+  const cv = { competences: { informatiques: ['Figma', 'Notion'] } };
+  assert.deepEqual(resolveCompetenceList(cv, 'competences.logiciels'), ['Figma', 'Notion']);
 });
 
 test('resolveExperiences : filtre vide + limit', () => {

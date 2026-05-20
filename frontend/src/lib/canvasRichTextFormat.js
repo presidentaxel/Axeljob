@@ -116,6 +116,68 @@ export function applyFontSizeToSelection(pt) {
   return applyStyleToSelection({ fontSize: size });
 }
 
+const PT_PER_PX = 72 / 96;
+
+function parseFontSizePt(el) {
+  if (!el || el.nodeType !== 1) return null;
+  const inline = el.style?.fontSize;
+  if (inline && inline.endsWith('pt')) {
+    const n = parseFloat(inline);
+    return Number.isFinite(n) ? n : null;
+  }
+  const px = parseFloat(window.getComputedStyle(el).fontSize);
+  if (!Number.isFinite(px) || px <= 0) return null;
+  return px * PT_PER_PX;
+}
+
+function setFontSizePt(el, pt) {
+  if (!el || el.nodeType !== 1) return;
+  const clamped = Math.min(48, Math.max(6, pt));
+  el.style.fontSize = `${clamped}pt`;
+}
+
+/** Incrémente chaque taille de police distincte dans la sélection ou tout le root. */
+export function bumpFontSizesBy(delta, { root: rootOverride } = {}) {
+  const root = rootOverride || getActiveEditableRoot();
+  if (!root || !Number.isFinite(delta) || delta === 0) return false;
+
+  const sel = document.getSelection();
+  const range = sel?.rangeCount ? sel.getRangeAt(0) : null;
+  const hasRange = range && !range.collapsed && root.contains(range.commonAncestorContainer);
+
+  const elements = new Set();
+  if (hasRange) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+    let node = walker.currentNode;
+    while (node) {
+      if (range.intersectsNode(node)) elements.add(node);
+      node = walker.nextNode();
+    }
+    if (range.commonAncestorContainer.nodeType === 1) {
+      elements.add(range.commonAncestorContainer);
+    }
+  } else {
+    elements.add(root);
+    root.querySelectorAll('*').forEach((el) => elements.add(el));
+  }
+
+  let changed = false;
+  for (const el of elements) {
+    const cur = parseFontSizePt(el);
+    if (cur == null) continue;
+    setFontSizePt(el, cur + delta);
+    changed = true;
+  }
+
+  const rootPt = parseFontSizePt(root);
+  if (rootPt != null) {
+    setFontSizePt(root, rootPt + delta);
+    changed = true;
+  }
+
+  return changed;
+}
+
 export function applyColorToSelection(color) {
   if (applyRichTextCommand('foreColor', color)) return true;
   return applyStyleToSelection({ color });

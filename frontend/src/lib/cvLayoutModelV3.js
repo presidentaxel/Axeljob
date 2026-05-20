@@ -112,6 +112,13 @@ const SEMANTIC_SET = new Set(SEMANTIC_BLOCK_TYPES);
 const NON_SEMANTIC_SET = new Set(NON_SEMANTIC_BLOCK_TYPES);
 const ALL_TYPES_SET = new Set(ALL_BLOCK_TYPES);
 
+/** Blocs dont la hauteur suit le contenu (photo et formes de fond exclues). */
+const AUTO_HEIGHT_BLOCK_TYPES = new Set([
+  ...SEMANTIC_BLOCK_TYPES.filter((t) => t !== 'photo'),
+  'text',
+  'title',
+]);
+
 /** Theme par defaut (place dans le layout, pas dans le cv). */
 const DEFAULT_THEME = Object.freeze({
   font_heading: 'Inter',
@@ -149,6 +156,11 @@ export function isSemanticBlockType(type) {
 /** Determine si un type de bloc est non semantique (contenu inline). */
 export function isNonSemanticBlockType(type) {
   return NON_SEMANTIC_SET.has(type);
+}
+
+/** Bloc dont la hauteur doit toujours englober tout le texte visible. */
+export function isAutoHeightBlockType(type) {
+  return AUTO_HEIGHT_BLOCK_TYPES.has(type);
 }
 
 // ---------------------------------------------------------------------------

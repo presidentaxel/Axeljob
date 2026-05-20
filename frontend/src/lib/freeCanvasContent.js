@@ -41,16 +41,56 @@ export function resolveBoundText(cv, bind, { separator = ' ' } = {}) {
   return parts.join(separator);
 }
 
+function coerceStringListItem(item) {
+  if (typeof item === 'string') return item.trim();
+  if (typeof item === 'number' && Number.isFinite(item)) return String(item);
+  if (item && typeof item === 'object') {
+    return String(item.name || item.label || item.value || item.text || '').trim();
+  }
+  return '';
+}
+
 /** Liste de strings depuis un bind (ex. competences.techniques). */
 export function resolveBoundStringList(cv, bind) {
   const paths = normalizeBind(bind);
   if (!cv || paths.length === 0) return [];
   const path = paths[0];
   const v = getByPath(cv, path);
-  if (!Array.isArray(v)) return [];
-  return v
-    .map((item) => (typeof item === 'string' ? item.trim() : ''))
-    .filter(Boolean);
+  if (Array.isArray(v)) {
+    return v.map(coerceStringListItem).filter(Boolean);
+  }
+  if (typeof v === 'string' && v.trim()) {
+    return v.split(/[,;|]/).map((s) => s.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+const COMPETENCE_BIND_ALIASES = {
+  'competences.logiciels': ['competences.informatiques'],
+  'competences.techniques': ['competences.competences_techniques'],
+  'competences.autres': ['loisirs'],
+};
+
+/** Compétences / logiciels / autres avec chemins alternatifs (comme les templates HTML). */
+export function resolveCompetenceList(cv, bind) {
+  const paths = normalizeBind(bind);
+  const primary = paths[0] || 'competences.techniques';
+  let items = resolveBoundStringList(cv, primary);
+  if (items.length > 0) return items;
+  const comp = cv?.competences;
+  if (comp && typeof comp === 'object' && primary.startsWith('competences.')) {
+    const key = primary.slice('competences.'.length);
+    const legacy = comp[key] ?? comp[`competences_${key}`];
+    if (Array.isArray(legacy)) {
+      items = legacy.map(coerceStringListItem).filter(Boolean);
+      if (items.length > 0) return items;
+    }
+  }
+  for (const alt of COMPETENCE_BIND_ALIASES[primary] || []) {
+    items = resolveBoundStringList(cv, alt);
+    if (items.length > 0) return items;
+  }
+  return [];
 }
 
 /** Experiences avec contenu (poste, entreprise ou bullet non vide). */

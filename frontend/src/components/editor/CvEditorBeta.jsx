@@ -29,6 +29,7 @@ import {
   updateBlockStyle,
 } from '../../lib/cvLayoutModelV3.js';
 import { applyLayoutPagination, layoutHasPageOverflow } from '../../lib/layoutPagination.js';
+import { reflowColumnBlocksOnPage } from '../../lib/layoutReflow.js';
 import { useAutoSave } from '../../lib/useAutoSave.js';
 import { useLayoutHistory } from '../../lib/useLayoutHistory.js';
 import CvEditablePreview from '../CvEditablePreview.jsx';
@@ -93,6 +94,8 @@ export default function CvEditorBeta({
   const [imageEditBlockId, setImageEditBlockId] = useState(null);
   const [sidebarSection, setSidebarSection] = useState('elements');
   const [placementPreset, setPlacementPreset] = useState(null);
+  const autoHeightPendingRef = useRef(new Map());
+  const autoHeightTimerRef = useRef(null);
   const layoutRef = useRef(null);
 
   const layoutHistory = useLayoutHistory(() => createBlankLayoutV3(), {
@@ -263,12 +266,42 @@ export default function CvEditorBeta({
     commitLayout(next, commitOptions);
   }, [layout, commitLayout]);
 
-  const handleBlockAutoHeight = useCallback((blockId, newHmm) => {
-    const found = findBlock(layout, blockId);
-    if (!found?.block || newHmm <= (found.block.h ?? 0)) return;
-    const next = updateBlock(layout, blockId, { h: newHmm });
+  const flushAutoHeights = useCallback(() => {
+    const pending = autoHeightPendingRef.current;
+    if (!pending.size) return;
+    let next = layoutRef.current;
+    let changed = false;
+    for (const [blockId, newHmm] of pending.entries()) {
+      const found = findBlock(next, blockId);
+      if (!found?.block) continue;
+      const cur = found.block.h ?? 0;
+      if (Math.abs(newHmm - cur) < 0.4) continue;
+      next = updateBlock(next, blockId, { h: newHmm });
+      changed = true;
+    }
+    pending.clear();
+    if (!changed) return;
+    for (let pi = 0; pi < (next.pages?.length || 0); pi += 1) {
+      next = reflowColumnBlocksOnPage(next, pi);
+    }
+    if (layoutHasPageOverflow(next)) {
+      next = applyLayoutPagination(next);
+    }
     commitLayout(next, { groupKey: 'autoheight' });
-  }, [layout, commitLayout]);
+  }, [commitLayout]);
+
+  const handleBlockAutoHeight = useCallback((blockId, newHmm) => {
+    autoHeightPendingRef.current.set(blockId, newHmm);
+    if (autoHeightTimerRef.current) clearTimeout(autoHeightTimerRef.current);
+    autoHeightTimerRef.current = setTimeout(() => {
+      autoHeightTimerRef.current = null;
+      flushAutoHeights();
+    }, 32);
+  }, [flushAutoHeights]);
+
+  useEffect(() => () => {
+    if (autoHeightTimerRef.current) clearTimeout(autoHeightTimerRef.current);
+  }, []);
 
   const handleDragEndPersist = useCallback(() => {
     setCanvasBusy(false);
@@ -330,7 +363,10 @@ export default function CvEditorBeta({
   const handleApplyCanvasTemplate = useCallback((template) => {
     if (!template) return;
     setPlacementPreset(null);
-    const next = createCanvasLayoutForTemplate(template);
+    let next = createCanvasLayoutForTemplate(template);
+    for (let pi = 0; pi < (next.pages?.length || 0); pi += 1) {
+      next = reflowColumnBlocksOnPage(next, pi);
+    }
     resetLayout(next);
     if (cv) autoSave.schedule(cv);
   }, [resetLayout, cv, autoSave]);

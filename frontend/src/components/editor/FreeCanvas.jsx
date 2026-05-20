@@ -155,7 +155,17 @@ export default function FreeCanvas({
     };
   }, [selectedBlockId, editingBlockId, layout, scale, onSelectedBlockRect]);
 
+  const commitEditingBlock = useCallback(() => {
+    if (!editingBlockId || typeof onCommitBlockEdit !== 'function') return;
+    const wrap = blockElementsRef.current[editingBlockId];
+    const inner = wrap?.querySelector?.('.free-canvas-block__inner') ?? null;
+    onCommitBlockEdit(editingBlockId, inner);
+  }, [editingBlockId, onCommitBlockEdit]);
+
   const handleBlockPointerDown = useCallback((event, block) => {
+    if (editingBlockId && editingBlockId !== block?.id) {
+      commitEditingBlock();
+    }
     if (editingBlockId === block?.id) return;
     if (block?.locked) return;
     if (!interactable || !block?.id || resizeSessionRef.current) return;
@@ -174,7 +184,7 @@ export default function FreeCanvas({
     if (typeof event.currentTarget?.setPointerCapture === 'function') {
       event.currentTarget.setPointerCapture(event.pointerId);
     }
-  }, [interactable, onSelectBlock, onBlockPositionChange, setCanvasBusy, editingBlockId]);
+  }, [interactable, onSelectBlock, onBlockPositionChange, setCanvasBusy, editingBlockId, commitEditingBlock]);
 
   const handleBlockPointerMove = useCallback((event) => {
     const session = dragSessionRef.current;
@@ -287,8 +297,9 @@ export default function FreeCanvas({
       onPlaceBlockAt(pageIndex, pt.x, pt.y);
       return;
     }
+    commitEditingBlock();
     if (typeof onSelectBlock === 'function') onSelectBlock(null);
-  }, [onSelectBlock, placing, onPlaceBlockAt]);
+  }, [onSelectBlock, placing, onPlaceBlockAt, commitEditingBlock]);
 
   const pages = Array.isArray(layout?.pages) ? layout.pages : [];
   const theme = layout?.theme || {};

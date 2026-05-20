@@ -9,10 +9,13 @@ import {
   getBlockTypeLabel,
 } from '../../lib/blockInspectorSchema.js';
 
-function NumberInput({ label, value, min, max, step, onChange }) {
+function NumberInput({ label, value, min, max, step, onChange, blockField = false }) {
   const id = `block-field-${label.replace(/\s/g, '-')}`;
+  const fieldClass = blockField
+    ? 'editor-inspector-field editor-inspector-field--number editor-block-inspector-field'
+    : 'editor-inspector-field editor-inspector-field--number';
   return (
-    <label className="editor-inspector-field editor-inspector-field--number" htmlFor={id}>
+    <label className={fieldClass} htmlFor={id}>
       <span className="editor-inspector-field-label">{label}</span>
       <input
         id={id}
@@ -160,12 +163,12 @@ export default function EditorBlockInspectorPanel({
 
   return (
     <div className="editor-block-inspector">
-      <section className="editor-inspector-group">
-        <h3 className="editor-inspector-group-title">Bloc</h3>
-        <p className="editor-block-inspector-type">
+      <section className="editor-block-inspector-card editor-block-inspector-card--meta">
+        <h3 className="editor-block-inspector-card-title">Bloc</h3>
+        <div className="editor-block-inspector-type">
           <span className="editor-block-inspector-type-badge">{getBlockTypeLabel(block.type)}</span>
-          <code className="editor-block-inspector-id">{block.id}</code>
-        </p>
+          <code className="editor-block-inspector-id" title="Identifiant technique">{block.id}</code>
+        </div>
         {blockIsSemanticBound(block) && (
           <p className="editor-block-inspector-hint">
             Contenu lié au CV — modifiez-le via l’onglet Contenu ou l’édition guidée.
@@ -173,12 +176,14 @@ export default function EditorBlockInspectorPanel({
         )}
       </section>
 
-      <section className="editor-inspector-group">
-        <h3 className="editor-inspector-group-title">Position et taille</h3>
-        <div className="editor-inspector-group-fields editor-inspector-group-fields--grid">
+      <section className="editor-block-inspector-card editor-block-inspector-card--geometry">
+        <h3 className="editor-block-inspector-card-title">Position et taille</h3>
+        <p className="editor-block-inspector-card-kicker">Coordonnées en millimètres (page A4)</p>
+        <div className="editor-block-inspector-geometry-grid">
           {BLOCK_GEOMETRY_FIELDS.map((f) => (
             <NumberInput
               key={f.key}
+              blockField
               label={f.label}
               value={block[f.key]}
               min={f.min}
@@ -190,21 +195,21 @@ export default function EditorBlockInspectorPanel({
         </div>
       </section>
 
-      <section className="editor-inspector-group">
-        <h3 className="editor-inspector-group-title">Plan</h3>
+      <section className="editor-block-inspector-card editor-block-inspector-card--layer">
+        <h3 className="editor-block-inspector-card-title">Plan</h3>
         <div className="editor-block-inspector-layer-btns">
           <button type="button" className="editor-block-inspector-layer-btn" onClick={onBringToFront}>
-            Mettre au premier plan
+            Premier plan
           </button>
-          <button type="button" className="editor-block-inspector-layer-btn" onClick={onSendToBack}>
-            Mettre à l’arrière-plan
+          <button type="button" className="editor-block-inspector-layer-btn editor-block-inspector-layer-btn--secondary" onClick={onSendToBack}>
+            Arrière-plan
           </button>
         </div>
       </section>
 
       {blockHasEditableContent(block) && (
-        <section className="editor-inspector-group">
-          <h3 className="editor-inspector-group-title">Contenu du bloc</h3>
+        <section className="editor-block-inspector-card">
+          <h3 className="editor-block-inspector-card-title">Contenu du bloc</h3>
           <div className="editor-inspector-group-fields">
             {contentFields.map((f) => {
               if (f.input === 'textarea') {
@@ -245,8 +250,8 @@ export default function EditorBlockInspectorPanel({
       )}
 
       {blockHasStyleFields(block) && (
-        <section className="editor-inspector-group">
-          <h3 className="editor-inspector-group-title">Style</h3>
+        <section className="editor-block-inspector-card">
+          <h3 className="editor-block-inspector-card-title">Style</h3>
           <div className="editor-inspector-group-fields">
             {styleFields.map((f) => {
               const val = block.style?.[f.styleKey];

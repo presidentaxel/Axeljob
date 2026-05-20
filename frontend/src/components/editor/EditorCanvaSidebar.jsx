@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import {
   HiArrowUpTray,
+  HiArrowsPointingOut,
   HiDocumentDuplicate,
   HiSparkles,
   HiSquares2X2,
@@ -9,10 +10,14 @@ import {
 } from 'react-icons/hi2';
 import { compressImageFile } from '../../lib/compressImageForCanvas.js';
 import { CANVAS_ICON_ENTRIES, createIconBlockPreset } from '../../lib/canvasIconLibrary.js';
-import { createImageBlockPreset } from '../../lib/freeCanvasBlockPresets.js';
-import { INSERT_TOOLBAR_ITEMS } from '../../lib/freeCanvasBlockPresets.js';
+import {
+  INSERT_TOOLBAR_ITEMS,
+  createImageBlockPreset,
+  createInsertBlockPreset,
+} from '../../lib/freeCanvasBlockPresets.js';
 import { deleteLayoutProposal, listLayoutProposals } from '../../lib/layoutProposalsStorage.js';
 import CanvasIconGlyph from './CanvasIconGlyph.jsx';
+import EditorCanvaPositionDrawer from './EditorCanvaPositionDrawer.jsx';
 import '../../styles/EditorCanvaSidebar.css';
 
 const SECTIONS = [
@@ -21,6 +26,7 @@ const SECTIONS = [
   { id: 'text', label: 'Texte', icon: HiSwatch },
   { id: 'icons', label: 'Icônes', icon: HiSparkles },
   { id: 'import', label: 'Importer', icon: HiArrowUpTray },
+  { id: 'position', label: 'Position', icon: HiArrowsPointingOut },
   { id: 'tools', label: 'Outils', icon: HiWrench },
 ];
 
@@ -45,22 +51,49 @@ const IMAGE_SHAPES = [
   { value: 'circle', label: 'Cercle' },
 ];
 
+function PlacementTile({ disabled, preset, onBeginPlacement, className, title, children }) {
+  const onPointerDown = (e) => {
+    if (disabled || !preset) return;
+    e.preventDefault();
+    onBeginPlacement?.(preset);
+  };
+  return (
+    <button
+      type="button"
+      className={className}
+      disabled={disabled}
+      title={title}
+      onPointerDown={onPointerDown}
+      onClick={(e) => e.preventDefault()}
+    >
+      {children}
+    </button>
+  );
+}
+
 export default function EditorCanvaSidebar({
   disabled = false,
+  openSection = 'elements',
+  onOpenSectionChange,
+  placementActive = false,
   templatesList = [],
+  layout = null,
+  selectedBlockId = null,
   showGrid = false,
   snapEnabled = true,
   onShowGridChange,
   onSnapEnabledChange,
-  onInsertBlock,
-  onInsertImageBlock,
-  onInsertIconBlock,
+  onBeginPlacement,
+  onSelectBlock,
+  onBlockPatch,
+  onBlockBringToFront,
+  onBlockSendToBack,
+  onBlockZStep,
   onPickBlank,
-  onApplyTemplateTheme,
+  onApplyCanvasTemplate,
   onLoadProposal,
   onSaveProposal,
 }) {
-  const [openSection, setOpenSection] = useState('elements');
   const [proposalName, setProposalName] = useState('');
   const [proposals, setProposals] = useState(() => listLayoutProposals());
   const [imageShape, setImageShape] = useState('rect');
@@ -84,7 +117,7 @@ export default function EditorCanvaSidebar({
     try {
       const dataUrl = await compressImageFile(file);
       const preset = createImageBlockPreset(dataUrl, { shape: imageShape });
-      if (preset) onInsertImageBlock?.(preset);
+      if (preset) onBeginPlacement?.(preset);
     } catch (err) {
       console.error('[canvas] import image', err);
     } finally {
@@ -94,11 +127,16 @@ export default function EditorCanvaSidebar({
   };
 
   const toggleSection = (id) => {
-    setOpenSection((prev) => (prev === id ? null : id));
+    onOpenSectionChange?.(openSection === id ? null : id);
   };
 
   return (
-    <aside className="editor-canva-shell" aria-label="Outils canvas">
+    <aside className={`editor-canva-shell${placementActive ? ' editor-canva-shell--placing' : ''}`} aria-label="Outils canvas">
+      {placementActive && (
+        <p className="editor-canva-shell__place-hint" role="status">
+          Cliquez sur le canevas pour placer l’élément · Échap pour annuler
+        </p>
+      )}
       <nav className="editor-canva-rail" role="tablist">
         {SECTIONS.map((section) => {
           const Icon = section.icon;
@@ -120,7 +158,14 @@ export default function EditorCanvaSidebar({
         })}
       </nav>
       {openSection && (
-        <div className="editor-canva-drawer" role="tabpanel">
+        <div
+          className={
+            openSection === 'position'
+              ? 'editor-canva-drawer editor-canva-drawer--position'
+              : 'editor-canva-drawer'
+          }
+          role="tabpanel"
+        >
           {openSection === 'models' && (
             <>
               <button
@@ -142,13 +187,10 @@ export default function EditorCanvaSidebar({
               <input
                 type="text"
                 className="editor-canva-drawer__input"
-                placeholder="Nom (défaut : mon modèle)"
+                placeholder="Nom"
                 value={proposalName}
                 onChange={(ev) => setProposalName(ev.target.value)}
               />
-              <p className="editor-canva-drawer__hint">
-                L’enregistrement crée une copie locale : le modèle HTML chargé dans l’app n’est pas modifié.
-              </p>
               <h4 className="editor-canva-drawer__subtitle">Modèles CV</h4>
               <div className="editor-canva-template-grid">
                 {(templatesList || []).map((t) => {
@@ -161,7 +203,7 @@ export default function EditorCanvaSidebar({
                       className="editor-canva-template-card"
                       disabled={disabled}
                       title={t.description || t.name}
-                      onClick={() => onApplyTemplateTheme?.(t)}
+                      onClick={() => onApplyCanvasTemplate?.(t)}
                     >
                       <span className="editor-canva-template-card__thumb" style={{ background: bg }} />
                       <span className="editor-canva-template-card__name">{t.name || t.id}</span>
@@ -188,19 +230,25 @@ export default function EditorCanvaSidebar({
           {openSection === 'elements' && (
             <>
               <h3 className="editor-canva-drawer__title">Éléments</h3>
+              <p className="editor-canva-drawer__hint editor-canva-drawer__hint--subtle">
+                Maintenez puis cliquez sur le canevas pour placer.
+              </p>
               <div className="editor-canva-drawer__grid">
-                {INSERT_TOOLBAR_ITEMS.map((item) => (
-                  <button
-                    key={item.type}
-                    type="button"
-                    className="editor-canva-drawer__tile"
-                    disabled={disabled}
-                    title={item.description}
-                    onClick={() => onInsertBlock?.(item.type)}
-                  >
-                    {item.label}
-                  </button>
-                ))}
+                {INSERT_TOOLBAR_ITEMS.map((item) => {
+                  const preset = createInsertBlockPreset(item.type);
+                  return (
+                    <PlacementTile
+                      key={item.type}
+                      disabled={disabled}
+                      preset={preset}
+                      onBeginPlacement={onBeginPlacement}
+                      className="editor-canva-drawer__tile"
+                      title={item.description}
+                    >
+                      {item.label}
+                    </PlacementTile>
+                  );
+                })}
               </div>
             </>
           )}
@@ -208,17 +256,20 @@ export default function EditorCanvaSidebar({
             <>
               <h3 className="editor-canva-drawer__title">Texte</h3>
               <div className="editor-canva-drawer__grid">
-                {TEXT_PRESETS.map((item) => (
-                  <button
-                    key={item.type}
-                    type="button"
-                    className="editor-canva-drawer__tile"
-                    disabled={disabled}
-                    onClick={() => onInsertBlock?.(item.type)}
-                  >
-                    {item.label}
-                  </button>
-                ))}
+                {TEXT_PRESETS.map((item) => {
+                  const preset = createInsertBlockPreset(item.type);
+                  return (
+                    <PlacementTile
+                      key={item.type}
+                      disabled={disabled}
+                      preset={preset}
+                      onBeginPlacement={onBeginPlacement}
+                      className="editor-canva-drawer__tile"
+                    >
+                      {item.label}
+                    </PlacementTile>
+                  );
+                })}
               </div>
             </>
           )}
@@ -231,19 +282,16 @@ export default function EditorCanvaSidebar({
               </label>
               <div className="editor-canva-icon-grid">
                 {CANVAS_ICON_ENTRIES.map((entry) => (
-                  <button
+                  <PlacementTile
                     key={entry.name}
-                    type="button"
-                    className="editor-canva-icon-tile"
                     disabled={disabled}
+                    preset={createIconBlockPreset(entry.name, iconColor)}
+                    onBeginPlacement={onBeginPlacement}
+                    className="editor-canva-icon-tile"
                     title={entry.label}
-                    onClick={() => {
-                      const preset = createIconBlockPreset(entry.name, iconColor);
-                      onInsertIconBlock?.(preset);
-                    }}
                   >
                     <CanvasIconGlyph name={entry.name} color={iconColor} size={22} />
-                  </button>
+                  </PlacementTile>
                 ))}
               </div>
             </>
@@ -267,11 +315,19 @@ export default function EditorCanvaSidebar({
               >
                 {importing ? 'Compression…' : 'Choisir une image…'}
               </button>
-              <p className="editor-canva-drawer__hint">
-                L’image est compressée automatiquement. Double-cliquez sur le bloc pour recadrer.
-              </p>
               <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleImageFile} />
             </>
+          )}
+          {openSection === 'position' && (
+            <EditorCanvaPositionDrawer
+              layout={layout}
+              selectedBlockId={selectedBlockId}
+              onSelectBlock={onSelectBlock}
+              onBlockPatch={onBlockPatch}
+              onBlockBringToFront={onBlockBringToFront}
+              onBlockSendToBack={onBlockSendToBack}
+              onBlockZStep={onBlockZStep}
+            />
           )}
           {openSection === 'tools' && (
             <>

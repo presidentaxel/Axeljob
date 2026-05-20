@@ -46,7 +46,6 @@ Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 #### Bash (Linux / macOS)
 
 ```bash
-cd ~/Documents/Code/cv-bot
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
@@ -56,7 +55,6 @@ uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 #### PowerShell (Windows)
 
 ```powershell
-cd D:\Code\cv-bot
 .\.venv\Scripts\Activate.ps1
 pip install -r backend/requirements.txt
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
@@ -67,7 +65,7 @@ uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 #### Bash (Linux / macOS)
 
 ```bash
-cd ~/Documents/Code/cv-bot/frontend
+cd frontend
 npm ci
 npm run dev
 ```
@@ -75,7 +73,7 @@ npm run dev
 #### PowerShell (Windows)
 
 ```powershell
-cd D:\Code\cv-bot\frontend
+cd frontend
 npm ci
 npm run dev
 ```
@@ -136,7 +134,6 @@ docker compose up -d frontend
 ### PowerShell (Windows)
 
 ```powershell
-cd D:\Code\cv-bot
 git pull origin main
 docker compose build --no-cache backend
 docker compose up -d backend
@@ -167,7 +164,6 @@ docker compose restart frontend
 ### Bash (Linux / macOS)
 
 ```bash
-cd ~/Documents/Code/cv-bot
 git status
 git add .
 git commit -m "feat: description du changement"
@@ -177,7 +173,6 @@ git push
 ### PowerShell (Windows)
 
 ```powershell
-cd D:\Code\cv-bot
 git status
 git add .
 git commit -m "feat: description du changement"

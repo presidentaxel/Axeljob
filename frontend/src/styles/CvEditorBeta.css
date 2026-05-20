@@ -371,7 +371,39 @@ body.cv-editor-beta-fullscreen .view-profil.app-page .page-content {
   font-family: var(--editor-font-family, inherit);
 }
 .ats-badge--loading { background: #e2e8f0; color: #475569; cursor: default; }
+.ats-badge--stale { opacity: 0.82; }
+.ats-badge-sync { font-weight: 400; opacity: 0.7; }
 .ats-badge--error { background: #fee2e2; color: #991b1b; cursor: help; }
+.ats-badge-retry {
+  margin-left: 0.25rem;
+  border: 1px solid #fecaca;
+  background: #fff;
+  color: #991b1b;
+  border-radius: 0.35rem;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.ats-badge-retry:hover { background: #fef2f2; }
+.ats-badge-panel-error {
+  margin: 0 0 0.5rem;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.75rem;
+  color: #991b1b;
+  background: #fef2f2;
+  border-radius: 0.35rem;
+}
+.ats-badge-panel-retry-link {
+  border: none;
+  background: none;
+  color: #4338ca;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  font-size: inherit;
+}
 .ats-badge--good { background: #dcfce7; color: #14532d; }
 .ats-badge--meh { background: #fef3c7; color: #854d0e; }
 .ats-badge--bad { background: #fee2e2; color: #991b1b; }

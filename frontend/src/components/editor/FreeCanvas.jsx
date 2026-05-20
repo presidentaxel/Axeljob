@@ -48,6 +48,7 @@ export default function FreeCanvas({
   onBlockPositionChange,
   onBlockResizeChange,
   onDragEnd,
+  onCanvasInteractionChange,
   interactable = true,
 }) {
   const viewportRef = useRef(null);
@@ -73,17 +74,25 @@ export default function FreeCanvas({
 
   const clearGuides = useCallback(() => setActiveGuides([]), []);
 
+  const setCanvasBusy = useCallback((busy) => {
+    if (typeof onCanvasInteractionChange === 'function') {
+      onCanvasInteractionChange(busy);
+    }
+  }, [onCanvasInteractionChange]);
+
   const endDrag = useCallback(() => {
     dragSessionRef.current = null;
     setDraggingBlockId(null);
     clearGuides();
-  }, [clearGuides]);
+    setCanvasBusy(false);
+  }, [clearGuides, setCanvasBusy]);
 
   const endResize = useCallback(() => {
     resizeSessionRef.current = null;
     setResizingBlockId(null);
     clearGuides();
-  }, [clearGuides]);
+    setCanvasBusy(false);
+  }, [clearGuides, setCanvasBusy]);
 
   const handleBlockPointerDown = useCallback((event, block) => {
     if (!interactable || !block?.id || resizeSessionRef.current) return;
@@ -98,10 +107,11 @@ export default function FreeCanvas({
       startClientY: event.clientY,
     };
     setDraggingBlockId(block.id);
+    setCanvasBusy(true);
     if (typeof event.currentTarget?.setPointerCapture === 'function') {
       event.currentTarget.setPointerCapture(event.pointerId);
     }
-  }, [interactable, onSelectBlock, onBlockPositionChange]);
+  }, [interactable, onSelectBlock, onBlockPositionChange, setCanvasBusy]);
 
   const handleBlockPointerMove = useCallback((event) => {
     const session = dragSessionRef.current;
@@ -146,10 +156,11 @@ export default function FreeCanvas({
       startClientY: event.clientY,
     };
     setResizingBlockId(block.id);
+    setCanvasBusy(true);
     if (typeof event.currentTarget?.setPointerCapture === 'function') {
       event.currentTarget.setPointerCapture(event.pointerId);
     }
-  }, [interactable, onSelectBlock, onBlockResizeChange, endDrag]);
+  }, [interactable, onSelectBlock, onBlockResizeChange, endDrag, setCanvasBusy]);
 
   const handleResizePointerMove = useCallback((event) => {
     const session = resizeSessionRef.current;

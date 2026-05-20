@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { apiGet, apiPut } from '../../api';
 import { defaultCv } from '../../data/cvDefault';
@@ -21,6 +21,7 @@ import {
   updateBlock,
   updateBlockStyle,
 } from '../../lib/cvLayoutModelV3.js';
+import { applyLayoutPagination } from '../../lib/layoutPagination.js';
 import { useAutoSave } from '../../lib/useAutoSave.js';
 import { useLayoutHistory } from '../../lib/useLayoutHistory.js';
 import CvEditablePreview from '../CvEditablePreview.jsx';
@@ -72,6 +73,8 @@ export default function CvEditorBeta({
   /** `guided` = L1 CvEditablePreview ; `free` = canvas libre (P3.2+). */
   const [editorViewMode, setEditorViewMode] = useState('guided');
   const [selectedBlockId, setSelectedBlockId] = useState(null);
+  const [canvasBusy, setCanvasBusy] = useState(false);
+  const layoutRef = useRef(null);
 
   const layoutHistory = useLayoutHistory(() => createBlankLayoutV3(), {
     keyboardShortcuts: editorViewMode === 'free',
@@ -85,6 +88,9 @@ export default function CvEditorBeta({
     canUndo: canUndoLayout,
     canRedo: canRedoLayout,
   } = layoutHistory;
+
+  layoutRef.current = layout;
+
   /**
    * Note (mai 2026) : l UI de mise en page modulaire (P2.4b) a ete
    * retiree apres feedback utilisateur. La place naturelle de ce
@@ -236,8 +242,15 @@ export default function CvEditorBeta({
   }, [layout, commitLayout]);
 
   const handleDragEndPersist = useCallback(() => {
+    setCanvasBusy(false);
+    if (editorViewMode === 'free') {
+      const paginated = applyLayoutPagination(layoutRef.current);
+      if (paginated !== layoutRef.current) {
+        commitLayout(paginated, { groupKey: 'pagination:auto' });
+      }
+    }
     if (cv) autoSave.schedule(cv);
-  }, [cv, autoSave]);
+  }, [editorViewMode, commitLayout, cv, autoSave]);
 
   const handleInsertBlock = useCallback((type) => {
     const preset = createInsertBlockPreset(type);
@@ -370,6 +383,7 @@ export default function CvEditorBeta({
             templateId={editorViewMode === 'free' ? undefined : templateId}
             layout={editorViewMode === 'free' ? layout : undefined}
             cv={cv}
+            paused={editorViewMode === 'free' && canvasBusy}
           />
           <button
             type="button"
@@ -443,6 +457,7 @@ export default function CvEditorBeta({
                 onBlockPositionChange={handleBlockPositionChange}
                 onBlockResizeChange={handleBlockResizeChange}
                 onDragEnd={handleDragEndPersist}
+                onCanvasInteractionChange={setCanvasBusy}
               />
             </>
           )}

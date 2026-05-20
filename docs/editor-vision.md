@@ -1678,9 +1678,11 @@ encore de drag / resize — objectif = valider le pipeline
 `.free-canvas-block__inner` — d’où des **barres de scroll à l’intérieur**
 des sections (expériences, etc.) quand le contenu dépassait la hauteur
 fixe du bloc starter. C’était un compromis read-only, **pas** la vision
-Canva finale. Depuis P3.3 : `overflow: hidden` par défaut ; scroll
-uniquement sur le bloc **sélectionné** (lecture du débordement en
-attendant l’auto-grow P3.10).
+Canva finale. Règle produit (P3.3+) : **jamais de scroll interne** dans un bloc —
+`overflow: hidden` / `clip` à 100 % largeur/hauteur du cadre. Contenu
+trop long = rogné. Pour adapter : **redimensionner** le bloc (P3.4),
+**typo** (theme / inspecteur, à venir) ou **moins de contenu** (drawer
+Contenu / édition guidée). L’auto-grow optionnel reste prévu en P3.10.
 
 **Implémentation** :
 
@@ -1698,7 +1700,7 @@ attendant l’auto-grow P3.10).
 - [x] Glisser un bloc → position mise à jour en mm (clamp page).
 - [x] Un seul pas undo pour tout un drag (coalescing `groupKey`).
 - [x] Auto-save déclenché à la fin du drag.
-- [x] Plus de scroll interne sur tous les blocs par défaut.
+- [x] Aucun scroll interne dans les blocs (contenu rogné, cadre 100 %).
 
 ### 14.6 P4 — Calibration et expansion (continu)
 

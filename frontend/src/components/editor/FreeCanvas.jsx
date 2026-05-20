@@ -107,7 +107,7 @@ export default function FreeCanvas({
     <div className="free-canvas" ref={viewportRef}>
       {interactable && (
         <p className="free-canvas-hint-banner" role="status">
-          Cliquez un bloc pour le sélectionner · glissez pour le déplacer
+          Glissez les blocs pour les déplacer · contenu rogné dans le cadre (pas de scroll interne) · taille / typo à venir
         </p>
       )}
       <div

@@ -288,13 +288,7 @@ export default function FreeCanvasBlock({
       onPointerUp={interactable && onPointerUp ? onPointerUp : undefined}
       onPointerCancel={interactable && onPointerCancel ? onPointerCancel : undefined}
     >
-      <div
-        className={
-          selected
-            ? 'free-canvas-block__inner free-canvas-block__inner--selected'
-            : 'free-canvas-block__inner'
-        }
-      >
+      <div className="free-canvas-block__inner">
         {isNonSemantic
           ? <NonSemanticBlockBody block={block} />
           : <SemanticBlockBody block={block} cv={cv} />}

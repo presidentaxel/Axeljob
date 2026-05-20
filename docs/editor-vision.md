@@ -1726,6 +1726,29 @@ tard). L’auto-grow optionnel reste en P3.10 si besoin.
 - [x] Tailles min et limites page respectées.
 - [x] Pas d’auto-grow : l’utilisateur agrandit le cadre pour voir la fin du contenu.
 
+#### 14.5.6 P3.5 — Barre d’insertion de blocs (livré, 19 mai 2026)
+
+Barre **Insérer** au-dessus du canvas (mode libre uniquement) :
+texte, titre, trait (`shape:line`), bandeau (`shape:rect`), icône.
+
+**Implémentation** :
+
+| Rôle | Fichier |
+|---|---|
+| Presets + placement (empile sous le dernier bloc) | `frontend/src/lib/freeCanvasBlockPresets.js` |
+| UI barre d’outils | `frontend/src/components/editor/EditorInsertToolbar.jsx` |
+| Styles | `frontend/src/styles/EditorInsertToolbar.css` |
+| `addBlockToPage` + sélection auto + save | `CvEditorBeta.jsx` |
+| Bonus : bouton « Supprimer bloc » si sélection | `CvEditorBeta.jsx` |
+| Tests | `freeCanvasBlockPresets.test.js` (5) |
+
+**Critères d'acceptation (P3.5)** :
+- [x] 5 types insérables depuis la barre.
+- [x] Nouveau bloc empilé sous les blocs existants (gap 6 mm).
+- [x] Bloc sélectionné automatiquement après insertion.
+- [x] Layout persisté via auto-save en mode libre.
+- [x] Barre masquée tant que le picker « page blanche / modèle » est affiché.
+
 ### 14.6 P4 — Calibration et expansion (continu)
 
 - Job mensuel de recalibration des pondérations sur les ground truths collectées.

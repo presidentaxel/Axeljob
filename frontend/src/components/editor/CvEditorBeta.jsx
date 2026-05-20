@@ -3,16 +3,24 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPut } from '../../api';
 import { defaultCv } from '../../data/cvDefault';
 import {
+  createInsertBlockPreset,
+  getLastBlockIdOnPage,
+  suggestNewBlockPlacement,
+} from '../../lib/freeCanvasBlockPresets.js';
+import {
+  addBlockToPage,
   createBlankLayoutV3,
   createStarterLayoutV3,
   isEmptyLayoutV3,
   migrateLayoutToV3,
+  removeBlock,
   setBlockPosition,
   updateBlock,
 } from '../../lib/cvLayoutModelV3.js';
 import { useAutoSave } from '../../lib/useAutoSave.js';
 import { useLayoutHistory } from '../../lib/useLayoutHistory.js';
 import CvEditablePreview from '../CvEditablePreview.jsx';
+import EditorInsertToolbar from './EditorInsertToolbar.jsx';
 import FreeCanvas from './FreeCanvas.jsx';
 
 import AutoSaveIndicator from './AutoSaveIndicator.jsx';
@@ -221,6 +229,26 @@ export default function CvEditorBeta({
     if (cv) autoSave.schedule(cv);
   }, [cv, autoSave]);
 
+  const handleInsertBlock = useCallback((type) => {
+    const preset = createInsertBlockPreset(type);
+    if (!preset) return;
+    const placement = suggestNewBlockPlacement(layout, 0, preset);
+    const partial = { ...preset, ...placement };
+    const next = addBlockToPage(layout, 0, partial);
+    commitLayout(next);
+    const newId = getLastBlockIdOnPage(next, 0);
+    if (newId) setSelectedBlockId(newId);
+    if (cv) autoSave.schedule(cv);
+  }, [layout, commitLayout, cv, autoSave]);
+
+  const handleDeleteSelectedBlock = useCallback(() => {
+    if (!selectedBlockId) return;
+    const next = removeBlock(layout, selectedBlockId);
+    commitLayout(next);
+    setSelectedBlockId(null);
+    if (cv) autoSave.schedule(cv);
+  }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
+
   if (loading) {
     return (
       <div className="cv-editor-beta cv-editor-beta--loading">
@@ -260,6 +288,16 @@ export default function CvEditorBeta({
               Canvas libre
             </button>
           </div>
+          {editorViewMode === 'free' && selectedBlockId && (
+            <button
+              type="button"
+              className="cv-editor-beta-history-btn cv-editor-beta-delete-block-btn"
+              onClick={handleDeleteSelectedBlock}
+              title="Supprimer le bloc sélectionné"
+            >
+              Supprimer bloc
+            </button>
+          )}
           {editorViewMode === 'free' && (
             <div className="cv-editor-beta-history-btns">
               <button
@@ -313,6 +351,13 @@ export default function CvEditorBeta({
         <div className="cv-editor-beta-error" role="alert">
           {loadError}
         </div>
+      )}
+
+      {editorViewMode === 'free' && !showCanvasStarterPicker && (
+        <EditorInsertToolbar
+          onInsert={handleInsertBlock}
+          disabled={loading || !layout}
+        />
       )}
 
       <div className="cv-editor-beta-workspace">
@@ -376,7 +421,7 @@ export default function CvEditorBeta({
       <footer className="cv-editor-beta-statusbar">
         <span>
           {editorViewMode === 'free'
-            ? 'Canvas libre L3 · glisser / redimensionner (Ctrl+Z)'
+            ? 'Canvas libre · insérer, déplacer, redimensionner (Ctrl+Z)'
             : 'L1 inline · basculez sur Canvas libre pour l’aperçu L3'}
         </span>
       </footer>

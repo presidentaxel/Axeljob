@@ -155,6 +155,17 @@ body.cv-editor-beta-fullscreen .view-profil.app-page .page-content {
   cursor: not-allowed;
 }
 
+.cv-editor-beta-delete-block-btn {
+  border-color: #fecaca;
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.cv-editor-beta-delete-block-btn:hover:not(:disabled) {
+  border-color: #f87171;
+  background: #fee2e2;
+}
+
 .cv-editor-beta-badge {
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   color: white;

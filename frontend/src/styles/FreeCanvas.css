@@ -68,14 +68,67 @@
   pointer-events: none;
 }
 
-/* Bloc positionne en mm (coords inline depuis le composant) */
+/* Grille 5 mm (P3.7) — visible en mode edition */
+.free-canvas-page--interactive.free-canvas-page--grid {
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(to right, rgba(79, 70, 229, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(79, 70, 229, 0.06) 1px, transparent 1px);
+  background-size: 5mm 5mm;
+}
+
+/* Guides magnetiques pendant drag/resize */
+.free-canvas-snap-guides {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10000;
+}
+
+.free-canvas-snap-guide {
+  position: absolute;
+  pointer-events: none;
+}
+
+.free-canvas-snap-guide--v {
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dashed #e11d48;
+  opacity: 0.9;
+}
+
+.free-canvas-snap-guide--h {
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px dashed #e11d48;
+  opacity: 0.9;
+}
+
+.free-canvas-snap-guide--center.free-canvas-snap-guide--v,
+.free-canvas-snap-guide--center.free-canvas-snap-guide--h {
+  border-color: #4f46e5;
+  opacity: 1;
+}
+
+.free-canvas-snap-guide--center.free-canvas-snap-guide--v {
+  border-left-width: 1.5px;
+  border-left-style: solid;
+}
+
+.free-canvas-snap-guide--center.free-canvas-snap-guide--h {
+  border-top-width: 1.5px;
+  border-top-style: solid;
+}
+
+/* Bloc positionne en mm — cadre d edition via pseudo-element */
 .free-canvas-block {
   position: absolute;
   box-sizing: border-box;
-  overflow: hidden;
-  border: 1px solid transparent;
-  border-radius: 1px;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  overflow: visible;
+  border: none;
+  background: transparent;
 }
 
 .free-canvas-block--interactive {
@@ -83,16 +136,55 @@
   touch-action: none;
 }
 
-.free-canvas-block--interactive.free-canvas-block--dragging {
+.free-canvas-block--interactive::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid transparent;
+  border-radius: 1px;
+  pointer-events: none;
+  transition:
+    border-color 100ms ease,
+    box-shadow 100ms ease,
+    inset 100ms ease;
+}
+
+.free-canvas-block--interactive:hover::after {
+  border-color: rgba(79, 70, 229, 0.28);
+}
+
+.free-canvas-block--interactive.free-canvas-block--selected::after {
+  inset: -0.5mm;
+  border: 2px solid #4f46e5;
+  border-radius: 2px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.95),
+    0 2px 8px rgba(79, 70, 229, 0.12);
+}
+
+.free-canvas-block--interactive.free-canvas-block--dragging::after {
+  inset: -0.5mm;
+  border-color: #4f46e5;
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.18);
+  transition: none;
+}
+
+.free-canvas-block--interactive.free-canvas-block--resizing::after {
+  inset: -0.5mm;
+  border-color: #4f46e5;
+  transition: none;
+}
+
+.free-canvas-block--interactive.free-canvas-block--dragging,
+.free-canvas-block--interactive.free-canvas-block--resizing {
   cursor: grabbing;
+}
+
+.free-canvas-block--interactive.free-canvas-block--dragging {
   transition: none;
 }
 
-.free-canvas-block--resizing {
-  transition: none;
-}
-
-/* Poignees de redimensionnement (P3.4) — visibles si bloc selectionne */
+/* Poignees resize — pastilles rondes */
 .free-canvas-resize-handles {
   position: absolute;
   inset: 0;
@@ -102,59 +194,52 @@
 
 .free-canvas-resize-handle {
   position: absolute;
-  width: 2.8mm;
-  height: 2.8mm;
+  width: 2.4mm;
+  height: 2.4mm;
   background: #ffffff;
-  border: 2px solid #6366f1;
-  border-radius: 1px;
+  border: 1.5px solid #4f46e5;
+  border-radius: 50%;
   box-sizing: border-box;
   pointer-events: auto;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.15);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.18);
 }
 
 .free-canvas-resize-handle--nw {
-  left: -1.2mm;
-  top: -1.2mm;
+  left: -1mm;
+  top: -1mm;
   cursor: nwse-resize;
 }
 
 .free-canvas-resize-handle--ne {
-  right: -1.2mm;
-  top: -1.2mm;
+  right: -1mm;
+  top: -1mm;
   cursor: nesw-resize;
 }
 
 .free-canvas-resize-handle--sw {
-  left: -1.2mm;
-  bottom: -1.2mm;
+  left: -1mm;
+  bottom: -1mm;
   cursor: nesw-resize;
 }
 
 .free-canvas-resize-handle--se {
-  right: -1.2mm;
-  bottom: -1.2mm;
+  right: -1mm;
+  bottom: -1mm;
   cursor: nwse-resize;
 }
 
-.free-canvas-block--selected {
-  border-color: rgba(99, 102, 241, 0.65);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
-}
-
 .free-canvas-block__inner {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
   max-width: 100%;
   max-height: 100%;
-  /* Pas de scroll interne : le bloc = cadre fixe (mm). Contenu trop long =
-     rogné. Pour voir moins / plus : redimensionner le bloc (P3.4), réduire
-     la typo (inspecteur / theme, a venir) ou retirer du contenu (drawer L1). */
   overflow: hidden;
   overflow: clip;
-  padding: 1mm 1.5mm;
+  padding: 0;
   box-sizing: border-box;
   overscroll-behavior: none;
-  -webkit-overflow-scrolling: auto;
 }
 
 /* Securite : aucune barre de scroll dans un bloc, meme si un enfant herite
@@ -199,15 +284,21 @@
   color: #334155;
 }
 
+.free-canvas-block[data-block-type='text'] .free-canvas-block__inner,
+.free-canvas-block[data-block-type='title'] .free-canvas-block__inner,
+.free-canvas-block[data-block-type='resume'] .free-canvas-block__inner {
+  padding: 1mm 1.5mm;
+}
+
 .free-canvas-block__section-title {
-  margin: 0 0 2mm;
-  font-size: 9.5pt;
+  margin: 0 0 1.5mm;
+  font-size: 9pt;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   color: var(--free-canvas-accent, #1e293b);
-  border-bottom: 0.4mm solid var(--free-canvas-accent, #1e293b);
-  padding-bottom: 0.5mm;
+  border-bottom: 0.25mm solid rgba(30, 41, 59, 0.35);
+  padding-bottom: 0.4mm;
 }
 
 .free-canvas-block__section-list {
@@ -318,10 +409,17 @@
   justify-content: center;
   width: 100%;
   height: 100%;
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
+  background: transparent;
+  border: none;
   font-size: 8pt;
   color: #64748b;
+}
+
+.free-canvas-block__icon--empty,
+.free-canvas-block__qrcode--empty {
+  background: rgba(248, 250, 252, 0.6);
+  border: 1px dashed rgba(148, 163, 184, 0.5);
+  border-radius: 2px;
 }
 
 .free-canvas-block__placeholder {

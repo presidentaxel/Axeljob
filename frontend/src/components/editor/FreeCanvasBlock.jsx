@@ -229,13 +229,27 @@ function NonSemanticBlockBody({ block }) {
       );
     case 'icon':
       return (
-        <div className="free-canvas-block__icon" aria-hidden="true">
-          {block.icon_name || 'icon'}
+        <div
+          className={
+            block.icon_name
+              ? 'free-canvas-block__icon'
+              : 'free-canvas-block__icon free-canvas-block__icon--empty'
+          }
+          aria-hidden="true"
+        >
+          {block.icon_name || 'Icône'}
         </div>
       );
     case 'qrcode':
       return (
-        <div className="free-canvas-block__qrcode" title={block.target_url || 'QR code'}>
+        <div
+          className={
+            block.target_url
+              ? 'free-canvas-block__qrcode'
+              : 'free-canvas-block__qrcode free-canvas-block__qrcode--empty'
+          }
+          title={block.target_url || 'QR code'}
+        >
           QR
         </div>
       );

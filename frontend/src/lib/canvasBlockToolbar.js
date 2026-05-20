@@ -40,17 +40,19 @@ export function blockHasTypographyOverride(style = {}) {
 
 export function blockStyleToCss(style = {}) {
   if (!style || typeof style !== 'object') return {};
+  const { zone: _zone, format: _format, font_style: _fs, ...rest } = style;
   const css = {};
-  if (style.font_family) css.fontFamily = style.font_family;
-  if (style.font_size != null) css.fontSize = `${style.font_size}pt`;
-  if (style.color) css.color = style.color;
-  if (style.align) css.textAlign = style.align;
-  if (style.opacity != null) css.opacity = style.opacity;
-  if (style.bold) css.fontWeight = '700';
-  if (style.italic) css.fontStyle = 'italic';
+  const s = rest;
+  if (s.font_family) css.fontFamily = s.font_family;
+  if (s.font_size != null) css.fontSize = `${s.font_size}pt`;
+  if (s.color) css.color = s.color;
+  if (s.align) css.textAlign = s.align;
+  if (s.opacity != null) css.opacity = s.opacity;
+  if (s.bold) css.fontWeight = '700';
+  if (s.italic || s.font_style === 'italic') css.fontStyle = 'italic';
   const deco = [];
-  if (style.underline) deco.push('underline');
-  if (style.strikethrough) deco.push('line-through');
+  if (s.underline) deco.push('underline');
+  if (s.strikethrough) deco.push('line-through');
   if (deco.length) css.textDecoration = deco.join(' ');
   return css;
 }

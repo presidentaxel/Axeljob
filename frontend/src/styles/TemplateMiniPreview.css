@@ -1,0 +1,71 @@
+.tpl-mini {
+  width: 100%;
+  height: 52px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.tpl-mini__hdr {
+  height: 14px;
+  width: 100%;
+}
+
+.tpl-mini__cols {
+  display: flex;
+  height: calc(100% - 14px);
+}
+
+.tpl-mini__cols--full {
+  height: 100%;
+}
+
+.tpl-mini__side {
+  width: 32%;
+  flex-shrink: 0;
+}
+
+.tpl-mini__main {
+  flex: 1;
+  padding: 4px 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.tpl-mini__ln {
+  height: 3px;
+  background: #e2e8f0;
+  border-radius: 1px;
+  width: 88%;
+}
+
+.tpl-mini__ln--short {
+  width: 65%;
+}
+
+.tpl-mini__ln--accent {
+  height: 4px;
+  width: 55%;
+}
+
+.tpl-mini__ln--center {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.tpl-mini--single .tpl-mini__rule {
+  height: 2px;
+  width: 100%;
+}
+
+.tpl-mini--single .tpl-mini__main,
+.tpl-mini--centered .tpl-mini__main {
+  height: 100%;
+  padding: 6px 5px;
+}
+
+.tpl-mini--centered {
+  border-bottom: 1px solid #e2e8f0;
+}

@@ -19,10 +19,26 @@ function isLikelyApplePlatform() {
   }
 }
 
+function triggerAnchorBlobDownload(url, filename) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || 'download';
+  a.rel = 'noopener noreferrer';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 export function prepareAppleDownloadWindow() {
   if (!isLikelyApplePlatform()) return null;
+  // Chrome/macOS : showSaveFilePicker gère l’enregistrement — évite un onglet about:blank orphelin.
+  if (typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function') {
+    return null;
+  }
   try {
-    return window.open('', '_blank', 'noopener,noreferrer');
+    // Sans noopener : sinon le navigateur ouvre l’onglet mais renvoie null (reste sur about:blank).
+    return window.open('', '_blank', 'noreferrer');
   } catch {
     return null;
   }
@@ -46,21 +62,23 @@ export function triggerBlobDownload(blob, filename, options = {}) {
   try {
     if (isLikelyApplePlatform()) {
       if (preopenedWindow && !preopenedWindow.closed) {
-        preopenedWindow.location.href = url;
+        try {
+          preopenedWindow.location.href = url;
+        } catch {
+          triggerAnchorBlobDownload(url, safeFilename);
+          try {
+            preopenedWindow.close();
+          } catch {
+            /* ignore */
+          }
+        }
       } else {
-        window.open(url, '_blank', 'noopener,noreferrer');
+        triggerAnchorBlobDownload(url, safeFilename);
       }
       return;
     }
 
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = safeFilename;
-    a.rel = 'noopener noreferrer';
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    triggerAnchorBlobDownload(url, safeFilename);
   } finally {
     // Safari may fail if revoked immediately after click/navigation.
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);

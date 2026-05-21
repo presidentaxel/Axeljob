@@ -19,6 +19,41 @@ function isLikelyApplePlatform() {
   }
 }
 
+/** Safari (pas Chrome/Firefox iOS) : seul cas où l’onglet pré-ouvert est vraiment utile. */
+function isSafariBrowser() {
+  try {
+    const ua = navigator?.userAgent || '';
+    return /safari/i.test(ua) && !/chrome|chromium|crios|fxios|edgios|edg\//i.test(ua);
+  } catch {
+    return false;
+  }
+}
+
+function hasNativeSaveFilePicker() {
+  return typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function';
+}
+
+export function closePreopenedDownloadWindow(preopenedWindow) {
+  if (!preopenedWindow || preopenedWindow.closed) return;
+  try {
+    preopenedWindow.close();
+  } catch {
+    /* ignore */
+  }
+}
+
+function ensureBlobForDownload(blob, filename) {
+  if (!blob || blob.size === 0) {
+    throw new Error('Le fichier reçu est vide. Réessaie ou contacte le support.');
+  }
+  const lower = (filename || '').toLowerCase();
+  const isPdf = lower.endsWith('.pdf') || (blob.type || '').includes('pdf');
+  if (isPdf && blob.type !== 'application/pdf') {
+    return new Blob([blob], { type: 'application/pdf' });
+  }
+  return blob;
+}
+
 function triggerAnchorBlobDownload(url, filename) {
   const a = document.createElement('a');
   a.href = url;
@@ -30,15 +65,24 @@ function triggerAnchorBlobDownload(url, filename) {
   a.remove();
 }
 
+function shouldPreopenAppleDownloadTab() {
+  if (!isLikelyApplePlatform()) return false;
+  if (hasNativeSaveFilePicker()) return false;
+  return isSafariBrowser();
+}
+
 export function prepareAppleDownloadWindow() {
-  if (!isLikelyApplePlatform()) return null;
-  // Chrome/macOS : showSaveFilePicker gère l’enregistrement — évite un onglet about:blank orphelin.
-  if (typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function') {
-    return null;
-  }
+  if (!shouldPreopenAppleDownloadTab()) return null;
   try {
     // Sans noopener : sinon le navigateur ouvre l’onglet mais renvoie null (reste sur about:blank).
-    return window.open('', '_blank', 'noreferrer');
+    const w = window.open('about:blank', '_blank', 'noreferrer');
+    if (!w) return null;
+    try {
+      w.document.title = 'Téléchargement…';
+    } catch {
+      /* ignore until navigation */
+    }
+    return w;
   } catch {
     return null;
   }
@@ -54,34 +98,61 @@ export function getDownloadPermissionHint() {
  * On Apple platforms, if a pre-opened tab is provided from a user click,
  * we navigate that tab to the blob URL to avoid popup/download blocking.
  */
+function isPreopenedWindowStillBlank(preopenedWindow) {
+  try {
+    const href = preopenedWindow?.location?.href || '';
+    return !href || href === 'about:blank' || href.endsWith('about:blank');
+  } catch {
+    return true;
+  }
+}
+
+function triggerAppleBlobDownload(url, safeFilename, preopenedWindow) {
+  if (preopenedWindow && !preopenedWindow.closed) {
+    let navigated = false;
+    try {
+      preopenedWindow.location.href = url;
+      navigated = true;
+    } catch {
+      /* cross-origin or blocked */
+    }
+    if (!navigated) {
+      closePreopenedDownloadWindow(preopenedWindow);
+      triggerAnchorBlobDownload(url, safeFilename);
+      return;
+    }
+    window.setTimeout(() => {
+      try {
+        if (!preopenedWindow.closed && isPreopenedWindowStillBlank(preopenedWindow)) {
+          closePreopenedDownloadWindow(preopenedWindow);
+          triggerAnchorBlobDownload(url, safeFilename);
+        }
+      } catch {
+        /* ignore */
+      }
+    }, 500);
+    return;
+  }
+
+  triggerAnchorBlobDownload(url, safeFilename);
+}
+
 export function triggerBlobDownload(blob, filename, options = {}) {
   const { preopenedWindow = null } = options;
   const safeFilename = filename || 'download';
-  const url = URL.createObjectURL(blob);
+  const blobOk = ensureBlobForDownload(blob, safeFilename);
+  const url = URL.createObjectURL(blobOk);
 
   try {
     if (isLikelyApplePlatform()) {
-      if (preopenedWindow && !preopenedWindow.closed) {
-        try {
-          preopenedWindow.location.href = url;
-        } catch {
-          triggerAnchorBlobDownload(url, safeFilename);
-          try {
-            preopenedWindow.close();
-          } catch {
-            /* ignore */
-          }
-        }
-      } else {
-        triggerAnchorBlobDownload(url, safeFilename);
-      }
+      triggerAppleBlobDownload(url, safeFilename, preopenedWindow);
       return;
     }
 
     triggerAnchorBlobDownload(url, safeFilename);
   } finally {
     // Safari may fail if revoked immediately after click/navigation.
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
   }
 }
 
@@ -103,32 +174,38 @@ function getPickerTypesFromBlob(blob, filename) {
 export async function saveBlobWithPreferredMethod(blob, filename, options = {}) {
   const { preopenedWindow = null, startIn = null } = options;
   const safeFilename = filename || 'download';
+  const blobOk = ensureBlobForDownload(blob, safeFilename);
 
-  if (typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function') {
-    try {
-      const pickerOpts = {
-        suggestedName: safeFilename,
-        types: getPickerTypesFromBlob(blob, safeFilename),
-      };
-      if (startIn && typeof startIn === 'object' && startIn.kind) {
-        pickerOpts.startIn = startIn;
-      }
-      const handle = await window.showSaveFilePicker(pickerOpts);
-      const writable = await handle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      if (preopenedWindow && !preopenedWindow.closed) preopenedWindow.close();
-      return;
-    } catch (e) {
-      if (e?.name === 'AbortError') {
-        if (preopenedWindow && !preopenedWindow.closed) preopenedWindow.close();
+  try {
+    if (hasNativeSaveFilePicker()) {
+      try {
+        const pickerOpts = {
+          suggestedName: safeFilename,
+          types: getPickerTypesFromBlob(blobOk, safeFilename),
+        };
+        if (startIn && typeof startIn === 'object' && startIn.kind) {
+          pickerOpts.startIn = startIn;
+        }
+        const handle = await window.showSaveFilePicker(pickerOpts);
+        const writable = await handle.createWritable();
+        await writable.write(blobOk);
+        await writable.close();
+        closePreopenedDownloadWindow(preopenedWindow);
         return;
+      } catch (e) {
+        if (e?.name === 'AbortError') {
+          closePreopenedDownloadWindow(preopenedWindow);
+          return;
+        }
+        // Non bloquant: on repasse sur le téléchargement classique.
       }
-      // Non bloquant: on repasse sur le téléchargement classique.
     }
-  }
 
-  triggerBlobDownload(blob, safeFilename, { preopenedWindow });
+    triggerBlobDownload(blobOk, safeFilename, { preopenedWindow });
+  } catch (e) {
+    closePreopenedDownloadWindow(preopenedWindow);
+    throw e;
+  }
 }
 
 export function setAuthToken(token) {

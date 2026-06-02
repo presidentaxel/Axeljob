@@ -66,6 +66,7 @@ export default function MonitoringDashboard({ usage }) {
 
   const fileAgg = summary?.events_from_log_files;
   const dbAgg = summary?.events_from_database;
+  const bde = summary?.bde_cashback;
   const health = summary?.health;
   const prom = summary?.prometheus;
   const op = summary?.operational;
@@ -383,6 +384,67 @@ export default function MonitoringDashboard({ usage }) {
                   )}
                 </div>
               </div>
+            </section>
+
+            <section className="monitoring-section">
+              <h2 className="support-section-title">Affiliation BDE (cashback)</h2>
+              {!bde ? (
+                <p className="monitoring-muted">
+                  Disponible seulement avec <code className="monitoring-code">SUPABASE_DATABASE_URL</code> (agrégat SQL).
+                </p>
+              ) : (
+                <>
+                  <div className="monitoring-cards">
+                    <div className="monitoring-card">
+                      <h3>Clients attribués</h3>
+                      <p className="monitoring-card-metric">{bde.total_referred_users ?? 0}</p>
+                    </div>
+                    <div className="monitoring-card">
+                      <h3>Clients Pro</h3>
+                      <p className="monitoring-card-metric">{bde.total_pro_users ?? 0}</p>
+                    </div>
+                    <div className="monitoring-card monitoring-card--wide">
+                      <h3>Montant total dû</h3>
+                      <p className="monitoring-card-metric">{(bde.total_amount_due_eur ?? 0).toFixed(2)} €</p>
+                      <p className="monitoring-muted">
+                        Calculé sur les comptes actuellement en plan Pro (période {bde.period_days} jours).
+                      </p>
+                      {bde.config_error && (
+                        <p className="monitoring-error">Fichier de règles cashback invalide côté serveur.</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="monitoring-table-wrap" style={{ marginTop: '0.8rem' }}>
+                    <table className="monitoring-table">
+                      <thead>
+                        <tr>
+                          <th>Code BDE</th>
+                          <th>Clients attribués</th>
+                          <th>Clients Pro</th>
+                          <th>Taux</th>
+                          <th>Montant dû</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(bde.rows || []).length === 0 && (
+                          <tr>
+                            <td colSpan={5} className="monitoring-muted">Aucune attribution sur la période.</td>
+                          </tr>
+                        )}
+                        {(bde.rows || []).map((row) => (
+                          <tr key={row.partner_code}>
+                            <td className="monitoring-table-route">{row.partner_code}</td>
+                            <td>{row.referred_users}</td>
+                            <td>{row.pro_users}</td>
+                            <td>{Number(row.cashback_rate_eur || 0).toFixed(2)} €</td>
+                            <td>{Number(row.amount_due_eur || 0).toFixed(2)} €</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
             </section>
           </>
         )}

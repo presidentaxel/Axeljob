@@ -15,7 +15,7 @@ import {
   setUnauthorizedCallback,
   trackEvent,
 } from './api';
-import { ensureAnalyticsFirstTouch } from './analyticsSession';
+import { ensureAnalyticsFirstTouch, getStoredAttribution } from './analyticsSession';
 import { useViewAnalytics } from './useViewAnalytics';
 import { supabase } from './lib/supabase';
 import AuthForm from './components/AuthForm';
@@ -1081,10 +1081,40 @@ export default function App() {
       });
   }, [session, authLoading, recoveryMode, mfaChallengeChecked]);
 
-  // Check if profile is empty → show onboarding + display name (prénom + nom) ; sync template_id / template_options depuis l’API pour persistance entre sessions
   useEffect(() => {
     ensureAnalyticsFirstTouch();
   }, []);
+
+  useEffect(() => {
+    const uid = session?.user?.id;
+    if (!uid) return;
+    let attr = null;
+    try {
+      attr = getStoredAttribution();
+    } catch {
+      attr = null;
+    }
+    if (!attr || !attr.partner_code) return;
+    const key = `cv_bot_referral_capture_v1:${uid}`;
+    try {
+      if (sessionStorage.getItem(key) === '1') return;
+    } catch {
+      /* sessionStorage unavailable */
+    }
+    apiPost('/api/referral/capture', { attribution: attr })
+      .then((res) => {
+        if (res?.ok) {
+          try {
+            sessionStorage.setItem(key, '1');
+          } catch {
+            /* ignore */
+          }
+        }
+      })
+      .catch(() => {
+        /* keep silent: retry on next reload */
+      });
+  }, [session?.user?.id]);
 
   useViewAnalytics({ view: analyticsView, pathname, session });
 

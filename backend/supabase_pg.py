@@ -283,6 +283,132 @@ def aggregate_bde_cashback_recent_days(
     }
 
 
+def redeem_promo_code_pg(user_id: str, code_normalized: str) -> dict[str, Any]:
+    """
+    Applique un code promo en transaction (verrouillage ligne promo_codes).
+    """
+    from backend.promo_codes import _is_in_validity_window
+
+    pool = get_pool()
+    if not pool:
+        raise RuntimeError("Pool PG indisponible")
+    from datetime import datetime, timezone
+
+    from psycopg.rows import dict_row
+
+    uid = (user_id or "").strip()
+    code = (code_normalized or "").strip().upper()
+    if not uid or not code:
+        raise ValueError("Code invalide.")
+
+    now = datetime.now(timezone.utc)
+
+    with pool.connection() as conn:
+        conn.autocommit = False
+        try:
+            with conn.cursor(row_factory=dict_row) as cur:
+                cur.execute(
+                    """
+                    SELECT *
+                    FROM public.promo_codes
+                    WHERE code_normalized = %s AND active = true
+                    FOR UPDATE
+                    """,
+                    (code,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    raise ValueError("Code inconnu ou expiré.")
+                if not _is_in_validity_window(dict(row), now):
+                    raise ValueError("Ce code n'est plus valide.")
+
+                promo_id = row["id"]
+                max_total = row.get("max_redemptions")
+                if max_total is not None:
+                    cur.execute(
+                        """
+                        SELECT COUNT(*)::int AS n
+                        FROM public.promo_redemptions
+                        WHERE promo_code_id = %s
+                        """,
+                        (promo_id,),
+                    )
+                    n_total = int((cur.fetchone() or {}).get("n") or 0)
+                    if n_total >= int(max_total):
+                        raise ValueError("Ce code a atteint sa limite d'utilisation.")
+
+                max_per_user = max(1, int(row.get("max_per_user") or 1))
+                cur.execute(
+                    """
+                    SELECT COUNT(*)::int AS n
+                    FROM public.promo_redemptions
+                    WHERE promo_code_id = %s AND user_id = %s
+                    """,
+                    (promo_id, uid),
+                )
+                n_user = int((cur.fetchone() or {}).get("n") or 0)
+                if n_user >= max_per_user:
+                    raise ValueError("Tu as déjà utilisé ce code.")
+
+                cur.execute(
+                    """
+                    INSERT INTO public.promo_redemptions (promo_code_id, user_id)
+                    VALUES (%s, %s)
+                    """,
+                    (promo_id, uid),
+                )
+
+                kind = row.get("kind") or "bonus_adaptations"
+                label = (row.get("label") or "").strip() or row.get("code") or "Code"
+                bonus = max(0, int(row.get("bonus_adaptations") or 0))
+                partner = (row.get("partner_code") or "").strip() or None
+
+                out: dict[str, Any] = {
+                    "ok": True,
+                    "kind": kind,
+                    "label": label,
+                    "bonus_added": 0,
+                    "contest_registered": False,
+                }
+
+                if kind == "bde_partner" and partner:
+                    cur.execute(
+                        """
+                        INSERT INTO public.user_referrals (
+                            user_id, partner_code, captured_at, updated_at
+                        )
+                        VALUES (%s, %s, now(), now())
+                        ON CONFLICT (user_id) DO NOTHING
+                        """,
+                        (uid, partner),
+                    )
+                    out["message"] = f"Code partenaire enregistré ({label})."
+                elif kind == "contest_entry":
+                    out["contest_registered"] = True
+                    out["message"] = f"Inscription au concours enregistrée : {label}."
+                elif bonus > 0:
+                    cur.execute(
+                        """
+                        INSERT INTO public.user_plans (user_id, plan, free_adaptation_bonus, updated_at)
+                        VALUES (%s, 'free', %s, now())
+                        ON CONFLICT (user_id) DO UPDATE SET
+                            free_adaptation_bonus = public.user_plans.free_adaptation_bonus + EXCLUDED.free_adaptation_bonus,
+                            updated_at = now()
+                        """,
+                        (uid, bonus),
+                    )
+                    out["bonus_added"] = bonus
+                    out["message"] = f"+{bonus} adaptation(s) offerte(s) : {label}."
+                else:
+                    out["message"] = f"Code appliqué : {label}."
+
+            conn.commit()
+            return out
+        except Exception:
+            conn.rollback()
+            raise
+
+
 def close_pool() -> None:
     """Fermeture propre (tests / shutdown)."""
     global _pool

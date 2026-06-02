@@ -73,6 +73,7 @@ from backend.cv_analytics import (
     cv_import_completeness,
     profile_metrics,
 )
+from backend.promo_codes import redeem_promo_code
 from backend.db import (
     APPLICATION_DOC_TYPES,
     count_active_applications,
@@ -3727,6 +3728,10 @@ class ReferralCaptureBody(BaseModel):
     attribution: dict = {}
 
 
+class PromoRedeemBody(BaseModel):
+    code: str = ""
+
+
 class InviteBody(BaseModel):
     email: str = ""
 
@@ -3757,6 +3762,32 @@ def api_referral_capture(request: Request, body: ReferralCaptureBody):
     attr = body.attribution if isinstance(body.attribution, dict) else {}
     saved = save_user_referral_attribution(user_id, attr)
     return {"ok": True, "captured": bool(saved)}
+
+
+@app.post("/api/promo/redeem")
+def api_promo_redeem(request: Request, body: PromoRedeemBody):
+    """Valide et applique un code promo / concours / partenaire (menu compte)."""
+    user_id = _require_user_id(request)
+    try:
+        result = redeem_promo_code(user_id, body.code or "")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.warning("promo redeem failed for %s: %s", user_id, e)
+        raise HTTPException(status_code=503, detail="Impossible d'appliquer ce code.") from e
+    if result.get("bonus_added"):
+        _invalidate_usage_cache(user_id)
+    _track_analytics(
+        request,
+        event_log.EVENT_PROMO_CODE_REDEEMED,
+        user_id,
+        {
+            "kind": result.get("kind"),
+            "bonus_added": result.get("bonus_added"),
+            "contest_registered": result.get("contest_registered"),
+        },
+    )
+    return result
 
 
 @app.post("/api/invite")

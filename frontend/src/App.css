@@ -423,7 +423,7 @@ body {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  min-width: 12.5rem;
+  min-width: 15.5rem;
   background: var(--bg, #fff);
   border: 1px solid var(--border);
   border-radius: var(--radius-xs, 10px);
@@ -459,6 +459,52 @@ body {
 .topbar-account-menu-item--danger:hover {
   background: #fef2f2;
   color: #991b1b;
+}
+
+.topbar-account-promo {
+  padding: 0.65rem 0.75rem 0.5rem;
+  border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08));
+}
+
+.topbar-account-promo-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted, #64748b);
+  margin-bottom: 0.4rem;
+}
+
+.topbar-account-promo-row {
+  display: flex;
+  gap: 0.35rem;
+  align-items: stretch;
+}
+
+.topbar-account-promo-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+}
+
+.topbar-account-promo-btn {
+  flex-shrink: 0;
+  padding-left: 0.65rem;
+  padding-right: 0.65rem;
+}
+
+.topbar-account-promo-feedback {
+  margin: 0.4rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.topbar-account-promo-feedback--error {
+  color: #b91c1c;
+}
+
+.topbar-account-promo-feedback--ok {
+  color: #15803d;
 }
 
 .topbar-account-menu-sep {

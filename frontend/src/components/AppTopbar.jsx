@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { HiDocumentText, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiChartBarSquare, HiCog6Tooth } from 'react-icons/hi2';
+import TopbarPromoCode from './TopbarPromoCode';
 
 /**
  * Barre de navigation workspace /app/* (séparée du shell pour lisibilité d’App.jsx).
@@ -13,6 +14,7 @@ export default function AppTopbar({
   onProBadgeClick,
   onSignOutClick,
   onCookieSettingsClick,
+  onPromoRedeemed,
 }) {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const accountWrapRef = useRef(null);
@@ -95,6 +97,12 @@ export default function AppTopbar({
             </button>
             {accountMenuOpen && (
               <div id="topbar-account-menu" className="topbar-account-menu" role="menu" aria-label="Compte">
+                <TopbarPromoCode
+                  onSuccess={(res) => {
+                    if (res?.bonus_added) onPromoRedeemed?.();
+                  }}
+                />
+                <div className="topbar-account-menu-sep" role="separator" />
                 <button
                   type="button"
                   className="topbar-account-menu-item"

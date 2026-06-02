@@ -3029,6 +3029,7 @@ export default function App() {
           if (typeof window.axelOpenCookieSettings === 'function') window.axelOpenCookieSettings();
         }}
         onSignOutClick={() => setSignOutConfirmOpen(true)}
+        onPromoRedeemed={loadUsage}
       />
 
       <main className="app-main" id="main-content">

@@ -91,6 +91,7 @@ from backend.db import (
     load_cv_base,
     save_adaptation,
     save_cv_base,
+    save_user_referral_attribution,
     set_user_plan,
     update_adaptation,
     upload_application_doc,
@@ -137,6 +138,9 @@ logger.setLevel(logging.INFO)
 BASE_DIR = CONFIG_BASE_DIR
 
 _ADMIN_MONITORING_NEWS_PATH = CONFIG_BASE_DIR / "backend" / "data" / "admin_monitoring_news.json"
+_ADMIN_BDE_CASHBACK_RULES_PATH = (
+    CONFIG_BASE_DIR / "backend" / "data" / "admin_bde_cashback_rules.json"
+)
 
 app = FastAPI(
     title="AxeL Job API",
@@ -2233,6 +2237,54 @@ def api_usage(request: Request):
     return payload
 
 
+def _read_bde_cashback_rules() -> dict[str, Any]:
+    """
+    Règles cashback BDE (monitoring) depuis un JSON déployé côté serveur.
+    Format:
+    {
+      "default_cashback_eur": 0,
+      "codes": {"BDE_DAUPHINE": {"cashback_eur": 4.0}}
+    }
+    """
+    out: dict[str, Any] = {"default_cashback_eur": 0.0, "cashback_by_code": {}, "config_error": None}
+    path = _ADMIN_BDE_CASHBACK_RULES_PATH
+    if not path.is_file():
+        return out
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        logger.warning("admin_bde_cashback_rules read failed: %s", e)
+        out["config_error"] = "rules_file_invalid"
+        return out
+    if not isinstance(raw, dict):
+        out["config_error"] = "rules_file_invalid"
+        return out
+    try:
+        out["default_cashback_eur"] = max(0.0, float(raw.get("default_cashback_eur", 0.0)))
+    except (TypeError, ValueError):
+        out["default_cashback_eur"] = 0.0
+    codes_raw = raw.get("codes")
+    if not isinstance(codes_raw, dict):
+        return out
+    normalized: dict[str, float] = {}
+    for code, payload in codes_raw.items():
+        if not code:
+            continue
+        key = str(code).strip()
+        if not key:
+            continue
+        if isinstance(payload, dict):
+            value = payload.get("cashback_eur")
+        else:
+            value = payload
+        try:
+            normalized[key] = max(0.0, float(value))
+        except (TypeError, ValueError):
+            continue
+    out["cashback_by_code"] = normalized
+    return out
+
+
 @app.get("/api/admin/monitoring/summary")
 def api_admin_monitoring_summary(request: Request, days: int = 7):
     """Tableau de bord ops : santé, agrégats d'événements (fichiers + optionnellement Supabase PG), rappel Prometheus."""
@@ -2247,6 +2299,21 @@ def api_admin_monitoring_summary(request: Request, days: int = 7):
             db_agg = supabase_pg.aggregate_events_recent_days(d)
         except Exception as ex:
             logger.info("admin monitoring supabase aggregate skipped: %s", ex)
+    bde_cashback = None
+    bde_rules = _read_bde_cashback_rules()
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg
+
+            bde_cashback = supabase_pg.aggregate_bde_cashback_recent_days(
+                d,
+                cashback_by_code=bde_rules.get("cashback_by_code") or {},
+                default_cashback_eur=float(bde_rules.get("default_cashback_eur") or 0.0),
+            )
+            if bde_cashback is not None and bde_rules.get("config_error"):
+                bde_cashback["config_error"] = bde_rules.get("config_error")
+        except Exception as ex:
+            logger.info("admin monitoring bde cashback skipped: %s", ex)
     if METRICS_AUTH_TOKEN:
         prom_hint = (
             "Prometheus : scraper GET /metrics avec l'en-tête "
@@ -2268,6 +2335,7 @@ def api_admin_monitoring_summary(request: Request, days: int = 7):
         },
         "events_from_log_files": files_agg,
         "events_from_database": db_agg,
+        "bde_cashback": bde_cashback,
         "prometheus": {
             "path": "/metrics",
             "protected": bool(METRICS_AUTH_TOKEN),
@@ -3620,6 +3688,10 @@ class TrackEventBody(BaseModel):
     session_id: str | None = None
 
 
+class ReferralCaptureBody(BaseModel):
+    attribution: dict = {}
+
+
 class InviteBody(BaseModel):
     email: str = ""
 
@@ -3638,6 +3710,18 @@ def api_events_track(request: Request, body: TrackEventBody):
     )
     event_log.log_event(body.event_type, user_id, ctx, session_id=sid)
     return {"ok": True}
+
+
+@app.post("/api/referral/capture")
+def api_referral_capture(request: Request, body: ReferralCaptureBody):
+    """
+    Fige le code partenaire (BDE) pour l'utilisateur connecté.
+    Idempotent: ne crée qu'une seule attribution par compte.
+    """
+    user_id = _require_user_id(request)
+    attr = body.attribution if isinstance(body.attribution, dict) else {}
+    saved = save_user_referral_attribution(user_id, attr)
+    return {"ok": True, "captured": bool(saved)}
 
 
 @app.post("/api/invite")

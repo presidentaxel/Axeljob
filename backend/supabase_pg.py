@@ -168,6 +168,121 @@ def aggregate_events_recent_days(days: int = 7) -> dict[str, Any] | None:
     }
 
 
+def insert_user_referral_once(
+    user_id: str,
+    partner_code: str,
+    utm_source: str | None = None,
+    utm_medium: str | None = None,
+    utm_campaign: str | None = None,
+    landing_path: str | None = None,
+) -> bool:
+    """
+    Insère une attribution partenaire pour un user uniquement si absente.
+    Retourne True si une ligne a été créée.
+    """
+    pool = get_pool()
+    if not pool:
+        raise RuntimeError("Pool PG indisponible")
+    with pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+                INSERT INTO public.user_referrals (
+                    user_id, partner_code, utm_source, utm_medium, utm_campaign, landing_path, captured_at, updated_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, now(), now())
+                ON CONFLICT (user_id) DO NOTHING
+                """,
+            (user_id, partner_code, utm_source, utm_medium, utm_campaign, landing_path),
+        )
+        return cur.rowcount > 0
+
+
+def aggregate_bde_cashback_recent_days(
+    days: int,
+    cashback_by_code: dict[str, float] | None = None,
+    default_cashback_eur: float = 0.0,
+) -> dict[str, Any] | None:
+    """
+    Agrège les utilisateurs attribués par code partenaire (BDE) sur une période,
+    puis calcule le montant cashback dû sur les utilisateurs actuellement en plan Pro.
+    """
+    days = max(1, min(int(days), 365))
+    pool = get_pool()
+    if not pool:
+        return None
+    from psycopg.rows import dict_row
+
+    normalized_rates: dict[str, float] = {}
+    for k, v in (cashback_by_code or {}).items():
+        kk = str(k or "").strip().lower()
+        if not kk:
+            continue
+        try:
+            normalized_rates[kk] = max(0.0, float(v))
+        except (TypeError, ValueError):
+            continue
+    try:
+        default_rate = max(0.0, float(default_cashback_eur))
+    except (TypeError, ValueError):
+        default_rate = 0.0
+
+    try:
+        with pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT
+                    r.partner_code AS partner_code,
+                    COUNT(*)::bigint AS referred_users,
+                    COUNT(*) FILTER (
+                        WHERE p.plan = 'pro' AND COALESCE(p.paywall_disabled, false) = false
+                    )::bigint AS pro_users
+                FROM public.user_referrals r
+                LEFT JOIN public.user_plans p ON p.user_id = r.user_id
+                WHERE r.captured_at >= NOW() - (%s * INTERVAL '1 day')
+                GROUP BY r.partner_code
+                ORDER BY referred_users DESC, partner_code ASC
+                """,
+                (days,),
+            )
+            rows = list(cur.fetchall() or [])
+    except Exception as e:
+        logger.warning("aggregate_bde_cashback_recent_days failed: %s", e)
+        return None
+
+    per_code: list[dict[str, Any]] = []
+    total_referred = 0
+    total_pro = 0
+    total_amount = 0.0
+    for row in rows:
+        code = str(row.get("partner_code") or "").strip()
+        if not code:
+            continue
+        referred = int(row.get("referred_users") or 0)
+        pro_users = int(row.get("pro_users") or 0)
+        rate = normalized_rates.get(code.lower(), default_rate)
+        amount = round(pro_users * rate, 2)
+        per_code.append(
+            {
+                "partner_code": code,
+                "referred_users": referred,
+                "pro_users": pro_users,
+                "cashback_rate_eur": round(rate, 2),
+                "amount_due_eur": amount,
+            }
+        )
+        total_referred += referred
+        total_pro += pro_users
+        total_amount += amount
+    return {
+        "period_days": days,
+        "total_referred_users": total_referred,
+        "total_pro_users": total_pro,
+        "total_amount_due_eur": round(total_amount, 2),
+        "rows": per_code,
+        "source": "supabase_pg",
+    }
+
+
 def close_pool() -> None:
     """Fermeture propre (tests / shutdown)."""
     global _pool

@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 import threading
 import time
 from collections import OrderedDict
@@ -161,6 +162,81 @@ def invite_user_by_email(email: str, redirect_to: str | None = None) -> dict:
     except TypeError:
         # Fallback si la lib n'accepte qu'un seul argument
         return sb.auth.admin.invite_user_by_email(email)
+
+
+_PARTNER_CODE_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]{1,31}$")
+
+
+def _sanitize_partner_code(value: str | None) -> str:
+    code = (value or "").strip()
+    if not code:
+        return ""
+    code = code[:32]
+    return code if _PARTNER_CODE_RE.match(code) else ""
+
+
+def save_user_referral_attribution(user_id: str, attribution: dict | None) -> bool:
+    """
+    Enregistre l'attribution partenaire (BDE) au premier login.
+    Retourne True si une nouvelle attribution a été créée.
+    """
+    uid = (user_id or "").strip()
+    if not uid:
+        return False
+    attr = attribution if isinstance(attribution, dict) else {}
+    partner_code = _sanitize_partner_code(attr.get("partner_code"))
+    if not partner_code:
+        return False
+
+    utm_source = str(attr.get("source") or "").strip()[:120] or None
+    utm_medium = str(attr.get("medium") or "").strip()[:120] or None
+    utm_campaign = str(attr.get("campaign") or "").strip()[:180] or None
+    landing_path = str(attr.get("landing_path") or "").strip()[:300] or None
+
+    if USE_SUPABASE_PG:
+        try:
+            from backend import supabase_pg as spg
+
+            return bool(
+                spg.insert_user_referral_once(
+                    uid,
+                    partner_code=partner_code,
+                    utm_source=utm_source,
+                    utm_medium=utm_medium,
+                    utm_campaign=utm_campaign,
+                    landing_path=landing_path,
+                )
+            )
+        except Exception as e:
+            _warn_pg_fallback("insert_user_referral_once", e)
+
+    sb = _get_supabase()
+    if not sb:
+        return False
+    try:
+        existing = (
+            sb.table("user_referrals")
+            .select("user_id")
+            .eq("user_id", uid)
+            .limit(1)
+            .execute()
+        )
+        if existing.data and len(existing.data) > 0:
+            return False
+        row = {
+            "user_id": uid,
+            "partner_code": partner_code,
+            "utm_source": utm_source,
+            "utm_medium": utm_medium,
+            "utm_campaign": utm_campaign,
+            "landing_path": landing_path,
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        sb.table("user_referrals").insert(row).execute()
+        return True
+    except Exception:
+        return False
 
 
 # --- CV de base ---

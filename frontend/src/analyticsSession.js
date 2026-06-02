@@ -41,6 +41,16 @@ function parseUtmFromSearch(search) {
   if (gclid) out.gclid = gclid.slice(0, 120);
   const fbclid = (params.get('fbclid') || '').trim();
   if (fbclid) out.fbclid = fbclid.slice(0, 120);
+  // Code partenaire (BDE) supporte plusieurs aliases de lien.
+  const partnerRaw = (
+    params.get('partner_code')
+    || params.get('bde_code')
+    || params.get('bde')
+    || params.get('partner')
+    || params.get('ref')
+    || ''
+  ).trim();
+  if (partnerRaw) out.partner_code = partnerRaw.slice(0, 32);
   return out;
 }
 

@@ -9,6 +9,43 @@ def _free_layout(blocks):
     return {"version": 3, "grid": "free", "pages": [{"id": "p1", "blocks": blocks}]}
 
 
+class TestMissingProfileSections(unittest.TestCase):
+    def test_blank_canvas_penalizes_missing_displayed_content(self):
+        cv = {
+            "prenom": "Alice",
+            "nom": "Martin",
+            "email": "alice@example.com",
+            "experiences": [{"poste": "Dev"}],
+            "formations": [{"diplome": "Master"}],
+            "competences": {"techniques": ["Python"]},
+        }
+        rule = fc_rules.rule_free_canvas_missing_profile_sections(cv, _free_layout([]))
+        self.assertIsNotNone(rule)
+        self.assertEqual(rule.id, "malus_free_canvas_missing_profile_sections")
+        self.assertIn("experiences", rule.label)
+        self.assertLessEqual(rule.delta, -12)
+
+    def test_displayed_profile_sections_have_no_penalty(self):
+        cv = {
+            "prenom": "Alice",
+            "email": "alice@example.com",
+            "experiences": [{"poste": "Dev"}],
+        }
+        layout = _free_layout(
+            [
+                {"type": "identity"},
+                {"type": "contact"},
+                {"type": "experiences"},
+            ]
+        )
+        self.assertIsNone(fc_rules.rule_free_canvas_missing_profile_sections(cv, layout))
+
+    def test_non_free_layout_is_ignored(self):
+        cv = {"prenom": "Alice", "experiences": [{"poste": "Dev"}]}
+        layout = {"grid": "single-or-sidebar", "pages": [{"blocks": []}]}
+        self.assertIsNone(fc_rules.rule_free_canvas_missing_profile_sections(cv, layout))
+
+
 class TestFreeCanvasReadingOrder(unittest.TestCase):
     def test_skips_non_free_grid(self):
         layout = {"grid": "single-or-sidebar", "pages": [{"blocks": []}]}

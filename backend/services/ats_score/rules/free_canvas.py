@@ -29,6 +29,15 @@ _CANONICAL_READ_ORDER: tuple[str, ...] = (
 
 _READ_RANK: dict[str, int] = {t: i for i, t in enumerate(_CANONICAL_READ_ORDER)}
 
+_MISSING_SECTION_LABELS: dict[str, str] = {
+    "identity": "identite",
+    "contact": "contact",
+    "experiences": "experiences",
+    "formations": "formations",
+    "skills": "competences",
+    "languages": "langues",
+}
+
 
 def _reading_position(block: dict[str, Any]) -> tuple[float, float]:
     """Cle de tri : haut-gauche du bloc (y puis x en mm)."""
@@ -54,6 +63,59 @@ def _count_inversions(ranks: list[int]) -> int:
             if ranks[i] > ranks[j]:
                 inv += 1
     return inv
+
+
+def _cv_has_identity(cv: dict[str, Any]) -> bool:
+    return bool((cv.get("prenom") or "").strip() or (cv.get("nom") or "").strip())
+
+
+def _cv_has_contact(cv: dict[str, Any]) -> bool:
+    return bool((cv.get("email") or "").strip() or (cv.get("telephone") or "").strip())
+
+
+def _cv_has_skills(cv: dict[str, Any], key: str) -> bool:
+    competences = cv.get("competences") or {}
+    return isinstance(competences, dict) and bool(competences.get(key) or [])
+
+
+def rule_free_canvas_missing_profile_sections(
+    cv: dict[str, Any], layout: dict[str, Any]
+) -> Rule | None:
+    """Penalise les informations du profil absentes du canvas affiche.
+
+    En mode libre, le score doit juger le CV réellement visible, pas les champs
+    stockes dans le profil. Une page blanche doit donc perdre des points pour
+    contenu non affiche, pas pour une photo ou des dates qui n'apparaissent pas.
+    """
+    if get_grid(layout) != "free":
+        return None
+    displayed_types = {str(block.get("type")) for block in iter_blocks(layout) if block.get("type")}
+    expected: list[str] = []
+    if _cv_has_identity(cv):
+        expected.append("identity")
+    if _cv_has_contact(cv):
+        expected.append("contact")
+    if any(isinstance(exp, dict) for exp in cv.get("experiences", []) or []):
+        expected.append("experiences")
+    if any(isinstance(form, dict) for form in cv.get("formations", []) or []):
+        expected.append("formations")
+    if _cv_has_skills(cv, "techniques"):
+        expected.append("skills")
+    if _cv_has_skills(cv, "langues"):
+        expected.append("languages")
+
+    missing = [section for section in expected if section not in displayed_types]
+    if not missing:
+        return None
+    visible_missing = ", ".join(_MISSING_SECTION_LABELS.get(section, section) for section in missing[:3])
+    suffix = "..." if len(missing) > 3 else ""
+    delta = max(-18, -4 * len(missing))
+    return Rule(
+        id="malus_free_canvas_missing_profile_sections",
+        label=f"Canvas libre : contenu du profil non affiche ({visible_missing}{suffix})",
+        delta=delta,
+        severity=RuleSeverity.ERROR if len(missing) >= 3 else RuleSeverity.WARNING,
+    )
 
 
 def rule_free_canvas_reading_order(cv: dict[str, Any], layout: dict[str, Any]) -> Rule | None:

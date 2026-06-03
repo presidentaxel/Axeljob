@@ -26,6 +26,7 @@ parsing_rules: tuple = (
     layout.rule_multi_column,
     layout.rule_sidebar_present,
     layout.rule_free_canvas_text_positions,
+    free_canvas.rule_free_canvas_missing_profile_sections,
     free_canvas.rule_free_canvas_reading_order,
     free_canvas.rule_identity_not_first_in_reading,
     free_canvas.rule_experiences_before_resume,

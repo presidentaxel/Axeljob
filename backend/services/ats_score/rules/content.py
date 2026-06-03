@@ -11,6 +11,8 @@ import re
 from typing import Any
 
 from backend.services.ats_score.rules._helpers import (
+    free_canvas_block_types,
+    get_grid,
     get_pages,
     get_sections_order,
     is_section_visible,
@@ -35,22 +37,25 @@ _DATE_PATTERNS: dict[str, re.Pattern[str]] = {
 }
 
 
-def _collect_dates(cv: dict[str, Any]) -> list[str]:
+def _collect_dates(cv: dict[str, Any], layout: dict[str, Any] | None = None) -> list[str]:
     """Recupere toutes les dates ``cv.experiences[].date_*`` et ``cv.formations[].date``."""
+    free_block_types = free_canvas_block_types(layout or {}) if get_grid(layout or {}) == "free" else None
     dates: list[str] = []
-    for exp in cv.get("experiences", []) or []:
-        if not isinstance(exp, dict):
-            continue
-        for key in ("date_debut", "date_fin"):
-            raw = exp.get(key)
+    if free_block_types is None or "experiences" in free_block_types:
+        for exp in cv.get("experiences", []) or []:
+            if not isinstance(exp, dict):
+                continue
+            for key in ("date_debut", "date_fin"):
+                raw = exp.get(key)
+                if isinstance(raw, str) and raw.strip():
+                    dates.append(raw.strip())
+    if free_block_types is None or "formations" in free_block_types:
+        for form in cv.get("formations", []) or []:
+            if not isinstance(form, dict):
+                continue
+            raw = form.get("date")
             if isinstance(raw, str) and raw.strip():
                 dates.append(raw.strip())
-    for form in cv.get("formations", []) or []:
-        if not isinstance(form, dict):
-            continue
-        raw = form.get("date")
-        if isinstance(raw, str) and raw.strip():
-            dates.append(raw.strip())
     return dates
 
 
@@ -76,6 +81,8 @@ def rule_standard_section_titles(cv: dict[str, Any], layout: dict[str, Any]) -> 
             for entry in sections
             if entry.get("visible", True) and entry.get("id") in STANDARD_SECTIONS
         }
+    elif get_grid(layout) == "free":
+        visible_ids = free_canvas_block_types(layout) & STANDARD_SECTIONS
     else:
         visible_ids = set()
         if cv.get("prenom") or cv.get("nom"):
@@ -163,7 +170,7 @@ def rule_dates_format_consistent(cv: dict[str, Any], layout: dict[str, Any]) -> 
     (les marqueurs de presence type "Aujourd'hui" sont neutres et ne cassent
     pas la coherence).
     """
-    dates = _collect_dates(cv)
+    dates = _collect_dates(cv, layout)
     if not dates:
         return None
     classifications = {_classify_date(d) for d in dates}
@@ -186,7 +193,7 @@ def rule_inconsistent_dates(cv: dict[str, Any], layout: dict[str, Any]) -> Rule 
     Une date est "exotique" si elle ne matche ni ``YYYY``, ni ``MM/YYYY``,
     ni un marqueur "present" connu.
     """
-    dates = _collect_dates(cv)
+    dates = _collect_dates(cv, layout)
     exotic_count = sum(1 for d in dates if _classify_date(d) == "exotic")
     if exotic_count == 0:
         return None

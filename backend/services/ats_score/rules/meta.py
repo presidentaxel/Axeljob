@@ -8,7 +8,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.services.ats_score.rules._helpers import get_theme
+from backend.services.ats_score.rules._helpers import (
+    free_canvas_has_block_type,
+    get_grid,
+    get_theme,
+)
 from backend.services.ats_score.types import Rule, RuleSeverity
 
 
@@ -27,6 +31,8 @@ def rule_photo_present(cv: dict[str, Any], layout: dict[str, Any]) -> Rule | Non
     theme = get_theme(layout)
     show_photo = theme.get("show_photo", True)
     if show_photo is False:
+        return None
+    if get_grid(layout) == "free" and not free_canvas_has_block_type(layout, "photo"):
         return None
     photo_url = cv.get("photo_url") or ""
     if not isinstance(photo_url, str) or not photo_url.strip():

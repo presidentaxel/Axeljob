@@ -34,7 +34,7 @@ class TestRouteHappyPath(unittest.TestCase):
         self.assertEqual(payload["kind"], "parsing")
         self.assertIn("total", payload)
         self.assertIn("rules", payload)
-        self.assertEqual(payload["version"], "2026.05.1")
+        self.assertEqual(payload["version"], "2026.05.2")
 
     def test_route_returns_payload_for_explicit_layout(self):
         body = ScoreParsingBody(layout={"grid": "single-or-sidebar", "sidebar_ratio": 0.0})

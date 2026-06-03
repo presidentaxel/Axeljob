@@ -39,6 +39,15 @@ class TestStandardSectionTitles(unittest.TestCase):
         self.assertIsNotNone(rule)
         self.assertEqual(rule.delta, 3)
 
+    def test_free_canvas_uses_displayed_blocks_instead_of_cv_fallback(self):
+        cv = {
+            "prenom": "Alice",
+            "experiences": [{"poste": "X"}],
+            "formations": [{"diplome": "Y"}],
+        }
+        layout = {"grid": "free", "pages": [{"blocks": []}]}
+        self.assertIsNone(content_rules.rule_standard_section_titles(cv, layout))
+
     def test_invisible_sections_do_not_count(self):
         layout = {
             "sections_order": [
@@ -143,6 +152,18 @@ class TestInconsistentDatesPenalty(unittest.TestCase):
         rule = content_rules.rule_inconsistent_dates(cv, {})
         self.assertIsNotNone(rule)
         self.assertEqual(rule.delta, -5)
+
+    def test_free_canvas_without_experience_block_ignores_profile_dates(self):
+        cv = {"experiences": [{"date_debut": "ete 2022", "date_fin": "fin 2023"}]}
+        layout = {"grid": "free", "pages": [{"blocks": []}]}
+        self.assertIsNone(content_rules.rule_inconsistent_dates(cv, layout))
+
+    def test_free_canvas_with_experience_block_checks_profile_dates(self):
+        cv = {"experiences": [{"date_debut": "ete 2022", "date_fin": "2023"}]}
+        layout = {"grid": "free", "pages": [{"blocks": [{"type": "experiences"}]}]}
+        rule = content_rules.rule_inconsistent_dates(cv, layout)
+        self.assertIsNotNone(rule)
+        self.assertEqual(rule.delta, -1)
 
 
 if __name__ == "__main__":

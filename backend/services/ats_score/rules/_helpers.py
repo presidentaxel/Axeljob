@@ -99,6 +99,23 @@ def iter_blocks(layout: dict[str, Any]) -> list[dict[str, Any]]:
     return blocks
 
 
+def free_canvas_block_types(layout: dict[str, Any]) -> set[str]:
+    """Retourne les types de blocs affiches en mode canvas libre.
+
+    Pour un layout non-free, retourne un set vide : les templates figes restent
+    scores via leurs metadonnees historiques.
+    """
+    if get_grid(layout) != "free":
+        return set()
+    return {str(block.get("type")) for block in iter_blocks(layout) if block.get("type")}
+
+
+def free_canvas_has_block_type(layout: dict[str, Any], *block_types: str) -> bool:
+    """Vrai si au moins un des types demandes est affiche sur le canvas libre."""
+    actual = free_canvas_block_types(layout)
+    return any(block_type in actual for block_type in block_types)
+
+
 def is_section_visible(layout: dict[str, Any], section_id: str) -> bool:
     """Vrai si la section ``section_id`` est marquee ``visible: True``.
 

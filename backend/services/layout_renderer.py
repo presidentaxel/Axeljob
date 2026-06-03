@@ -109,6 +109,10 @@ body.cv-layout-body {
 .cv-layout-photo { width: 100%; height: 100%; object-fit: cover; display: block; }
 .cv-layout-photo--round { border-radius: 50%; }
 .cv-layout-photo-ph { width: 100%; height: 100%; background: #e2e8f0; }
+.cv-layout-image-frame { width: 100%; height: 100%; overflow: hidden; }
+.cv-layout-image { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cv-layout-icon { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.cv-layout-icon svg { width: 100%; height: 100%; display: block; }
 .cv-layout-shape-line, .cv-layout-shape-rect { width: 100%; height: 100%; }
 .cv-layout-title {
   margin: 0;
@@ -400,9 +404,33 @@ def _render_non_semantic(block: dict) -> str:
             f'<div class="cv-layout-shape-rect" style="background:{bg};" role="presentation"></div>'
         )
 
+    if btype == "image":
+        src = block.get("image_src") if isinstance(block.get("image_src"), str) else ""
+        if not src.strip():
+            return '<div class="cv-layout-photo-ph" aria-hidden="true"></div>'
+        radius = _image_radius(style)
+        focal_x = _num(style.get("focal_x"), 50)
+        focal_y = _num(style.get("focal_y"), 50)
+        zoom = max(1.0, _num(style.get("image_zoom"), 1))
+        opacity = _num(style.get("opacity"), 1)
+        frame_style = (
+            f"border-radius:{radius};opacity:{opacity};"
+        )
+        image_style = (
+            f"object-position:{focal_x}% {focal_y}%;"
+            f"transform:scale({zoom});"
+            f"transform-origin:{focal_x}% {focal_y}%;"
+        )
+        return (
+            f'<div class="cv-layout-image-frame" style="{frame_style}">'
+            f'<img class="cv-layout-image" src="{_esc(src)}" alt="" style="{image_style}"/>'
+            f"</div>"
+        )
+
     if btype == "icon":
-        label = (block.get("icon_name") or "Icône").strip()
-        return f'<div class="cv-layout-placeholder">{_text(label)}</div>'
+        icon_name = (block.get("icon_name") or "").strip()
+        color = _esc(str(style.get("color") or "#1e293b"))
+        return f'<div class="cv-layout-icon" style="color:{color};">{_icon_svg(icon_name)}</div>'
 
     if btype == "qrcode":
         return '<div class="cv-layout-placeholder">QR</div>'
@@ -454,6 +482,64 @@ def _style_attr(declarations: list[str]) -> str:
     if not declarations:
         return ""
     return f' style="{";".join(declarations)}"'
+
+
+def _image_radius(style: dict[str, Any]) -> str:
+    shape = str(style.get("shape") or "rect")
+    if shape == "circle":
+        return "50%"
+    if shape == "rounded":
+        return "12%"
+    return "0"
+
+
+def _icon_svg(name: str) -> str:
+    paths = {
+        "HiPhone": (
+            '<path d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 '
+            '2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106a1.125 '
+            '1.125 0 0 0-1.173.417l-.97 1.293a1.125 1.125 0 0 1-1.21.38 '
+            '6.824 6.824 0 0 1-4.143-4.143 1.125 1.125 0 0 1 .38-1.21l1.293-.97'
+            'c.363-.272.527-.739.417-1.173L9.963 6.102A1.125 1.125 0 0 0 '
+            '8.872 5.25H7.5A2.25 2.25 0 0 0 5.25 7.5v-.75Z"/>'
+        ),
+        "HiDevicePhoneMobile": (
+            '<path d="M10.5 1.5A2.25 2.25 0 0 0 8.25 3.75v16.5a2.25 2.25 0 0 0 '
+            '2.25 2.25h3a2.25 2.25 0 0 0 2.25-2.25V3.75A2.25 2.25 0 0 0 '
+            '13.5 1.5h-3Zm1.5 18.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z"/>'
+        ),
+        "HiEnvelope": (
+            '<path d="M1.5 8.67v8.58A2.25 2.25 0 0 0 3.75 19.5h16.5a2.25 2.25 '
+            '0 0 0 2.25-2.25V8.67l-9.6 5.76a1.75 1.75 0 0 1-1.8 0L1.5 8.67Z"/>'
+            '<path d="M22.5 6.75v-.25a2.25 2.25 0 0 0-2.25-2.25H3.75A2.25 '
+            '2.25 0 0 0 1.5 6.5v.25l10.35 6.21a.25.25 0 0 0 .3 0L22.5 6.75Z"/>'
+        ),
+        "HiLink": (
+            '<path d="M19.902 4.098a3.75 3.75 0 0 0-5.303 0l-2.122 2.121a.75.75 '
+            '0 1 0 1.061 1.061l2.121-2.121a2.25 2.25 0 0 1 3.182 3.182l-2.121 '
+            '2.121a2.25 2.25 0 0 1-3.182 0 .75.75 0 1 0-1.061 1.061 3.75 '
+            '3.75 0 0 0 5.303 0l2.122-2.121a3.75 3.75 0 0 0 0-5.304Z"/>'
+            '<path d="M11.523 12.477a.75.75 0 0 0-1.061 0L8.34 14.598a2.25 2.25 '
+            '0 0 1-3.182-3.182l2.121-2.121a2.25 2.25 0 0 1 3.182 0 .75.75 '
+            '0 1 0 1.061-1.061 3.75 3.75 0 0 0-5.303 0L4.098 10.355a3.75 '
+            '3.75 0 0 0 5.303 5.303l2.122-2.121a.75.75 0 0 0 0-1.061Z"/>'
+        ),
+        "HiMapPin": (
+            '<path fill-rule="evenodd" d="M12 2.25a7.5 7.5 0 0 0-7.5 7.5c0 '
+            '5.25 6.75 12 7.5 12s7.5-6.75 7.5-12a7.5 7.5 0 0 0-7.5-7.5Zm0 '
+            '10.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" clip-rule="evenodd"/>'
+        ),
+    }
+    path = paths.get(name) or (
+        '<path fill-rule="evenodd" d="M12 2.25a9.75 9.75 0 1 0 0 19.5 9.75 '
+        '9.75 0 0 0 0-19.5ZM8.25 12a3.75 3.75 0 1 1 7.5 0 3.75 3.75 '
+        '0 0 1-7.5 0Z" clip-rule="evenodd"/>'
+    )
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" '
+        'fill="currentColor" aria-hidden="true">'
+        f"{path}</svg>"
+    )
 
 
 def _css_value(value: str) -> str:

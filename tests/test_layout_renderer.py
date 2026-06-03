@@ -120,6 +120,67 @@ class TestLayoutRenderer(unittest.TestCase):
         self.assertIn("font-family:Playfair Display, serif", html)
         self.assertIn("font-size:16.0pt", html)
 
+    def test_image_block_is_exported(self):
+        layout = {
+            "version": 3,
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "img",
+                            "type": "image",
+                            "image_src": "data:image/png;base64,AAA",
+                            "x": 10,
+                            "y": 10,
+                            "w": 40,
+                            "h": 30,
+                            "z": 1,
+                            "style": {
+                                "shape": "rounded",
+                                "image_zoom": 1.4,
+                                "focal_x": 40,
+                                "focal_y": 60,
+                            },
+                        }
+                    ],
+                }
+            ],
+        }
+        html = render_html(_sample_cv(), layout)
+        self.assertIn('class="cv-layout-image"', html)
+        self.assertIn('src="data:image/png;base64,AAA"', html)
+        self.assertIn("object-position:40.0% 60.0%", html)
+        self.assertIn("transform:scale(1.4)", html)
+
+    def test_icon_block_exports_svg_not_technical_name(self):
+        layout = {
+            "version": 3,
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "icon",
+                            "type": "icon",
+                            "icon_name": "HiPhone",
+                            "x": 10,
+                            "y": 10,
+                            "w": 8,
+                            "h": 8,
+                            "z": 1,
+                            "style": {"color": "#2563eb"},
+                        }
+                    ],
+                }
+            ],
+        }
+        html = render_html(_sample_cv(), layout)
+        self.assertIn('class="cv-layout-icon"', html)
+        self.assertIn("<svg", html)
+        self.assertIn("color:#2563eb", html)
+        self.assertNotIn(">HiPhone<", html)
+
 
 if __name__ == "__main__":
     unittest.main()

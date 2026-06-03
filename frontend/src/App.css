@@ -423,7 +423,7 @@ body {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  min-width: 12.5rem;
+  min-width: 15.5rem;
   background: var(--bg, #fff);
   border: 1px solid var(--border);
   border-radius: var(--radius-xs, 10px);
@@ -459,6 +459,99 @@ body {
 .topbar-account-menu-item--danger:hover {
   background: #fef2f2;
   color: #991b1b;
+}
+
+.topbar-account-code {
+  padding: 0.5rem 0.75rem 0.55rem;
+}
+
+.topbar-account-code-hint {
+  margin: 0 0 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.topbar-account-code-form {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.topbar-account-code-input {
+  flex: 1;
+  min-width: 0;
+  height: 2rem;
+  padding: 0 0.55rem;
+  font-size: 0.8rem;
+  font-family: inherit;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.topbar-account-code-input::placeholder {
+  color: var(--muted);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 0.85;
+}
+
+.topbar-account-code-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+
+.topbar-account-code-input:disabled {
+  opacity: 0.65;
+}
+
+.topbar-account-code-submit {
+  flex-shrink: 0;
+  height: 2rem;
+  padding: 0 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--accent);
+  background: var(--accent-subtle);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.topbar-account-code-submit:hover:not(:disabled) {
+  background: var(--accent);
+  color: #fff;
+}
+
+.topbar-account-code-submit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.topbar-account-code-feedback {
+  margin: 0.45rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.topbar-account-code-feedback--error {
+  color: #b91c1c;
+}
+
+.topbar-account-code-feedback--ok {
+  color: #15803d;
 }
 
 .topbar-account-menu-sep {

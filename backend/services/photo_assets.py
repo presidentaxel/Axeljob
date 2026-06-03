@@ -91,8 +91,10 @@ def get_photo_url_for_cv(
     assets_dir = base_dir / ASSETS_DIR
     source: Path | None = None
     if existing_photo_url and not existing_photo_url.startswith("http"):
-        candidate = base_dir / existing_photo_url
-        if candidate.is_file():
+        from backend.path_safety import resolve_relative_under
+
+        candidate = resolve_relative_under(base_dir, existing_photo_url)
+        if candidate is not None and candidate.is_file():
             return existing_photo_url
     if source is None and allow_assets_fallback:
         source = _find_source_photo(assets_dir, prenom=prenom, nom=nom)

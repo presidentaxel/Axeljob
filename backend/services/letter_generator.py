@@ -12,7 +12,6 @@ LETTER_SYSTEM_PROMPT = """Tu es un expert en rédaction de lettres de motivation
 Tu rédiges des lettres professionnelles, percutantes et personnalisées.
 ..."""
 
-_PARA_SPLIT = re.compile(r"\n\s*\n")
 _CV_TEMPLATE_SLUGS = frozenset(
     {
         "classic",
@@ -30,18 +29,43 @@ _CV_TEMPLATE_SLUGS = frozenset(
         "impact",
     }
 )
-_LEADING_TEMPLATE_LINE_RE = re.compile(
-    r"""(?ix)^(?:(?:type\s+de\s+)?template(?:\s+cv|\s+de\s+cv)?\s*[:#.\-–]\s*.+ | modèle(?:\s+cv)?\s*[:#.\-–]\s*.+ | type\s+de\s+lettre\s*[:#.\-–]?\s*.+ | template\s+[a-zàéèêëïîôùûç0-9][a-zàéèêëïîôùûç0-9_\-]{0,48}$)$""",
-    re.VERBOSE,
-)
+
+
+def _is_leading_template_line(line: str) -> bool:
+    s = (line or "").strip()
+    if not s or len(s) > 200:
+        return False
+    low = s.lower().rstrip(".!")
+    if low in _CV_TEMPLATE_SLUGS:
+        return True
+    if re.fullmatch(r"custom_[a-z0-9_]+", low):
+        return True
+    if re.fullmatch(r"template\s+[a-z0-9_\-]{1,48}", low):
+        return True
+    for prefix in (
+        "type de template",
+        "template cv",
+        "template de cv",
+        "modèle cv",
+        "modèle de cv",
+        "type de lettre",
+    ):
+        if low.startswith(prefix):
+            return True
+    return False
+
+
+def _split_first_paragraph(text: str) -> tuple[str, str]:
+    idx = text.find("\n\n")
+    if idx < 0:
+        return text.strip(), ""
+    return text[:idx].strip(), text[idx + 2 :].strip()
 
 
 def _strip_leading_template_echo(corps: str) -> str:
     s = (corps or "").strip()
     while s:
-        parts = _PARA_SPLIT.split(s, 1)
-        first = parts[0].strip()
-        rest = parts[1].strip() if len(parts) > 1 else ""
+        first, rest = _split_first_paragraph(s)
         if not first:
             s = rest
             continue
@@ -49,12 +73,7 @@ def _strip_leading_template_echo(corps: str) -> str:
         if len(lines) != 1:
             break
         line = lines[0]
-        low = line.lower().rstrip(".!")
-        if (
-            low in _CV_TEMPLATE_SLUGS
-            or re.fullmatch(r"custom_[a-z0-9_]+", low)
-            or _LEADING_TEMPLATE_LINE_RE.match(line)
-        ):
+        if _is_leading_template_line(line):
             s = rest
             continue
         break
@@ -122,7 +141,19 @@ def generer_corps_lettre(
 def _texte_to_html_paragraphes(texte: str) -> str:
     if not texte:
         return "<p></p>"
-    return "".join(f"<p>{p.strip()}</p>" for p in re.split(r"\n\s*\n", texte) if p.strip())
+    parts: list[str] = []
+    chunk = texte
+    while chunk:
+        para, chunk = _split_first_paragraph(chunk)
+        if not para and not chunk:
+            break
+        if not para and chunk:
+            para, chunk = chunk, ""
+        if para:
+            parts.append(para)
+        if not chunk:
+            break
+    return "".join(f"<p>{p}</p>" for p in parts) if parts else "<p></p>"
 
 
 def corps_lettre_to_html(corps_brut: str) -> str:
@@ -130,7 +161,12 @@ def corps_lettre_to_html(corps_brut: str) -> str:
 
 
 def generer_lettre_pdf(
-    cv: dict, fiche_poste: str, poste: str, entreprise: str, output_path: Path
+    cv: dict,
+    fiche_poste: str,
+    poste: str,
+    entreprise: str,
+    output_dir: Path,
+    pdf_filename: str,
 ) -> None:
     from jinja2 import Environment, FileSystemLoader, select_autoescape
     from weasyprint import CSS, HTML
@@ -154,9 +190,13 @@ def generer_lettre_pdf(
         poste=poste,
         corps_lettre=corps_html,
     )
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    from backend.path_safety import resolve_under_base, safe_basename
+
+    out_dir = output_dir.resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    safe_out = resolve_under_base(out_dir, safe_basename(pdf_filename, default="Motivation.pdf"))
     HTML(string=html_str, base_url=str(templates_dir)).write_pdf(
-        output_path, stylesheets=[CSS(filename=templates_dir / "letter_template.css")]
+        safe_out, stylesheets=[CSS(filename=templates_dir / "letter_template.css")]
     )
 
 

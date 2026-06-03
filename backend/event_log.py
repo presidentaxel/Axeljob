@@ -60,6 +60,7 @@ EVENT_CV_IMPORT = "cv_import"
 EVENT_TEMPLATE_CHANGED = "template_changed"
 EVENT_PAGE_ENGAGEMENT = "page_engagement"
 EVENT_ADAPT_CTA_CLICKED = "adapt_cta_clicked"
+EVENT_PROMO_CODE_REDEEMED = "promo_code_redeemed"
 
 
 def _anon_user_id(user_id: str | None) -> str:

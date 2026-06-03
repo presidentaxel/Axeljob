@@ -215,11 +215,7 @@ def save_user_referral_attribution(user_id: str, attribution: dict | None) -> bo
         return False
     try:
         existing = (
-            sb.table("user_referrals")
-            .select("user_id")
-            .eq("user_id", uid)
-            .limit(1)
-            .execute()
+            sb.table("user_referrals").select("user_id").eq("user_id", uid).limit(1).execute()
         )
         if existing.data and len(existing.data) > 0:
             return False
@@ -743,8 +739,13 @@ def save_adaptation(adaptation_id: str, payload: dict, user_id: str | None = Non
         except Exception:
             raise
 
+    from backend.path_safety import adaptation_json_path
+
     ADAPTATIONS_DIR.mkdir(parents=True, exist_ok=True)
-    path = ADAPTATIONS_DIR / f"{adaptation_id}.json"
+    try:
+        path = adaptation_json_path(ADAPTATIONS_DIR, adaptation_id)
+    except ValueError:
+        return
     with open(path, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
@@ -911,7 +912,12 @@ def get_adaptation(adaptation_id: str, user_id: str | None = None) -> dict | Non
                 return row.get("payload")
         except Exception:
             pass
-    path = ADAPTATIONS_DIR / f"{adaptation_id}.json"
+    from backend.path_safety import adaptation_json_path
+
+    try:
+        path = adaptation_json_path(ADAPTATIONS_DIR, adaptation_id)
+    except ValueError:
+        return None
     if path.is_file():
         with open(path, encoding="utf-8") as f:
             data = json.load(f)

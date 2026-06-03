@@ -106,6 +106,7 @@ from backend.gemini_usage import (
     record_and_check,
     usage_from_response,
 )
+from backend.promo_codes import redeem_promo_code
 from backend.security import check_user_input_for_injection
 from backend.services import billing_notifications, template_access
 
@@ -585,9 +586,9 @@ def _enforce_free_adaptations_quota(user_id: str | None) -> None:
 
 
 def _safe_adaptation_id(adaptation_id: str) -> bool:
-    if not adaptation_id or len(adaptation_id) > 80:
-        return False
-    return all(c.isalnum() or c in "_-" for c in adaptation_id)
+    from backend.path_safety import is_safe_id_segment
+
+    return is_safe_id_segment(adaptation_id)
 
 
 def _decode_supabase_jwt(token: str) -> dict:
@@ -2246,7 +2247,11 @@ def _read_bde_cashback_rules() -> dict[str, Any]:
       "codes": {"BDE_DAUPHINE": {"cashback_eur": 4.0}}
     }
     """
-    out: dict[str, Any] = {"default_cashback_eur": 0.0, "cashback_by_code": {}, "config_error": None}
+    out: dict[str, Any] = {
+        "default_cashback_eur": 0.0,
+        "cashback_by_code": {},
+        "config_error": None,
+    }
     path = _ADMIN_BDE_CASHBACK_RULES_PATH
     if not path.is_file():
         return out
@@ -2935,7 +2940,7 @@ async def api_adapt_run_stream(request: Request, body: AdaptRunBody):
                 {
                     "type": "error",
                     "status": 500,
-                    "detail": str(e) or "Erreur préparation adaptation.",
+                    "detail": "Erreur préparation adaptation.",
                 }
             )
             return
@@ -2998,7 +3003,7 @@ async def api_adapt_run_stream(request: Request, body: AdaptRunBody):
                         request,
                         event_log.EVENT_ADAPTATION_FAILED,
                         user_id,
-                        {"error": str(e), "step": sid},
+                        {"error": type(e).__name__, "step": sid},
                     )
                     yield _line(
                         {
@@ -3077,7 +3082,11 @@ async def api_adapt_run_stream(request: Request, body: AdaptRunBody):
         except Exception as e:
             logger.exception(e)
             yield _line(
-                {"type": "error", "status": 500, "detail": str(e) or "Erreur lors de l'adaptation."}
+                {
+                    "type": "error",
+                    "status": 500,
+                    "detail": "Erreur lors de l'adaptation.",
+                }
             )
             return
 
@@ -3692,6 +3701,10 @@ class ReferralCaptureBody(BaseModel):
     attribution: dict = {}
 
 
+class PromoRedeemBody(BaseModel):
+    code: str = ""
+
+
 class InviteBody(BaseModel):
     email: str = ""
 
@@ -3722,6 +3735,32 @@ def api_referral_capture(request: Request, body: ReferralCaptureBody):
     attr = body.attribution if isinstance(body.attribution, dict) else {}
     saved = save_user_referral_attribution(user_id, attr)
     return {"ok": True, "captured": bool(saved)}
+
+
+@app.post("/api/promo/redeem")
+def api_promo_redeem(request: Request, body: PromoRedeemBody):
+    """Valide et applique un code promo / concours / partenaire (menu compte)."""
+    user_id = _require_user_id(request)
+    try:
+        result = redeem_promo_code(user_id, body.code or "")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.warning("promo redeem failed for %s: %s", user_id, e)
+        raise HTTPException(status_code=503, detail="Impossible d'appliquer ce code.") from e
+    if result.get("bonus_added"):
+        _invalidate_usage_cache(user_id)
+    _track_analytics(
+        request,
+        event_log.EVENT_PROMO_CODE_REDEEMED,
+        user_id,
+        {
+            "kind": result.get("kind"),
+            "bonus_added": result.get("bonus_added"),
+            "contest_registered": result.get("contest_registered"),
+        },
+    )
+    return result
 
 
 @app.post("/api/invite")
@@ -4392,9 +4431,18 @@ def serve_template_css_by_id(request: Request, template_id: str):
 
 @app.get("/api/assets/{filename:path}")
 def serve_assets(filename: str):
+    from backend.path_safety import resolve_under_base
+
     assets_dir = (BASE_DIR / "assets").resolve()
-    path = (assets_dir / filename).resolve()
-    if not str(path).startswith(str(assets_dir)) or not path.is_file():
+    rel = (filename or "").strip().replace("\\", "/").lstrip("/")
+    parts = [p for p in rel.split("/") if p and p != "."]
+    if not parts or ".." in parts:
+        raise HTTPException(status_code=404)
+    try:
+        path = resolve_under_base(assets_dir, *parts)
+    except ValueError:
+        raise HTTPException(status_code=404) from None
+    if not path.is_file():
         raise HTTPException(status_code=404)
     return FileResponse(path)
 

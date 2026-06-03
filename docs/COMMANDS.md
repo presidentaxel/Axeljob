@@ -189,6 +189,26 @@ git push
 
 ## 8) Pre-push (CI + security locale)
 
+### Setup automatique (recommandé, une fois par clone)
+
+#### Bash (Linux / macOS)
+
+```bash
+bash scripts/setup-dev.sh
+# ou : make setup
+```
+
+Configure `.venv` (Black **24.10.0** comme GitHub), active le hook **pre-push** Git (`.githooks/`), et rappelle les hooks **Cursor** (`.cursor/hooks.json`).
+
+### Cursor (tous les chats / agent)
+
+- **Règle** : `.cursor/rules/pre-push-ci.mdc` — l'agent doit lancer `bash scripts/pre-push.sh --skip-extras --skip-gitleaks` avant tout `git push`.
+- **Hook** : `.cursor/hooks.json` — bloque `git push` dans le terminal de l'agent si la CI locale échoue (timeout 15 min).
+- Contournement urgence : `SKIP_PREPUSH=1 git push`.
+- Après modification de `hooks.json`, redémarrer Cursor si le hook ne se déclenche pas (onglet **Hooks** / canal **Hooks**).
+
+> **Note** : le hook Git (`.githooks/pre-push`) et le hook Cursor couvrent la même gate. `pre-commit` ne duplique pas le pre-push (évite deux runs à chaque push). Pour la gate **security** complète (pip-audit, bandit, gitleaks), lancer `bash scripts/pre-push.sh` sans `--skip-extras`.
+
 Aligne `**.github/workflows/ci.yml**` (ruff, black, mypy, pytest avec couverture CV + seuil 62, `npm ci`, lint, build) et `**.github/workflows/security.yml**` sauf **CodeQL** (réservé à GitHub Actions).
 
 Étapes security rejouées ici : **gitleaks** (si la CLI est dans le `PATH`), **pip-audit** sur `backend/requirements.txt`, **bandit** sur `backend`, **npm audit --audit-level=high** dans `frontend/`.

@@ -561,9 +561,9 @@ def _require_pro_for_letter_features(user_id: str | None) -> None:
 
 
 def _safe_adaptation_id(adaptation_id: str) -> bool:
-    if not adaptation_id or len(adaptation_id) > 80:
-        return False
-    return all(c.isalnum() or c in "_-" for c in adaptation_id)
+    from backend.path_safety import is_safe_id_segment
+
+    return is_safe_id_segment(adaptation_id)
 
 
 def _decode_supabase_jwt(token: str) -> dict:
@@ -3112,7 +3112,11 @@ async def api_adapt_run_stream(request: Request, body: AdaptRunBody):
         except Exception as e:
             logger.exception(e)
             yield _line(
-                {"type": "error", "status": 500, "detail": str(e) or "Erreur lors de l'adaptation."}
+                {
+                    "type": "error",
+                    "status": 500,
+                    "detail": "Erreur lors de l'adaptation.",
+                }
             )
             return
 
@@ -4462,9 +4466,18 @@ def serve_template_css_by_id(request: Request, template_id: str):
 
 @app.get("/api/assets/{filename:path}")
 def serve_assets(filename: str):
+    from backend.path_safety import resolve_under_base
+
     assets_dir = (BASE_DIR / "assets").resolve()
-    path = (assets_dir / filename).resolve()
-    if not str(path).startswith(str(assets_dir)) or not path.is_file():
+    rel = (filename or "").strip().replace("\\", "/").lstrip("/")
+    parts = [p for p in rel.split("/") if p and p != "."]
+    if not parts or ".." in parts:
+        raise HTTPException(status_code=404)
+    try:
+        path = resolve_under_base(assets_dir, *parts)
+    except ValueError:
+        raise HTTPException(status_code=404) from None
+    if not path.is_file():
         raise HTTPException(status_code=404)
     return FileResponse(path)
 

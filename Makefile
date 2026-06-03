@@ -4,7 +4,7 @@ VENV_PY = $(VENV_DIR)/Scripts/python.exe
 VENV_PIP = $(VENV_DIR)/Scripts/pip.exe
 VENV_PRE_COMMIT = $(VENV_DIR)/Scripts/pre-commit.exe
 
-.PHONY: help venv install-dev install-frontend lint lint-back lint-front format test test-back test-front security security-back ci prepush pre-commit-install
+.PHONY: help venv install-dev install-frontend install-hooks setup lint lint-back lint-front format test test-back test-front security security-back ci prepush pre-commit-install
 
 help:
 	@echo "Targets:"
@@ -17,7 +17,9 @@ help:
 	@echo "  make security          Run backend security checks"
 	@echo "  make ci                Run local CI checks"
 	@echo "  make prepush           Full local gate (same as scripts/pre-push.* + security audits)"
-	@echo "  make pre-commit-install Install git hooks with pre-commit"
+	@echo "  make setup             .venv (CI pins) + git pre-push hook + rappel Cursor"
+	@echo "  make install-hooks     Active .githooks/pre-push sur ce clone"
+	@echo "  make pre-commit-install Install pre-commit + pre-push hooks"
 
 venv:
 	$(PYTHON) -m venv $(VENV_DIR)
@@ -25,7 +27,7 @@ venv:
 
 install-dev: venv
 	$(VENV_PIP) install -r backend/requirements.txt -r backend/requirements-dev.txt
-	$(VENV_PIP) install black ruff mypy pytest pytest-cov pre-commit bandit pip-audit
+	$(VENV_PIP) install black==24.10.0 ruff==0.8.4 mypy==1.13.0 pytest==8.3.3 pytest-cov==6.0.0 pre-commit bandit pip-audit
 
 install-frontend:
 	npm --prefix frontend ci
@@ -69,5 +71,12 @@ prepush:
 	bash scripts/pre-push.sh
 endif
 
+install-hooks:
+	bash scripts/install-git-hooks.sh
+
+setup:
+	bash scripts/setup-dev.sh
+
 pre-commit-install:
-	$(VENV_PRE_COMMIT) install
+	$(VENV_PRE_COMMIT) install --hook-type pre-commit
+	@echo "Pre-push Git : make install-hooks  (ou bash scripts/setup-dev.sh)"

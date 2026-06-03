@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": ".cursor/hooks/before-git-push.sh",
+        "matcher": "git\\s+push",
+        "timeout": 900
+      }
+    ]
+  }
+}

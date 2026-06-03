@@ -183,7 +183,11 @@ def _strip_h_f(text: str) -> str:
     """Retire (H/F) et (F/H) du texte (insensible à la casse)."""
     if not text or not isinstance(text, str):
         return text
-    return re.sub(r"\s*\([HhFf]/[HhFf]\)", "", text).strip()
+    s = text.strip()
+    for suffix in ("(H/F)", "(F/H)", "(h/f)", "(f/h)"):
+        if s.endswith(suffix):
+            s = s[: -len(suffix)].strip()
+    return s
 
 
 def _strip_passion(text: str) -> str:

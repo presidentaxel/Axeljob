@@ -7,13 +7,26 @@ const SESSION_KEY = 'cv_bot_analytics_session_v1';
 const ATTRIB_KEY = 'cv_bot_first_touch_v1';
 export const ANALYTICS_SESSION_HEADER = 'X-Analytics-Session-Id';
 
+function randomSessionSuffix() {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 function newSessionId() {
   try {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
   } catch {
     /* crypto unavailable */
   }
-  return `sess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 14)}`;
+  try {
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      return `sess_${Date.now().toString(36)}_${randomSessionSuffix()}`;
+    }
+  } catch {
+    /* getRandomValues unavailable */
+  }
+  return `sess_${Date.now().toString(36)}_fallback`;
 }
 
 /** UUID navigateur : stable jusqu’à clear du site. */

@@ -5,3 +5,5 @@ $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location $RepoRoot
 git config core.hooksPath .githooks
 Write-Host 'OK : git config core.hooksPath=.githooks (pre-push lance scripts/pre-push.ps1 ou pre-push.sh).' -ForegroundColor Green
+Write-Host 'Cursor : .cursor/hooks.json bloque aussi les git push de l''agent si la CI locale echoue.' -ForegroundColor Cyan
+Write-Host 'Contournement urgence : $env:SKIP_PREPUSH=1; git push' -ForegroundColor DarkGray

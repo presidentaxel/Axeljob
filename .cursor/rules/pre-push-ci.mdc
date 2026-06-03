@@ -1,0 +1,40 @@
+---
+description: Lancer la CI locale avant tout git push
+alwaysApply: true
+---
+
+# Pre-push : CI locale obligatoire
+
+Avant **tout** `git push` (toute branche, tout remote) :
+
+1. Exécuter depuis la racine du dépôt :
+   ```bash
+   bash scripts/pre-push.sh --skip-extras --skip-gitleaks
+   ```
+   (équivalent CI GitHub : ruff, **black 24.10.0**, mypy, pytest+couverture, `npm ci`, lint, build, `test:unit`)
+
+2. Corriger **toutes** les erreurs avant de pousser.
+
+3. Ne pousser que si la commande se termine par `OK — pre-push terminé sans erreur.`
+
+## Outils (alignés CI)
+
+```bash
+pip install black==24.10.0 ruff==0.8.4 mypy==1.13.0 pytest==8.3.3 pytest-cov==6.0.0
+black --check .
+```
+
+Ne pas formater avec une autre version de Black (ex. 26.x) : la CI utilise **24.10.0**.
+
+## Hook Git (push depuis le terminal)
+
+Une fois par machine / clone :
+
+```bash
+bash scripts/setup-dev.sh
+# ou seulement : bash scripts/install-git-hooks.sh
+```
+
+## Contournement (urgence uniquement)
+
+`SKIP_PREPUSH=1 git push` — à éviter sauf urgence explicite demandée par l'utilisateur.

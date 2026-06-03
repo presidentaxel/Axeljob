@@ -119,11 +119,14 @@ def _valid_company_name(name: str) -> bool:
     return True
 
 
+_MAX_INFER_LEN = 12_000
+
+
 def infer_entreprise_from_annonce(text: str) -> tuple[str, float]:
     if not text or not str(text).strip():
         return "", 0.0
 
-    t = text.strip()
+    t = text.strip()[:_MAX_INFER_LEN]
     for label, conf in (
         (r"(?:^|\n)\s*Entreprise\s*:\s*([^\n]+)", 0.92),
         (r"(?:^|\n)\s*Employeur\s*:\s*([^\n]+)", 0.92),

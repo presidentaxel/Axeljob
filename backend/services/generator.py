@@ -24,7 +24,11 @@ if os.name == "nt":
 def _strip_h_f(text: str) -> str:
     if not text or not isinstance(text, str):
         return text
-    return re.sub(r"\s*\([HhFf]/[HhFf]\)", "", text).strip()
+    s = text.strip()
+    for suffix in ("(H/F)", "(F/H)", "(h/f)", "(f/h)"):
+        if s.endswith(suffix):
+            s = s[: -len(suffix)].strip()
+    return s
 
 
 def _sanitize_filename(s: str, max_len: int = 80) -> str:
@@ -121,8 +125,10 @@ def generer_pdf(
         template_options=template_options,
         selection_a4=selection_a4,
     )
+    from backend.path_safety import resolve_under_base, safe_basename
+
     out = Path(output_dir).resolve()
     out.mkdir(parents=True, exist_ok=True)
-    path_pdf = out / nom_pdf
+    path_pdf = resolve_under_base(out, safe_basename(nom_pdf, default="CV.pdf"))
     path_pdf.write_bytes(pdf_bytes)
     return str(path_pdf)

@@ -108,13 +108,18 @@ def export_dossier(
     template_options: dict | None = None,
     selection_a4: dict | None = None,
 ) -> dict:
+    from backend.path_safety import resolve_under_base, safe_basename
+
     base = (
         Path(output_base).resolve()
         if output_base and output_base.strip()
         else get_export_base_path()
     )
     folder_name = get_export_folder_name(entreprise, poste)
-    folder_path = base / folder_name
+    try:
+        folder_path = resolve_under_base(base, folder_name)
+    except ValueError:
+        folder_path = resolve_under_base(base, "export")
     folder_path.mkdir(parents=True, exist_ok=True)
 
     offre = {"titre": poste, "entreprise": entreprise}
@@ -137,7 +142,7 @@ def export_dossier(
     files_created.append(Path(cv_path).name)
 
     fiche_bytes, nom_fiche = generer_fiche_pdf_bytes(description_fiche, poste, entreprise)
-    fiche_path = folder_path / nom_fiche
+    fiche_path = folder_path / safe_basename(nom_fiche, default="Fiche de poste.pdf")
     fiche_path.write_bytes(fiche_bytes)
     files_created.append(fiche_path.name)
 
@@ -151,7 +156,7 @@ def export_dossier(
         if poste_safe
         else f"Motivation {prenom} {nom}.pdf"
     )
-    lettre_path = folder_path / nom_lettre
+    lettre_path = folder_path / safe_basename(nom_lettre, default="Motivation.pdf")
     generer_lettre_pdf(cv, description_fiche or "", poste or "", entreprise or "", lettre_path)
     files_created.append(lettre_path.name)
     return {"folder": str(folder_path), "files": files_created}

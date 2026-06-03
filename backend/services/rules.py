@@ -224,7 +224,11 @@ def _tokenize(text: str) -> set[str]:
 def _strip_hf_suffix(text: str) -> str:
     if not text or not isinstance(text, str):
         return text or ""
-    return re.sub(r"\s*\([HhFf]/[HhFf]\)", "", text).strip()
+    s = text.strip()
+    for suffix in ("(H/F)", "(F/H)", "(h/f)", "(f/h)"):
+        if s.endswith(suffix):
+            s = s[: -len(suffix)].strip()
+    return s
 
 
 def _titre_offre_effectif_lower(offre: dict) -> str:
@@ -394,7 +398,7 @@ def _score_structure(cv: dict) -> tuple[float, list[str], list[str]]:
         weaknesses.append("Ajouter au moins une formation")
     max_points += 10
     if all_bullets:
-        quant_count = sum(1 for b in all_bullets if re.search(r"\d+[%€$kKmM]?|\d+\s*%|\d+\s*€", b))
+        quant_count = sum(1 for b in all_bullets if any(ch.isdigit() for ch in b))
         quant_ratio = quant_count / len(all_bullets)
         points += min(10, quant_ratio * 10)
         if quant_ratio >= 0.2:

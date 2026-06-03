@@ -182,7 +182,7 @@ def ats_highlight_preview_body(content_html: str, kws: list[str]) -> str:
         return f"__AXEL_ATS_PROT_{len(protected) - 1}__"
 
     body = re.sub(r"<style[^>]*>[\s\S]*?</style>", stash, body, flags=re.I)
-    body = re.sub(r"<script[^>]*>[\s\S]*?</script>", stash, body, flags=re.I)
+    body = re.sub(r"<script\b[^>]*>[\s\S]*?</script\s*>", stash, body, flags=re.I)
 
     pieces = re.split(r"(<[^>]+>)", body)
     out = [_ats_wrap_plain_text_segment(p, kws) if not p.startswith("<") else p for p in pieces]

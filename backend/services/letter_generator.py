@@ -161,7 +161,12 @@ def corps_lettre_to_html(corps_brut: str) -> str:
 
 
 def generer_lettre_pdf(
-    cv: dict, fiche_poste: str, poste: str, entreprise: str, output_path: Path
+    cv: dict,
+    fiche_poste: str,
+    poste: str,
+    entreprise: str,
+    output_dir: Path,
+    pdf_filename: str,
 ) -> None:
     from jinja2 import Environment, FileSystemLoader, select_autoescape
     from weasyprint import CSS, HTML
@@ -187,9 +192,9 @@ def generer_lettre_pdf(
     )
     from backend.path_safety import resolve_under_base, safe_basename
 
-    parent = output_path.parent.resolve()
-    parent.mkdir(parents=True, exist_ok=True)
-    safe_out = resolve_under_base(parent, safe_basename(output_path.name, default="Motivation.pdf"))
+    out_dir = output_dir.resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    safe_out = resolve_under_base(out_dir, safe_basename(pdf_filename, default="Motivation.pdf"))
     HTML(string=html_str, base_url=str(templates_dir)).write_pdf(
         safe_out, stylesheets=[CSS(filename=templates_dir / "letter_template.css")]
     )

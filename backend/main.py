@@ -2970,7 +2970,7 @@ async def api_adapt_run_stream(request: Request, body: AdaptRunBody):
                 {
                     "type": "error",
                     "status": 500,
-                    "detail": str(e) or "Erreur préparation adaptation.",
+                    "detail": "Erreur préparation adaptation.",
                 }
             )
             return
@@ -3033,7 +3033,7 @@ async def api_adapt_run_stream(request: Request, body: AdaptRunBody):
                         request,
                         event_log.EVENT_ADAPTATION_FAILED,
                         user_id,
-                        {"error": str(e), "step": sid},
+                        {"error": type(e).__name__, "step": sid},
                     )
                     yield _line(
                         {

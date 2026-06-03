@@ -7,9 +7,11 @@ import pytest
 from backend.path_safety import (
     adaptation_json_path,
     is_safe_id_segment,
+    resolve_export_output_base,
     resolve_relative_under,
     resolve_under_base,
     safe_basename,
+    write_bytes_in_dir,
 )
 
 
@@ -48,3 +50,16 @@ def test_resolve_relative_under(tmp_path: Path):
 def test_safe_basename():
     assert safe_basename("../../evil.pdf") == "evil.pdf"
     assert safe_basename("") == "file"
+
+
+def test_write_bytes_in_dir(tmp_path: Path):
+    dest = write_bytes_in_dir(tmp_path, "../../x.pdf", b"pdf", default_name="out.pdf")
+    assert dest.parent == tmp_path.resolve()
+    assert dest.read_bytes() == b"pdf"
+
+
+def test_resolve_export_output_base_rejects_traversal(tmp_path: Path):
+    default = tmp_path / "exports"
+    default.mkdir()
+    got = resolve_export_output_base(str(default / ".." / "etc"), default=default)
+    assert got == default.resolve()

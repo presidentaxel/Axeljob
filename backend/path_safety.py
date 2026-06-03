@@ -2,16 +2,29 @@
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
 _FILENAME_UNSAFE = re.compile(r'[<>:"/\\|?\x00]')
+# Un seul segment de chemin (pas de séparateur) ; caractères autorisés pour noms export / PDF.
+_SAFE_SEGMENT_RE = re.compile(r"^[^\x00/\\<>|?*]+$")
 
 
 def is_safe_id_segment(value: str, *, max_len: int = 80) -> bool:
     if not value or len(value) > max_len:
         return False
     return all(c.isalnum() or c in "_-" for c in value)
+
+
+def _is_safe_path_segment(part: str) -> bool:
+    if not part or part in (".", ".."):
+        return False
+    if "/" in part or "\\" in part:
+        return False
+    if part != os.path.basename(part):
+        return False
+    return bool(_SAFE_SEGMENT_RE.fullmatch(part))
 
 
 def safe_basename(name: str, *, max_len: int = 120, default: str = "file") -> str:
@@ -27,17 +40,61 @@ def safe_basename(name: str, *, max_len: int = 120, default: str = "file") -> st
 
 
 def resolve_under_base(base: Path, *parts: str) -> Path:
-    """Resolve ``base / part1 / part2 / ...`` and ensure the result stays under ``base``."""
-    base_r = base.resolve()
+    """Resolve ``base / part1 / ...`` and ensure the result stays under ``base`` (``commonpath``)."""
+    base_abs = os.path.abspath(str(base))
     if not parts:
-        return base_r
-    rel = Path(*parts)
-    if rel.is_absolute() or ".." in rel.parts:
-        raise ValueError("path traversal")
-    out = (base_r / rel).resolve()
-    if not out.is_relative_to(base_r):
+        return Path(base_abs)
+    for part in parts:
+        if not _is_safe_path_segment(part):
+            raise ValueError("path traversal")
+    joined = os.path.abspath(os.path.join(base_abs, *parts))
+    try:
+        common = os.path.commonpath([base_abs, joined])
+    except ValueError as exc:
+        raise ValueError("path outside base") from exc
+    if common != base_abs:
         raise ValueError("path outside base")
-    return out
+    return Path(joined)
+
+
+def write_bytes_in_dir(
+    directory: Path,
+    filename: str,
+    data: bytes,
+    *,
+    default_name: str = "file",
+) -> Path:
+    """Write ``data`` to a single file under ``directory`` (basename only)."""
+    name = safe_basename(filename, default=default_name)
+    target = resolve_under_base(directory, name)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(data)
+    return target
+
+
+def resolve_export_output_base(output_base: str | None, *, default: Path) -> Path:
+    """Resolve export directory; reject obvious traversal in ``output_base``."""
+    if not output_base or not str(output_base).strip():
+        return default.resolve()
+    raw = str(output_base).strip()
+    if ".." in raw.replace("\\", "/"):
+        return default.resolve()
+    try:
+        resolved = Path(raw).expanduser().resolve()
+    except OSError:
+        return default.resolve()
+    default_r = default.resolve()
+    try:
+        if resolved == default_r or resolved.is_relative_to(default_r):
+            return resolved
+    except ValueError:
+        pass
+    try:
+        if default_r.is_relative_to(resolved):
+            return resolved
+    except ValueError:
+        pass
+    return resolved
 
 
 def adaptation_json_path(adaptations_dir: Path, adaptation_id: str) -> Path:

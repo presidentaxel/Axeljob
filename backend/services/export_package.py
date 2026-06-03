@@ -108,13 +108,15 @@ def export_dossier(
     template_options: dict | None = None,
     selection_a4: dict | None = None,
 ) -> dict:
-    from backend.path_safety import resolve_under_base, safe_basename
-
-    base = (
-        Path(output_base).resolve()
-        if output_base and output_base.strip()
-        else get_export_base_path()
+    from backend.path_safety import (
+        resolve_export_output_base,
+        resolve_under_base,
+        safe_basename,
+        write_bytes_in_dir,
     )
+
+    default_base = get_export_base_path()
+    base = resolve_export_output_base(output_base, default=default_base)
     folder_name = get_export_folder_name(entreprise, poste)
     try:
         folder_path = resolve_under_base(base, folder_name)
@@ -142,8 +144,9 @@ def export_dossier(
     files_created.append(Path(cv_path).name)
 
     fiche_bytes, nom_fiche = generer_fiche_pdf_bytes(description_fiche, poste, entreprise)
-    fiche_path = folder_path / safe_basename(nom_fiche, default="Fiche de poste.pdf")
-    fiche_path.write_bytes(fiche_bytes)
+    fiche_path = write_bytes_in_dir(
+        folder_path, nom_fiche, fiche_bytes, default_name="Fiche de poste.pdf"
+    )
     files_created.append(fiche_path.name)
 
     from backend.services.letter_generator import generer_lettre_pdf
@@ -156,9 +159,11 @@ def export_dossier(
         if poste_safe
         else f"Motivation {prenom} {nom}.pdf"
     )
-    lettre_path = folder_path / safe_basename(nom_lettre, default="Motivation.pdf")
-    generer_lettre_pdf(cv, description_fiche or "", poste or "", entreprise or "", lettre_path)
-    files_created.append(lettre_path.name)
+    lettre_name = safe_basename(nom_lettre, default="Motivation.pdf")
+    generer_lettre_pdf(
+        cv, description_fiche or "", poste or "", entreprise or "", folder_path, lettre_name
+    )
+    files_created.append(lettre_name)
     return {"folder": str(folder_path), "files": files_created}
 
 

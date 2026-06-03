@@ -166,35 +166,34 @@ def infer_entreprise_from_annonce(text: str) -> tuple[str, float]:
         if _valid_company_name(name):
             return name, 0.78
 
-    m = re.search(
-        r"(?:^|[\n\.])\s*(?:la\s+)?société\s+([A-ZÀÂÄÉÈÊËÏÎÔÙÛÜÇ0-9][A-Za-zÀ-ÿ0-9&\-\.\s'’]{1,42}?)\s+(?:recrute|propose|recherche|est\s)",
-        t,
-        re.IGNORECASE | re.MULTILINE,
-    )
-    if m:
-        name = _clean_company(m.group(1))
-        if _valid_company_name(name) and len(name.split()) <= 5:
-            return name, 0.72
-
-    m = re.search(
-        r"(?:^|[\n\.])\s*(?:notre|le)\s+groupe\s+([A-ZÀÂÄÉÈÊËÏÎÔÙÛÜÇ0-9][A-Za-zÀ-ÿ0-9&\-\.]{1,40}?)(?:\s*[,\.;]|\s+recrute|\s+est\b|\s*$|\n)",
-        t,
-        re.IGNORECASE | re.MULTILINE,
-    )
-    if m:
-        name = _clean_company(m.group(1))
-        if _valid_company_name(name) and len(name.split()) <= 4:
-            return name, 0.68
-
-    m = re.search(
-        r"(?:^|\n)\s*([A-ZÀÂÄÉÈÊËÏÎÔÙÛÜÇ0-9][A-Za-zÀ-ÿ0-9&\-\.\s'’]{2,45}?)\s+recrute\b",
-        t,
-        re.MULTILINE,
-    )
-    if m:
-        name = _clean_company(m.group(1))
-        if _valid_company_name(name) and len(name.split()) <= 5:
-            return name, 0.84
+    for line in t.splitlines()[:60]:
+        line = line[:280]
+        m = re.search(
+            r"^\s*(?:la\s+)?société\s+(.{2,80}?)\s+(?:recrute|propose|recherche)\b",
+            line,
+            re.IGNORECASE,
+        )
+        if m:
+            name = _clean_company(m.group(1))
+            if _valid_company_name(name) and len(name.split()) <= 5:
+                return name, 0.72
+        m = re.search(
+            r"^\s*(?:notre|le)\s+groupe\s+(.{2,60}?)(?:\s*[,\.;]|\s+recrute|\s+est\b|$)",
+            line,
+            re.IGNORECASE,
+        )
+        if m:
+            name = _clean_company(m.group(1))
+            if _valid_company_name(name) and len(name.split()) <= 4:
+                return name, 0.68
+        m = re.search(
+            r"^\s*([A-ZÀÂÄÉÈÊËÏÎÔÙÛÜÇ0-9][\w&\-\.\s'’]{1,60}?)\s+recrute\b",
+            line,
+        )
+        if m:
+            name = _clean_company(m.group(1))
+            if _valid_company_name(name) and len(name.split()) <= 5:
+                return name, 0.84
 
     first = t.split("\n", 1)[0].strip()
     for sep in (" — ", " – ", " - ", " | ", " / "):

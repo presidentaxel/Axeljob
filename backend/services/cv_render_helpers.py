@@ -159,6 +159,31 @@ def _ats_wrap_plain_text_segment(segment: str, kws: list[str]) -> str:
     return "".join(out_parts)
 
 
+def _stash_script_blocks(body: str, protected: list[str]) -> str:
+    """Remove <script>...</script> without a fragile regex (CodeQL bad-tag-filter)."""
+    lower = body.lower()
+    out: list[str] = []
+    i = 0
+    while i < len(body):
+        start = lower.find("<script", i)
+        if start < 0:
+            out.append(body[i:])
+            break
+        out.append(body[i:start])
+        close = lower.find("</script", start)
+        if close < 0:
+            out.append(body[start:])
+            break
+        close_end = body.find(">", close)
+        if close_end < 0:
+            out.append(body[start:])
+            break
+        protected.append(body[start : close_end + 1])
+        out.append(f"__AXEL_ATS_PROT_{len(protected) - 1}__")
+        i = close_end + 1
+    return "".join(out)
+
+
 def ats_highlight_preview_body(content_html: str, kws: list[str]) -> str:
     if not kws:
         return content_html
@@ -182,7 +207,7 @@ def ats_highlight_preview_body(content_html: str, kws: list[str]) -> str:
         return f"__AXEL_ATS_PROT_{len(protected) - 1}__"
 
     body = re.sub(r"<style[^>]*>[\s\S]*?</style>", stash, body, flags=re.I)
-    body = re.sub(r"<script\b[^>]*>[\s\S]*?</script\s*>", stash, body, flags=re.I)
+    body = _stash_script_blocks(body, protected)
 
     pieces = re.split(r"(<[^>]+>)", body)
     out = [_ats_wrap_plain_text_segment(p, kws) if not p.startswith("<") else p for p in pieces]

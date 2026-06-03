@@ -125,10 +125,8 @@ def generer_pdf(
         template_options=template_options,
         selection_a4=selection_a4,
     )
-    from backend.path_safety import resolve_under_base, safe_basename
+    from backend.path_safety import write_bytes_in_dir
 
     out = Path(output_dir).resolve()
-    out.mkdir(parents=True, exist_ok=True)
-    path_pdf = resolve_under_base(out, safe_basename(nom_pdf, default="CV.pdf"))
-    path_pdf.write_bytes(pdf_bytes)
+    path_pdf = write_bytes_in_dir(out, nom_pdf, pdf_bytes, default_name="CV.pdf")
     return str(path_pdf)

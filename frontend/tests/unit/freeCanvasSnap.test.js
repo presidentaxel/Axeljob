@@ -158,3 +158,27 @@ test('snapBlockGeometry conserve le bord oppose pendant un resize lateral', () =
   assert.equal(west.x + west.w, 60);
   assert.equal(west.w, 60);
 });
+
+test('snapBlockGeometry aligne le bord resize sur un bloc voisin', () => {
+  const east = snapBlockGeometry(
+    { x: 10, y: 10, w: 48.9, h: 20 },
+    layoutTwoBlocks,
+    'a',
+    'e',
+    { gridMm: 1, thresholdMm: 1.5 },
+  );
+  assert.equal(east.x, 10);
+  assert.equal(east.w, 50);
+  assert.ok(east.guides.some((g) => g.type === 'v' && g.pos === 60));
+
+  const north = snapBlockGeometry(
+    { x: 60, y: 10.9, w: 30, h: 34.1 },
+    layoutTwoBlocks,
+    'b',
+    'n',
+    { gridMm: 1, thresholdMm: 1.5 },
+  );
+  assert.equal(north.y, 10);
+  assert.equal(north.h, 35);
+  assert.ok(north.guides.some((g) => g.type === 'h' && g.pos === 10));
+});

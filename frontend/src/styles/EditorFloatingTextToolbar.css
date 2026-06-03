@@ -127,6 +127,17 @@
   color: #3730a3;
 }
 
+.editor-floating-toolbar__color-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  flex-shrink: 0;
+}
+
 .editor-floating-toolbar__color-btn {
   position: relative;
   display: inline-flex;
@@ -139,7 +150,6 @@
   border-radius: 8px;
   cursor: pointer;
   z-index: 2;
-  flex-shrink: 0;
 }
 
 .editor-floating-toolbar__color-btn:hover {
@@ -147,10 +157,10 @@
 }
 
 .editor-floating-toolbar__color-input-hidden {
-  position: fixed;
-  left: -9999px;
-  width: 1px;
-  height: 1px;
+  position: absolute;
+  inset: 0;
+  width: 32px;
+  height: 32px;
   opacity: 0;
   pointer-events: none;
 }

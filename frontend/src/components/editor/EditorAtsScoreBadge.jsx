@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { scoreToneFor } from '../../lib/atsScoreClient.js';
 import { useAtsScoreFetching } from '../../lib/useAtsScoreFetching.js';
@@ -15,6 +15,7 @@ export default function EditorAtsScoreBadge({
   paused = false,
   onScoreChange,
 }) {
+  const wrapRef = useRef(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const { status, data, error, stale, refreshNow } = useAtsScoreFetching({
     templateId,
@@ -23,6 +24,23 @@ export default function EditorAtsScoreBadge({
     paused,
     onScoreChange,
   });
+
+  useEffect(() => {
+    if (!panelOpen) return undefined;
+    const handlePointerDown = (event) => {
+      if (wrapRef.current?.contains(event.target)) return;
+      setPanelOpen(false);
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') setPanelOpen(false);
+    };
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown, true);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [panelOpen]);
 
   if (status === 'idle') {
     return null;
@@ -43,7 +61,7 @@ export default function EditorAtsScoreBadge({
 
   if (status === 'error' && !showScore) {
     return (
-      <span className="ats-badge-wrap">
+      <span className="ats-badge-wrap" ref={wrapRef}>
         <button
           type="button"
           className="ats-badge ats-badge--error"
@@ -57,7 +75,7 @@ export default function EditorAtsScoreBadge({
   }
 
   return (
-    <span className="ats-badge-wrap">
+    <span className="ats-badge-wrap" ref={wrapRef}>
       <button
         type="button"
         className={[

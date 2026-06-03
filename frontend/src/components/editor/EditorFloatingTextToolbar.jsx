@@ -58,6 +58,32 @@ function AlignIcon({ align }) {
   return <HiBars3BottomLeft size={18} aria-hidden />;
 }
 
+function ColorPickerControl({
+  title,
+  inputRef,
+  value,
+  onOpen,
+  onChange,
+  children,
+}) {
+  return (
+    <span className="editor-floating-toolbar__color-control">
+      <button type="button" className="editor-floating-toolbar__color-btn" title={title} onMouseDown={onOpen}>
+        {children}
+      </button>
+      <input
+        ref={inputRef}
+        type="color"
+        className="editor-floating-toolbar__color-input-hidden"
+        value={value}
+        onChange={onChange}
+        tabIndex={-1}
+        aria-hidden
+      />
+    </span>
+  );
+}
+
 /** Empêche la perte de focus/selection sur contentEditable au clic toolbar. */
 function formatAction(event, fn) {
   event.preventDefault();
@@ -251,18 +277,15 @@ export default function EditorFloatingTextToolbar({
       </button>
       {isLine && (
         <>
-          <button type="button" className="editor-floating-toolbar__color-btn" title="Couleur" onMouseDown={openColorPicker}>
-            <span className="editor-floating-toolbar__color-a">A</span>
-          </button>
-          <input
-            ref={colorInputRef}
-            type="color"
-            className="editor-floating-toolbar__color-input-hidden"
+          <ColorPickerControl
+            title="Couleur"
+            inputRef={colorInputRef}
             value={colorPickerValue}
+            onOpen={openColorPicker}
             onChange={(e) => patchStyle('color', e.target.value)}
-            tabIndex={-1}
-            aria-hidden
-          />
+          >
+            <span className="editor-floating-toolbar__color-a">A</span>
+          </ColorPickerControl>
           <div className="editor-floating-toolbar__size-stepper">
             <button type="button" onMouseDown={(e) => formatAction(e, () => patchStyle('stroke_width', Math.max(0.2, (style.stroke_width || 0.6) - 0.2)))}>−</button>
             <span>{(style.stroke_width || 0.6).toFixed(1)} mm</span>
@@ -273,18 +296,15 @@ export default function EditorFloatingTextToolbar({
 
       {isIcon && (
         <>
-          <button type="button" className="editor-floating-toolbar__color-btn" title="Couleur icône" onMouseDown={openColorPicker}>
-            <span className="editor-floating-toolbar__color-a">A</span>
-          </button>
-          <input
-            ref={colorInputRef}
-            type="color"
-            className="editor-floating-toolbar__color-input-hidden"
+          <ColorPickerControl
+            title="Couleur icône"
+            inputRef={colorInputRef}
             value={colorPickerValue}
+            onOpen={openColorPicker}
             onChange={(e) => patchStyle('color', e.target.value)}
-            tabIndex={-1}
-            aria-hidden
-          />
+          >
+            <span className="editor-floating-toolbar__color-a">A</span>
+          </ColorPickerControl>
         </>
       )}
 
@@ -305,18 +325,15 @@ export default function EditorFloatingTextToolbar({
             <span>{fontSize}</span>
             <button type="button" onPointerDown={(e) => stepFontSize(e, 1)}>+</button>
           </div>
-          <button type="button" className="editor-floating-toolbar__color-btn" title="Couleur" onMouseDown={openColorPicker}>
-            <span className="editor-floating-toolbar__color-a editor-floating-toolbar__color-a--rainbow">A</span>
-          </button>
-          <input
-            ref={colorInputRef}
-            type="color"
-            className="editor-floating-toolbar__color-input-hidden"
+          <ColorPickerControl
+            title="Couleur"
+            inputRef={colorInputRef}
             value={colorPickerValue}
+            onOpen={openColorPicker}
             onChange={(e) => patchStyle('color', e.target.value)}
-            tabIndex={-1}
-            aria-hidden
-          />
+          >
+            <span className="editor-floating-toolbar__color-a editor-floating-toolbar__color-a--rainbow">A</span>
+          </ColorPickerControl>
           <button
             type="button"
             className={isEditing && hasTextSelection() ? (queryCommandState('bold') ? 'is-active' : '') : (style.bold ? 'is-active' : '')}

@@ -63,22 +63,71 @@ export function snapBlockGeometry(geom, layout, blockId, _handle, options = {}) 
   const grid = options.gridMm ?? SNAP_GRID_MM_DEFAULT;
   const threshold = options.thresholdMm ?? SNAP_THRESHOLD_MM_DEFAULT;
   let { x, y, w, h } = geom;
-
-  const wTargets = collectWidthTargets(layout, blockId);
-  const hTargets = collectHeightTargets(layout, blockId);
-  w = snapSize(w, wTargets, grid, threshold, BLOCK_MIN_WIDTH_MM);
-  h = snapSize(h, hTargets, grid, threshold, BLOCK_MIN_HEIGHT_MM);
-
   const handle = typeof _handle === 'string' ? _handle : '';
-  const fixedRight = handle.includes('w') ? geom.x + geom.w : null;
-  const fixedBottom = handle.includes('n') ? geom.y + geom.h : null;
+  const guides = [];
 
-  if (fixedRight != null) x = fixedRight - w;
-  if (fixedBottom != null) y = fixedBottom - h;
+  if (handle.includes('e')) {
+    const rightSnap = snapResizeEdge(x + w, collectXTargets(layout, blockId), threshold, 'end', 'v');
+    if (rightSnap.used) {
+      w = rightSnap.value - x;
+      guides.push(rightSnap.guide);
+    } else {
+      w = snapSize(w, collectWidthTargets(layout, blockId), grid, threshold, BLOCK_MIN_WIDTH_MM);
+    }
+  } else if (handle.includes('w')) {
+    const fixedRight = geom.x + geom.w;
+    const leftSnap = snapResizeEdge(x, collectXTargets(layout, blockId), threshold, 'start', 'v');
+    if (leftSnap.used) {
+      x = leftSnap.value;
+      w = fixedRight - x;
+      guides.push(leftSnap.guide);
+    } else {
+      w = snapSize(w, collectWidthTargets(layout, blockId), grid, threshold, BLOCK_MIN_WIDTH_MM);
+      x = fixedRight - w;
+    }
+  }
+
+  if (handle.includes('s')) {
+    const bottomSnap = snapResizeEdge(y + h, collectYTargets(layout, blockId), threshold, 'end', 'h');
+    if (bottomSnap.used) {
+      h = bottomSnap.value - y;
+      guides.push(bottomSnap.guide);
+    } else {
+      h = snapSize(h, collectHeightTargets(layout, blockId), grid, threshold, BLOCK_MIN_HEIGHT_MM);
+    }
+  } else if (handle.includes('n')) {
+    const fixedBottom = geom.y + geom.h;
+    const topSnap = snapResizeEdge(y, collectYTargets(layout, blockId), threshold, 'start', 'h');
+    if (topSnap.used) {
+      y = topSnap.value;
+      h = fixedBottom - y;
+      guides.push(topSnap.guide);
+    } else {
+      h = snapSize(h, collectHeightTargets(layout, blockId), grid, threshold, BLOCK_MIN_HEIGHT_MM);
+      y = fixedBottom - h;
+    }
+  }
+
+  if (w < BLOCK_MIN_WIDTH_MM) {
+    if (handle.includes('w')) {
+      const fixedRight = x + w;
+      x = fixedRight - BLOCK_MIN_WIDTH_MM;
+    }
+    w = BLOCK_MIN_WIDTH_MM;
+  }
+  if (h < BLOCK_MIN_HEIGHT_MM) {
+    if (handle.includes('n')) {
+      const fixedBottom = y + h;
+      y = fixedBottom - BLOCK_MIN_HEIGHT_MM;
+    }
+    h = BLOCK_MIN_HEIGHT_MM;
+  }
 
   x = clamp(x, 0, PAGE_WIDTH_MM - w);
   y = clamp(y, 0, PAGE_HEIGHT_MM - h);
-  return { x, y, w, h, guides: [] };
+  w = clamp(w, BLOCK_MIN_WIDTH_MM, PAGE_WIDTH_MM - x);
+  h = clamp(h, BLOCK_MIN_HEIGHT_MM, PAGE_HEIGHT_MM - y);
+  return { x, y, w, h, guides: guides.filter(Boolean) };
 }
 
 function snapAxis(origin, size, targets, grid, threshold, axisType) {
@@ -134,6 +183,35 @@ function snapSize(value, targets, grid, threshold, minVal) {
     }
   }
   return Math.max(minVal, best);
+}
+
+function snapResizeEdge(edgeValue, targets, threshold, edgeKey, axisType) {
+  let best = null;
+  let bestDist = threshold + 1;
+  let bestPriority = Number.POSITIVE_INFINITY;
+  for (const target of targets) {
+    if (target.match && !target.match.includes(edgeKey)) continue;
+    const dist = Math.abs(edgeValue - target.pos);
+    const priority = target.priority ?? 10;
+    if (
+      dist <= threshold
+      && (priority < bestPriority || (priority === bestPriority && dist < bestDist))
+    ) {
+      best = target;
+      bestDist = dist;
+      bestPriority = priority;
+    }
+  }
+  if (!best) return { used: false, value: edgeValue, guide: null };
+  return {
+    used: true,
+    value: best.pos,
+    guide: {
+      type: axisType,
+      pos: best.pos,
+      role: best.role === 'center' ? 'center' : 'edge',
+    },
+  };
 }
 
 function collectXTargets(layout, blockId) {

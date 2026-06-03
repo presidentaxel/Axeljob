@@ -18,6 +18,7 @@ import {
   resizeGroupKey,
 } from '../../lib/freeCanvasResize.js';
 import { computePageScale, scaledPageHeightPx } from '../../lib/freeCanvasScale.js';
+import { nextOverlappingBlockId } from '../../lib/freeCanvasSelection.js';
 import { snapBlockGeometry, snapBlockPosition } from '../../lib/freeCanvasSnap.js';
 import '../../styles/FreeCanvas.css';
 import '../../styles/CanvasTemplateFidelity.css';
@@ -86,6 +87,7 @@ export default function FreeCanvas({
   const [activeGuides, setActiveGuides] = useState([]);
   const dragSessionRef = useRef(null);
   const resizeSessionRef = useRef(null);
+  const placing = Boolean(placementPreset);
 
   useLayoutEffect(() => {
     const el = viewportRef.current;
@@ -177,6 +179,16 @@ export default function FreeCanvas({
   }, [editingBlockId, onCommitBlockEdit]);
 
   const handleBlockPointerDown = useCallback((event, block) => {
+    if (placing && typeof onPlaceBlockAt === 'function') {
+      event.preventDefault();
+      event.stopPropagation();
+      const pageEl = event.currentTarget?.closest?.('.free-canvas-page');
+      if (!pageEl) return;
+      const pageIndex = pageIndexFromElement(pageEl);
+      const pt = clientPointToPageMm(event.clientX, event.clientY, pageEl);
+      onPlaceBlockAt(pageIndex, pt.x, pt.y);
+      return;
+    }
     if (editingBlockId && editingBlockId !== block?.id) {
       commitEditingBlock();
     }
@@ -193,6 +205,8 @@ export default function FreeCanvas({
     dragSessionRef.current = {
       blockId: block.id,
       pageIndex,
+      selectedAtStart: selectedBlockId,
+      moved: false,
       startMm: { x: block.x, y: block.y },
       startClientX: event.clientX,
       startClientY: event.clientY,
@@ -202,7 +216,18 @@ export default function FreeCanvas({
     if (typeof event.currentTarget?.setPointerCapture === 'function') {
       event.currentTarget.setPointerCapture(event.pointerId);
     }
-  }, [interactable, onSelectBlock, onBlockPositionChange, setCanvasBusy, editingBlockId, commitEditingBlock, layout]);
+  }, [
+    placing,
+    onPlaceBlockAt,
+    interactable,
+    onSelectBlock,
+    onBlockPositionChange,
+    setCanvasBusy,
+    editingBlockId,
+    commitEditingBlock,
+    layout,
+    selectedBlockId,
+  ]);
 
   const handleBlockPointerMove = useCallback((event) => {
     const session = dragSessionRef.current;
@@ -226,6 +251,9 @@ export default function FreeCanvas({
     } else {
       const dxPx = event.clientX - session.startClientX;
       const dyPx = event.clientY - session.startClientY;
+      if (Math.abs(dxPx) > 3 || Math.abs(dyPx) > 3) {
+        session.moved = true;
+      }
       const deltaMm = clientDeltaToMmDelta(dxPx, dyPx, scale);
       pos = positionAfterDrag(session.startMm, deltaMm);
       const snapped = snapEnabled
@@ -252,9 +280,22 @@ export default function FreeCanvas({
       } catch (_) { /* ignore */ }
     }
     const wasDragging = Boolean(session);
+    let cycledSelection = false;
+    if (!session.moved && typeof onSelectBlock === 'function') {
+      const pageEl = event.currentTarget?.closest?.('.free-canvas-page');
+      const blocks = layout?.pages?.[session.pageIndex]?.blocks || [];
+      if (pageEl && blocks.length > 1) {
+        const pt = clientPointToPageMm(event.clientX, event.clientY, pageEl);
+        const nextId = nextOverlappingBlockId(blocks, pt, session.selectedAtStart);
+        if (nextId && nextId !== session.blockId) {
+          onSelectBlock(nextId);
+          cycledSelection = true;
+        }
+      }
+    }
     endDrag();
-    if (wasDragging && typeof onDragEnd === 'function') onDragEnd();
-  }, [endDrag, onDragEnd]);
+    if (wasDragging && !cycledSelection && typeof onDragEnd === 'function') onDragEnd();
+  }, [endDrag, onDragEnd, onSelectBlock, layout]);
 
   const handleResizePointerDown = useCallback((event, block, handle) => {
     if (block?.locked) return;
@@ -328,7 +369,6 @@ export default function FreeCanvas({
   }, [endResize, onDragEnd, onResizeEnd, onBlockResizeChange]);
 
   const [placeCursor, setPlaceCursor] = useState(null);
-  const placing = Boolean(placementPreset);
 
   useEffect(() => {
     if (!placing) {

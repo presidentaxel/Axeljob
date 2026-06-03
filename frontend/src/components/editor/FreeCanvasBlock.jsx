@@ -14,7 +14,6 @@ import {
 import { fieldValueLooksLikeHtml } from '../../lib/canvasInlineEdit.js';
 import {
   resolveCompetenceList,
-  resolveBoundStringList,
   resolveBoundText,
   resolveCertifications,
   resolveExperiences,

@@ -232,9 +232,6 @@ export function buildTemplateBlocks(template) {
   const sy = SIDE_PAD_Y;
   const mx = MAIN_L.x + MAIN_PAD_X;
   const mw = MAIN_L.w - MAIN_PAD_X * 2;
-  const mrx = MAIN_R.x + MAIN_PAD_X;
-  const mrw = MAIN_R.w - MAIN_PAD_X * 2;
-
   switch (id) {
     case 'modern':
       return [

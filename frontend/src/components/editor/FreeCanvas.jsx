@@ -299,7 +299,7 @@ export default function FreeCanvas({
     };
     resizePreviewRef.current = nextPreview;
     setResizePreview(nextPreview);
-  }, [scale, layout, snapEnabled]);
+  }, [scale, layout, snapEnabled, onBlockResizeChange]);
 
   const handleResizePointerUp = useCallback((event) => {
     const session = resizeSessionRef.current;

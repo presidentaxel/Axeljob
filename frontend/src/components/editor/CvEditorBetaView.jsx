@@ -20,7 +20,6 @@ import {
   bringToFront,
   canAppendBlankPage,
   createBlankLayoutV3,
-  duplicateBlock,
   findBlock,
   isEmptyLayoutV3,
   migrateLayoutToV3,
@@ -357,15 +356,6 @@ function CvEditorBeta({
     setSidebarSection('position');
   }, []);
 
-  const handleDuplicateSelectedBlock = useCallback(() => {
-    if (!selectedBlockId) return;
-    const next = duplicateBlock(layout, selectedBlockId);
-    commitLayout(next);
-    const newId = getLastBlockIdOnPage(next, 0);
-    if (newId) setSelectedBlockId(newId);
-    if (cv) autoSave.schedule(cv);
-  }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
-
   const handleImageEdit = useCallback((blockId) => {
     setSelectedBlockId(blockId);
     setImageEditBlockId(blockId);
@@ -382,15 +372,6 @@ function CvEditorBeta({
     resetLayout(next);
     if (cv) autoSave.schedule(cv);
   }, [resetLayout, cv, autoSave]);
-
-  const handleToggleBlockLock = useCallback(() => {
-    if (!selectedBlockId) return;
-    const found = findBlock(layout, selectedBlockId);
-    if (!found?.block) return;
-    const next = updateBlock(layout, selectedBlockId, { locked: !found.block.locked });
-    commitLayout(next);
-    if (cv) autoSave.schedule(cv);
-  }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
 
   const handleBlockPatch = useCallback((patch) => {
     if (!selectedBlockId) return;

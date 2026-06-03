@@ -6,11 +6,12 @@ import { fieldValueLooksLikeHtml } from '../../lib/canvasInlineEdit.js';
  */
 export default function CanvasEditableField({
   path,
-  tag: Tag = 'span',
+  tag = 'span',
   className = '',
   editing = false,
   children,
 }) {
+  const Tag = tag;
   const ref = useRef(null);
   const text = typeof children === 'string' ? children : String(children ?? '');
 

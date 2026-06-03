@@ -13,7 +13,6 @@ import {
   applyStyleToBlockEditables,
   applyStyleToEditableRoot,
   bumpFontSizesBy,
-  applyRichTextCommand,
   applyRichTextCommandWithFallback,
   getEditingBlockInnerRoot,
   hasTextSelection,

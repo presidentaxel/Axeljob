@@ -19,7 +19,7 @@ const PAGE_GAP_MM = 6;
  * @param {object} block
  * @param {number} [pageHeightMm]
  */
-export function blockBottomMm(block, pageHeightMm = PAGE_HEIGHT_MM) {
+export function blockBottomMm(block, _pageHeightMm = PAGE_HEIGHT_MM) {
   const y = Number(block?.y) || 0;
   const h = Number(block?.h) || 0;
   return y + h;

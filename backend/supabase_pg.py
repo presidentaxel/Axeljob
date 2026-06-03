@@ -988,12 +988,14 @@ def update_cv_template_by_owner(
     if not set_parts:
         return None
 
-    sql = SQL("""
+    sql = SQL(
+        """
         UPDATE public.cv_templates
         SET {set_clause}
         WHERE id = %s AND owner_user_id = %s
         RETURNING id, name, description, options, owner_user_id, allowed_user_ids
-    """).format(set_clause=SQL(", ").join(set_parts))
+    """
+    ).format(set_clause=SQL(", ").join(set_parts))
     params.extend([tid, owner_uid])
 
     with pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:

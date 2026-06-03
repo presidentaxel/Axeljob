@@ -73,6 +73,7 @@ body.cv-layout-body {
   padding: 1mm 1.5mm;
 }
 .cv-layout-identity-name {
+  font-family: var(--layout-font-heading, var(--layout-font-body, 'Inter', sans-serif));
   font-size: 14pt;
   font-weight: 700;
   line-height: 1.2;
@@ -81,6 +82,7 @@ body.cv-layout-body {
 .cv-layout-identity-title { font-size: 10pt; margin-top: 1mm; color: #475569; }
 .cv-layout-contact p { margin: 0 0 0.5mm; font-size: 8pt; color: #334155; }
 .cv-layout-section-title {
+  font-family: var(--layout-font-heading, var(--layout-font-body, 'Inter', sans-serif));
   margin: 0 0 1.5mm;
   font-size: 9pt;
   font-weight: 700;
@@ -108,7 +110,12 @@ body.cv-layout-body {
 .cv-layout-photo--round { border-radius: 50%; }
 .cv-layout-photo-ph { width: 100%; height: 100%; background: #e2e8f0; }
 .cv-layout-shape-line, .cv-layout-shape-rect { width: 100%; height: 100%; }
-.cv-layout-title { margin: 0; font-size: 11pt; font-weight: 700; }
+.cv-layout-title {
+  margin: 0;
+  font-family: var(--layout-font-heading, var(--layout-font-body, 'Inter', sans-serif));
+  font-size: 11pt;
+  font-weight: 700;
+}
 .cv-layout-text { margin: 0; }
 .cv-layout-placeholder { color: #94a3b8; font-style: italic; font-size: 8pt; }
 """
@@ -183,12 +190,14 @@ def _render_block(cv: dict, block: dict) -> str:
     h = _num(block.get("h"), 10)
     z = int(block.get("z") or 0)
     style_attr = f"left:{x}mm;top:{y}mm;width:{w}mm;height:{h}mm;z-index:{z};"
+    block_style = block.get("style") if isinstance(block.get("style"), dict) else {}
+    inner_style = _style_attr(_typography_declarations(block_style))
     inner = _render_semantic(cv, block) if btype in SEMANTIC_TYPES else _render_non_semantic(block)
     bid = _esc(str(block.get("id") or ""))
     return (
         f'<div class="cv-layout-block" data-block-id="{bid}" data-type="{_esc(btype)}" '
         f'style="{style_attr}">'
-        f'<div class="cv-layout-block__inner">{inner}</div></div>'
+        f'<div class="cv-layout-block__inner"{inner_style}>{inner}</div></div>'
     )
 
 
@@ -411,6 +420,44 @@ def _section(key: str, body: str) -> str:
 
 def _placeholder(label: str) -> str:
     return f'<p class="cv-layout-placeholder">{_esc(label)}</p>'
+
+
+def _typography_declarations(style: dict[str, Any]) -> list[str]:
+    declarations: list[str] = []
+    font_family = style.get("font_family")
+    if isinstance(font_family, str) and font_family.strip():
+        declarations.append(f"font-family:{_css_value(font_family)}")
+    if style.get("font_size") is not None:
+        declarations.append(f"font-size:{_num(style.get('font_size'))}pt")
+    color = style.get("color_body") or style.get("color")
+    if isinstance(color, str) and color.strip():
+        declarations.append(f"color:{_css_value(color)}")
+    if style.get("bold"):
+        declarations.append("font-weight:700")
+    if style.get("italic") or style.get("font_style") == "italic":
+        declarations.append("font-style:italic")
+    decoration = []
+    if style.get("underline"):
+        decoration.append("underline")
+    if style.get("strikethrough"):
+        decoration.append("line-through")
+    if decoration:
+        declarations.append(f"text-decoration:{' '.join(decoration)}")
+    if style.get("align"):
+        declarations.append(f"text-align:{_css_value(str(style.get('align')))}")
+    if style.get("opacity") is not None:
+        declarations.append(f"opacity:{_num(style.get('opacity'), 1)}")
+    return declarations
+
+
+def _style_attr(declarations: list[str]) -> str:
+    if not declarations:
+        return ""
+    return f' style="{";".join(declarations)}"'
+
+
+def _css_value(value: str) -> str:
+    return _esc(str(value).replace(";", "").strip())
 
 
 def _text(s: str) -> str:

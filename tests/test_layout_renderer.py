@@ -89,6 +89,37 @@ class TestLayoutRenderer(unittest.TestCase):
         html = render_html(_sample_cv(), {"version": 3, "pages": []})
         self.assertIn("cv-layout-page", html)
 
+    def test_block_font_family_is_exported(self):
+        cv = _sample_cv()
+        layout = {
+            "version": 3,
+            "theme": {"font_heading": "Inter, sans-serif"},
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "title",
+                            "type": "title",
+                            "content": "Titre custom",
+                            "x": 10,
+                            "y": 10,
+                            "w": 80,
+                            "h": 12,
+                            "z": 1,
+                            "style": {
+                                "font_family": "Playfair Display, serif",
+                                "font_size": 16,
+                            },
+                        }
+                    ],
+                }
+            ],
+        }
+        html = render_html(cv, layout)
+        self.assertIn("font-family:Playfair Display, serif", html)
+        self.assertIn("font-size:16.0pt", html)
+
 
 if __name__ == "__main__":
     unittest.main()

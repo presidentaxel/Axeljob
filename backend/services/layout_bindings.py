@@ -55,7 +55,7 @@ def resolve_bound_string_list(cv: dict | None, bind: str | list | None) -> list[
 
 
 def _slice_limited(items: list, limit: int | None) -> list:
-    if isinstance(limit, (int, float)) and limit > 0:
+    if isinstance(limit, int | float) and limit > 0:
         return items[: int(limit)]
     return items
 

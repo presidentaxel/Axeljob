@@ -278,7 +278,7 @@ def _render_semantic(cv: dict, block: dict) -> str:
 
 
 def _render_experiences(cv: dict, limit: Any, fmt: str) -> str:
-    items = bind.resolve_experiences(cv, limit if isinstance(limit, (int, float)) else None)
+    items = bind.resolve_experiences(cv, limit if isinstance(limit, int | float) else None)
     if not items:
         return _section("experiences", _placeholder("Expériences"))
     rows = []
@@ -306,7 +306,7 @@ def _render_experiences(cv: dict, limit: Any, fmt: str) -> str:
 
 
 def _render_formations(cv: dict, limit: Any) -> str:
-    items = bind.resolve_formations(cv, limit if isinstance(limit, (int, float)) else None)
+    items = bind.resolve_formations(cv, limit if isinstance(limit, int | float) else None)
     if not items:
         return _section("formations", _placeholder("Formations"))
     lines = []
@@ -324,7 +324,7 @@ def _render_formations(cv: dict, limit: Any) -> str:
 
 
 def _render_certifications(cv: dict, limit: Any) -> str:
-    items = bind.resolve_certifications(cv, limit if isinstance(limit, (int, float)) else None)
+    items = bind.resolve_certifications(cv, limit if isinstance(limit, int | float) else None)
     if not items:
         return _section("certifications", _placeholder("Certifications"))
     lines = []
@@ -343,7 +343,7 @@ def _render_certifications(cv: dict, limit: Any) -> str:
 
 
 def _render_projets(cv: dict, limit: Any) -> str:
-    items = bind.resolve_projets(cv, limit if isinstance(limit, (int, float)) else None)
+    items = bind.resolve_projets(cv, limit if isinstance(limit, int | float) else None)
     if not items:
         return _section("projets", _placeholder("Projets"))
     lines = []

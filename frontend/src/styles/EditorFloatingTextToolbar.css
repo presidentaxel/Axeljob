@@ -1,7 +1,7 @@
 .editor-floating-toolbar {
-  position: fixed;
-  z-index: 3;
-  top: calc(var(--cv-editor-beta-topbar-h, 52px) + 8px);
+  position: absolute;
+  z-index: 30;
+  top: 12px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -25,13 +25,35 @@
 }
 
 .editor-floating-toolbar__handle {
-  padding: 4px 6px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 26px !important;
+  min-width: 26px !important;
+  height: 32px !important;
+  padding: 0 !important;
   margin-right: 4px;
-  color: #94a3b8;
   cursor: grab;
-  font-size: 0.6rem;
-  letter-spacing: -2px;
-  border-right: 1px solid #f1f5f9;
+  border-radius: 8px !important;
+  border-right: 1px solid #f1f5f9 !important;
+  background: transparent !important;
+}
+
+.editor-floating-toolbar__handle span {
+  width: 12px;
+  height: 18px;
+  opacity: 0.7;
+  background-image: radial-gradient(circle, #94a3b8 1.6px, transparent 1.8px);
+  background-size: 6px 6px;
+  background-position: center;
+}
+
+.editor-floating-toolbar__handle:hover {
+  background: #f8fafc !important;
+}
+
+.editor-floating-toolbar__handle:hover span {
+  opacity: 1;
 }
 
 .editor-floating-toolbar__font {
@@ -171,6 +193,23 @@
 
 .editor-floating-toolbar__position-btn.is-active {
   background: #e0e7ff !important;
+}
+
+.editor-floating-toolbar__divider {
+  width: 1px;
+  height: 24px;
+  margin: 0 3px;
+  background: #e2e8f0;
+  flex-shrink: 0;
+}
+
+.editor-floating-toolbar__danger-btn {
+  color: #b91c1c !important;
+  background: #fef2f2 !important;
+}
+
+.editor-floating-toolbar__danger-btn:hover {
+  background: #fee2e2 !important;
 }
 
 .editor-floating-toolbar__popover {

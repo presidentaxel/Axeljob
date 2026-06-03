@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { fieldValueLooksLikeHtml } from '../../lib/canvasInlineEdit.js';
+import { fieldValueLooksLikeHtml, normalizeRichTextHtml } from '../../lib/canvasInlineEdit.js';
 
 /**
  * Champ editable inline sur le canvas (P4.1).
@@ -14,18 +14,19 @@ export default function CanvasEditableField({
   const Tag = tag;
   const ref = useRef(null);
   const text = typeof children === 'string' ? children : String(children ?? '');
+  const richText = normalizeRichTextHtml(text);
 
   useEffect(() => {
     if (!editing || !ref.current) return;
-    if (fieldValueLooksLikeHtml(text)) {
-      ref.current.innerHTML = text;
+    if (fieldValueLooksLikeHtml(richText)) {
+      ref.current.innerHTML = richText;
     }
-  }, [editing, text]);
+  }, [editing, richText]);
 
   if (!editing) {
     if (!text) return <Tag className={className}> </Tag>;
-    if (fieldValueLooksLikeHtml(text)) {
-      return <Tag className={className} dangerouslySetInnerHTML={{ __html: text }} />;
+    if (fieldValueLooksLikeHtml(richText)) {
+      return <Tag className={className} dangerouslySetInnerHTML={{ __html: richText }} />;
     }
     return <Tag className={className}>{text}</Tag>;
   }
@@ -41,7 +42,7 @@ export default function CanvasEditableField({
       onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
-      {fieldValueLooksLikeHtml(text) ? null : text}
+      {fieldValueLooksLikeHtml(richText) ? null : text}
     </Tag>
   );
 }

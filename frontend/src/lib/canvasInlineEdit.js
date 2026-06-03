@@ -51,10 +51,29 @@ export function findCvArrayIndex(cv, arrayKey, item) {
   return all.indexOf(item);
 }
 
+const ESCAPED_RICH_HTML_RE = /&lt;\/?(?:b|strong|i|em|u|s|strike|span|font|br|div|p)\b/i;
+
+function decodeHtmlEntities(value) {
+  return value
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&');
+}
+
+export function normalizeRichTextHtml(value) {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (!ESCAPED_RICH_HTML_RE.test(trimmed)) return trimmed;
+  return decodeHtmlEntities(trimmed);
+}
+
 /** Valeur d'un champ contentEditable (HTML si formatage inline, sinon texte). */
 export function fieldValueFromEditableEl(el) {
   if (!el) return '';
-  const html = (el.innerHTML || '').trim();
+  const html = normalizeRichTextHtml(el.innerHTML || '');
   if (!html || html === '<br>') return '';
   if (/<(?:b|strong|i|em|u|s|strike|span|font)\b/i.test(html)) {
     return html;
@@ -86,7 +105,7 @@ export function readBlockContentFromRoot(rootEl, blockType) {
     `${sel}, .free-canvas-block__title--editing, .free-canvas-block__text--editing, [data-canvas-block-content]`,
   );
   if (!el) return '';
-  const html = (el.innerHTML || '').trim();
+  const html = normalizeRichTextHtml(el.innerHTML || '');
   if (!html || html === '<br>') return '';
   return html;
 }
@@ -97,5 +116,5 @@ export function getFieldDisplayValue(cv, path) {
 }
 
 export function fieldValueLooksLikeHtml(value) {
-  return typeof value === 'string' && /<[a-z][\s\S]*>/i.test(value);
+  return typeof value === 'string' && /<[a-z][\s\S]*>/i.test(normalizeRichTextHtml(value));
 }

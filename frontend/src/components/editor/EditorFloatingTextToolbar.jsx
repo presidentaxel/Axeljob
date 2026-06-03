@@ -20,7 +20,7 @@ import {
   toggleTextCase,
 } from '../../lib/canvasRichTextFormat.js';
 import { CANVAS_FONT_FAMILIES } from '../../lib/canvasFontOptions.js';
-import { blockSupportsTextToolbar } from '../../lib/canvasBlockToolbar.js';
+import { blockSupportsStyleToolbar, blockSupportsTextToolbar } from '../../lib/canvasBlockToolbar.js';
 import '../../styles/EditorFloatingTextToolbar.css';
 
 const ALIGN_CYCLE = ['left', 'center', 'right', 'justify'];
@@ -30,6 +30,26 @@ const ALIGN_CMD = {
   right: 'justifyRight',
   justify: 'justifyFull',
 };
+
+const DEFAULT_COLOR = '#1e293b';
+
+function cssColorToHex(value, fallback = DEFAULT_COLOR) {
+  if (typeof value !== 'string') return fallback;
+  const trimmed = value.trim();
+  if (/^#[0-9a-f]{6}$/i.test(trimmed)) return trimmed;
+  const short = trimmed.match(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i);
+  if (short) return `#${short[1]}${short[1]}${short[2]}${short[2]}${short[3]}${short[3]}`;
+  const rgb = trimmed.match(/^rgba?\(([^)]+)\)$/i);
+  if (rgb) {
+    const parts = rgb[1].split(',').slice(0, 3).map((part) => Number.parseFloat(part.trim()));
+    if (parts.every((n) => Number.isFinite(n))) {
+      return `#${parts
+        .map((n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0'))
+        .join('')}`;
+    }
+  }
+  return fallback;
+}
 
 function AlignIcon({ align }) {
   if (align === 'center') return <HiBars3 size={18} aria-hidden />;
@@ -50,9 +70,16 @@ export default function EditorFloatingTextToolbar({
   isEditing = false,
   onBlockStylePatch,
   onOpenPositionPanel,
+  onDuplicateBlock,
+  onToggleLockBlock,
+  onDeleteBlock,
 }) {
+  const toolbarRef = useRef(null);
+  const dragSessionRef = useRef(null);
   const colorInputRef = useRef(null);
   const [effectsOpen, setEffectsOpen] = useState(false);
+  const [toolbarPos, setToolbarPos] = useState(null);
+  const [draggingToolbar, setDraggingToolbar] = useState(false);
   const [, tick] = useState(0);
 
   useEffect(() => {
@@ -62,7 +89,7 @@ export default function EditorFloatingTextToolbar({
     return () => document.removeEventListener('selectionchange', onSel);
   }, [isEditing]);
 
-  if (!block || !blockSupportsTextToolbar(block.type)) return null;
+  if (!block || !blockSupportsStyleToolbar(block.type)) return null;
 
   const style = block.style || {};
   const isLine = block.type === 'shape:line';
@@ -70,6 +97,61 @@ export default function EditorFloatingTextToolbar({
   const showText = blockSupportsTextToolbar(block.type);
   const fontSize = style.font_size || 12;
   const align = style.align || 'left';
+  const colorPickerValue = cssColorToHex(style.color || DEFAULT_COLOR);
+  const toolbarStyle = toolbarPos
+    ? { top: `${toolbarPos.top}px`, left: `${toolbarPos.left}px`, transform: 'none' }
+    : undefined;
+
+  const startToolbarDrag = (event) => {
+    const el = toolbarRef.current;
+    if (!el) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = el.getBoundingClientRect();
+    const parent = el.offsetParent;
+    const parentRect = parent?.getBoundingClientRect?.() || { left: 0, top: 0 };
+    const startLeft = rect.left - parentRect.left + (parent?.scrollLeft || 0);
+    const startTop = rect.top - parentRect.top + (parent?.scrollTop || 0);
+    dragSessionRef.current = {
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startLeft,
+      startTop,
+      width: rect.width,
+      height: rect.height,
+      maxLeft: Math.max(8, (parent?.clientWidth || window.innerWidth) - rect.width - 8),
+      maxTop: Math.max(8, (parent?.clientHeight || window.innerHeight) - rect.height - 8),
+    };
+    setToolbarPos({ left: startLeft, top: startTop });
+    setDraggingToolbar(true);
+    if (typeof event.currentTarget?.setPointerCapture === 'function') {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+  };
+
+  const moveToolbarDrag = (event) => {
+    const session = dragSessionRef.current;
+    if (!session) return;
+    event.preventDefault();
+    const margin = 8;
+    const nextLeft = session.startLeft + event.clientX - session.startClientX;
+    const nextTop = session.startTop + event.clientY - session.startClientY;
+    setToolbarPos({
+      left: Math.min(session.maxLeft, Math.max(margin, nextLeft)),
+      top: Math.min(session.maxTop, Math.max(margin, nextTop)),
+    });
+  };
+
+  const endToolbarDrag = (event) => {
+    if (!dragSessionRef.current) return;
+    dragSessionRef.current = null;
+    setDraggingToolbar(false);
+    if (typeof event.currentTarget?.releasePointerCapture === 'function') {
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch (_) { /* ignore */ }
+    }
+  };
 
   const openColorPicker = (e) => {
     formatAction(e, () => colorInputRef.current?.click());
@@ -147,12 +229,26 @@ export default function EditorFloatingTextToolbar({
 
   return (
     <div
-      className="editor-floating-toolbar"
+      ref={toolbarRef}
+      className={`editor-floating-toolbar${draggingToolbar ? ' editor-floating-toolbar--dragging' : ''}`}
+      style={toolbarStyle}
       role="toolbar"
       aria-label="Formatage du bloc"
       onPointerDown={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
+      <button
+        type="button"
+        className="editor-floating-toolbar__handle"
+        title="Deplacer la barre d'outils"
+        aria-label="Deplacer la barre d'outils"
+        onPointerDown={startToolbarDrag}
+        onPointerMove={moveToolbarDrag}
+        onPointerUp={endToolbarDrag}
+        onPointerCancel={endToolbarDrag}
+      >
+        <span aria-hidden="true" />
+      </button>
       {isLine && (
         <>
           <button type="button" className="editor-floating-toolbar__color-btn" title="Couleur" onMouseDown={openColorPicker}>
@@ -162,7 +258,7 @@ export default function EditorFloatingTextToolbar({
             ref={colorInputRef}
             type="color"
             className="editor-floating-toolbar__color-input-hidden"
-            value={style.color || '#1e293b'}
+            value={colorPickerValue}
             onChange={(e) => patchStyle('color', e.target.value)}
             tabIndex={-1}
             aria-hidden
@@ -184,7 +280,7 @@ export default function EditorFloatingTextToolbar({
             ref={colorInputRef}
             type="color"
             className="editor-floating-toolbar__color-input-hidden"
-            value={style.color || '#1e293b'}
+            value={colorPickerValue}
             onChange={(e) => patchStyle('color', e.target.value)}
             tabIndex={-1}
             aria-hidden
@@ -205,9 +301,9 @@ export default function EditorFloatingTextToolbar({
             ))}
           </select>
           <div className="editor-floating-toolbar__size-stepper">
-            <button type="button" onMouseDown={(e) => stepFontSize(e, -1)}>−</button>
+            <button type="button" onPointerDown={(e) => stepFontSize(e, -1)}>−</button>
             <span>{fontSize}</span>
-            <button type="button" onMouseDown={(e) => stepFontSize(e, 1)}>+</button>
+            <button type="button" onPointerDown={(e) => stepFontSize(e, 1)}>+</button>
           </div>
           <button type="button" className="editor-floating-toolbar__color-btn" title="Couleur" onMouseDown={openColorPicker}>
             <span className="editor-floating-toolbar__color-a editor-floating-toolbar__color-a--rainbow">A</span>
@@ -216,7 +312,7 @@ export default function EditorFloatingTextToolbar({
             ref={colorInputRef}
             type="color"
             className="editor-floating-toolbar__color-input-hidden"
-            value={style.color || '#1e293b'}
+            value={colorPickerValue}
             onChange={(e) => patchStyle('color', e.target.value)}
             tabIndex={-1}
             aria-hidden
@@ -286,6 +382,33 @@ export default function EditorFloatingTextToolbar({
         }}
       >
         Position
+      </button>
+      <span className="editor-floating-toolbar__divider" aria-hidden="true" />
+      <button
+        type="button"
+        title="Dupliquer le bloc"
+        aria-label="Dupliquer le bloc selectionne"
+        onMouseDown={(e) => formatAction(e, () => onDuplicateBlock?.())}
+      >
+        Dupliquer
+      </button>
+      <button
+        type="button"
+        title={block.locked ? 'Deverrouiller le bloc' : 'Verrouiller le bloc'}
+        aria-label={block.locked ? 'Deverrouiller le bloc selectionne' : 'Verrouiller le bloc selectionne'}
+        className={block.locked ? 'is-active' : ''}
+        onMouseDown={(e) => formatAction(e, () => onToggleLockBlock?.())}
+      >
+        {block.locked ? 'Deverr.' : 'Verrou'}
+      </button>
+      <button
+        type="button"
+        className="editor-floating-toolbar__danger-btn"
+        title="Supprimer le bloc"
+        aria-label="Supprimer le bloc selectionne"
+        onMouseDown={(e) => formatAction(e, () => onDeleteBlock?.())}
+      >
+        Suppr.
       </button>
     </div>
   );

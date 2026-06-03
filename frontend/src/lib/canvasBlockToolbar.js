@@ -22,6 +22,7 @@ export function blockSupportsStyleToolbar(type) {
     || type === 'shape:line'
     || type === 'icon'
     || type === 'image'
+    || type === 'photo'
     || type === 'shape:rect';
 }
 

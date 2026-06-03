@@ -6,6 +6,7 @@ import {
   findCvArrayIndex,
   getFieldDisplayValue,
   isCanvasInlineEditableType,
+  normalizeRichTextHtml,
 } from '../../lib/canvasInlineEdit.js';
 import {
   attachEditableFieldBehavior,
@@ -49,9 +50,10 @@ function photoSrc(cv) {
 
 function BlockText({ children, className = '' }) {
   const text = typeof children === 'string' ? children : '';
+  const richText = normalizeRichTextHtml(text);
   if (!text) return <span className={`free-canvas-block__empty ${className}`}> </span>;
-  if (fieldValueLooksLikeHtml(text)) {
-    return <span className={className} dangerouslySetInnerHTML={{ __html: text }} />;
+  if (fieldValueLooksLikeHtml(richText)) {
+    return <span className={className} dangerouslySetInnerHTML={{ __html: richText }} />;
   }
   return <span className={className}>{text}</span>;
 }
@@ -153,6 +155,18 @@ function SemanticBlockBody({ block, cv, editing = false }) {
         return <div className="free-canvas-block__photo-placeholder" aria-hidden="true" />;
       }
       const round = style.shape === 'circle';
+      const shape = style.shape || 'rect';
+      const radiusMm = style.border_radius_mm;
+      const radius = radiusMm > 0
+        ? `${radiusMm}mm`
+        : shape === 'circle'
+          ? '50%'
+          : shape === 'rounded'
+            ? '12px'
+            : '0';
+      const focalX = style.focal_x ?? 50;
+      const focalY = style.focal_y ?? 50;
+      const zoom = style.image_zoom ?? 1;
       const borderCls = style.photo_border === 'light'
         ? 'free-canvas-block__photo--border-light'
         : style.photo_border === 'accent'
@@ -163,15 +177,28 @@ function SemanticBlockBody({ block, cv, editing = false }) {
               ? 'free-canvas-block__photo--border-accent'
               : '';
       return (
-        <img
+        <div
           className={[
-            'free-canvas-block__photo',
-            round ? 'free-canvas-block__photo--round' : '',
+            'free-canvas-block__image-frame',
             borderCls,
           ].filter(Boolean).join(' ')}
-          src={src}
-          alt=""
-        />
+          style={{ borderRadius: radius, opacity: style.opacity ?? 1 }}
+        >
+          <img
+            className={[
+              'free-canvas-block__photo',
+              round ? 'free-canvas-block__photo--round' : '',
+            ].filter(Boolean).join(' ')}
+            src={src}
+            alt=""
+            style={{
+              objectFit: 'cover',
+              objectPosition: `${focalX}% ${focalY}%`,
+              transform: `scale(${zoom})`,
+              transformOrigin: `${focalX}% ${focalY}%`,
+            }}
+          />
+        </div>
       );
     }
     case 'contact': {
@@ -547,11 +574,12 @@ function SemanticBlockBody({ block, cv, editing = false }) {
 function EditableRichText({ tag, className, style, editing, html, onAutoHeight }) {
   const Tag = tag;
   const ref = useRef(null);
+  const richHtml = normalizeRichTextHtml(html || '');
   useEffect(() => {
     if (editing && ref.current) {
-      ref.current.innerHTML = html || '';
+      ref.current.innerHTML = richHtml;
     }
-  }, [editing, html]);
+  }, [editing, richHtml]);
 
   const reportHeight = () => {
     if (!editing || !ref.current || typeof onAutoHeight !== 'function') return;
@@ -583,9 +611,24 @@ function EditableRichText({ tag, className, style, editing, html, onAutoHeight }
     <Tag
       className={className}
       style={style}
-      dangerouslySetInnerHTML={{ __html: html || '' }}
+      dangerouslySetInnerHTML={{ __html: richHtml }}
     />
   );
+}
+
+function inlineTypographyStyle(style = {}) {
+  const css = {};
+  if (style.font_size != null) css.fontSize = `${style.font_size}pt`;
+  if (style.font_family) css.fontFamily = style.font_family;
+  if (style.color) css.color = style.color;
+  if (style.color_body) css.color = style.color_body;
+  if (style.bold) css.fontWeight = '700';
+  if (style.italic || style.font_style === 'italic') css.fontStyle = 'italic';
+  const deco = [];
+  if (style.underline) deco.push('underline');
+  if (style.strikethrough) deco.push('line-through');
+  if (deco.length) css.textDecoration = deco.join(' ');
+  return css;
 }
 
 function NonSemanticBlockBody({ block, editing = false, onAutoHeight }) {
@@ -593,6 +636,7 @@ function NonSemanticBlockBody({ block, editing = false, onAutoHeight }) {
   switch (type) {
     case 'text': {
       const textStyle = {
+        ...inlineTypographyStyle(style),
         textAlign: style.align || 'left',
         opacity: style.opacity ?? 1,
         margin: 0,
@@ -617,6 +661,7 @@ function NonSemanticBlockBody({ block, editing = false, onAutoHeight }) {
     }
     case 'title': {
       const titleStyle = {
+        ...inlineTypographyStyle(style),
         textAlign: style.align || 'left',
         opacity: style.opacity ?? 1,
         margin: 0,
@@ -814,7 +859,7 @@ export default function FreeCanvasBlock({
   const handleDoubleClick = (e) => {
     if (!interactable) return;
     e.stopPropagation();
-    if (type === 'image' && typeof onImageEdit === 'function') {
+    if ((type === 'image' || type === 'photo') && typeof onImageEdit === 'function') {
       onImageEdit(block.id);
       return;
     }

@@ -31,6 +31,8 @@ import {
   SEMANTIC_BLOCK_TYPES,
   addBlockToPage,
   appendBlankPage,
+  canAppendBlankPage,
+  MAX_LAYOUT_PAGES,
   bringToFront,
   createBlankLayoutV3,
   createStarterLayoutV3,
@@ -431,6 +433,20 @@ test('appendBlankPage : ajoute page vide', () => {
   const l1 = appendBlankPage(l0, { idHelpers });
   assert.equal(l1.pages.length, 2);
   assert.equal(l1.pages[1].blocks.length, 0);
+});
+
+test('canAppendBlankPage : false au plafond MAX_LAYOUT_PAGES', () => {
+  let layout = createBlankLayoutV3({ idHelpers });
+  assert.equal(canAppendBlankPage(layout), true);
+  for (let i = 1; i < MAX_LAYOUT_PAGES; i += 1) {
+    layout = appendBlankPage(layout, { idHelpers });
+    assert.equal(layout.pages.length, i + 1);
+    assert.equal(canAppendBlankPage(layout), i + 1 < MAX_LAYOUT_PAGES);
+  }
+  const atMax = appendBlankPage(layout, { idHelpers });
+  assert.equal(atMax.pages.length, MAX_LAYOUT_PAGES);
+  assert.equal(canAppendBlankPage(atMax), false);
+  assert.equal(appendBlankPage(atMax, { idHelpers }), atMax);
 });
 
 test('removePage : preserve au moins une page', () => {

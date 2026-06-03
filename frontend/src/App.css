@@ -27,6 +27,8 @@
   --radius-sm: 8px;
   --radius-xs: 6px;
   --transition: 0.15s ease;
+  /* Police UI unique (Stable + Beta + topbar) */
+  --app-font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
 * {
@@ -54,11 +56,21 @@
 }
 
 body {
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--app-font-family);
   margin: 0;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
+}
+
+/* Controles natifs : n heritent pas toujours body (Chrome). L editeur Beta les
+ * forçait deja ; le mode Stable (ProfileView) utilisait inherit -> system-ui. */
+.app-shell button,
+.app-shell input,
+.app-shell select,
+.app-shell textarea,
+.app-shell optgroup {
+  font-family: var(--app-font-family);
 }
 
 /* ========== ROOT & APP LAYOUT ========== */

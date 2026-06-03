@@ -2,25 +2,19 @@
  * Voir frontend/src/components/editor/CvEditorBeta.jsx.
  * Ces styles ne touchent pas a la version stable (ProfileView.jsx).
  *
- * Police : on aligne explicitement sur celle du software (`Plus Jakarta
- * Sans`, definie dans App.css l.57). Les <select>, <button>, <input>
- * natifs n heritent pas de `font-family` de maniere fiable cross-browser
- * (notamment Chrome sur certains OS), d ou l usage d une variable locale.
+ * Police : alias de --app-font-family (App.css) pour les composants editeur.
  */
-.cv-editor-beta,
-body.cv-editor-beta-fullscreen .cv-editor-beta {
-  --editor-font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  font-family: var(--editor-font-family);
+.cv-editor-beta {
+  --editor-font-family: var(--app-font-family);
+  font-family: var(--app-font-family);
 }
 
-/* Mode plein ecran : masque le page-header parent (rendu par App.jsx) et
- * neutralise le padding du page-content. La classe est ajoutee sur <body>
- * par CvEditorBeta.jsx au mount et retiree au unmount, donc le mode stable
- * ne voit jamais ces regles.
+/* Mode plein ecran : uniquement le panneau Profil qui contient l editeur Beta.
  *
- * Specificite : `body.cv-editor-beta-fullscreen .app-page X` = (0,3,1),
- * superieure aux styles existants `.app-page X` = (0,2,0). Pas besoin
- * d `!important` -- on garde la cascade propre.
+ * On utilise `:has(.cv-editor-beta)` au lieu d une classe sur `<body>` :
+ * - pas de synchronisation JS (plus de fuite au retour Stable) ;
+ * - les autres vues (Candidatures, Settings, …) gardent leur page-header ;
+ * - des que React remplace CvEditorBeta par ProfileView, `:has` ne matche plus.
  *
  * Scroll : on neutralise les `overflow:auto` que App.css applique a
  * `.app-page` et `.page-content`. Sinon, quand le CV depasse, c est
@@ -28,16 +22,16 @@ body.cv-editor-beta-fullscreen .cv-editor-beta {
  * Avec ces overrides, seul `.cv-editor-beta-canvas` scrolle, la topbar
  * et l inspecteur restent fixes en haut / a droite.
  */
-body.cv-editor-beta-fullscreen .app-page {
+.view-profil.app-page:has(.cv-editor-beta) {
   padding: 0;
   overflow: hidden;
 }
 
-body.cv-editor-beta-fullscreen .app-page .page-header {
+.view-profil.app-page:has(.cv-editor-beta) > .page-header {
   display: none;
 }
 
-body.cv-editor-beta-fullscreen .app-page .page-content {
+.view-profil.app-page:has(.cv-editor-beta) > .page-content {
   padding: 0;
   margin: 0;
   max-width: none;
@@ -47,15 +41,6 @@ body.cv-editor-beta-fullscreen .app-page .page-content {
   display: flex;
   flex-direction: column;
   min-height: 0;
-}
-
-/* Le wrapper .view-profil a parfois ses propres styles (cf. App.css
- * `.view-profil .page-content`) qui ajoutent du padding ou un grid. */
-body.cv-editor-beta-fullscreen .view-profil.app-page .page-content {
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
 }
 
 .cv-editor-beta {

@@ -111,7 +111,7 @@ docker compose logs --tail 100 backend
 ### PowerShell (Windows)
 
 ```powershell
-cd D:\Code\cv-bot
+cd /opt/cv-bot
 docker compose logs -f
 docker compose logs -f backend
 docker compose logs -f frontend

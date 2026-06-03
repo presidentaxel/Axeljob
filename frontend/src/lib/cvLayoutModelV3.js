@@ -521,9 +521,18 @@ export function updateBlockStyle(layout, blockId, stylePatch) {
 // Pages
 // ---------------------------------------------------------------------------
 
+/** Nombre max de pages A4 sur le canvas libre (export PDF inclus). */
+export const MAX_LAYOUT_PAGES = 10;
+
+/** True si une page vide peut encore etre ajoutee a la fin du layout. */
+export function canAppendBlankPage(layout) {
+  if (!layout || !Array.isArray(layout.pages)) return false;
+  return layout.pages.length < MAX_LAYOUT_PAGES;
+}
+
 /** Ajoute une nouvelle page A4 vide a la fin. Retourne un nouveau layout. */
 export function appendBlankPage(layout, { idHelpers } = {}) {
-  if (!layout) return layout;
+  if (!layout || !canAppendBlankPage(layout)) return layout;
   const pages = Array.isArray(layout.pages) ? [...layout.pages] : [];
   pages.push({ id: generateItemId('page', idHelpers || {}), blocks: [] });
   return { ...layout, pages };

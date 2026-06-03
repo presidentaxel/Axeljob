@@ -6,7 +6,7 @@ import {
   pageIndexFromElement,
 } from '../../lib/canvasPlacement.js';
 import { clampBlockPositionOnPage } from '../../lib/canvasPageTransfer.js';
-import { findBlock } from '../../lib/cvLayoutModelV3.js';
+import { canAppendBlankPage, findBlock } from '../../lib/cvLayoutModelV3.js';
 import { PAGE_HEIGHT_MM, PAGE_WIDTH_MM } from '../../lib/cvLayoutModelV3.js';
 import {
   clientDeltaToMmDelta,
@@ -73,6 +73,7 @@ export default function FreeCanvas({
   placementPreset = null,
   onPlaceBlockAt,
   onCancelPlacement,
+  onAddPage,
 }) {
   const viewportRef = useRef(null);
   const blockElementsRef = useRef({});
@@ -367,6 +368,9 @@ export default function FreeCanvas({
   const sectionTitleColor = theme.color_section_title || accent;
   const tplId = theme.template_id;
   const scaledHeight = scaledPageHeightPx(scale);
+  const showAddPageBtn = interactable
+    && typeof onAddPage === 'function'
+    && canAppendBlankPage(layout);
 
   const placeLabel = placementPreset?.type === 'icon'
     ? 'Icône'
@@ -385,6 +389,7 @@ export default function FreeCanvas({
           {placeLabel}
         </div>
       )}
+      <div className="free-canvas-pages-stack">
       <div
         className="free-canvas-pages"
         style={{ minHeight: `${scaledHeight}px` }}
@@ -457,13 +462,46 @@ export default function FreeCanvas({
                   />
                   );
                 })}
-                {blocks.length === 0 && pageIndex === 0 && (
-                  <p className="free-canvas-page-empty">Page vide — glissez un élément depuis la barre latérale</p>
+                {blocks.length === 0 && (
+                  <p className="free-canvas-page-empty">
+                    Page {pageIndex + 1} vide — glissez un élément depuis la barre latérale
+                  </p>
                 )}
               </div>
             </div>
           );
         })}
+      </div>
+      {showAddPageBtn && (
+        <div className="free-canvas-add-page-row">
+          <button
+            type="button"
+            className="free-canvas-add-page-btn"
+            data-testid="free-canvas-add-page"
+            title={`Ajouter une page A4 (page ${pages.length + 1})`}
+            aria-label={`Ajouter une page ${pages.length + 1}`}
+            onClick={() => onAddPage()}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              width={22}
+              height={22}
+              aria-hidden
+            >
+              <path
+                fillRule="evenodd"
+                d="M12 3.75a.75.75 0 01.75.75v6.75h6.75a.75.75 0 010 1.5h-6.75v6.75a.75.75 0 01-1.5 0v-6.75H4.5a.75.75 0 010-1.5h6.75V4.5a.75.75 0 01.75-.75z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
+          <span className="free-canvas-add-page-hint">
+            Page {pages.length} — ajouter la page {pages.length + 1}
+          </span>
+        </div>
+      )}
       </div>
     </div>
   );

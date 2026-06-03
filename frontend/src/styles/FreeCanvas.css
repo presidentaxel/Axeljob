@@ -22,12 +22,71 @@
   max-width: 42rem;
 }
 
+.free-canvas-pages-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  gap: 0.5rem;
+}
+
 .free-canvas-pages {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1.5rem;
   width: 100%;
+}
+
+/* Bouton + sous la derniere feuille : ajoute une page A4 vide (appendBlankPage). */
+.free-canvas-add-page-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0 1rem;
+}
+
+.free-canvas-add-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid #c7d2fe;
+  background: #ffffff;
+  color: #4338ca;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.12);
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 120ms ease;
+  font-family: var(--app-font-family);
+}
+
+.free-canvas-add-page-btn:hover {
+  background: #eef2ff;
+  border-color: #6366f1;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.2);
+}
+
+.free-canvas-add-page-btn:active {
+  transform: scale(0.96);
+}
+
+.free-canvas-add-page-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35);
+}
+
+.free-canvas-add-page-hint {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  letter-spacing: 0.01em;
 }
 
 .free-canvas-page-wrap {

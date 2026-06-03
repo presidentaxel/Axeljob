@@ -7,6 +7,22 @@ import {
 } from '../../lib/canvasInlineEdit.js';
 import { applyAtsLayoutOptimizations } from '../../lib/atsLayoutOptimize.js';
 import { saveLayoutProposal } from '../../lib/layoutProposalsStorage.js';
+import {
+  BLANK_CANVAS_CONTEXT_KEY,
+  canvasContextLabel,
+  getActiveCanvasContext,
+  getCanvasDraftPrefs,
+  listCanvasDrafts,
+  loadCanvasDraft,
+  saveCanvasDraft,
+  setActiveCanvasContext,
+  setCanvasDraftPrefs,
+  templateCanvasContextKey,
+} from '../../lib/canvasLayoutDrafts.js';
+import {
+  detectTransferCandidates,
+  mergeTransferredBlocks,
+} from '../../lib/canvasLayoutTransfer.js';
 import { defaultCv } from '../../data/cvDefault';
 import { blockSupportsStyleToolbar } from '../../lib/canvasBlockToolbar.js';
 import { getLastBlockIdOnPage } from '../../lib/freeCanvasBlockPresets.js';
@@ -44,6 +60,7 @@ import EditorAtsScoreBadge from './EditorAtsScoreBadge.jsx';
 import EditorCanvaSidebar from './EditorCanvaSidebar.jsx';
 import EditorFloatingTextToolbar from './EditorFloatingTextToolbar.jsx';
 import EditorImageEditPopover from './EditorImageEditPopover.jsx';
+import EditorCanvaTransferModal from './EditorCanvaTransferModal.jsx';
 
 import '../../styles/CvEditorBeta.css';
 import '../../styles/EditorCanvaSidebar.css';
@@ -85,6 +102,22 @@ function sameLayout(a, b) {
   }
 }
 
+const INVALID_FILENAME_CHARS = /[<>:"/\\|?*]/g;
+
+function cleanFilenamePart(value) {
+  return String(value || '')
+    .replace(INVALID_FILENAME_CHARS, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function buildCanvasPdfFilename(cv) {
+  const identity = [cv?.prenom, cv?.nom].map(cleanFilenamePart).filter(Boolean).join(' ');
+  const title = cleanFilenamePart(cv?.titre_professionnel);
+  const parts = ['CV', identity, title].filter(Boolean);
+  return `${parts.join(' - ') || 'CV'}.pdf`;
+}
+
 function CvEditorBeta({
   session: _session,
   templateId,
@@ -101,7 +134,6 @@ function CvEditorBeta({
   const [selectedBlockRect, setSelectedBlockRect] = useState(null);
   const [canvasBusy, setCanvasBusy] = useState(false);
   const [pdfExporting, setPdfExporting] = useState(false);
-  const [atsPdfExporting, setAtsPdfExporting] = useState(false);
   const [showCanvasGrid, setShowCanvasGrid] = useState(false);
   const [canvasSnapEnabled, setCanvasSnapEnabled] = useState(true);
   const [imageEditBlockId, setImageEditBlockId] = useState(null);
@@ -116,6 +148,9 @@ function CvEditorBeta({
   const [canvasResizing, setCanvasResizing] = useState(false);
   const layoutRef = useRef(null);
   const autoSaveRef = useRef(null);
+  const [activeLayoutContextKey, setActiveLayoutContextKey] = useState(() => getActiveCanvasContext());
+  const [canvasDrafts, setCanvasDrafts] = useState(() => listCanvasDrafts(templatesList));
+  const [transferRequest, setTransferRequest] = useState(null);
 
   const handleLayoutHistoryChange = useCallback(() => {
     if (cv) autoSaveRef.current?.schedule(cv);
@@ -153,6 +188,57 @@ function CvEditorBeta({
   });
   autoSaveRef.current = autoSave;
 
+  const refreshCanvasDrafts = useCallback(() => {
+    setCanvasDrafts(listCanvasDrafts(templatesList));
+  }, [templatesList]);
+
+  useEffect(() => {
+    refreshCanvasDrafts();
+  }, [refreshCanvasDrafts]);
+
+  const buildTemplateCanvasLayout = useCallback((template) => {
+    let next = template ? createCanvasLayoutForTemplate(template) : createCanvasLayoutBlank();
+    for (let pi = 0; pi < (next.pages?.length || 0); pi += 1) {
+      next = reflowColumnBlocksOnPage(next, pi);
+    }
+    return next;
+  }, []);
+
+  const saveCurrentCanvasDraft = useCallback(() => {
+    const currentLayout = layoutRef.current;
+    if (!currentLayout) return null;
+    const label = canvasContextLabel(activeLayoutContextKey, templatesList);
+    const saved = saveCanvasDraft(activeLayoutContextKey, currentLayout, { label });
+    refreshCanvasDrafts();
+    return saved;
+  }, [activeLayoutContextKey, templatesList, refreshCanvasDrafts]);
+
+  useEffect(() => {
+    if (!layout) return undefined;
+    const id = setTimeout(() => {
+      saveCanvasDraft(activeLayoutContextKey, layout, {
+        label: canvasContextLabel(activeLayoutContextKey, templatesList),
+      });
+      refreshCanvasDrafts();
+    }, 250);
+    return () => clearTimeout(id);
+  }, [layout, activeLayoutContextKey, templatesList, refreshCanvasDrafts]);
+
+  const openCanvasContext = useCallback((contextKey, nextLayout) => {
+    const hydrated = migrateLayoutToV3(nextLayout || createCanvasLayoutBlank());
+    resetLayout(hydrated);
+    setSelectedBlockId(null);
+    setEditingBlockId(null);
+    setImageEditBlockId(null);
+    setPlacementPreset(null);
+    setStartupPromptOpen(false);
+    setActiveLayoutContextKey(contextKey);
+    setActiveCanvasContext(contextKey);
+    saveCanvasDraft(contextKey, hydrated, { label: canvasContextLabel(contextKey, templatesList) });
+    refreshCanvasDrafts();
+    if (cv) autoSave.schedule(cv);
+  }, [resetLayout, templatesList, refreshCanvasDrafts, cv, autoSave]);
+
   useEffect(() => {
     let aborted = false;
     setLoading(true);
@@ -168,6 +254,15 @@ function CvEditorBeta({
         const hydratedLayout = rawLayout
           ? migrateLayoutToV3(rawLayout)
           : createBlankLayoutV3();
+        const contextKey = getActiveCanvasContext();
+        setActiveLayoutContextKey(contextKey);
+        setActiveCanvasContext(contextKey);
+        if (rawLayout) {
+          saveCanvasDraft(contextKey, hydratedLayout, {
+            label: canvasContextLabel(contextKey, templatesList),
+          });
+          refreshCanvasDrafts();
+        }
         resetLayout(hydratedLayout);
         setStartupPromptOpen(!rawLayout && cvHasMeaningfulContent(mergedCv));
         setLoading(false);
@@ -177,12 +272,14 @@ function CvEditorBeta({
         setLoadError(err?.message || 'Impossible de charger le CV');
         const baseCv = typeof defaultCv === 'function' ? defaultCv() : defaultCv;
         setCv({ ...baseCv });
+        setActiveLayoutContextKey(BLANK_CANVAS_CONTEXT_KEY);
+        setActiveCanvasContext(BLANK_CANVAS_CONTEXT_KEY);
         resetLayout(createBlankLayoutV3());
         setStartupPromptOpen(false);
         setLoading(false);
       });
     return () => { aborted = true; };
-  }, [resetLayout]);
+  }, [resetLayout, templatesList, refreshCanvasDrafts]);
 
   const handleCvChange = useCallback((nextCv) => {
     setCv(nextCv);
@@ -193,27 +290,52 @@ function CvEditorBeta({
     autoSave.flush();
   }, [autoSave]);
 
+  const requestCanvasContextSwitch = useCallback(({ contextKey, label, baseLayout }) => {
+    if (!contextKey || !baseLayout) return;
+    const currentLayout = layoutRef.current;
+    saveCurrentCanvasDraft();
+    const draft = loadCanvasDraft(contextKey);
+    const targetLayout = draft?.layout || baseLayout;
+    const candidates = currentLayout && contextKey !== activeLayoutContextKey
+      ? detectTransferCandidates(currentLayout, baseLayout)
+      : [];
+    if (getCanvasDraftPrefs().showTransferPrompt && candidates.length > 0) {
+      setTransferRequest({
+        mode: 'switch',
+        contextKey,
+        label,
+        targetLayout,
+        candidates,
+      });
+      return;
+    }
+    openCanvasContext(contextKey, targetLayout);
+  }, [activeLayoutContextKey, saveCurrentCanvasDraft, openCanvasContext]);
+
   const handlePickBlankCanvas = useCallback(() => {
-    setPlacementPreset(null);
-    setStartupPromptOpen(false);
-    const next = createCanvasLayoutBlank();
-    resetLayout(next);
-    if (cv) autoSave.schedule(cv);
-  }, [resetLayout, cv, autoSave]);
+    requestCanvasContextSwitch({
+      contextKey: BLANK_CANVAS_CONTEXT_KEY,
+      label: 'Page blanche',
+      baseLayout: createCanvasLayoutBlank(),
+    });
+  }, [requestCanvasContextSwitch]);
 
   const handleGenerateStarterCanvas = useCallback(() => {
-    setPlacementPreset(null);
     const selectedTemplate = (templatesList || []).find((t) => t?.id === templateId);
-    let next = selectedTemplate
-      ? createCanvasLayoutForTemplate(selectedTemplate)
-      : createStarterLayoutV3();
-    for (let pi = 0; pi < (next.pages?.length || 0); pi += 1) {
-      next = reflowColumnBlocksOnPage(next, pi);
+    if (selectedTemplate) {
+      requestCanvasContextSwitch({
+        contextKey: templateCanvasContextKey(selectedTemplate.id),
+        label: selectedTemplate.name || selectedTemplate.id,
+        baseLayout: buildTemplateCanvasLayout(selectedTemplate),
+      });
+      return;
     }
-    resetLayout(next);
-    setStartupPromptOpen(false);
-    if (cv) autoSave.schedule(cv);
-  }, [templatesList, templateId, resetLayout, cv, autoSave]);
+    requestCanvasContextSwitch({
+      contextKey: BLANK_CANVAS_CONTEXT_KEY,
+      label: 'Page blanche',
+      baseLayout: createStarterLayoutV3(),
+    });
+  }, [templatesList, templateId, requestCanvasContextSwitch, buildTemplateCanvasLayout]);
 
   const handleAddCanvasPage = useCallback(() => {
     if (!layout || !canAppendBlankPage(layout)) return;
@@ -361,15 +483,12 @@ function CvEditorBeta({
 
   const handleApplyCanvasTemplate = useCallback((template) => {
     if (!template) return;
-    setPlacementPreset(null);
-    let next = createCanvasLayoutForTemplate(template);
-    for (let pi = 0; pi < (next.pages?.length || 0); pi += 1) {
-      next = reflowColumnBlocksOnPage(next, pi);
-    }
-    resetLayout(next);
-    setStartupPromptOpen(false);
-    if (cv) autoSave.schedule(cv);
-  }, [resetLayout, cv, autoSave]);
+    requestCanvasContextSwitch({
+      contextKey: templateCanvasContextKey(template.id),
+      label: template.name || template.id,
+      baseLayout: buildTemplateCanvasLayout(template),
+    });
+  }, [requestCanvasContextSwitch, buildTemplateCanvasLayout]);
 
   const handleBlockPatch = useCallback((patch) => {
     if (!selectedBlockId) return;
@@ -501,7 +620,7 @@ function CvEditorBeta({
     setPdfExporting(true);
     setPdfExportError('');
     try {
-      const { blob, filename } = await apiPostBlob('/api/pdf', {
+      const { blob } = await apiPostBlob('/api/pdf', {
         cv,
         template_id: templateId,
         layout,
@@ -509,40 +628,16 @@ function CvEditorBeta({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename || 'cv-canvas.pdf';
+      a.download = buildCanvasPdfFilename(cv);
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error('[cv-editor-beta] export PDF layout', err);
-      setPdfExportError(err?.message || 'Impossible de generer le PDF canvas.');
+      setPdfExportError(err?.message || 'Impossible de telecharger le PDF.');
     } finally {
       setPdfExporting(false);
     }
   }, [cv, layout, templateId, pdfExporting]);
-
-  const handleExportAtsPdf = useCallback(async () => {
-    if (!cv || atsPdfExporting) return;
-    setAtsPdfExporting(true);
-    setPdfExportError('');
-    try {
-      const { blob, filename } = await apiPostBlob('/api/pdf', {
-        cv,
-        template_id: templateId,
-        template_options: templateOptions,
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename || 'cv-ats.pdf';
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('[cv-editor-beta] export PDF ATS', err);
-      setPdfExportError(err?.message || 'Impossible de generer le PDF ATS.');
-    } finally {
-      setAtsPdfExporting(false);
-    }
-  }, [cv, templateId, templateOptions, atsPdfExporting]);
 
   const handleSaveLayoutProposal = useCallback((name) => {
     if (!layout) return;
@@ -556,6 +651,64 @@ function CvEditorBeta({
     setSelectedBlockId(null);
     if (cv) autoSave.schedule(cv);
   }, [resetLayout, cv, autoSave]);
+
+  const handleConfirmTransfer = useCallback(({ rememberChoice = false } = {}) => {
+    if (!transferRequest) return;
+    if (rememberChoice) setCanvasDraftPrefs({ showTransferPrompt: false });
+    const merged = mergeTransferredBlocks(
+      transferRequest.targetLayout || layoutRef.current,
+      transferRequest.candidates,
+    );
+    if (transferRequest.mode === 'switch') {
+      openCanvasContext(transferRequest.contextKey, merged);
+    } else {
+      resetLayout(merged);
+      saveCanvasDraft(activeLayoutContextKey, merged, {
+        label: canvasContextLabel(activeLayoutContextKey, templatesList),
+      });
+      refreshCanvasDrafts();
+      if (cv) autoSave.schedule(cv);
+    }
+    setTransferRequest(null);
+  }, [
+    transferRequest,
+    openCanvasContext,
+    resetLayout,
+    activeLayoutContextKey,
+    templatesList,
+    refreshCanvasDrafts,
+    cv,
+    autoSave,
+  ]);
+
+  const handleIgnoreTransfer = useCallback(({ rememberChoice = false } = {}) => {
+    if (!transferRequest) return;
+    if (rememberChoice) setCanvasDraftPrefs({ showTransferPrompt: false });
+    if (transferRequest.mode === 'switch') {
+      openCanvasContext(transferRequest.contextKey, transferRequest.targetLayout);
+    }
+    setTransferRequest(null);
+  }, [transferRequest, openCanvasContext]);
+
+  const handleCancelTransfer = useCallback(() => {
+    setTransferRequest(null);
+  }, []);
+
+  const handleOpenTransferFromDraft = useCallback((sourceContextKey) => {
+    if (!sourceContextKey || sourceContextKey === activeLayoutContextKey) return;
+    saveCurrentCanvasDraft();
+    const source = loadCanvasDraft(sourceContextKey);
+    if (!source?.layout) return;
+    const candidates = detectTransferCandidates(source.layout, layoutRef.current);
+    if (!candidates.length) return;
+    setTransferRequest({
+      mode: 'manual',
+      contextKey: activeLayoutContextKey,
+      label: canvasContextLabel(sourceContextKey, templatesList),
+      targetLayout: layoutRef.current,
+      candidates,
+    });
+  }, [activeLayoutContextKey, templatesList, saveCurrentCanvasDraft]);
 
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -626,18 +779,9 @@ function CvEditorBeta({
             className="cv-editor-beta-history-btn"
             onClick={handleExportLayoutPdf}
             disabled={loading || !layout || pdfExporting}
-            title="Exporter le PDF depuis le layout canvas"
+            title="Télécharger le CV Canva en PDF"
           >
-            {pdfExporting ? 'PDF…' : 'PDF canvas'}
-          </button>
-          <button
-            type="button"
-            className="cv-editor-beta-history-btn"
-            onClick={handleExportAtsPdf}
-            disabled={loading || !cv || atsPdfExporting}
-            title="Exporter un PDF structure, sans layout canvas absolu"
-          >
-            {atsPdfExporting ? 'PDF ATS…' : 'PDF ATS'}
+            {pdfExporting ? 'Téléchargement…' : 'Télécharger'}
           </button>
         </div>
       </header>
@@ -667,6 +811,8 @@ function CvEditorBeta({
           layout={layout}
           selectedBlockId={selectedBlockId}
           templatesList={templatesList}
+          canvasDrafts={canvasDrafts}
+          activeCanvasDraftKey={activeLayoutContextKey}
           showGrid={showCanvasGrid}
           snapEnabled={canvasSnapEnabled}
           onShowGridChange={setShowCanvasGrid}
@@ -681,6 +827,7 @@ function CvEditorBeta({
           onApplyCanvasTemplate={handleApplyCanvasTemplate}
           onLoadProposal={handleLoadLayoutProposal}
           onSaveProposal={handleSaveLayoutProposal}
+          onOpenTransferFromDraft={handleOpenTransferFromDraft}
         />
         <div className="cv-editor-beta-canva-column">
           <main className="cv-editor-beta-canvas">
@@ -741,6 +888,14 @@ function CvEditorBeta({
                   Le score ATS vous indiquera les risques.
                 </p>
               </section>
+            )}
+            {transferRequest && (
+              <EditorCanvaTransferModal
+                request={transferRequest}
+                onConfirm={handleConfirmTransfer}
+                onIgnore={handleIgnoreTransfer}
+                onCancel={handleCancelTransfer}
+              />
             )}
             {selectedBlock && blockSupportsStyleToolbar(selectedBlock.type) && (
               <EditorFloatingTextToolbar

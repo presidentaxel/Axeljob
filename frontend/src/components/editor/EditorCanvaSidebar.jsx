@@ -68,6 +68,8 @@ export default function EditorCanvaSidebar({
   onOpenSectionChange,
   placementActive = false,
   templatesList = [],
+  canvasDrafts = [],
+  activeCanvasDraftKey = null,
   layout = null,
   selectedBlockId = null,
   showGrid = false,
@@ -84,15 +86,20 @@ export default function EditorCanvaSidebar({
   onApplyCanvasTemplate,
   onLoadProposal,
   onSaveProposal,
+  onOpenTransferFromDraft,
 }) {
   const [proposalName, setProposalName] = useState('');
   const [proposals, setProposals] = useState(() => listLayoutProposals());
   const [imageShape, setImageShape] = useState('rect');
   const [iconColor, setIconColor] = useState('#1e293b');
   const [importing, setImporting] = useState(false);
+  const [transferSourceKey, setTransferSourceKey] = useState('');
   const fileInputRef = useRef(null);
 
   const refreshProposals = () => setProposals(listLayoutProposals());
+  const transferDraftOptions = (canvasDrafts || []).filter(
+    (draft) => draft?.contextKey && draft.contextKey !== activeCanvasDraftKey,
+  );
 
   const handleSaveProposal = () => {
     if (typeof onSaveProposal !== 'function') return;
@@ -332,6 +339,33 @@ export default function EditorCanvaSidebar({
                 <input type="checkbox" checked={snapEnabled} onChange={(e) => onSnapEnabledChange?.(e.target.checked)} />
                 Magnétisme (snap)
               </label>
+              <h4 className="editor-canva-drawer__subtitle">Transfert</h4>
+              <p className="editor-canva-drawer__hint editor-canva-drawer__hint--subtle">
+                Ajoutez des éléments depuis un autre brouillon sans remplacer ce canvas.
+              </p>
+              <label className="editor-canva-drawer__field">
+                Brouillon source
+                <select
+                  value={transferSourceKey}
+                  onChange={(e) => setTransferSourceKey(e.target.value)}
+                  disabled={disabled || transferDraftOptions.length === 0}
+                >
+                  <option value="">Choisir un brouillon</option>
+                  {transferDraftOptions.map((draft) => (
+                    <option key={draft.contextKey} value={draft.contextKey}>
+                      {draft.label || draft.contextKey}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                className="editor-canva-drawer__btn editor-canva-drawer__btn--full"
+                disabled={disabled || !transferSourceKey}
+                onClick={() => onOpenTransferFromDraft?.(transferSourceKey)}
+              >
+                Transférer des éléments
+              </button>
             </>
           )}
         </div>

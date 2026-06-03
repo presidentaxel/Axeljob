@@ -146,9 +146,7 @@ class TestCreateCheckoutSession(unittest.TestCase):
         params = fake_client.checkout.sessions.create.call_args.kwargs["params"]
         self.assertEqual(params["mode"], "subscription")
         self.assertEqual(params["client_reference_id"], "user_1")
-        self.assertEqual(
-            params["line_items"], [{"price": "price_pro_monthly_123", "quantity": 1}]
-        )
+        self.assertEqual(params["line_items"], [{"price": "price_pro_monthly_123", "quantity": 1}])
 
     def test_create_checkout_session_requires_auth(self):
         req = _FakeRequest()
@@ -377,9 +375,7 @@ class TestCancelSubscription(unittest.TestCase):
             patch.object(main, "STRIPE_SECRET_KEY", "sk_test"),
             patch.object(main, "get_paywall_disabled", return_value=False),
             patch.dict("sys.modules", {"stripe": fake_stripe}),
-            patch.object(
-                main, "_resolve_pro_subscription_id", return_value=("cus_123", "sub_456")
-            ),
+            patch.object(main, "_resolve_pro_subscription_id", return_value=("cus_123", "sub_456")),
             patch.object(main, "_stripe_subscription_snapshot_dict", return_value=None),
             patch.object(main, "_STRIPE_SNAPSHOT_CACHE"),
             patch.object(main, "get_user_stripe_ids", return_value=("cus_123", "sub_456")),

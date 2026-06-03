@@ -101,7 +101,8 @@ def resolve_certifications(cv: dict | None, limit: int | None = None) -> list[di
     filtered = [
         c
         for c in all_c
-        if isinstance(c, dict) and ((c.get("nom") or "").strip() or (c.get("organisme") or "").strip())
+        if isinstance(c, dict)
+        and ((c.get("nom") or "").strip() or (c.get("organisme") or "").strip())
     ]
     return _slice_limited(filtered, limit)
 
@@ -113,7 +114,8 @@ def resolve_projets(cv: dict | None, limit: int | None = None) -> list[dict]:
     filtered = [
         p
         for p in all_p
-        if isinstance(p, dict) and ((p.get("nom") or "").strip() or (p.get("description") or "").strip())
+        if isinstance(p, dict)
+        and ((p.get("nom") or "").strip() or (p.get("description") or "").strip())
     ]
     return _slice_limited(filtered, limit)
 
@@ -123,8 +125,4 @@ def resolve_langues(cv: dict | None) -> list[dict]:
     langues = comp.get("langues") if isinstance(comp, dict) else None
     if not isinstance(langues, list):
         return []
-    return [
-        row
-        for row in langues
-        if isinstance(row, dict) and (row.get("langue") or "").strip()
-    ]
+    return [row for row in langues if isinstance(row, dict) and (row.get("langue") or "").strip()]

@@ -437,11 +437,7 @@ def save_cv_base(data: dict, user_id: str | None = None) -> None:
     # Ne jamais écraser template_id / template_options / layout par défaut : conserver ceux
     # déjà enregistrés si le payload ne les contient pas (typiquement un vieux client qui ne
     # connaît pas encore la clé `layout`, ou une route PATCH legacy).
-    if (
-        "template_id" not in data
-        or "template_options" not in data
-        or "layout" not in data
-    ):
+    if "template_id" not in data or "template_options" not in data or "layout" not in data:
         try:
             existing = load_cv_base(user_id)
             if "template_id" not in data and existing.get("template_id") is not None:

@@ -182,14 +182,8 @@ def _render_block(cv: dict, block: dict) -> str:
     w = _num(block.get("w"), 20)
     h = _num(block.get("h"), 10)
     z = int(block.get("z") or 0)
-    style_attr = (
-        f'left:{x}mm;top:{y}mm;width:{w}mm;height:{h}mm;z-index:{z};'
-    )
-    inner = (
-        _render_semantic(cv, block)
-        if btype in SEMANTIC_TYPES
-        else _render_non_semantic(block)
-    )
+    style_attr = f"left:{x}mm;top:{y}mm;width:{w}mm;height:{h}mm;z-index:{z};"
+    inner = _render_semantic(cv, block) if btype in SEMANTIC_TYPES else _render_non_semantic(block)
     bid = _esc(str(block.get("id") or ""))
     return (
         f'<div class="cv-layout-block" data-block-id="{bid}" data-type="{_esc(btype)}" '
@@ -209,7 +203,9 @@ def _render_semantic(cv: dict, block: dict) -> str:
         name = bind.resolve_bound_text(cv, ["prenom", "nom"])
         title = bind.resolve_bound_text(cv, "titre_professionnel")
         align = _esc(str(style.get("align") or "left"))
-        parts = [f'<div class="cv-layout-identity-name" style="text-align:{align}">{_text(name or "Prénom Nom")}</div>']
+        parts = [
+            f'<div class="cv-layout-identity-name" style="text-align:{align}">{_text(name or "Prénom Nom")}</div>'
+        ]
         if title:
             parts.append(f'<div class="cv-layout-identity-title">{_text(title)}</div>')
         return f'<div class="cv-layout-identity">{"".join(parts)}</div>'
@@ -250,9 +246,7 @@ def _render_semantic(cv: dict, block: dict) -> str:
         return _render_projets(cv, limit)
 
     if btype == "skills":
-        items = bind.resolve_bound_string_list(
-            cv, binding if binding else "competences.techniques"
-        )
+        items = bind.resolve_bound_string_list(cv, binding if binding else "competences.techniques")
         if not items:
             return _section("skills", _placeholder("Compétences"))
         inner = (
@@ -267,15 +261,17 @@ def _render_semantic(cv: dict, block: dict) -> str:
         items = bind.resolve_langues(cv)
         if not items:
             return _section("languages", _placeholder("Langues"))
-        parts: list[str] = []
+        lang_labels: list[str] = []
         for row in items:
+            if not isinstance(row, dict):
+                continue
             label = (row.get("langue") or "").strip()
             niveau = (row.get("niveau") or "").strip()
             if niveau:
                 label = f"{label} ({niveau})"
             if label:
-                parts.append(label)
-        text = ", ".join(parts)
+                lang_labels.append(label)
+        text = ", ".join(lang_labels)
         return _section("languages", f"<p>{_text(text)}</p>")
 
     return _placeholder(btype)
@@ -290,18 +286,16 @@ def _render_experiences(cv: dict, limit: Any, fmt: str) -> str:
         ent = (exp.get("entreprise") or "").strip()
         poste = (exp.get("poste") or "").strip()
         dates = " – ".join(
-            x for x in [(exp.get("date_debut") or "").strip(), (exp.get("date_fin") or "").strip()] if x
+            x
+            for x in [(exp.get("date_debut") or "").strip(), (exp.get("date_fin") or "").strip()]
+            if x
         )
         header = f"<strong>{_text(ent or poste)}</strong>"
         if dates:
             header += f'<span class="cv-layout-exp-dates">{_text(dates)}</span>'
         role = f'<div class="cv-layout-exp-role">{_text(poste)}</div>' if poste and ent else ""
         bullets = exp.get("bullet_points") or []
-        bl = "".join(
-            f"<li>{_text((b or '').strip())}</li>"
-            for b in bullets
-            if (b or "").strip()
-        )
+        bl = "".join(f"<li>{_text((b or '').strip())}</li>" for b in bullets if (b or "").strip())
         compact = " cv-layout-exp--compact" if fmt == "compact" else ""
         rows.append(
             f'<div class="cv-layout-exp{compact}">'
@@ -335,7 +329,15 @@ def _render_certifications(cv: dict, limit: Any) -> str:
         return _section("certifications", _placeholder("Certifications"))
     lines = []
     for c in items:
-        parts = [x for x in [(c.get("nom") or "").strip(), (c.get("organisme") or "").strip(), (c.get("date") or "").strip()] if x]
+        parts = [
+            x
+            for x in [
+                (c.get("nom") or "").strip(),
+                (c.get("organisme") or "").strip(),
+                (c.get("date") or "").strip(),
+            ]
+            if x
+        ]
         lines.append(f"<p>{_text(' · '.join(parts))}</p>")
     return _section("certifications", "".join(lines))
 
@@ -374,7 +376,7 @@ def _render_non_semantic(block: dict) -> str:
     if btype == "title":
         align = _esc(str(style.get("align") or "left"))
         color = style.get("color")
-        st = f'text-align:{align};'
+        st = f"text-align:{align};"
         if color:
             st += f"color:{_esc(str(color))};"
         return f'<h3 class="cv-layout-title" style="{st}">{_text(content) or _placeholder("Titre")}</h3>'
@@ -385,7 +387,9 @@ def _render_non_semantic(block: dict) -> str:
 
     if btype == "shape:rect":
         bg = _esc(str(style.get("color") or style.get("bg") or "#e2e8f0"))
-        return f'<div class="cv-layout-shape-rect" style="background:{bg};" role="presentation"></div>'
+        return (
+            f'<div class="cv-layout-shape-rect" style="background:{bg};" role="presentation"></div>'
+        )
 
     if btype == "icon":
         label = (block.get("icon_name") or "Icône").strip()

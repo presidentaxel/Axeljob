@@ -43,7 +43,11 @@ def _starter_layout() -> dict:
             "z": 1,
         },
     ]
-    return {"version": 3, "theme": {"color_accent": "#1e3a5f"}, "pages": [{"id": "p1", "blocks": blocks}]}
+    return {
+        "version": 3,
+        "theme": {"color_accent": "#1e3a5f"},
+        "pages": [{"id": "p1", "blocks": blocks}],
+    }
 
 
 class TestLayoutRenderer(unittest.TestCase):

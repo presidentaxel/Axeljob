@@ -123,4 +123,8 @@ def resolve_langues(cv: dict | None) -> list[dict]:
     langues = comp.get("langues") if isinstance(comp, dict) else None
     if not isinstance(langues, list):
         return []
-    return [l for l in langues if isinstance(l, dict) and (l.get("langue") or "").strip()]
+    return [
+        row
+        for row in langues
+        if isinstance(row, dict) and (row.get("langue") or "").strip()
+    ]

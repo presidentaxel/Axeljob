@@ -267,10 +267,15 @@ def _render_semantic(cv: dict, block: dict) -> str:
         items = bind.resolve_langues(cv)
         if not items:
             return _section("languages", _placeholder("Langues"))
-        text = ", ".join(
-            f"{l.get('langue', '')}{f' ({l.get('niveau')})' if l.get('niveau') else ''}"
-            for l in items
-        )
+        parts: list[str] = []
+        for row in items:
+            label = (row.get("langue") or "").strip()
+            niveau = (row.get("niveau") or "").strip()
+            if niveau:
+                label = f"{label} ({niveau})"
+            if label:
+                parts.append(label)
+        text = ", ".join(parts)
         return _section("languages", f"<p>{_text(text)}</p>")
 
     return _placeholder(btype)

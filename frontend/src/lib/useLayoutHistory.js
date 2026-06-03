@@ -22,7 +22,7 @@
  *     pour ne pas voler le Cmd+Z de l user dans son texte.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   canRedo as storeCanRedo,
   canUndo as storeCanUndo,
@@ -52,10 +52,11 @@ function isEditableElement(el) {
  * @param {Function|object} initialLayoutOrFactory Layout initial OU
  *   factory `() => layout` (preferable pour eviter de recreer le layout
  *   a chaque render).
- * @param {{ keyboardShortcuts?: boolean }} [options]
+ * @param {{ keyboardShortcuts?: boolean, onHistoryChange?: (layout: object, action: string) => void }} [options]
  */
 export function useLayoutHistory(initialLayoutOrFactory, options = {}) {
-  const { keyboardShortcuts = true } = options;
+  const { keyboardShortcuts = true, onHistoryChange } = options;
+  const pendingHistoryActionRef = useRef(null);
 
   // useState avec fonction d initialisation : on accepte
   // soit un layout, soit une factory pour ne pas recalculer a chaque render.
@@ -71,11 +72,19 @@ export function useLayoutHistory(initialLayoutOrFactory, options = {}) {
   }, []);
 
   const undo = useCallback(() => {
-    setStore((prev) => storeUndo(prev));
+    setStore((prev) => {
+      const next = storeUndo(prev);
+      pendingHistoryActionRef.current = next !== prev ? 'undo' : null;
+      return next;
+    });
   }, []);
 
   const redo = useCallback(() => {
-    setStore((prev) => storeRedo(prev));
+    setStore((prev) => {
+      const next = storeRedo(prev);
+      pendingHistoryActionRef.current = next !== prev ? 'redo' : null;
+      return next;
+    });
   }, []);
 
   const reset = useCallback((newLayout) => {
@@ -100,15 +109,32 @@ export function useLayoutHistory(initialLayoutOrFactory, options = {}) {
       const isRedoY = k === 'y';
       if (isUndo) {
         event.preventDefault();
-        setStore((prev) => storeUndo(prev));
+        setStore((prev) => {
+          const next = storeUndo(prev);
+          pendingHistoryActionRef.current = next !== prev ? 'undo' : null;
+          return next;
+        });
       } else if (isRedoZ || isRedoY) {
         event.preventDefault();
-        setStore((prev) => storeRedo(prev));
+        setStore((prev) => {
+          const next = storeRedo(prev);
+          pendingHistoryActionRef.current = next !== prev ? 'redo' : null;
+          return next;
+        });
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [keyboardShortcuts]);
+  }, [keyboardShortcuts, onHistoryChange]);
+
+  useEffect(() => {
+    const action = pendingHistoryActionRef.current;
+    if (!action) return;
+    pendingHistoryActionRef.current = null;
+    if (typeof onHistoryChange === 'function') {
+      onHistoryChange(store.present, action);
+    }
+  }, [store, onHistoryChange]);
 
   // Memoize la valeur de retour : `layout` change a chaque commit/undo/redo,
   // les callbacks restent stables, `canUndo/canRedo` derivent du store.

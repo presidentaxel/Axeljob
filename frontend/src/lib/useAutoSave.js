@@ -59,17 +59,24 @@ export function useAutoSave({
   }, [saveFn]);
 
   useEffect(() => {
+    let active = true;
     const scheduler = createAutoSaveScheduler({
       saveFn: (payload) => saveFnRef.current(payload),
       delayMs,
       maxRetries,
       baseRetryDelayMs,
-      onStateChange: setState,
+      onStateChange: (nextState) => {
+        if (active) setState(nextState);
+      },
     });
     schedulerRef.current = scheduler;
     return () => {
-      scheduler.dispose();
-      schedulerRef.current = null;
+      active = false;
+      const flushPromise = scheduler.hasPendingChanges()
+        ? scheduler.flush()
+        : Promise.resolve();
+      void flushPromise.finally(() => scheduler.dispose());
+      if (schedulerRef.current === scheduler) schedulerRef.current = null;
     };
     // saveFnKey permet de re-init le scheduler quand la cible de sauvegarde
     // change (changement de session, de profil, etc.).

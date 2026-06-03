@@ -20,10 +20,13 @@ import {
   bringToFront,
   canAppendBlankPage,
   createBlankLayoutV3,
+  createStarterLayoutV3,
+  duplicateBlock,
   findBlock,
   isEmptyLayoutV3,
   migrateLayoutToV3,
   removeBlock,
+  removePage,
   sendToBack,
   setBlockPosition,
   updateBlock,
@@ -34,7 +37,6 @@ import { reflowColumnBlocksOnPage } from '../../lib/layoutReflow.js';
 import { moveBlockToPage } from '../../lib/canvasPageTransfer.js';
 import { useAutoSave } from '../../lib/useAutoSave.js';
 import { useLayoutHistory } from '../../lib/useLayoutHistory.js';
-import CvEditablePreview from '../CvEditablePreview.jsx';
 import FreeCanvas from './FreeCanvas.jsx';
 
 import AutoSaveIndicator from './AutoSaveIndicator.jsx';
@@ -42,59 +44,86 @@ import EditorAtsScoreBadge from './EditorAtsScoreBadge.jsx';
 import EditorCanvaSidebar from './EditorCanvaSidebar.jsx';
 import EditorFloatingTextToolbar from './EditorFloatingTextToolbar.jsx';
 import EditorImageEditPopover from './EditorImageEditPopover.jsx';
-import EditorInspectorDrawer from './EditorInspectorDrawer.jsx';
-import EditorTemplateSelector from './EditorTemplateSelector.jsx';
 
 import '../../styles/CvEditorBeta.css';
 import '../../styles/EditorCanvaSidebar.css';
 import '../../styles/EditorInspector.css';
 
 /**
- * Editeur de CV Beta — squelette L1 (cf. docs/editor-vision.md).
- *
- *  1. Charge le CV via `GET /api/cv?profile=1`.
- *  2. Affiche en plein ecran via `CvEditablePreview` (contentEditable).
- *  3. Auto-sauvegarde via `PUT /api/cv` (debounce 1.5s, retry exponentiel,
- *     beforeunload guard) — voir `lib/autoSaveScheduler.js`.
- *  4. Badge score ATS qui se met a jour si le template change.
- *  5. Selecteur de template dans la topbar editeur.
- *
- * Cohabitation avec ProfileView.jsx (mode stable) : pas d effet de bord
- * global, pas de mutation de stores partages.
+ * Editeur de CV Beta — canvas libre uniquement (L3).
  */
+
+function cvHasMeaningfulContent(cv) {
+  if (!cv || typeof cv !== 'object') return false;
+  const scalarKeys = [
+    'prenom',
+    'nom',
+    'email',
+    'telephone',
+    'linkedin',
+    'titre_professionnel',
+    'resume',
+  ];
+  if (scalarKeys.some((key) => String(cv[key] || '').trim())) return true;
+  return ['experiences', 'formations', 'certifications', 'projets'].some(
+    (key) => Array.isArray(cv[key]) && cv[key].length > 0,
+  ) || Boolean(
+    cv.competences
+    && typeof cv.competences === 'object'
+    && Object.values(cv.competences).some((value) => (
+      Array.isArray(value) ? value.length > 0 : String(value || '').trim()
+    )),
+  );
+}
+
+function sameLayout(a, b) {
+  if (a === b) return true;
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
+}
 
 function CvEditorBeta({
   session: _session,
   templateId,
   templateOptions,
   templatesList,
-  onTemplateIdChange,
-  onTemplateOptionsChange,
+  onTemplateIdChange: _onTemplateIdChange,
+  onTemplateOptionsChange: _onTemplateOptionsChange,
 }) {
   const [cv, setCv] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
-  const [inspectorOpen, setInspectorOpen] = useState(false);
-  /** `guided` = L1 CvEditablePreview ; `free` = canvas libre (P3.2+). */
-  const [editorViewMode, setEditorViewMode] = useState('guided');
   const [selectedBlockId, setSelectedBlockId] = useState(null);
   const [editingBlockId, setEditingBlockId] = useState(null);
   const [selectedBlockRect, setSelectedBlockRect] = useState(null);
   const [canvasBusy, setCanvasBusy] = useState(false);
   const [pdfExporting, setPdfExporting] = useState(false);
+  const [atsPdfExporting, setAtsPdfExporting] = useState(false);
   const [showCanvasGrid, setShowCanvasGrid] = useState(false);
   const [canvasSnapEnabled, setCanvasSnapEnabled] = useState(true);
   const [imageEditBlockId, setImageEditBlockId] = useState(null);
   const [sidebarSection, setSidebarSection] = useState('elements');
   const [placementPreset, setPlacementPreset] = useState(null);
+  const [startupPromptOpen, setStartupPromptOpen] = useState(false);
+  const [pdfExportError, setPdfExportError] = useState('');
+  const [atsOptimizeMessage, setAtsOptimizeMessage] = useState('');
   const autoHeightPendingRef = useRef(new Map());
   const autoHeightTimerRef = useRef(null);
   const suppressAutoHeightUntilRef = useRef(0);
   const [canvasResizing, setCanvasResizing] = useState(false);
   const layoutRef = useRef(null);
+  const autoSaveRef = useRef(null);
+
+  const handleLayoutHistoryChange = useCallback(() => {
+    if (cv) autoSaveRef.current?.schedule(cv);
+  }, [cv]);
 
   const layoutHistory = useLayoutHistory(() => createBlankLayoutV3(), {
-    keyboardShortcuts: editorViewMode === 'free',
+    keyboardShortcuts: true,
+    onHistoryChange: handleLayoutHistoryChange,
   });
   const {
     layout,
@@ -108,70 +137,21 @@ function CvEditorBeta({
 
   layoutRef.current = layout;
 
-  /**
-   * Note (mai 2026) : l UI de mise en page modulaire (P2.4b) a ete
-   * retiree apres feedback utilisateur. La place naturelle de ce
-   * controle est dans le futur L3 / canvas libre (P3) ou l user
-   * compose son CV librement, pas dans un drawer lateral.
-   *
-   * Ce qui reste en hibernation jusqu a P3 :
-   *  - le modele de zones v2 (`lib/cvLayoutModelV2.js`) + ses tests ;
-   *  - la persistance backend (`cv_base.data.layout`) : les early
-   *    adopters qui ont deja un layout sauvegarde ne perdent rien.
-   *
-   * Cote front, on n hydrate plus de state `layout` car il n a plus
-   * de consommateur UI. On ne le supprime pas en base : la
-   * preservation cote backend (`save_cv_base`) garde la valeur
-   * existante meme quand le PUT n envoie pas la cle (cf. P2.3).
-   */
-
-  /**
-   * Template courant deduit de `templatesList` + `templateId` pour
-   * alimenter le drawer inspecteur (lecture de `options`). Si introuvable
-   * (template charge async, id manquant), le drawer affiche un etat vide.
-   */
-  const activeTemplate = useMemo(() => {
-    if (!Array.isArray(templatesList)) return null;
-    return templatesList.find((t) => t && t.id === templateId) || null;
-  }, [templatesList, templateId]);
-
-  /**
-   * `saveFn` est defini en `useCallback` pour pouvoir etre retenu via
-   * `saveFnKey` : quand templateId/templateOptions changent, on cree une
-   * nouvelle reference, et le scheduler est re-initialise (via la cle).
-   * Cela garantit qu un PUT en cours utilise toujours les bons template_*.
-   *
-   * Le PUT n inclut pas la cle `layout` -> la preservation cote backend
-   * (`save_cv_base`) garde la valeur existante en base intacte.
-   */
   const saveFn = useCallback(async (payload) => {
     const body = {
       ...payload,
       template_id: templateId,
       template_options: templateOptions,
     };
-    // En mode canvas libre, on persiste le layout v3 present.
-    // En mode guide, on omet `layout` -> preservation backend (P2.3).
-    if (editorViewMode === 'free' && layout && !isEmptyLayoutV3(layout)) {
-      body.layout = layout;
-    }
+    if (layout) body.layout = isEmptyLayoutV3(layout) ? null : layout;
     return apiPut('/api/cv', body);
-  }, [templateId, templateOptions, editorViewMode, layout]);
+  }, [templateId, templateOptions, layout]);
 
   const autoSave = useAutoSave({
     saveFn,
     saveFnKey: `${templateId}|${JSON.stringify(templateOptions || {})}`,
   });
-
-  useEffect(() => {
-    if (editorViewMode === 'free') {
-      setInspectorOpen(false);
-      setEditingBlockId(null);
-    } else {
-      setSelectedBlockRect(null);
-      setEditingBlockId(null);
-    }
-  }, [editorViewMode]);
+  autoSaveRef.current = autoSave;
 
   useEffect(() => {
     let aborted = false;
@@ -183,13 +163,13 @@ function CvEditorBeta({
         const incoming = data && typeof data === 'object' ? data : {};
         const { layout: rawLayout, ...cvPayload } = incoming;
         const baseCv = typeof defaultCv === 'function' ? defaultCv() : defaultCv;
-        setCv({ ...baseCv, ...cvPayload });
-        // Pas de layout en base -> page blanche + picker (blank vs starter).
-        // Sinon migration v1/v2/v3 vers la forme canonique v3.
+        const mergedCv = { ...baseCv, ...cvPayload };
+        setCv(mergedCv);
         const hydratedLayout = rawLayout
           ? migrateLayoutToV3(rawLayout)
           : createBlankLayoutV3();
         resetLayout(hydratedLayout);
+        setStartupPromptOpen(!rawLayout && cvHasMeaningfulContent(mergedCv));
         setLoading(false);
       })
       .catch((err) => {
@@ -198,6 +178,7 @@ function CvEditorBeta({
         const baseCv = typeof defaultCv === 'function' ? defaultCv() : defaultCv;
         setCv({ ...baseCv });
         resetLayout(createBlankLayoutV3());
+        setStartupPromptOpen(false);
         setLoading(false);
       });
     return () => { aborted = true; };
@@ -212,26 +193,27 @@ function CvEditorBeta({
     autoSave.flush();
   }, [autoSave]);
 
-  const handleInspectorToggle = useCallback(() => {
-    setInspectorOpen((prev) => !prev);
-  }, []);
-
-  const handleInspectorClose = useCallback(() => {
-    setInspectorOpen(false);
-  }, []);
-
-  const handleTemplateOptionsChange = useCallback((nextOptions) => {
-    if (typeof onTemplateOptionsChange === 'function') {
-      onTemplateOptionsChange(nextOptions);
-    }
-  }, [onTemplateOptionsChange]);
-
   const handlePickBlankCanvas = useCallback(() => {
     setPlacementPreset(null);
+    setStartupPromptOpen(false);
     const next = createCanvasLayoutBlank();
     resetLayout(next);
     if (cv) autoSave.schedule(cv);
   }, [resetLayout, cv, autoSave]);
+
+  const handleGenerateStarterCanvas = useCallback(() => {
+    setPlacementPreset(null);
+    const selectedTemplate = (templatesList || []).find((t) => t?.id === templateId);
+    let next = selectedTemplate
+      ? createCanvasLayoutForTemplate(selectedTemplate)
+      : createStarterLayoutV3();
+    for (let pi = 0; pi < (next.pages?.length || 0); pi += 1) {
+      next = reflowColumnBlocksOnPage(next, pi);
+    }
+    resetLayout(next);
+    setStartupPromptOpen(false);
+    if (cv) autoSave.schedule(cv);
+  }, [templatesList, templateId, resetLayout, cv, autoSave]);
 
   const handleAddCanvasPage = useCallback(() => {
     if (!layout || !canAppendBlankPage(layout)) return;
@@ -242,11 +224,26 @@ function CvEditorBeta({
     if (cv) autoSave.schedule(cv);
   }, [layout, commitLayout, cv, autoSave]);
 
+  const handleRemoveCanvasPage = useCallback((pageIndex) => {
+    if (!layout || !Array.isArray(layout.pages) || layout.pages.length <= 1) return;
+    const removedPage = layout.pages[pageIndex];
+    const selectedWasOnRemovedPage = Boolean(
+      selectedBlockId
+      && removedPage?.blocks?.some((block) => block?.id === selectedBlockId),
+    );
+    const next = removePage(layout, pageIndex);
+    commitLayout(next, { groupKey: `page:remove:${pageIndex}` });
+    if (selectedWasOnRemovedPage) setSelectedBlockId(null);
+    setEditingBlockId(null);
+    setImageEditBlockId(null);
+    if (cv) autoSave.schedule(cv);
+  }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
+
   const selectedBlock = useMemo(() => {
-    if (!selectedBlockId || editorViewMode !== 'free') return null;
+    if (!selectedBlockId) return null;
     const found = findBlock(layout, selectedBlockId);
     return found?.block ?? null;
-  }, [layout, selectedBlockId, editorViewMode]);
+  }, [layout, selectedBlockId]);
 
   const handleSelectBlock = useCallback((blockId) => {
     setSelectedBlockId(blockId);
@@ -370,6 +367,7 @@ function CvEditorBeta({
       next = reflowColumnBlocksOnPage(next, pi);
     }
     resetLayout(next);
+    setStartupPromptOpen(false);
     if (cv) autoSave.schedule(cv);
   }, [resetLayout, cv, autoSave]);
 
@@ -435,6 +433,24 @@ function CvEditorBeta({
     if (cv) autoSave.schedule(cv);
   }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
 
+  const handleDuplicateSelectedBlock = useCallback(() => {
+    if (!selectedBlockId) return;
+    const next = duplicateBlock(layout, selectedBlockId);
+    commitLayout(next, { groupKey: `duplicate:${selectedBlockId}` });
+    const found = findBlock(next, selectedBlockId);
+    const blocks = next?.pages?.[found?.pageIndex]?.blocks || [];
+    const duplicated = blocks[blocks.length - 1];
+    if (duplicated?.id) setSelectedBlockId(duplicated.id);
+    if (cv) autoSave.schedule(cv);
+  }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
+
+  const handleToggleSelectedBlockLock = useCallback(() => {
+    if (!selectedBlockId || !selectedBlock) return;
+    const next = updateBlock(layout, selectedBlockId, { locked: !selectedBlock.locked });
+    commitLayout(next, { groupKey: `lock:${selectedBlockId}` });
+    if (cv) autoSave.schedule(cv);
+  }, [layout, selectedBlockId, selectedBlock, commitLayout, cv, autoSave]);
+
   const handleStartBlockEdit = useCallback((blockId) => {
     setSelectedBlockId(blockId);
     setEditingBlockId(blockId);
@@ -462,20 +478,28 @@ function CvEditorBeta({
     setEditingBlockId(null);
   }, [layout, cv, commitLayout, handleCvChange]);
 
-  const handleSwitchToFreeCanvas = useCallback(() => {
-    setEditorViewMode('free');
-  }, []);
-
   const handleOptimizeAtsLayout = useCallback(() => {
     if (!layout) return;
     const next = applyAtsLayoutOptimizations(layout);
+    if (sameLayout(layout, next)) {
+      setAtsOptimizeMessage('Layout deja optimise pour la lecture ATS.');
+      return;
+    }
     commitLayout(next, { groupKey: 'ats:optimize' });
+    setAtsOptimizeMessage('Optimisation appliquee : contenu devant, bandeaux derriere. Ctrl+Z pour annuler.');
     if (cv) autoSave.schedule(cv);
   }, [layout, commitLayout, cv, autoSave]);
+
+  useEffect(() => {
+    if (!atsOptimizeMessage) return undefined;
+    const id = setTimeout(() => setAtsOptimizeMessage(''), 4500);
+    return () => clearTimeout(id);
+  }, [atsOptimizeMessage]);
 
   const handleExportLayoutPdf = useCallback(async () => {
     if (!cv || !layout || pdfExporting) return;
     setPdfExporting(true);
+    setPdfExportError('');
     try {
       const { blob, filename } = await apiPostBlob('/api/pdf', {
         cv,
@@ -490,10 +514,35 @@ function CvEditorBeta({
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error('[cv-editor-beta] export PDF layout', err);
+      setPdfExportError(err?.message || 'Impossible de generer le PDF canvas.');
     } finally {
       setPdfExporting(false);
     }
   }, [cv, layout, templateId, pdfExporting]);
+
+  const handleExportAtsPdf = useCallback(async () => {
+    if (!cv || atsPdfExporting) return;
+    setAtsPdfExporting(true);
+    setPdfExportError('');
+    try {
+      const { blob, filename } = await apiPostBlob('/api/pdf', {
+        cv,
+        template_id: templateId,
+        template_options: templateOptions,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'cv-ats.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('[cv-editor-beta] export PDF ATS', err);
+      setPdfExportError(err?.message || 'Impossible de generer le PDF ATS.');
+    } finally {
+      setAtsPdfExporting(false);
+    }
+  }, [cv, templateId, templateOptions, atsPdfExporting]);
 
   const handleSaveLayoutProposal = useCallback((name) => {
     if (!layout) return;
@@ -509,7 +558,6 @@ function CvEditorBeta({
   }, [resetLayout, cv, autoSave]);
 
   useEffect(() => {
-    if (editorViewMode !== 'free') return undefined;
     const onKeyDown = (e) => {
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
       const tag = document.activeElement?.tagName?.toLowerCase();
@@ -521,7 +569,7 @@ function CvEditorBeta({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [editorViewMode, selectedBlockId, editingBlockId, handleDeleteSelectedBlock]);
+  }, [selectedBlockId, editingBlockId, handleDeleteSelectedBlock]);
 
   if (loading) {
     return (
@@ -536,119 +584,61 @@ function CvEditorBeta({
       <header className="cv-editor-beta-topbar">
         <div className="cv-editor-beta-topbar-left">
           <span className="cv-editor-beta-badge">Mode Beta</span>
-          <div className="cv-editor-beta-view-toggle" role="group" aria-label="Mode d’édition">
+          <div className="cv-editor-beta-history-btns">
             <button
               type="button"
-              className={
-                editorViewMode === 'guided'
-                  ? 'cv-editor-beta-view-btn cv-editor-beta-view-btn--active'
-                  : 'cv-editor-beta-view-btn'
-              }
-              onClick={() => setEditorViewMode('guided')}
-              aria-pressed={editorViewMode === 'guided'}
+              className="cv-editor-beta-history-btn"
+              onClick={undoLayout}
+              disabled={!canUndoLayout}
+              title="Annuler (Ctrl+Z)"
             >
-              Édition guidée
+              Annuler
             </button>
             <button
               type="button"
-              className={
-                editorViewMode === 'free'
-                  ? 'cv-editor-beta-view-btn cv-editor-beta-view-btn--active'
-                  : 'cv-editor-beta-view-btn'
-              }
-              onClick={() => setEditorViewMode('free')}
-              aria-pressed={editorViewMode === 'free'}
+              className="cv-editor-beta-history-btn"
+              onClick={redoLayout}
+              disabled={!canRedoLayout}
+              title="Rétablir (Ctrl+Shift+Z)"
             >
-              Canvas libre
+              Rétablir
             </button>
           </div>
-          {editorViewMode === 'guided' && (
-            <button
-              type="button"
-              className="cv-editor-beta-bridge-btn"
-              onClick={handleSwitchToFreeCanvas}
-              title="Composer la mise en page en blocs"
-            >
-              Mise en page libre
-            </button>
-          )}
-          {editorViewMode === 'free' && (
-            <div className="cv-editor-beta-history-btns">
-              <button
-                type="button"
-                className="cv-editor-beta-history-btn"
-                onClick={undoLayout}
-                disabled={!canUndoLayout}
-                title="Annuler (Ctrl+Z)"
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                className="cv-editor-beta-history-btn"
-                onClick={redoLayout}
-                disabled={!canRedoLayout}
-                title="Rétablir (Ctrl+Shift+Z)"
-              >
-                Rétablir
-              </button>
-            </div>
-          )}
-          {editorViewMode === 'guided' && (
-            <EditorTemplateSelector
-              templates={templatesList}
-              templateId={templateId}
-              onTemplateIdChange={onTemplateIdChange}
-            />
-          )}
         </div>
         <div className="cv-editor-beta-topbar-right">
           <AutoSaveIndicator state={autoSave.state} onRetry={handleRetry} />
           <EditorAtsScoreBadge
-            templateId={editorViewMode === 'free' ? undefined : templateId}
-            layout={editorViewMode === 'free' ? layout : undefined}
+            layout={layout}
             cv={cv}
-            paused={editorViewMode === 'free' && canvasBusy}
+            paused={canvasBusy}
           />
-          {editorViewMode === 'free' && (
-            <>
-              <button
-                type="button"
-                className="cv-editor-beta-history-btn"
-                onClick={handleOptimizeAtsLayout}
-                disabled={loading || !layout}
-                title="Réordonner les blocs pour la lecture ATS"
-              >
-                Optimiser ATS
-              </button>
-              <button
-                type="button"
-                className="cv-editor-beta-history-btn"
-                onClick={handleExportLayoutPdf}
-                disabled={loading || !layout || pdfExporting}
-                title="Exporter le PDF depuis le layout canvas"
-              >
-                {pdfExporting ? 'PDF…' : 'PDF canvas'}
-              </button>
-            </>
-          )}
-          {editorViewMode === 'guided' && (
-            <button
-              type="button"
-              className={
-                inspectorOpen
-                  ? 'editor-inspector-toggle-btn editor-inspector-toggle-btn--active'
-                  : 'editor-inspector-toggle-btn'
-              }
-              onClick={handleInspectorToggle}
-              aria-expanded={inspectorOpen}
-              aria-controls="cv-editor-beta-inspector"
-              title="Ouvrir l’inspecteur de style"
-            >
-              <span className="editor-inspector-toggle-icon" aria-hidden="true">⚙</span>
-              <span>Inspecteur</span>
-            </button>
-          )}
+          <button
+            type="button"
+            className="cv-editor-beta-history-btn"
+            onClick={handleOptimizeAtsLayout}
+            disabled={loading || !layout}
+            title="Réordonner les blocs pour la lecture ATS"
+          >
+            Optimiser ATS
+          </button>
+          <button
+            type="button"
+            className="cv-editor-beta-history-btn"
+            onClick={handleExportLayoutPdf}
+            disabled={loading || !layout || pdfExporting}
+            title="Exporter le PDF depuis le layout canvas"
+          >
+            {pdfExporting ? 'PDF…' : 'PDF canvas'}
+          </button>
+          <button
+            type="button"
+            className="cv-editor-beta-history-btn"
+            onClick={handleExportAtsPdf}
+            disabled={loading || !cv || atsPdfExporting}
+            title="Exporter un PDF structure, sans layout canvas absolu"
+          >
+            {atsPdfExporting ? 'PDF ATS…' : 'PDF ATS'}
+          </button>
         </div>
       </header>
 
@@ -657,124 +647,129 @@ function CvEditorBeta({
           {loadError}
         </div>
       )}
-
-      <div
-        className={
-          editorViewMode === 'free'
-            ? 'cv-editor-beta-workspace cv-editor-beta-workspace--canva'
-            : 'cv-editor-beta-workspace'
-        }
-      >
-        {editorViewMode === 'free' && (
-          <EditorCanvaSidebar
-            disabled={loading || !layout}
-            openSection={sidebarSection}
-            onOpenSectionChange={setSidebarSection}
-            placementActive={Boolean(placementPreset)}
-            layout={layout}
-            selectedBlockId={selectedBlockId}
-            templatesList={templatesList}
-            showGrid={showCanvasGrid}
-            snapEnabled={canvasSnapEnabled}
-            onShowGridChange={setShowCanvasGrid}
-            onSnapEnabledChange={setCanvasSnapEnabled}
-            onBeginPlacement={handleBeginPlacement}
-            onSelectBlock={handleSelectBlock}
-            onBlockPatch={handleBlockPatchById}
-            onBlockBringToFront={handleBlockBringToFront}
-            onBlockSendToBack={handleBlockSendToBack}
-            onBlockZStep={handleBlockZStep}
-            onPickBlank={handlePickBlankCanvas}
-            onApplyCanvasTemplate={handleApplyCanvasTemplate}
-            onLoadProposal={handleLoadLayoutProposal}
-            onSaveProposal={handleSaveLayoutProposal}
-          />
-        )}
-        <div className="cv-editor-beta-canva-column">
-        <main className="cv-editor-beta-canvas">
-          {editorViewMode === 'guided' ? (
-            <CvEditablePreview
-              cv={cv}
-              baseCv={cv}
-              onChange={handleCvChange}
-              templateId={templateId}
-              templateOptions={templateOptions}
-            />
-          ) : (
-            <>
-              <FreeCanvas
-                layout={layout}
-                cv={cv}
-                selectedBlockId={selectedBlockId}
-                editingBlockId={editingBlockId}
-                showGrid={showCanvasGrid}
-                snapEnabled={canvasSnapEnabled}
-                placementPreset={placementPreset}
-                onPlaceBlockAt={handlePlaceBlockAt}
-                onCancelPlacement={handleCancelPlacement}
-                onSelectBlock={handleSelectBlock}
-                onBlockPositionChange={handleBlockPositionChange}
-                onBlockMove={handleBlockMove}
-                onBlockResizeChange={handleBlockResizeChange}
-                onResizeStart={handleResizeStart}
-                onResizeEnd={handleResizeEnd}
-                suppressAutoHeight={canvasResizing}
-                onDragEnd={handleDragEndPersist}
-                onCanvasInteractionChange={setCanvasBusy}
-                onStartBlockEdit={handleStartBlockEdit}
-                onCommitBlockEdit={handleCommitBlockEdit}
-                onImageEdit={handleImageEdit}
-                onSelectedBlockRect={setSelectedBlockRect}
-                onBlockAutoHeight={handleBlockAutoHeight}
-                onAddPage={handleAddCanvasPage}
-              />
-              {selectedBlock && blockSupportsStyleToolbar(selectedBlock.type) && (
-                <EditorFloatingTextToolbar
-                  block={selectedBlock}
-                  isEditing={editingBlockId === selectedBlock.id}
-                  onBlockStylePatch={handleBlockStylePatch}
-                  onOpenPositionPanel={handleOpenPositionPanel}
-                />
-              )}
-              {imageEditBlockId && selectedBlock?.type === 'image' && selectedBlockRect && (
-                <EditorImageEditPopover
-                  block={selectedBlock}
-                  anchorRect={selectedBlockRect}
-                  onBlockPatch={handleBlockPatch}
-                  onBlockStylePatch={handleBlockStylePatch}
-                  onClose={() => setImageEditBlockId(null)}
-                />
-              )}
-            </>
-          )}
-        </main>
+      {pdfExportError && (
+        <div className="cv-editor-beta-error" role="alert">
+          {pdfExportError}
         </div>
-        {editorViewMode === 'guided' && (
-          <div id="cv-editor-beta-inspector" className="cv-editor-beta-inspector-slot">
-            <EditorInspectorDrawer
-              open={inspectorOpen}
-              template={activeTemplate}
-              templateOptions={templateOptions}
-              onTemplateOptionsChange={handleTemplateOptionsChange}
-              onClose={handleInspectorClose}
+      )}
+      {atsOptimizeMessage && (
+        <div className="cv-editor-beta-info" role="status">
+          {atsOptimizeMessage}
+        </div>
+      )}
+
+      <div className="cv-editor-beta-workspace cv-editor-beta-workspace--canva">
+        <EditorCanvaSidebar
+          disabled={loading || !layout}
+          openSection={sidebarSection}
+          onOpenSectionChange={setSidebarSection}
+          placementActive={Boolean(placementPreset)}
+          layout={layout}
+          selectedBlockId={selectedBlockId}
+          templatesList={templatesList}
+          showGrid={showCanvasGrid}
+          snapEnabled={canvasSnapEnabled}
+          onShowGridChange={setShowCanvasGrid}
+          onSnapEnabledChange={setCanvasSnapEnabled}
+          onBeginPlacement={handleBeginPlacement}
+          onSelectBlock={handleSelectBlock}
+          onBlockPatch={handleBlockPatchById}
+          onBlockBringToFront={handleBlockBringToFront}
+          onBlockSendToBack={handleBlockSendToBack}
+          onBlockZStep={handleBlockZStep}
+          onPickBlank={handlePickBlankCanvas}
+          onApplyCanvasTemplate={handleApplyCanvasTemplate}
+          onLoadProposal={handleLoadLayoutProposal}
+          onSaveProposal={handleSaveLayoutProposal}
+        />
+        <div className="cv-editor-beta-canva-column">
+          <main className="cv-editor-beta-canvas">
+            <FreeCanvas
+              layout={layout}
               cv={cv}
-              onCvChange={handleCvChange}
-              selectedBlock={null}
-              onBlockPatch={handleBlockPatch}
-              onBlockStylePatch={handleBlockStylePatch}
-              onBlockBringToFront={handleBlockBringToFront}
-              onBlockSendToBack={handleBlockSendToBack}
+              selectedBlockId={selectedBlockId}
+              editingBlockId={editingBlockId}
+              showGrid={showCanvasGrid}
+              snapEnabled={canvasSnapEnabled}
+              placementPreset={placementPreset}
+              onPlaceBlockAt={handlePlaceBlockAt}
+              onCancelPlacement={handleCancelPlacement}
+              onSelectBlock={handleSelectBlock}
+              onBlockPositionChange={handleBlockPositionChange}
+              onBlockMove={handleBlockMove}
+              onBlockResizeChange={handleBlockResizeChange}
+              onResizeStart={handleResizeStart}
+              onResizeEnd={handleResizeEnd}
+              suppressAutoHeight={canvasResizing}
+              onDragEnd={handleDragEndPersist}
+              onCanvasInteractionChange={setCanvasBusy}
+              onStartBlockEdit={handleStartBlockEdit}
+              onCommitBlockEdit={handleCommitBlockEdit}
+              onImageEdit={handleImageEdit}
+              onSelectedBlockRect={setSelectedBlockRect}
+              onBlockAutoHeight={handleBlockAutoHeight}
+              onAddPage={handleAddCanvasPage}
+              onRemovePage={handleRemoveCanvasPage}
             />
-          </div>
-        )}
+            {startupPromptOpen && (
+              <section className="cv-editor-beta-start-panel" aria-label="Demarrer le canvas">
+                <span className="cv-editor-beta-start-panel__eyebrow">Votre profil est pret</span>
+                <h2>Choisissez comment demarrer votre CV visuel</h2>
+                <p>
+                  Votre contenu existe deja. Vous pouvez generer une mise en page
+                  propre pour commencer, ou partir d'une page blanche si vous voulez
+                  composer librement.
+                </p>
+                <div className="cv-editor-beta-start-panel__actions">
+                  <button
+                    type="button"
+                    className="cv-editor-beta-start-panel__primary"
+                    onClick={handleGenerateStarterCanvas}
+                  >
+                    Generer depuis mon profil
+                  </button>
+                  <button
+                    type="button"
+                    className="cv-editor-beta-start-panel__secondary"
+                    onClick={handlePickBlankCanvas}
+                  >
+                    Partir d'une page blanche
+                  </button>
+                </div>
+                <p className="cv-editor-beta-start-panel__hint">
+                  Conseil : commencez par une mise en page generee, puis personnalisez.
+                  Le score ATS vous indiquera les risques.
+                </p>
+              </section>
+            )}
+            {selectedBlock && blockSupportsStyleToolbar(selectedBlock.type) && (
+              <EditorFloatingTextToolbar
+                block={selectedBlock}
+                isEditing={editingBlockId === selectedBlock.id}
+                onBlockStylePatch={handleBlockStylePatch}
+                onOpenPositionPanel={handleOpenPositionPanel}
+                onDuplicateBlock={handleDuplicateSelectedBlock}
+                onToggleLockBlock={handleToggleSelectedBlockLock}
+                onDeleteBlock={handleDeleteSelectedBlock}
+              />
+            )}
+            {imageEditBlockId && (selectedBlock?.type === 'image' || selectedBlock?.type === 'photo') && selectedBlockRect && (
+              <EditorImageEditPopover
+                block={selectedBlock}
+                cv={cv}
+                theme={layout?.theme}
+                anchorRect={selectedBlockRect}
+                onBlockPatch={handleBlockPatch}
+                onBlockStylePatch={handleBlockStylePatch}
+                onClose={() => setImageEditBlockId(null)}
+              />
+            )}
+          </main>
+        </div>
       </div>
 
       <footer className="cv-editor-beta-statusbar">
-        <span>
-          {editorViewMode === 'free'
-            ? 'Canvas libre · double-clic pour éditer · sidebar Canva · Ctrl+Z'
-            : 'Édition guidée · « Mise en page libre » pour composer en blocs'}
-        </span>
+        <span>Canvas libre · double-clic pour éditer · sidebar Canva · Ctrl+Z</span>
       </footer>
     </div>
   );

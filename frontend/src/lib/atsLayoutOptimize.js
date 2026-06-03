@@ -23,15 +23,28 @@ function semanticRank(type) {
   return i >= 0 ? i : 50;
 }
 
+function visualLayerRank(type) {
+  if (type === 'shape:rect') return 0;
+  if (type === 'shape:line') return 1;
+  return 2;
+}
+
 /**
  * Réordonne les blocs par page : identité/contact en tête, puis ordre canonique.
  * Conserve x/y/w/h ; ajuste z pour l empilement visuel.
+ *
+ * Important : les formes décoratives doivent rester derrière le contenu.
+ * Sinon le bouton "Optimiser ATS" peut passer un bandeau au premier plan
+ * et masquer les textes, ce qui est l inverse de l intention utilisateur.
  */
 export function optimizeLayoutReadingOrder(layout) {
   if (!layout?.pages?.length) return layout;
   const pages = layout.pages.map((page) => {
     const blocks = [...(page.blocks || [])];
     const sorted = [...blocks].sort((a, b) => {
+      const la = visualLayerRank(a.type);
+      const lb = visualLayerRank(b.type);
+      if (la !== lb) return la - lb;
       const ra = semanticRank(a.type);
       const rb = semanticRank(b.type);
       if (ra !== rb) return ra - rb;

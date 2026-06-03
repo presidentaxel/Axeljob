@@ -74,6 +74,7 @@ export default function FreeCanvas({
   onPlaceBlockAt,
   onCancelPlacement,
   onAddPage,
+  onRemovePage,
 }) {
   const viewportRef = useRef(null);
   const blockElementsRef = useRef({});
@@ -358,6 +359,14 @@ export default function FreeCanvas({
     if (typeof onSelectBlock === 'function') onSelectBlock(null);
   }, [onSelectBlock, placing, onPlaceBlockAt, commitEditingBlock]);
 
+  const handleCanvasBackgroundPointerDown = useCallback((event) => {
+    if (placing) return;
+    if (event.target?.closest?.('.free-canvas-page')) return;
+    if (event.target?.closest?.('.free-canvas-add-page-row')) return;
+    commitEditingBlock();
+    if (typeof onSelectBlock === 'function') onSelectBlock(null);
+  }, [placing, commitEditingBlock, onSelectBlock]);
+
   const pages = Array.isArray(layout?.pages) ? layout.pages : [];
   const theme = layout?.theme || {};
   const accent = theme.color_accent || '#1e2a3a';
@@ -371,6 +380,9 @@ export default function FreeCanvas({
   const showAddPageBtn = interactable
     && typeof onAddPage === 'function'
     && canAppendBlankPage(layout);
+  const showRemovePageBtns = interactable
+    && typeof onRemovePage === 'function'
+    && pages.length > 1;
 
   const placeLabel = placementPreset?.type === 'icon'
     ? 'Icône'
@@ -379,7 +391,11 @@ export default function FreeCanvas({
       : placementPreset?.type || 'Élément';
 
   return (
-    <div className={`free-canvas${placing ? ' free-canvas--placing' : ''}`} ref={viewportRef}>
+    <div
+      className={`free-canvas${placing ? ' free-canvas--placing' : ''}`}
+      ref={viewportRef}
+      onPointerDown={interactable ? handleCanvasBackgroundPointerDown : undefined}
+    >
       {placing && placeCursor && (
         <div
           className="free-canvas-placement-ghost"
@@ -403,6 +419,18 @@ export default function FreeCanvas({
               className="free-canvas-page-wrap"
               style={{ height: `${scaledHeight}px` }}
             >
+              {showRemovePageBtns && (
+                <button
+                  type="button"
+                  className="free-canvas-remove-page-btn"
+                  title={`Supprimer la page ${pageIndex + 1}`}
+                  aria-label={`Supprimer la page ${pageIndex + 1}`}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => onRemovePage(pageIndex)}
+                >
+                  Supprimer page {pageIndex + 1}
+                </button>
+              )}
               <div
                 className={[
                   'free-canvas-page',

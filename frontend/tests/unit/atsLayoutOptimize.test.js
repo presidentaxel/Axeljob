@@ -20,3 +20,30 @@ test('reordonne les blocs semantiques par type', () => {
     assert.ok(identityIdx < contactIdx);
   }
 });
+
+test('garde les bandeaux decoratifs derriere le contenu', () => {
+  const layout = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    theme: {},
+    pages: [{
+      id: 'page-1',
+      blocks: [
+        { id: 'title', type: 'title', content: 'Titre', x: 10, y: 10, w: 80, h: 10, z: 1, style: {} },
+        { id: 'banner', type: 'shape:rect', x: 0, y: 0, w: 210, h: 40, z: 99, style: { color: '#1e293b' } },
+        { id: 'resume', type: 'resume', bind: 'resume', x: 10, y: 24, w: 180, h: 20, z: 2, style: {} },
+      ],
+    }],
+  };
+
+  const next = applyAtsLayoutOptimizations(layout);
+  const blocks = next.pages[0].blocks;
+  const banner = blocks.find((b) => b.id === 'banner');
+  const title = blocks.find((b) => b.id === 'title');
+  const resume = blocks.find((b) => b.id === 'resume');
+
+  assert.ok(banner.z < title.z);
+  assert.ok(banner.z < resume.z);
+});

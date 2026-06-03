@@ -1,7 +1,7 @@
 """Tests unitaires codes promo."""
 
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from backend.promo_codes import normalize_promo_code, redeem_promo_code
 

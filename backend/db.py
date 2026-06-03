@@ -215,11 +215,7 @@ def save_user_referral_attribution(user_id: str, attribution: dict | None) -> bo
         return False
     try:
         existing = (
-            sb.table("user_referrals")
-            .select("user_id")
-            .eq("user_id", uid)
-            .limit(1)
-            .execute()
+            sb.table("user_referrals").select("user_id").eq("user_id", uid).limit(1).execute()
         )
         if existing.data and len(existing.data) > 0:
             return False

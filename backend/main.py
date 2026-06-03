@@ -73,7 +73,6 @@ from backend.cv_analytics import (
     cv_import_completeness,
     profile_metrics,
 )
-from backend.promo_codes import redeem_promo_code
 from backend.db import (
     APPLICATION_DOC_TYPES,
     count_active_applications,
@@ -108,6 +107,7 @@ from backend.gemini_usage import (
     record_and_check,
     usage_from_response,
 )
+from backend.promo_codes import redeem_promo_code
 from backend.security import check_user_input_for_injection
 from backend.services import billing_notifications, template_access
 
@@ -2266,7 +2266,11 @@ def _read_bde_cashback_rules() -> dict[str, Any]:
       "codes": {"BDE_DAUPHINE": {"cashback_eur": 4.0}}
     }
     """
-    out: dict[str, Any] = {"default_cashback_eur": 0.0, "cashback_by_code": {}, "config_error": None}
+    out: dict[str, Any] = {
+        "default_cashback_eur": 0.0,
+        "cashback_by_code": {},
+        "config_error": None,
+    }
     path = _ADMIN_BDE_CASHBACK_RULES_PATH
     if not path.is_file():
         return out

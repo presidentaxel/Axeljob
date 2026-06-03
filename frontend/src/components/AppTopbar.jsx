@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { HiDocumentText, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiChartBarSquare, HiCog6Tooth } from 'react-icons/hi2';
-import TopbarPromoCode from './TopbarPromoCode';
+import TopbarPartnerCode from './TopbarPartnerCode';
 
 /**
  * Barre de navigation workspace /app/* (séparée du shell pour lisibilité d’App.jsx).
@@ -97,7 +97,7 @@ export default function AppTopbar({
             </button>
             {accountMenuOpen && (
               <div id="topbar-account-menu" className="topbar-account-menu" role="menu" aria-label="Compte">
-                <TopbarPromoCode
+                <TopbarPartnerCode
                   onSuccess={(res) => {
                     if (res?.bonus_added) onPromoRedeemed?.();
                   }}

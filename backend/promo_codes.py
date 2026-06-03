@@ -109,9 +109,7 @@ def _redeem_promo_code_rest(sb, uid: str, normalized: str) -> dict[str, Any]:
     if (user_r.count or 0) >= max_per_user:
         raise ValueError("Tu as déjà utilisé ce code.")
 
-    sb.table("promo_redemptions").insert(
-        {"promo_code_id": promo_id, "user_id": uid}
-    ).execute()
+    sb.table("promo_redemptions").insert({"promo_code_id": promo_id, "user_id": uid}).execute()
 
     return _apply_promo_benefits_rest(sb, uid, row)
 
@@ -143,7 +141,13 @@ def _apply_promo_benefits_rest(sb, uid: str, row: dict[str, Any]) -> dict[str, A
         return out
 
     if bonus > 0:
-        plan_r = sb.table("user_plans").select("free_adaptation_bonus").eq("user_id", uid).limit(1).execute()
+        plan_r = (
+            sb.table("user_plans")
+            .select("free_adaptation_bonus")
+            .eq("user_id", uid)
+            .limit(1)
+            .execute()
+        )
         current = 0
         if plan_r.data:
             current = max(0, int(plan_r.data[0].get("free_adaptation_bonus") or 0))

@@ -107,7 +107,9 @@ def rule_free_canvas_missing_profile_sections(
     missing = [section for section in expected if section not in displayed_types]
     if not missing:
         return None
-    visible_missing = ", ".join(_MISSING_SECTION_LABELS.get(section, section) for section in missing[:3])
+    visible_missing = ", ".join(
+        _MISSING_SECTION_LABELS.get(section, section) for section in missing[:3]
+    )
     suffix = "..." if len(missing) > 3 else ""
     delta = max(-18, -4 * len(missing))
     return Rule(

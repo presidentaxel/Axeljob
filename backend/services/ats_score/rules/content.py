@@ -39,7 +39,9 @@ _DATE_PATTERNS: dict[str, re.Pattern[str]] = {
 
 def _collect_dates(cv: dict[str, Any], layout: dict[str, Any] | None = None) -> list[str]:
     """Recupere toutes les dates ``cv.experiences[].date_*`` et ``cv.formations[].date``."""
-    free_block_types = free_canvas_block_types(layout or {}) if get_grid(layout or {}) == "free" else None
+    free_block_types = (
+        free_canvas_block_types(layout or {}) if get_grid(layout or {}) == "free" else None
+    )
     dates: list[str] = []
     if free_block_types is None or "experiences" in free_block_types:
         for exp in cv.get("experiences", []) or []:

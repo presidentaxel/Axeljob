@@ -193,6 +193,8 @@ bash scripts/setup-dev.sh
 # ou : make setup
 ```
 
+Branches : **`main`** = prod ; **`wip/innovation`** = dev éditeur Beta / canvas (une seule branche de travail).
+
 Configure `.venv` (Black **24.10.0** comme GitHub), active le hook **pre-push** Git (`.githooks/`), et rappelle les hooks **Cursor** (`.cursor/hooks.json`).
 
 ### Cursor (tous les chats / agent)

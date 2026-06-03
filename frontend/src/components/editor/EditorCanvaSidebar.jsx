@@ -26,7 +26,7 @@ const SECTIONS = [
   { id: 'elements', label: 'Éléments', icon: HiSquares2X2 },
   { id: 'text', label: 'Texte', icon: HiSwatch },
   { id: 'icons', label: 'Icônes', icon: HiSparkles },
-  { id: 'import', label: 'Importer', icon: HiArrowUpTray },
+  { id: 'import', label: 'Image', icon: HiArrowUpTray },
   { id: 'position', label: 'Position', icon: HiArrowsPointingOut },
   { id: 'tools', label: 'Outils', icon: HiWrench },
 ];
@@ -223,7 +223,7 @@ export default function EditorCanvaSidebar({
             <>
               <h3 className="editor-canva-drawer__title">Éléments</h3>
               <p className="editor-canva-drawer__hint editor-canva-drawer__hint--subtle">
-                Maintenez puis cliquez sur le canevas pour placer.
+                Cliquez un élément, puis cliquez sur le canevas pour le placer.
               </p>
               <div className="editor-canva-drawer__grid">
                 {INSERT_TOOLBAR_ITEMS.map((item) => {

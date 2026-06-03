@@ -54,3 +54,17 @@ test('computeResizedBlock : respecte largeur minimale', () => {
   const r = computeResizedBlock(START, 'se', { dx: -1000, dy: 0 });
   assert.equal(r.w, BLOCK_MIN_WIDTH_MM);
 });
+
+test('computeResizedBlock : bord W garde le bord droit fixe', () => {
+  const r = computeResizedBlock(START, 'w', { dx: -8, dy: 0 });
+  assert.equal(r.x, 2);
+  assert.equal(r.w, 58);
+  assert.equal(r.x + r.w, START.x + START.w);
+});
+
+test('computeResizedBlock : bord N garde le bord bas fixe', () => {
+  const r = computeResizedBlock(START, 'n', { dx: 0, dy: -6 });
+  assert.equal(r.y, 14);
+  assert.equal(r.h, 36);
+  assert.equal(r.y + r.h, START.y + START.h);
+});

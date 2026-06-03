@@ -82,6 +82,50 @@ test('snap magnetique prioritaire sur la grille', () => {
   assert.ok(r.guides.some((g) => g.type === 'v' && g.pos === 50));
 });
 
+test('snapBlockPosition ne colle pas un bord sur un centre', () => {
+  const layout = {
+    version: 3,
+    pages: [{ id: 'p1', blocks: [{ id: 'solo', type: 'text', x: 0, y: 0, w: 20, h: 10, z: 1 }] }],
+  };
+  const r = snapBlockPosition(
+    { x: PAGE_WIDTH_MM / 2 + 0.8, y: 20 },
+    layout,
+    'solo',
+    { gridMm: 1, thresholdMm: 1.5 },
+  );
+  assert.equal(r.x, PAGE_WIDTH_MM / 2 + 1);
+  assert.equal(r.guides.some((g) => g.type === 'v' && g.role === 'center'), false);
+});
+
+test('snapBlockPosition priorise les marges de page sur les bords secondaires', () => {
+  const layout = {
+    version: 3,
+    pages: [{
+      id: 'p1',
+      blocks: [
+        { id: 'a', type: 'text', x: 11.1, y: 20, w: 30, h: 10, z: 1 },
+        { id: 'b', type: 'text', x: 20, y: 40, w: 30, h: 10, z: 2 },
+      ],
+    }],
+  };
+  const r = snapBlockPosition({ x: 10.8, y: 40 }, layout, 'b', { thresholdMm: 1.5 });
+  assert.equal(r.x, 10);
+  assert.ok(r.guides.some((g) => g.type === 'v' && g.pos === 10));
+});
+
+test('snapBlockPosition ignore les blocs des autres pages', () => {
+  const layout = {
+    version: 3,
+    pages: [
+      { id: 'p1', blocks: [{ id: 'a', type: 'text', x: 50, y: 20, w: 30, h: 10, z: 1 }] },
+      { id: 'p2', blocks: [{ id: 'b', type: 'text', x: 80, y: 40, w: 30, h: 10, z: 2 }] },
+    ],
+  };
+  const r = snapBlockPosition({ x: 51.1, y: 40 }, layout, 'b', { gridMm: 1, thresholdMm: 2 });
+  assert.equal(r.x, 51);
+  assert.equal(r.guides.some((g) => g.type === 'v' && g.pos === 50), false);
+});
+
 test('snapBlockGeometry snap w/h sur la grille', () => {
   const r = snapBlockGeometry(
     { x: 12, y: 8, w: 43, h: 17 },
@@ -91,5 +135,26 @@ test('snapBlockGeometry snap w/h sur la grille', () => {
   );
   assert.equal(r.w, 45);
   assert.equal(r.h, 15);
-  assert.equal(r.x % SNAP_GRID_MM_DEFAULT, 0);
+  assert.equal(r.x, 12);
+  assert.equal(r.y, 8);
+});
+
+test('snapBlockGeometry conserve le bord oppose pendant un resize lateral', () => {
+  const east = snapBlockGeometry(
+    { x: 10, y: 20, w: 58, h: 30 },
+    layoutTwoBlocks,
+    'a',
+    'e',
+  );
+  assert.equal(east.x, 10);
+  assert.equal(east.w, 60);
+
+  const west = snapBlockGeometry(
+    { x: 2, y: 20, w: 58, h: 30 },
+    layoutTwoBlocks,
+    'a',
+    'w',
+  );
+  assert.equal(west.x + west.w, 60);
+  assert.equal(west.w, 60);
 });

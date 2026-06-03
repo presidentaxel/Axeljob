@@ -9,7 +9,7 @@
 import {
   BLOCK_MIN_HEIGHT_MM,
   BLOCK_MIN_WIDTH_MM,
-  listAllBlocks,
+  findBlock,
   PAGE_HEIGHT_MM,
   PAGE_MARGIN_MM,
   PAGE_USABLE_WIDTH_MM,
@@ -41,7 +41,7 @@ export function snapToGrid(value, gridMm = SNAP_GRID_MM_DEFAULT) {
 export function snapBlockPosition(pos, layout, blockId, options = {}) {
   const grid = options.gridMm ?? SNAP_GRID_MM_DEFAULT;
   const threshold = options.thresholdMm ?? SNAP_THRESHOLD_MM_DEFAULT;
-  const block = listAllBlocks(layout).find((b) => b.id === blockId);
+  const block = findBlock(layout, blockId)?.block;
   const w = options.w ?? block?.w ?? 20;
   const h = options.h ?? block?.h ?? 10;
 
@@ -69,26 +69,41 @@ export function snapBlockGeometry(geom, layout, blockId, _handle, options = {}) 
   w = snapSize(w, wTargets, grid, threshold, BLOCK_MIN_WIDTH_MM);
   h = snapSize(h, hTargets, grid, threshold, BLOCK_MIN_HEIGHT_MM);
 
-  const posSnap = snapBlockPosition({ x, y }, layout, blockId, { ...options, w, h });
-  return { x: posSnap.x, y: posSnap.y, w, h, guides: posSnap.guides };
+  const handle = typeof _handle === 'string' ? _handle : '';
+  const fixedRight = handle.includes('w') ? geom.x + geom.w : null;
+  const fixedBottom = handle.includes('n') ? geom.y + geom.h : null;
+
+  if (fixedRight != null) x = fixedRight - w;
+  if (fixedBottom != null) y = fixedBottom - h;
+
+  x = clamp(x, 0, PAGE_WIDTH_MM - w);
+  y = clamp(y, 0, PAGE_HEIGHT_MM - h);
+  return { x, y, w, h, guides: [] };
 }
 
 function snapAxis(origin, size, targets, grid, threshold, axisType) {
   const edges = [
-    { value: origin, role: 'edge' },
-    { value: origin + size, role: 'edge' },
-    { value: origin + size / 2, role: 'center' },
+    { value: origin, role: 'edge', key: 'start' },
+    { value: origin + size, role: 'edge', key: 'end' },
+    { value: origin + size / 2, role: 'center', key: 'center' },
   ];
   const guides = [];
   let bestOrigin = snapToGrid(origin, grid);
   let bestDist = threshold + 1;
+  let bestPriority = Number.POSITIVE_INFINITY;
   let usedMagnetic = false;
 
   for (const edge of edges) {
     for (const target of targets) {
+      if (target.match && !target.match.includes(edge.key)) continue;
       const dist = Math.abs(edge.value - target.pos);
-      if (dist <= threshold && dist < bestDist) {
+      const priority = target.priority ?? 10;
+      if (
+        dist <= threshold
+        && (priority < bestPriority || (priority === bestPriority && dist < bestDist))
+      ) {
         bestDist = dist;
+        bestPriority = priority;
         bestOrigin = origin + (target.pos - edge.value);
         usedMagnetic = true;
         guides.length = 0;
@@ -126,21 +141,20 @@ function collectXTargets(layout, blockId) {
   const innerRight = PAGE_WIDTH_MM - mx;
   const usableCenter = mx + PAGE_USABLE_WIDTH_MM / 2;
   const targets = [
-    { pos: 0, role: 'edge' },
-    { pos: PAGE_WIDTH_MM, role: 'edge' },
-    { pos: PAGE_CENTER_X, role: 'center' },
-    { pos: mx, role: 'edge' },
-    { pos: innerRight, role: 'edge' },
-    { pos: usableCenter, role: 'center' },
-    { pos: PAGE_WIDTH_MM / 4, role: 'edge' },
-    { pos: (3 * PAGE_WIDTH_MM) / 4, role: 'edge' },
+    { pos: 0, role: 'edge', match: ['start'], priority: 0 },
+    { pos: PAGE_WIDTH_MM, role: 'edge', match: ['end'], priority: 0 },
+    { pos: mx, role: 'edge', match: ['start'], priority: 0 },
+    { pos: innerRight, role: 'edge', match: ['end'], priority: 0 },
+    { pos: PAGE_CENTER_X, role: 'center', match: ['center'], priority: 1 },
+    { pos: usableCenter, role: 'center', match: ['center'], priority: 1 },
+    { pos: PAGE_WIDTH_MM / 4, role: 'center', match: ['center'], priority: 5 },
+    { pos: (3 * PAGE_WIDTH_MM) / 4, role: 'center', match: ['center'], priority: 5 },
   ];
-  for (const b of listAllBlocks(layout)) {
-    if (b.id === blockId) continue;
+  for (const b of peerBlocksOnSamePage(layout, blockId)) {
     targets.push(
-      { pos: b.x, role: 'edge' },
-      { pos: b.x + b.w / 2, role: 'center' },
-      { pos: b.x + b.w, role: 'edge' },
+      { pos: b.x, role: 'edge', match: ['start', 'end'], priority: 2 },
+      { pos: b.x + b.w, role: 'edge', match: ['start', 'end'], priority: 2 },
+      { pos: b.x + b.w / 2, role: 'center', match: ['center'], priority: 3 },
     );
   }
   return targets;
@@ -151,21 +165,20 @@ function collectYTargets(layout, blockId) {
   const innerBottom = PAGE_HEIGHT_MM - my;
   const usableCenterY = my + (PAGE_HEIGHT_MM - 2 * my) / 2;
   const targets = [
-    { pos: 0, role: 'edge' },
-    { pos: PAGE_HEIGHT_MM, role: 'edge' },
-    { pos: PAGE_CENTER_Y, role: 'center' },
-    { pos: my, role: 'edge' },
-    { pos: innerBottom, role: 'edge' },
-    { pos: usableCenterY, role: 'center' },
-    { pos: PAGE_HEIGHT_MM / 4, role: 'edge' },
-    { pos: (3 * PAGE_HEIGHT_MM) / 4, role: 'edge' },
+    { pos: 0, role: 'edge', match: ['start'], priority: 0 },
+    { pos: PAGE_HEIGHT_MM, role: 'edge', match: ['end'], priority: 0 },
+    { pos: my, role: 'edge', match: ['start'], priority: 0 },
+    { pos: innerBottom, role: 'edge', match: ['end'], priority: 0 },
+    { pos: PAGE_CENTER_Y, role: 'center', match: ['center'], priority: 1 },
+    { pos: usableCenterY, role: 'center', match: ['center'], priority: 1 },
+    { pos: PAGE_HEIGHT_MM / 4, role: 'center', match: ['center'], priority: 5 },
+    { pos: (3 * PAGE_HEIGHT_MM) / 4, role: 'center', match: ['center'], priority: 5 },
   ];
-  for (const b of listAllBlocks(layout)) {
-    if (b.id === blockId) continue;
+  for (const b of peerBlocksOnSamePage(layout, blockId)) {
     targets.push(
-      { pos: b.y, role: 'edge' },
-      { pos: b.y + b.h / 2, role: 'center' },
-      { pos: b.y + b.h, role: 'edge' },
+      { pos: b.y, role: 'edge', match: ['start', 'end'], priority: 2 },
+      { pos: b.y + b.h, role: 'edge', match: ['start', 'end'], priority: 2 },
+      { pos: b.y + b.h / 2, role: 'center', match: ['center'], priority: 3 },
     );
   }
   return targets;
@@ -173,8 +186,7 @@ function collectYTargets(layout, blockId) {
 
 function collectWidthTargets(layout, blockId) {
   const targets = [PAGE_USABLE_WIDTH_MM, PAGE_WIDTH_MM - 2 * PAGE_MARGIN_MM];
-  for (const b of listAllBlocks(layout)) {
-    if (b.id === blockId) continue;
+  for (const b of peerBlocksOnSamePage(layout, blockId)) {
     targets.push(b.w);
   }
   return targets;
@@ -182,11 +194,17 @@ function collectWidthTargets(layout, blockId) {
 
 function collectHeightTargets(layout, blockId) {
   const targets = [];
-  for (const b of listAllBlocks(layout)) {
-    if (b.id === blockId) continue;
+  for (const b of peerBlocksOnSamePage(layout, blockId)) {
     targets.push(b.h);
   }
   return targets;
+}
+
+function peerBlocksOnSamePage(layout, blockId) {
+  const found = findBlock(layout, blockId);
+  if (!found || !Array.isArray(layout?.pages)) return [];
+  const page = layout.pages[found.pageIndex];
+  return (page?.blocks || []).filter((b) => b && b.id !== blockId);
 }
 
 function clamp(v, min, max) {

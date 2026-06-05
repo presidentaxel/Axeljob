@@ -316,19 +316,28 @@ function CvEditorBeta({
     });
   }, [requestCanvasContextSwitch]);
 
-  const applyImportedCvToCanvas = useCallback(async (nextCv, layoutHints = {}) => {
+  const applyImportedCvToCanvas = useCallback(async (nextCv, {
+    layoutHints = {},
+    visionLayout = null,
+    visionMeta = {},
+  } = {}) => {
     const templates = templatesList || [];
     const {
       layout: finalLayout,
       recommendedTemplateId,
       analysis,
       blockCount,
+      importSource,
     } = buildFullCanvasImportLayout(nextCv, templates, {
       templateId,
       layoutHints,
+      visionLayout,
+      visionMeta,
     });
     const recTemplate = templates.find((t) => t?.id === recommendedTemplateId) || templates[0];
-    const contextKey = templateCanvasContextKey(recTemplate?.id || BLANK_CANVAS_CONTEXT_KEY);
+    const contextKey = importSource === 'vision'
+      ? templateCanvasContextKey('imported')
+      : templateCanvasContextKey(recTemplate?.id || BLANK_CANVAS_CONTEXT_KEY);
     setCv(nextCv);
     setStartupPromptOpen(false);
     setImportModalOpen(false);
@@ -349,8 +358,12 @@ function CvEditorBeta({
     } catch (err) {
       setLoadError(err?.message || 'Import réussi mais enregistrement échoué.');
     }
-    const label = recommendTemplateLabel(recTemplate?.id, templates);
-    setImportToast(summarizeImportAdaptation(analysis, label, blockCount));
+    const label = importSource === 'vision'
+      ? 'Import visuel'
+      : recommendTemplateLabel(recTemplate?.id, templates);
+    setImportToast(summarizeImportAdaptation(analysis, label, blockCount, {
+      fromVision: importSource === 'vision',
+    }));
   }, [
     templatesList,
     templateId,
@@ -367,9 +380,14 @@ function CvEditorBeta({
     importCleanupRef.current = startImportLoadingAnimation(setImportStepIndex);
     try {
       const result = await importFn();
-      const { cv: rawCv, layoutHints } = extractImportApiResponse(result);
+      const {
+        cv: rawCv,
+        layoutHints,
+        visionLayout,
+        visionMeta,
+      } = extractImportApiResponse(result);
       const nextCv = cvFromImportPayload(rawCv);
-      await applyImportedCvToCanvas(nextCv, layoutHints);
+      await applyImportedCvToCanvas(nextCv, { layoutHints, visionLayout, visionMeta });
     } catch (err) {
       setImportError(err?.message || 'Erreur lors de l\'import.');
     } finally {

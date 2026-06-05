@@ -5,8 +5,10 @@ import {
   adaptCanvasLayoutForCv,
   analyzeCvProfile,
   buildFullCanvasImportLayout,
+  buildImportLayoutFromVision,
   estimateSemanticBlockHeight,
   inferThemeFromProfile,
+  mergePresetDecorations,
   recommendTemplateId,
 } from '../../src/lib/canvasCvImportAdapter.js';
 import { createStarterLayoutV3 } from '../../src/lib/cvLayoutModelV3.js';
@@ -66,7 +68,87 @@ test('inferThemeFromProfile : hints accent prioritaire', () => {
   assert.equal(theme.color_accent, '#ff5500');
 });
 
-test('buildFullCanvasImportLayout : canvas complet avec blocs', () => {
+test('mergePresetDecorations ajoute bandeaux preset si absents', () => {
+  const vision = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    theme: { color_accent: '#3182ce' },
+    pages: [{
+      id: 'p1',
+      blocks: [
+        { id: 'b1', type: 'identity', bind: ['prenom', 'nom'], x: 60, y: 20, w: 100, h: 20, z: 2, style: {} },
+      ],
+    }],
+  };
+  const templates = [{ id: 'modern', name: 'Modern' }];
+  const { layout: preset } = buildFullCanvasImportLayout(DENSE_CV, templates, {
+    layoutHints: { layout_style: 'sidebar-left' },
+  });
+  const merged = mergePresetDecorations(vision, preset);
+  const rects = merged.pages[0].blocks.filter((b) => b.type === 'shape:rect');
+  assert.ok(rects.length >= 1);
+  assert.ok(merged.pages[0].blocks.length > 1);
+});
+
+test('buildImportLayoutFromVision utilise le layout vision', () => {
+  const visionLayout = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    theme: {
+      color_accent: '#dc2626',
+      color_sidebar: '#1e293b',
+      color_header: '#1e293b',
+      color_section_title: '#dc2626',
+      color_body: '#1a1a1a',
+    },
+    pages: [{
+      id: 'page_import_1',
+      blocks: [
+        { id: 'bg', type: 'shape:rect', x: 0, y: 0, w: 53, h: 297, z: 0, style: { color: '#1e293b' } },
+        { id: 'id', type: 'identity', bind: ['prenom', 'nom', 'titre_professionnel'], x: 8, y: 30, w: 37, h: 22, z: 2, style: { zone: 'sidebar', color: '#fff' } },
+        { id: 'exp', type: 'experiences', bind: 'experiences', x: 60, y: 20, w: 130, h: 120, z: 1, style: { zone: 'main', section_label: 'EXPÉRIENCE' } },
+        { id: 'form', type: 'formations', bind: 'formations', x: 60, y: 150, w: 130, h: 30, z: 1, style: { zone: 'main', section_label: 'FORMATION' } },
+      ],
+    }],
+  };
+  const templates = [{ id: 'modern', name: 'Modern' }, { id: 'executive', name: 'Executive' }];
+  const result = buildImportLayoutFromVision(DENSE_CV, visionLayout, templates, {
+    layoutHints: { layout_style: 'sidebar-left' },
+    visionMeta: { confidence: 0.9, source: 'gemini_vision' },
+  });
+  assert.equal(result.importSource, 'vision');
+  assert.ok(result.blockCount >= 4);
+  assert.equal(result.layout.theme.color_accent, '#dc2626');
+});
+
+test('buildFullCanvasImportLayout : préfère vision si confidence suffisante', () => {
+  const visionLayout = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    theme: { color_accent: '#6366f1' },
+    pages: [{
+      id: 'p1',
+      blocks: [
+        { id: 'bg', type: 'shape:rect', x: 0, y: 0, w: 53, h: 297, z: 0, style: { color: '#6366f1' } },
+        { id: 'exp', type: 'experiences', bind: 'experiences', x: 60, y: 20, w: 130, h: 100, z: 1, style: { zone: 'main' } },
+      ],
+    }],
+  };
+  const templates = [{ id: 'classic', name: 'Classic' }];
+  const result = buildFullCanvasImportLayout(DENSE_CV, templates, {
+    visionLayout,
+    visionMeta: { confidence: 0.82 },
+  });
+  assert.equal(result.importSource, 'vision');
+});
+
+test('buildFullCanvasImportLayout : canvas complet avec blocs (preset)', () => {
   const templates = [
     { id: 'classic', name: 'Classic' },
     { id: 'executive', name: 'Executive' },

@@ -1414,6 +1414,27 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
         raise HTTPException(
             status_code=429, detail="Quota temporairement atteint. Réessaie plus tard."
         )
+
+    vision_layout = None
+    vision_meta: dict[str, Any] = {}
+    is_pdf = content_type == "application/pdf" or (file.filename or "").lower().endswith(".pdf")
+    if is_pdf:
+        from backend.services.cv_import_layout_vision import (
+            detection_to_layout_hints,
+            parse_cv_layout_from_vision,
+            pdf_first_page_to_jpeg_bytes,
+        )
+
+        jpeg = pdf_first_page_to_jpeg_bytes(file_bytes)
+        if jpeg:
+            try:
+                vision_layout, vision_meta = parse_cv_layout_from_vision(jpeg, user_id)
+            except Exception as exc:
+                logger.warning("Import vision layout échoué (repli preset): %s", exc)
+            if vision_meta:
+                vision_hints = detection_to_layout_hints(vision_meta)
+                layout_hints = {**layout_hints, **vision_hints}
+
     file_ext = (file.filename or "").rsplit(".", 1)[-1].lower() if file.filename else "unknown"
     _track_analytics(
         request,
@@ -1424,9 +1445,16 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
             "file_type": file_ext,
             "text_length": len(text),
             "import_profile": cv_import_completeness(cv),
+            "vision_layout": bool(vision_layout),
+            "vision_confidence": vision_meta.get("confidence"),
         },
     )
-    return {"cv": cv, "layout_hints": layout_hints}
+    return {
+        "cv": cv,
+        "layout_hints": layout_hints,
+        "layout": vision_layout,
+        "vision": vision_meta,
+    }
 
 
 @app.post("/api/cv/import-text")

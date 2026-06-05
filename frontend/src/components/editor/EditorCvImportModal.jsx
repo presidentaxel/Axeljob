@@ -35,8 +35,8 @@ export default function EditorCvImportModal({
             <span className="editor-cv-import-eyebrow">Import intelligent</span>
             <h2 id="editor-cv-import-title">Importer un CV</h2>
             <p>
-              Ton CV remplace intégralement le profil actuel. Blocs, couleurs, positions
-              et template sont générés automatiquement — tu arrives directement sur le canvas.
+              PDF : analyse visuelle Gemini (couleurs, colonnes, blocs) + extraction du
+              contenu. Tu arrives directement sur un canvas fidèle à ton CV.
             </p>
           </div>
           <button type="button" className="editor-cv-import-close" onClick={onClose} aria-label="Fermer">×</button>

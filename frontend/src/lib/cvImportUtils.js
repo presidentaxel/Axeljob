@@ -26,14 +26,14 @@ export const CV_IMPORT_SECTION_KEYS = [
 export const CV_IMPORT_STEPS = [
   'Lecture du document',
   'Extraction du texte',
-  'Identification des sections',
-  'Analyse des expériences et formations',
-  'Structuration des données',
-  'Adaptation mise en page Canva',
+  'Analyse IA du contenu',
+  'Analyse visuelle de la mise en page',
+  'Placement des blocs et couleurs',
+  'Finalisation du canvas',
 ];
 
-export const CV_IMPORT_STEP_DURATION_MS = 1400;
-export const CV_IMPORT_PHASE_DURATION_MS = 7000;
+export const CV_IMPORT_STEP_DURATION_MS = 1600;
+export const CV_IMPORT_PHASE_DURATION_MS = 14000;
 
 export function formatScalarPreviewForPrivacy(fieldKey, value, maxLen) {
   if (fieldKey === 'photo_url') {
@@ -129,16 +129,22 @@ export function applyImportMergeChoices(cv, parsed, choices) {
 }
 
 /** Timers d'animation des étapes d'import (retourne une fonction cleanup). */
-/** Extrait CV + layout_hints depuis la réponse API import. */
+/** Extrait CV + layout + hints depuis la réponse API import. */
 export function extractImportApiResponse(result) {
   if (!result || typeof result !== 'object') {
-    return { cv: null, layoutHints: {} };
+    return { cv: null, layoutHints: {}, visionLayout: null, visionMeta: {} };
   }
   const cv = result.cv && typeof result.cv === 'object' ? result.cv : result;
   const layoutHints = result.layout_hints && typeof result.layout_hints === 'object'
     ? result.layout_hints
     : {};
-  return { cv, layoutHints };
+  const visionLayout = result.layout && typeof result.layout === 'object'
+    ? result.layout
+    : null;
+  const visionMeta = result.vision && typeof result.vision === 'object'
+    ? result.vision
+    : {};
+  return { cv, layoutHints, visionLayout, visionMeta };
 }
 
 /**

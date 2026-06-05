@@ -5,11 +5,14 @@
  * reflow → pagination → ordre ATS.
  */
 import { applyAtsLayoutOptimizations } from './atsLayoutOptimize.js';
+import { parseCanvasTheme } from './canvasTemplateSpecs.js';
 import { createCanvasLayoutForTemplate } from './layoutTemplatePresets.js';
 import { reflowColumnBlocksOnPage } from './layoutReflow.js';
 import { applyLayoutPagination } from './layoutPagination.js';
 import {
+  PAGE_HEIGHT_MM,
   PAGE_WIDTH_MM,
+  migrateLayoutToV3,
   removeBlock,
   sanitizeLayoutV3,
   setBlockPosition,
@@ -151,14 +154,110 @@ export function recommendTemplateLabel(templateId, templatesList = []) {
 }
 
 /** Résumé lisible pour le toast post-import. */
-export function summarizeImportAdaptation(analysis, templateLabel, blockCount = 0) {
+export function summarizeImportAdaptation(analysis, templateLabel, blockCount = 0, { fromVision = false } = {}) {
   const parts = [];
   if (analysis.expCount) parts.push(`${analysis.expCount} exp.`);
   if (analysis.formationCount) parts.push(`${analysis.formationCount} form.`);
   if (analysis.skillCount) parts.push(`${analysis.skillCount} compétences`);
   const body = parts.length ? parts.join(' · ') : 'Profil structuré';
   const blocks = blockCount > 0 ? ` · ${blockCount} blocs` : '';
-  return `${body} — ${templateLabel}${blocks}`;
+  const mode = fromVision ? 'reconstruction visuelle' : templateLabel;
+  return `${body} — ${mode}${blocks}`;
+}
+
+const VISION_MIN_CONFIDENCE = 0.3;
+
+function cloneBlock(block) {
+  return JSON.parse(JSON.stringify(block));
+}
+
+function layoutHasSidebarBackground(blocks) {
+  return (blocks || []).some((b) => (
+    b?.type === 'shape:rect'
+    && (Number(b.w) || 0) > 35
+    && (Number(b.h) || 0) > PAGE_HEIGHT_MM * 0.5
+    && (Number(b.x) || 0) < PAGE_WIDTH_MM * 0.35
+  ));
+}
+
+function layoutHasHeaderBand(blocks) {
+  return (blocks || []).some((b) => (
+    b?.type === 'shape:rect'
+    && (Number(b.y) || 0) < 12
+    && (Number(b.h) || 0) < 75
+    && (Number(b.w) || 0) > PAGE_WIDTH_MM * 0.55
+  ));
+}
+
+/** Complète un layout vision avec bandeaux / lignes du preset le plus proche. */
+export function mergePresetDecorations(visionLayout, presetLayout) {
+  if (!visionLayout?.pages?.[0] || !presetLayout?.pages?.[0]) return visionLayout;
+  const vBlocks = visionLayout.pages[0].blocks || [];
+  const presetBlocks = presetLayout.pages[0].blocks || [];
+  const hasSidebar = layoutHasSidebarBackground(vBlocks);
+  const hasHeader = layoutHasHeaderBand(vBlocks);
+
+  const decor = presetBlocks.filter((b) => {
+    if (b.type !== 'shape:rect' && b.type !== 'shape:line') return false;
+    if (b.type === 'shape:rect' && (Number(b.h) || 0) > PAGE_HEIGHT_MM * 0.5 && hasSidebar) return false;
+    if (b.type === 'shape:rect' && (Number(b.y) || 0) < 12 && (Number(b.h) || 0) < 75 && hasHeader) return false;
+    return true;
+  }).map(cloneBlock);
+
+  const mergedBlocks = [...decor, ...vBlocks.map(cloneBlock)];
+  const presetTheme = presetLayout.theme || {};
+  return {
+    ...visionLayout,
+    theme: { ...presetTheme, ...visionLayout.theme, template_id: 'imported' },
+    pages: [{
+      ...visionLayout.pages[0],
+      blocks: mergedBlocks,
+    }],
+  };
+}
+
+/** Applique le layout vision Gemini + adaptation contenu. */
+export function buildImportLayoutFromVision(cv, rawVisionLayout, templatesList = [], {
+  templateId = '',
+  layoutHints = {},
+  visionMeta = {},
+} = {}) {
+  const analysis = analyzeCvProfile(cv);
+  const recommendedTemplateId = recommendTemplateId(
+    analysis,
+    templatesList,
+    templateId,
+    layoutHints,
+  );
+  const template = (templatesList || []).find((t) => t?.id === recommendedTemplateId)
+    || (templatesList || [])[0];
+  const preset = template ? createCanvasLayoutForTemplate(template) : null;
+
+  let layout = sanitizeLayoutV3(migrateLayoutToV3(rawVisionLayout));
+  if (preset) {
+    layout = mergePresetDecorations(layout, preset);
+    const presetTheme = parseCanvasTheme(template);
+    layout.theme = {
+      ...presetTheme,
+      ...inferThemeFromProfile(analysis, layoutHints),
+      ...layout.theme,
+      template_id: 'imported',
+    };
+  }
+
+  const result = adaptCanvasLayoutForCv(cv, layout, {
+    templatesList,
+    templateId: recommendedTemplateId,
+    layoutHints,
+    fromVision: true,
+  });
+
+  return {
+    ...result,
+    recommendedTemplateId: 'imported',
+    importSource: 'vision',
+    visionConfidence: Number(visionMeta?.confidence ?? 0),
+  };
 }
 
 export function inferThemeFromProfile(analysis, layoutHints = {}) {
@@ -353,6 +452,7 @@ export function adaptCanvasLayoutForCv(cv, layout, {
   templatesList = [],
   templateId = '',
   layoutHints = {},
+  fromVision = false,
 } = {}) {
   const analysis = analyzeCvProfile(cv);
   const recommendedTemplateId = recommendTemplateId(
@@ -393,7 +493,9 @@ export function adaptCanvasLayoutForCv(cv, layout, {
     }
   }
 
-  next = reorderSemanticBlocksByPriority(next, cv, analysis, layoutHints);
+  if (!fromVision) {
+    next = reorderSemanticBlocksByPriority(next, cv, analysis, layoutHints);
+  }
 
   for (let pi = 0; pi < (next.pages?.length || 0); pi += 1) {
     next = reflowColumnBlocksOnPage(next, pi);
@@ -402,11 +504,13 @@ export function adaptCanvasLayoutForCv(cv, layout, {
   next = applyLayoutPagination(next);
   next = applyAtsLayoutOptimizations(next);
 
-  const themePatch = inferThemeFromProfile(analysis, layoutHints);
-  next = {
-    ...next,
-    theme: { ...next.theme, ...themePatch, template_id: recommendedTemplateId },
-  };
+  if (!fromVision) {
+    const themePatch = inferThemeFromProfile(analysis, layoutHints);
+    next = {
+      ...next,
+      theme: { ...next.theme, ...themePatch, template_id: recommendedTemplateId },
+    };
+  }
 
   return {
     layout: next,
@@ -443,7 +547,23 @@ export function buildAdaptedCanvasLayoutForCv(cv, template, options = {}) {
 export function buildFullCanvasImportLayout(cv, templatesList = [], {
   templateId = '',
   layoutHints = {},
+  visionLayout = null,
+  visionMeta = {},
 } = {}) {
+  const confidence = Number(visionMeta?.confidence ?? 0);
+  const visionUsable = Boolean(
+    visionLayout?.pages?.length
+    && confidence >= VISION_MIN_CONFIDENCE,
+  );
+
+  if (visionUsable) {
+    return buildImportLayoutFromVision(cv, visionLayout, templatesList, {
+      templateId,
+      layoutHints,
+      visionMeta,
+    });
+  }
+
   const analysis = analyzeCvProfile(cv);
   const recommendedTemplateId = recommendTemplateId(
     analysis,
@@ -453,9 +573,10 @@ export function buildFullCanvasImportLayout(cv, templatesList = [], {
   );
   const template = (templatesList || []).find((t) => t?.id === recommendedTemplateId)
     || (templatesList || [])[0];
-  return buildAdaptedCanvasLayoutForCv(cv, template, {
+  const result = buildAdaptedCanvasLayoutForCv(cv, template, {
     templatesList,
     templateId: recommendedTemplateId,
     layoutHints,
   });
+  return { ...result, importSource: 'preset' };
 }

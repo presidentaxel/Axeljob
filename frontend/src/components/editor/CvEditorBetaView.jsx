@@ -1,6 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { apiGet, apiPostBlob, apiPut } from '../../api';
+import { apiGet, apiPost, apiPostBlob, apiPostFile, apiPut } from '../../api';
+import CvImportLoadingOverlay from '../CvImportLoadingOverlay.jsx';
+import {
+  cvFromImportPayload,
+  extractImportApiResponse,
+  startImportLoadingAnimation,
+} from '../../lib/cvImportUtils.js';
+import {
+  buildFullCanvasImportLayout,
+  recommendTemplateLabel,
+  summarizeImportAdaptation,
+} from '../../lib/canvasCvImportAdapter.js';
 import {
   applyCvFieldsFromRoot,
   readBlockContentFromRoot,
@@ -61,37 +72,16 @@ import EditorCanvaSidebar from './EditorCanvaSidebar.jsx';
 import EditorFloatingTextToolbar from './EditorFloatingTextToolbar.jsx';
 import EditorImageEditPopover from './EditorImageEditPopover.jsx';
 import EditorCanvaTransferModal from './EditorCanvaTransferModal.jsx';
+import EditorCvImportModal from './EditorCvImportModal.jsx';
 
 import '../../styles/CvEditorBeta.css';
 import '../../styles/EditorCanvaSidebar.css';
 import '../../styles/EditorInspector.css';
+import '../../styles/EditorCvImportModal.css';
 
 /**
  * Editeur de CV Beta — canvas libre uniquement (L3).
  */
-
-function cvHasMeaningfulContent(cv) {
-  if (!cv || typeof cv !== 'object') return false;
-  const scalarKeys = [
-    'prenom',
-    'nom',
-    'email',
-    'telephone',
-    'linkedin',
-    'titre_professionnel',
-    'resume',
-  ];
-  if (scalarKeys.some((key) => String(cv[key] || '').trim())) return true;
-  return ['experiences', 'formations', 'certifications', 'projets'].some(
-    (key) => Array.isArray(cv[key]) && cv[key].length > 0,
-  ) || Boolean(
-    cv.competences
-    && typeof cv.competences === 'object'
-    && Object.values(cv.competences).some((value) => (
-      Array.isArray(value) ? value.length > 0 : String(value || '').trim()
-    )),
-  );
-}
 
 function sameLayout(a, b) {
   if (a === b) return true;
@@ -151,6 +141,12 @@ function CvEditorBeta({
   const [activeLayoutContextKey, setActiveLayoutContextKey] = useState(() => getActiveCanvasContext());
   const [canvasDrafts, setCanvasDrafts] = useState(() => listCanvasDrafts(templatesList));
   const [transferRequest, setTransferRequest] = useState(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importStepIndex, setImportStepIndex] = useState(0);
+  const [importError, setImportError] = useState('');
+  const [importToast, setImportToast] = useState('');
+  const importCleanupRef = useRef(null);
 
   const handleLayoutHistoryChange = useCallback(() => {
     if (cv) autoSaveRef.current?.schedule(cv);
@@ -264,7 +260,7 @@ function CvEditorBeta({
           refreshCanvasDrafts();
         }
         resetLayout(hydratedLayout);
-        setStartupPromptOpen(!rawLayout && cvHasMeaningfulContent(mergedCv));
+        setStartupPromptOpen(!rawLayout);
         setLoading(false);
       })
       .catch((err) => {
@@ -319,6 +315,91 @@ function CvEditorBeta({
       baseLayout: createCanvasLayoutBlank(),
     });
   }, [requestCanvasContextSwitch]);
+
+  const applyImportedCvToCanvas = useCallback(async (nextCv, layoutHints = {}) => {
+    const templates = templatesList || [];
+    const {
+      layout: finalLayout,
+      recommendedTemplateId,
+      analysis,
+      blockCount,
+    } = buildFullCanvasImportLayout(nextCv, templates, {
+      templateId,
+      layoutHints,
+    });
+    const recTemplate = templates.find((t) => t?.id === recommendedTemplateId) || templates[0];
+    const contextKey = templateCanvasContextKey(recTemplate?.id || BLANK_CANVAS_CONTEXT_KEY);
+    setCv(nextCv);
+    setStartupPromptOpen(false);
+    setImportModalOpen(false);
+    setImportError('');
+    resetLayout(finalLayout);
+    setSelectedBlockId(null);
+    setEditingBlockId(null);
+    setImageEditBlockId(null);
+    setPlacementPreset(null);
+    setActiveLayoutContextKey(contextKey);
+    setActiveCanvasContext(contextKey);
+    saveCanvasDraft(contextKey, finalLayout, {
+      label: canvasContextLabel(contextKey, templates),
+    });
+    refreshCanvasDrafts();
+    try {
+      await saveFn({ ...nextCv, layout: finalLayout });
+    } catch (err) {
+      setLoadError(err?.message || 'Import réussi mais enregistrement échoué.');
+    }
+    const label = recommendTemplateLabel(recTemplate?.id, templates);
+    setImportToast(summarizeImportAdaptation(analysis, label, blockCount));
+  }, [
+    templatesList,
+    templateId,
+    resetLayout,
+    refreshCanvasDrafts,
+    saveFn,
+  ]);
+
+  const runCvImport = useCallback(async (importFn) => {
+    setImportLoading(true);
+    setImportStepIndex(0);
+    setImportError('');
+    if (importCleanupRef.current) importCleanupRef.current();
+    importCleanupRef.current = startImportLoadingAnimation(setImportStepIndex);
+    try {
+      const result = await importFn();
+      const { cv: rawCv, layoutHints } = extractImportApiResponse(result);
+      const nextCv = cvFromImportPayload(rawCv);
+      await applyImportedCvToCanvas(nextCv, layoutHints);
+    } catch (err) {
+      setImportError(err?.message || 'Erreur lors de l\'import.');
+    } finally {
+      setImportLoading(false);
+      if (importCleanupRef.current) {
+        importCleanupRef.current();
+        importCleanupRef.current = null;
+      }
+    }
+  }, [applyImportedCvToCanvas]);
+
+  const handleImportFile = useCallback((file) => {
+    if (!file) return;
+    runCvImport(() => apiPostFile('/api/cv/import', file));
+  }, [runCvImport]);
+
+  const handleImportText = useCallback((text) => {
+    if (!text?.trim()) return;
+    runCvImport(() => apiPost('/api/cv/import-text', { text: text.trim() }));
+  }, [runCvImport]);
+
+  useEffect(() => {
+    if (!importToast) return undefined;
+    const id = setTimeout(() => setImportToast(''), 6000);
+    return () => clearTimeout(id);
+  }, [importToast]);
+
+  useEffect(() => () => {
+    if (importCleanupRef.current) importCleanupRef.current();
+  }, []);
 
   const handleGenerateStarterCanvas = useCallback(() => {
     const selectedTemplate = (templatesList || []).find((t) => t?.id === templateId);
@@ -759,6 +840,23 @@ function CvEditorBeta({
           </div>
         </div>
         <div className="cv-editor-beta-topbar-right">
+          <button
+            type="button"
+            className="cv-editor-beta-history-btn cv-editor-beta-import-btn"
+            onClick={() => {
+              setImportError('');
+              setImportModalOpen(true);
+            }}
+            disabled={loading || importLoading}
+            title="Importer un CV PDF/Word et générer la mise en page Canva"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            {importLoading ? 'Import…' : 'Importer CV'}
+          </button>
           <AutoSaveIndicator state={autoSave.state} onRetry={handleRetry} />
           <EditorAtsScoreBadge
             layout={layout}
@@ -858,34 +956,48 @@ function CvEditorBeta({
               onAddPage={handleAddCanvasPage}
               onRemovePage={handleRemoveCanvasPage}
             />
+            {importToast && (
+              <div className="cv-editor-beta-import-toast" role="status">
+                Canvas généré — {importToast}
+              </div>
+            )}
             {startupPromptOpen && (
               <section className="cv-editor-beta-start-panel" aria-label="Demarrer le canvas">
-                <span className="cv-editor-beta-start-panel__eyebrow">Votre profil est pret</span>
-                <h2>Choisissez comment demarrer votre CV visuel</h2>
+                <span className="cv-editor-beta-start-panel__eyebrow">Démarrer en Beta</span>
+                <h2>Importez ou générez votre CV visuel</h2>
                 <p>
-                  Votre contenu existe deja. Vous pouvez generer une mise en page
-                  propre pour commencer, ou partir d'une page blanche si vous voulez
-                  composer librement.
+                  Importez un PDF/Word pour voir instantanément une mise en page Canva
+                  adaptée à votre profil, ou générez depuis les données déjà enregistrées.
                 </p>
                 <div className="cv-editor-beta-start-panel__actions">
+                  <button
+                    type="button"
+                    className="cv-editor-beta-start-panel__import"
+                    onClick={() => {
+                      setImportError('');
+                      setImportModalOpen(true);
+                    }}
+                  >
+                    Importer mon CV
+                  </button>
                   <button
                     type="button"
                     className="cv-editor-beta-start-panel__primary"
                     onClick={handleGenerateStarterCanvas}
                   >
-                    Generer depuis mon profil
+                    Générer depuis mon profil
                   </button>
                   <button
                     type="button"
                     className="cv-editor-beta-start-panel__secondary"
                     onClick={handlePickBlankCanvas}
                   >
-                    Partir d'une page blanche
+                    Page blanche
                   </button>
                 </div>
                 <p className="cv-editor-beta-start-panel__hint">
-                  Conseil : commencez par une mise en page generee, puis personnalisez.
-                  Le score ATS vous indiquera les risques.
+                  L&apos;import analyse sections, densité et choisit un template — blocs
+                  redimensionnés et vides masqués automatiquement.
                 </p>
               </section>
             )}
@@ -924,8 +1036,27 @@ function CvEditorBeta({
       </div>
 
       <footer className="cv-editor-beta-statusbar">
-        <span>Canvas libre · double-clic pour éditer · sidebar Canva · Ctrl+Z</span>
+        <span>Canvas libre · double-clic pour éditer · import CV → canvas auto · Ctrl+Z</span>
       </footer>
+
+      <EditorCvImportModal
+        open={importModalOpen}
+        onClose={() => {
+          if (!importLoading) setImportModalOpen(false);
+        }}
+        onImportFile={handleImportFile}
+        onImportText={handleImportText}
+        loading={importLoading}
+        error={importError}
+      />
+
+      {importLoading && (
+        <CvImportLoadingOverlay
+          stepIndex={importStepIndex}
+          title="Import & adaptation Canva en cours"
+        />
+      )}
+
     </div>
   );
 }

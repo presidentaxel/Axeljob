@@ -3,6 +3,7 @@
 import unittest
 
 from backend.services.pdf_structural_extract import (
+    _extract_shape_blocks,
     _float_rgb_to_hex,
     _frame_strips_from_rects,
     _int_color_to_hex,
@@ -69,12 +70,21 @@ class ExtractLayoutTest(unittest.TestCase):
         self.assertEqual(layout["source"], "pdf_structural")
         self.assertGreaterEqual(len(layout["pages"]), 1)
 
-    def test_contains_text_and_shape_blocks(self):
+    def test_contains_text_and_background_image(self):
+        # Nouvelle approche : la couche graphique (sidebar, filets, icônes, puces)
+        # est rasterisée en UNE image de fond décorative ; le texte reste éditable.
         layout = extract_layout_from_pdf(self.pdf)
         blocks = layout["pages"][0]["blocks"]
         types = {b["type"] for b in blocks}
         self.assertIn("text", types)
-        self.assertIn("shape:rect", types)
+        bg = [b for b in blocks if b["type"] == "image" and b["style"].get("decorative")]
+        self.assertEqual(len(bg), 1)
+        bg = bg[0]
+        self.assertEqual(bg["z"], 0)
+        self.assertEqual((bg["x"], bg["y"]), (0.0, 0.0))
+        self.assertGreater(bg["w"], 150)  # couvre quasiment la pleine largeur A4
+        self.assertGreater(bg["h"], 250)
+        self.assertTrue(bg["image_src"].startswith("data:image/"))
 
     def test_text_block_has_content_and_position(self):
         layout = extract_layout_from_pdf(self.pdf)
@@ -98,36 +108,27 @@ class ExtractLayoutTest(unittest.TestCase):
         self.assertGreaterEqual(title["style"]["font_size"], 18)
         self.assertLessEqual(title["style"]["font_size"], 24)
 
-    def test_separator_line_is_thin(self):
-        # Régression : un filet de séparation tracé doit donner un bloc fin,
-        # pas un gros rectangle (fusion du rect englobant du chemin).
+    def test_separator_line_is_thin_vector_fallback(self):
+        # Régression du repli vectoriel (_extract_shape_blocks, utilisé si la
+        # rasterisation du fond échoue) : un filet tracé → bloc fin, pas un gros
+        # rectangle (fusion du rect englobant du chemin).
         import fitz
 
         doc = fitz.open()
         page = doc.new_page(width=595, height=842)
-        page.insert_text(
-            (40, 60), "Section A avec assez de texte pour le seuil natif.", fontsize=11
-        )
-        page.insert_text((40, 200), "Section B egalement avec du contenu textuel ici.", fontsize=11)
-        # Deux filets horizontaux séparés dans le même appel de dessin.
         page.draw_line(fitz.Point(40, 80), fitz.Point(540, 80), color=(0.5, 0.5, 0.5), width=0.8)
         page.draw_line(fitz.Point(40, 180), fitz.Point(540, 180), color=(0.5, 0.5, 0.5), width=0.8)
-        data = doc.tobytes()
-        doc.close()
+        try:
+            blocks = _extract_shape_blocks(page, MM_PER_PT)
+        finally:
+            doc.close()
 
-        layout = extract_layout_from_pdf(data)
-        self.assertIsNotNone(layout)
-        lines = [b for b in layout["pages"][0]["blocks"] if b["type"] == "shape:line"]
+        lines = [b for b in blocks if b["type"] == "shape:line"]
         self.assertGreaterEqual(len(lines), 1)
         for line in lines:
             self.assertLessEqual(line["h"], 2.0)  # fin, pas un gros bloc
             self.assertGreater(line["w"], 100)  # s'étend sur la largeur
-        # Aucun gros rectangle parasite qui couvrirait toute la page.
-        big = [
-            b
-            for b in layout["pages"][0]["blocks"]
-            if b["type"] == "shape:rect" and b["h"] > 50 and b["w"] > 100
-        ]
+        big = [b for b in blocks if b["type"] == "shape:rect" and b["h"] > 50 and b["w"] > 100]
         self.assertEqual(big, [])
 
     def test_even_odd_nested_rects_become_thin_underline(self):

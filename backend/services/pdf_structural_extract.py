@@ -44,6 +44,9 @@ MIN_TEXT_CHARS_FOR_NATIVE = 40
 MAX_PAGES = 3
 MAX_IMAGES_PER_DOC = 8
 MAX_IMAGE_BYTES = 350_000
+# Fond graphique rasterisé (texte retiré) : résolution et poids max.
+BG_RENDER_SCALE = 2.5
+MAX_BG_BYTES = 520_000
 
 # Flags de span PyMuPDF (cf. doc fitz).
 _FLAG_ITALIC = 1 << 1
@@ -182,9 +185,12 @@ def _extract_text_blocks(
                 fam = _font_family_from_name(lead_font)
                 if fam:
                     style["font_family"] = fam
-            if any(_span_is_bold(s) for s in spans):
+            # Gras/italique d'après le span DOMINANT (le plus de caractères) :
+            # une simple étiquette grasse en tête de ligne ne doit pas rendre
+            # tout le texte gras (sinon mauvaise graisse → glyphes manquants).
+            if _span_is_bold(lead):
                 style["bold"] = True
-            if all(_span_is_italic(s) for s in spans):
+            if _span_is_italic(lead):
                 style["italic"] = True
 
             # Largeur = largeur réelle du texte + marge (padding interne du bloc
@@ -432,6 +438,60 @@ def _extract_image_blocks(page, doc, scale: float, budget: list[int]) -> list[di
     return blocks
 
 
+def _render_decoration_background(page, scale: float) -> dict | None:
+    """Rasterise la couche graphique de la page (texte retiré) en image de fond.
+
+    On retire le texte par *redaction* (sans repeindre de fond, ``fill=False``)
+    tout en conservant images et tracés vectoriels, puis on rend la page en PNG.
+    Résultat : sidebar, photo, filets, icônes, puces, timelines… reproduits au
+    pixel près, sur lesquels on superpose ensuite le texte éditable.
+
+    ⚠️ Mute la page (texte supprimé) : appeler APRÈS l'extraction du texte.
+    """
+    import fitz
+
+    try:
+        for blk in page.get_text("dict").get("blocks", []):
+            for line in blk.get("lines", []):
+                for span in line.get("spans", []):
+                    rect = fitz.Rect(span.get("bbox"))
+                    if not rect.is_empty:
+                        page.add_redact_annot(rect, fill=False)
+        page.apply_redactions(
+            images=fitz.PDF_REDACT_IMAGE_NONE,
+            graphics=fitz.PDF_REDACT_LINE_ART_NONE,
+            text=fitz.PDF_REDACT_TEXT_REMOVE,
+        )
+        pix = page.get_pixmap(matrix=fitz.Matrix(BG_RENDER_SCALE, BG_RENDER_SCALE), alpha=False)
+    except Exception as exc:  # pragma: no cover - dépend du PDF
+        logger.info("pdf_structural_extract: fond graphique non rendu: %s", exc)
+        return None
+
+    try:
+        data = pix.tobytes("png")
+        if len(data) > MAX_BG_BYTES:
+            data = pix.tobytes("jpeg", jpg_quality=82)
+    except Exception:  # pragma: no cover
+        return None
+    if not data or len(data) > MAX_BG_BYTES:
+        return None
+
+    b64 = base64.b64encode(data).decode("ascii")
+    mime = "image/png" if data[:4] == b"\x89PNG" else "image/jpeg"
+    w_mm = page.rect.width * scale
+    h_mm = page.rect.height * scale
+    return {
+        "type": "image",
+        "image_src": f"data:{mime};base64,{b64}",
+        "x": 0.0,
+        "y": 0.0,
+        "w": round(min(w_mm, PAGE_W_MM), 2),
+        "h": round(min(h_mm, PAGE_H_MM), 2),
+        "z": 0,
+        "style": {"shape": "rect", "decorative": True},
+    }
+
+
 def extract_layout_from_pdf(file_bytes: bytes, max_pages: int = MAX_PAGES) -> dict | None:
     """
     Reconstruit un layout v3 fidèle depuis un PDF natif (texte extractible).
@@ -474,11 +534,18 @@ def extract_layout_from_pdf(file_bytes: bytes, max_pages: int = MAX_PAGES) -> di
             page = doc[page_index]
             fit = _fit_factor(page.rect.width, page.rect.height)
             pos_scale = MM_PER_PT * fit
-            shape_blocks = _extract_shape_blocks(page, pos_scale)
-            image_blocks = _extract_image_blocks(page, doc, pos_scale, image_budget)
+            # Le texte D'ABORD (la rasterisation du fond retire ensuite le texte).
             text_blocks, chars = _extract_text_blocks(page, pos_scale, fit, embedded_roots)
             total_chars += chars
-            blocks = [*shape_blocks, *image_blocks, *text_blocks]
+            # Couche graphique complète (sidebar, photo, filets, icônes, puces)
+            # rasterisée en un fond fidèle ; repli vectoriel si échec.
+            bg_block = _render_decoration_background(page, pos_scale)
+            if bg_block:
+                blocks = [bg_block, *text_blocks]
+            else:
+                shape_blocks = _extract_shape_blocks(page, pos_scale)
+                image_blocks = _extract_image_blocks(page, doc, pos_scale, image_budget)
+                blocks = [*shape_blocks, *image_blocks, *text_blocks]
             if not blocks:
                 continue
             pages_out.append({"id": f"page_{page_index + 1}", "blocks": blocks})

@@ -47,6 +47,11 @@ MAX_IMAGE_BYTES = 350_000
 # Fond graphique rasterisé (texte retiré) : résolution et poids max.
 BG_RENDER_SCALE = 2.5
 MAX_BG_BYTES = 520_000
+# Décomposition de la couche graphique en blocs déplaçables indépendamment.
+CUTOUT_RENDER_SCALE = 3.0
+CLUSTER_GAP_PT = 7.0
+MAX_CUTOUTS = 90
+MAX_CUTOUT_TOTAL_BYTES = 480_000
 
 # Flags de span PyMuPDF (cf. doc fitz).
 _FLAG_ITALIC = 1 << 1
@@ -492,6 +497,200 @@ def _render_decoration_background(page, scale: float) -> dict | None:
     }
 
 
+def _cluster_drawings(drawings: list, gap_pt: float) -> list[list]:
+    """Regroupe les dessins dont les bboxes se touchent (à ``gap_pt`` près).
+
+    Permet de traiter un pictogramme composé de plusieurs tracés comme UNE seule
+    vignette déplaçable (au lieu d'éclater chaque trait).
+    """
+    n = len(drawings)
+    parent = list(range(n))
+
+    def find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    rects = [d.get("rect") for d in drawings]
+    for i in range(n):
+        ri = rects[i]
+        if ri is None:
+            continue
+        infl = (ri.x0 - gap_pt, ri.y0 - gap_pt, ri.x1 + gap_pt, ri.y1 + gap_pt)
+        for j in range(i + 1, n):
+            rj = rects[j]
+            if rj is None:
+                continue
+            # Intersection des bboxes (gonflées) → même groupe.
+            if not (infl[2] < rj.x0 or infl[0] > rj.x1 or infl[3] < rj.y0 or infl[1] > rj.y1):
+                parent[find(i)] = find(j)
+
+    groups: dict[int, list] = {}
+    for idx, d in enumerate(drawings):
+        groups.setdefault(find(idx), []).append(d)
+    return list(groups.values())
+
+
+def _cutout_block(page, clip, scale: float) -> tuple[dict | None, int]:
+    """Rasterise une région de la page (texte déjà retiré) en vignette image.
+
+    Retourne ``(bloc, octets)``. La vignette reste fidèle au PDF (icônes/puces)
+    et devient un bloc déplaçable indépendamment.
+    """
+    import fitz
+
+    try:
+        pix = page.get_pixmap(
+            matrix=fitz.Matrix(CUTOUT_RENDER_SCALE, CUTOUT_RENDER_SCALE), clip=clip, alpha=False
+        )
+    except Exception:  # pragma: no cover - dépend du PDF
+        return None, 0
+    data_url = _pixmap_to_data_url(pix)
+    if not data_url:
+        return None, 0
+    w_mm = (clip.x1 - clip.x0) * scale
+    h_mm = (clip.y1 - clip.y0) * scale
+    if w_mm <= 0.4 or h_mm <= 0.4:
+        return None, 0
+    block = {
+        "type": "image",
+        "image_src": data_url,
+        "x": round(max(0.0, clip.x0 * scale), 2),
+        "y": round(max(0.0, clip.y0 * scale), 2),
+        "w": round(min(w_mm, PAGE_W_MM), 2),
+        "h": round(min(h_mm, PAGE_H_MM), 2),
+        "z": 2,
+        "style": {"shape": "rect", "decorative": True},
+    }
+    return block, len(data_url)
+
+
+def _extract_graphic_blocks(page, doc, scale: float, image_budget: list) -> list[dict] | None:
+    """Décompose la couche graphique en blocs INDÉPENDANTS (déplaçables).
+
+    - fonds pleins (sidebar/header) → ``shape:rect`` recolorable ;
+    - filets / timelines → blocs fins ``shape:line``/``shape:rect`` ;
+    - photos → blocs image ;
+    - pictogrammes / puces / marqueurs (vecteurs complexes) → vignettes image
+      rasterisées (fidèles) regroupées par proximité.
+
+    Retourne ``None`` si la couche est trop fragmentée (→ repli sur fond plat).
+    ⚠️ Mute la page (retire le texte) : appeler APRÈS l'extraction du texte.
+    """
+    import fitz
+
+    try:
+        drawings = page.get_drawings()
+    except Exception as exc:  # pragma: no cover
+        logger.debug("pdf_structural_extract: get_drawings échoué: %s", exc)
+        drawings = []
+
+    blocks: list[dict] = []
+    seen_keys: set[tuple] = set()
+    misc: list = []
+    page_area = PAGE_W_MM * PAGE_H_MM
+
+    def _push(blk: dict | None) -> None:
+        if not blk:
+            return
+        key = (
+            blk["type"],
+            round(blk["x"], 1),
+            round(blk["y"], 1),
+            round(blk["w"], 1),
+            round(blk["h"], 1),
+        )
+        if key in seen_keys:  # évite les traits dupliqués (fill + stroke)
+            return
+        seen_keys.add(key)
+        blocks.append(blk)
+
+    for d in drawings:
+        rect = d.get("rect")
+        if rect is None:
+            continue
+        w_mm = (rect.x1 - rect.x0) * scale
+        h_mm = (rect.y1 - rect.y0) * scale
+        if w_mm <= 0 or h_mm <= 0:
+            continue
+        if w_mm * h_mm > page_area * PAGE_BG_AREA_RATIO:  # fond de page entier
+            continue
+
+        items = [it for it in d.get("items", []) if it]
+        re_items = [it[1] for it in items if it[0] == "re"]
+        line_items = [it for it in items if it[0] == "l"]
+        fill_hex = _float_rgb_to_hex(d.get("fill")) if d.get("fill") is not None else None
+        stroke_hex = _float_rgb_to_hex(d.get("color")) if d.get("color") is not None else None
+        thin = min(w_mm, h_mm) <= LINE_MAX_THICKNESS_MM
+        longish = max(w_mm, h_mm) >= MIN_SEPARATOR_LEN_MM
+        area = w_mm * h_mm
+        handled = False
+
+        # Rectangle plein recolorable : soit un fond structurel (sidebar/bandeau),
+        # soit un filet/timeline plein et fin (rectangle long).
+        if (
+            fill_hex
+            and not _is_near_white(fill_hex)
+            and len(re_items) == 1
+            and ((not thin and area >= BACKGROUND_MIN_AREA_MM2) or (thin and longish))
+        ):
+            r0 = re_items[0]
+            _push(_shape_block_from_box(r0.x0, r0.y0, r0.x1, r0.y1, scale, fill_hex))
+            handled = True
+        # Filet tracé (segments longs, sans rectangle) → bloc fin.
+        elif stroke_hex and not _is_near_white(stroke_hex) and line_items and not re_items:
+            for it in line_items:
+                p1, p2 = it[1], it[2]
+                if max(abs(p2.x - p1.x), abs(p2.y - p1.y)) * scale < MIN_SEPARATOR_LEN_MM:
+                    continue
+                _push(
+                    _line_block_from_segment(p1, p2, float(d.get("width") or 0), scale, stroke_hex)
+                )
+                handled = True
+
+        if not handled:
+            misc.append(d)
+
+    clusters = _cluster_drawings(misc, CLUSTER_GAP_PT) if misc else []
+    if len(clusters) > MAX_CUTOUTS:  # trop fragmenté → repli sur fond plat
+        return None
+
+    # Photos (avant la redaction qui retire le texte).
+    blocks.extend(_extract_image_blocks(page, doc, scale, image_budget))
+
+    if clusters:
+        try:
+            for blk in page.get_text("dict").get("blocks", []):
+                for line in blk.get("lines", []):
+                    for span in line.get("spans", []):
+                        rr = fitz.Rect(span.get("bbox"))
+                        if not rr.is_empty:
+                            page.add_redact_annot(rr, fill=False)
+            page.apply_redactions(
+                images=fitz.PDF_REDACT_IMAGE_NONE,
+                graphics=fitz.PDF_REDACT_LINE_ART_NONE,
+                text=fitz.PDF_REDACT_TEXT_REMOVE,
+            )
+        except Exception as exc:  # pragma: no cover
+            logger.info("pdf_structural_extract: redaction cutouts échouée: %s", exc)
+            return None
+
+        total = 0
+        for cluster in clusters:
+            clip = fitz.Rect(cluster[0]["rect"])
+            for d in cluster[1:]:
+                clip |= fitz.Rect(d["rect"])
+            block, nbytes = _cutout_block(page, clip, scale)
+            if block:
+                blocks.append(block)
+                total += nbytes
+                if total > MAX_CUTOUT_TOTAL_BYTES:
+                    break
+
+    return blocks
+
+
 def extract_layout_from_pdf(file_bytes: bytes, max_pages: int = MAX_PAGES) -> dict | None:
     """
     Reconstruit un layout v3 fidèle depuis un PDF natif (texte extractible).
@@ -534,18 +733,22 @@ def extract_layout_from_pdf(file_bytes: bytes, max_pages: int = MAX_PAGES) -> di
             page = doc[page_index]
             fit = _fit_factor(page.rect.width, page.rect.height)
             pos_scale = MM_PER_PT * fit
-            # Le texte D'ABORD (la rasterisation du fond retire ensuite le texte).
+            # Le texte D'ABORD (la décomposition/rasterisation retire le texte).
             text_blocks, chars = _extract_text_blocks(page, pos_scale, fit, embedded_roots)
             total_chars += chars
-            # Couche graphique complète (sidebar, photo, filets, icônes, puces)
-            # rasterisée en un fond fidèle ; repli vectoriel si échec.
-            bg_block = _render_decoration_background(page, pos_scale)
-            if bg_block:
-                blocks = [bg_block, *text_blocks]
+            # Couche graphique décomposée en blocs déplaçables (sidebar, filets,
+            # photo, icônes/puces). Repli : fond plat rasterisé, puis vectoriel.
+            graphic_blocks = _extract_graphic_blocks(page, doc, pos_scale, image_budget)
+            if graphic_blocks is not None:
+                blocks = [*graphic_blocks, *text_blocks]
             else:
-                shape_blocks = _extract_shape_blocks(page, pos_scale)
-                image_blocks = _extract_image_blocks(page, doc, pos_scale, image_budget)
-                blocks = [*shape_blocks, *image_blocks, *text_blocks]
+                bg_block = _render_decoration_background(page, pos_scale)
+                if bg_block:
+                    blocks = [bg_block, *text_blocks]
+                else:
+                    shape_blocks = _extract_shape_blocks(page, pos_scale)
+                    image_blocks = _extract_image_blocks(page, doc, pos_scale, image_budget)
+                    blocks = [*shape_blocks, *image_blocks, *text_blocks]
             if not blocks:
                 continue
             pages_out.append({"id": f"page_{page_index + 1}", "blocks": blocks})

@@ -70,21 +70,42 @@ class ExtractLayoutTest(unittest.TestCase):
         self.assertEqual(layout["source"], "pdf_structural")
         self.assertGreaterEqual(len(layout["pages"]), 1)
 
-    def test_contains_text_and_background_image(self):
-        # Nouvelle approche : la couche graphique (sidebar, filets, icônes, puces)
-        # est rasterisée en UNE image de fond décorative ; le texte reste éditable.
+    def test_decomposes_into_independent_blocks(self):
+        # Nouvelle approche : la couche graphique est DÉCOMPOSÉE en blocs
+        # déplaçables (fonds pleins → shape:rect, etc.) + texte éditable, et le
+        # layout reste "freeform" (positions absolues, pas de reflow).
         layout = extract_layout_from_pdf(self.pdf)
+        self.assertTrue(layout.get("freeform"))
         blocks = layout["pages"][0]["blocks"]
         types = {b["type"] for b in blocks}
         self.assertIn("text", types)
-        bg = [b for b in blocks if b["type"] == "image" and b["style"].get("decorative")]
-        self.assertEqual(len(bg), 1)
-        bg = bg[0]
-        self.assertEqual(bg["z"], 0)
-        self.assertEqual((bg["x"], bg["y"]), (0.0, 0.0))
-        self.assertGreater(bg["w"], 150)  # couvre quasiment la pleine largeur A4
-        self.assertGreater(bg["h"], 250)
-        self.assertTrue(bg["image_src"].startswith("data:image/"))
+        # Le bandeau latéral plein est un rectangle indépendant (recolorable).
+        self.assertIn("shape:rect", types)
+
+    def test_complex_vector_becomes_movable_cutout(self):
+        # Un pictogramme/puce vectoriel (cercle plein) ne sait pas se rendre en
+        # forme simple → vignette image décorative, déplaçable indépendamment.
+        import fitz
+
+        doc = fitz.open()
+        page = doc.new_page(width=595, height=842)
+        page.insert_text((40, 60), "Texte de section suffisant pour le seuil natif.", fontsize=11)
+        page.insert_text(
+            (40, 120), "Deuxieme ligne de contenu pour le minimum requis.", fontsize=11
+        )
+        page.draw_circle(fitz.Point(60, 200), 4, color=(0.2, 0.2, 0.2), fill=(0.2, 0.2, 0.2))
+        data = doc.tobytes()
+        doc.close()
+
+        layout = extract_layout_from_pdf(data)
+        self.assertIsNotNone(layout)
+        blocks = layout["pages"][0]["blocks"]
+        cutouts = [b for b in blocks if b["type"] == "image" and b["style"].get("decorative")]
+        self.assertGreaterEqual(len(cutouts), 1)
+        cut = cutouts[0]
+        self.assertGreater(cut["w"], 0)
+        self.assertGreater(cut["h"], 0)
+        self.assertTrue(cut["image_src"].startswith("data:image/"))
 
     def test_text_block_has_content_and_position(self):
         layout = extract_layout_from_pdf(self.pdf)

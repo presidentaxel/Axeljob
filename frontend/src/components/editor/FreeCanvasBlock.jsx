@@ -628,6 +628,9 @@ function inlineTypographyStyle(style = {}) {
   if (style.underline) deco.push('underline');
   if (style.strikethrough) deco.push('line-through');
   if (deco.length) css.textDecoration = deco.join(' ');
+  // Import "copie fidèle" : une ligne PDF reste sur une ligne (pas de wrap qui
+  // chevaucherait le bloc suivant, les positions étant figées).
+  if (style.nowrap) css.whiteSpace = 'nowrap';
   return css;
 }
 

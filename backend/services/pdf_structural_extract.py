@@ -163,6 +163,10 @@ def _extract_text_blocks(page, pos_scale: float, font_scale: float) -> tuple[lis
                 "font_size": round(size_pt, 1),
                 "color": _int_color_to_hex(lead.get("color")),
                 "align": "left",
+                # Une ligne PDF = une ligne canvas. La police web (Inter) est un
+                # peu plus large que celle du PDF : sans ça le texte reviendrait
+                # à la ligne et chevaucherait le bloc suivant (positions figées).
+                "nowrap": True,
             }
             fam = _font_family_from_name(str(lead.get("font", "")))
             if fam:
@@ -172,8 +176,9 @@ def _extract_text_blocks(page, pos_scale: float, font_scale: float) -> tuple[lis
             if all(_span_is_italic(s) for s in spans):
                 style["italic"] = True
 
-            # Largeur généreuse pour éviter le wrap ; hauteur ≈ taille de police.
-            w_mm = max(4.0, (x1 - x0) * pos_scale + 3.0)
+            # Largeur = largeur réelle du texte + marge (padding interne du bloc
+            # 1.5mm/côté + jeu pour la police web légèrement plus large).
+            w_mm = max(4.0, (x1 - x0) * pos_scale + 5.0)
             line_h_mm = max((y1 - y0) * pos_scale, size_pt * MM_PER_PT * 1.05)
             x_mm = max(0.0, x0 * pos_scale)
             y_mm = max(0.0, y0 * pos_scale)

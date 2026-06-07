@@ -163,6 +163,19 @@ test('sanitizeLayoutV3 : préserve le flag freeform', () => {
   assert.equal(out.freeform, true);
 });
 
+test('sanitizeLayoutV3 : préserve les polices embarquées (@font-face)', () => {
+  const fonts = [
+    { family: 'PDFEmbed-Garet', weight: 700, style: 'normal', format: 'truetype', src: 'data:font/ttf;base64,AAA' },
+    { family: 'PDFEmbed-Garet', weight: 400, style: 'normal', src: 'data:font/ttf;base64,BBB' },
+    { family: '', src: 'data:...' },
+  ];
+  const out = sanitizeLayoutV3({ ...STRUCTURAL_LAYOUT, fonts });
+  assert.equal(out.fonts.length, 2);
+  assert.equal(out.fonts[0].family, 'PDFEmbed-Garet');
+  assert.equal(out.fonts[0].weight, 700);
+  assert.equal(out.fonts[1].format, 'truetype');
+});
+
 test('reflowColumnBlocksOnPage : ne touche pas un layout freeform', () => {
   // Deux blocs texte côte à côte (même lane "main", même y) : un reflow
   // classique empilerait le second sous le premier. En freeform on garde tout.

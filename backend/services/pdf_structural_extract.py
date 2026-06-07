@@ -21,6 +21,8 @@ import html
 import logging
 from typing import Any
 
+from backend.services.pdf_font_embed import embedded_family_for, extract_embedded_fonts
+
 logger = logging.getLogger(__name__)
 
 PAGE_W_MM = 210.0
@@ -128,13 +130,17 @@ def _fit_factor(page_width_pt: float, page_height_pt: float) -> float:
     return min(PAGE_W_MM / w_mm, PAGE_H_MM / h_mm, 1.0)
 
 
-def _extract_text_blocks(page, pos_scale: float, font_scale: float) -> tuple[list[dict], int]:
+def _extract_text_blocks(
+    page, pos_scale: float, font_scale: float, embedded_roots: set[str] | None = None
+) -> tuple[list[dict], int]:
     """Une ligne PDF = un bloc texte canvas. Retourne (blocs, nb_chars).
 
     - ``pos_scale`` (= MM_PER_PT × fit) : conversion des positions pt→mm.
     - ``font_scale`` (= fit) : la taille de police RESTE en points (CSS pt),
       on n'applique que la réduction homothétique éventuelle.
+    - ``embedded_roots`` : familles de police embarquées (rendu fidèle).
     """
+    roots = embedded_roots or set()
     blocks: list[dict] = []
     char_count = 0
     data = page.get_text("dict")
@@ -168,9 +174,14 @@ def _extract_text_blocks(page, pos_scale: float, font_scale: float) -> tuple[lis
                 # à la ligne et chevaucherait le bloc suivant (positions figées).
                 "nowrap": True,
             }
-            fam = _font_family_from_name(str(lead.get("font", "")))
-            if fam:
-                style["font_family"] = fam
+            lead_font = str(lead.get("font", ""))
+            emb_family = embedded_family_for(lead_font, roots)
+            if emb_family:
+                style["font_family"] = emb_family
+            else:
+                fam = _font_family_from_name(lead_font)
+                if fam:
+                    style["font_family"] = fam
             if any(_span_is_bold(s) for s in spans):
                 style["bold"] = True
             if all(_span_is_italic(s) for s in spans):
@@ -452,13 +463,20 @@ def extract_layout_from_pdf(file_bytes: bytes, max_pages: int = MAX_PAGES) -> di
         image_budget = [MAX_IMAGES_PER_DOC]
         n_pages = min(doc.page_count, max_pages)
 
+        # Polices embarquées → rendu fidèle (mêmes largeurs que le PDF).
+        try:
+            font_faces, embedded_roots = extract_embedded_fonts(doc, max_pages=n_pages)
+        except Exception as exc:  # pragma: no cover - dépend du PDF
+            logger.info("pdf_structural_extract: extraction polices échouée: %s", exc)
+            font_faces, embedded_roots = [], set()
+
         for page_index in range(n_pages):
             page = doc[page_index]
             fit = _fit_factor(page.rect.width, page.rect.height)
             pos_scale = MM_PER_PT * fit
             shape_blocks = _extract_shape_blocks(page, pos_scale)
             image_blocks = _extract_image_blocks(page, doc, pos_scale, image_budget)
-            text_blocks, chars = _extract_text_blocks(page, pos_scale, fit)
+            text_blocks, chars = _extract_text_blocks(page, pos_scale, fit, embedded_roots)
             total_chars += chars
             blocks = [*shape_blocks, *image_blocks, *text_blocks]
             if not blocks:
@@ -476,6 +494,8 @@ def extract_layout_from_pdf(file_bytes: bytes, max_pages: int = MAX_PAGES) -> di
             "unit": "mm",
             # Copie fidèle : positions absolues à préserver (pas de reflow colonne).
             "freeform": True,
+            # Polices du PDF (data-URL) à injecter en @font-face côté frontend.
+            "fonts": font_faces,
             "pages": pages_out,
             "theme": {
                 "template_id": "imported",

@@ -23,6 +23,23 @@ import { snapBlockGeometry, snapBlockPosition } from '../../lib/freeCanvasSnap.j
 import '../../styles/FreeCanvas.css';
 import '../../styles/CanvasTemplateFidelity.css';
 
+/** Règles @font-face pour les polices embarquées d'un PDF importé. */
+function EmbeddedFontFaces({ fonts }) {
+  if (!Array.isArray(fonts) || fonts.length === 0) return null;
+  const css = fonts
+    .filter((f) => f && f.family && f.src)
+    .map((f) => (
+      `@font-face{font-family:'${f.family}';`
+      + `font-weight:${f.weight === 700 ? 700 : 400};`
+      + `font-style:${f.style === 'italic' ? 'italic' : 'normal'};`
+      + 'font-display:swap;'
+      + `src:url(${f.src}) format('${f.format || 'truetype'}');}`
+    ))
+    .join('\n');
+  if (!css) return null;
+  return <style dangerouslySetInnerHTML={{ __html: css }} />;
+}
+
 function SnapGuides({ guides }) {
   if (!guides?.length) return null;
   return (
@@ -436,6 +453,7 @@ export default function FreeCanvas({
       ref={viewportRef}
       onPointerDown={interactable ? handleCanvasBackgroundPointerDown : undefined}
     >
+      <EmbeddedFontFaces fonts={layout?.fonts} />
       {placing && placeCursor && (
         <div
           className="free-canvas-placement-ghost"

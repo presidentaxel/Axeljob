@@ -1,5 +1,5 @@
 # Dépendances utilisées UNIQUEMENT par les scripts de maintenance (backend/scripts/*).
-# Ne sont PAS installées dans l'image Docker runtime — n'importez rien de ces libs depuis
+# Ne sont PAS installées dans l'image Docker runtime - n'importez rien de ces libs depuis
 # backend/main.py ou les modules importés au boot.
 #
 # Installation locale :

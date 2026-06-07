@@ -354,10 +354,10 @@ export async function apiPostBlob(path, body) {
   if (path.includes('pdf')) {
     if (engine) {
       // console.warn : visible avec les filtres par défaut (souvent pas le cas de console.info)
-      console.warn('[cv-bot] Export PDF — moteur serveur:', engine, '(CV_BOT_PDF_ENGINE)');
+      console.warn('[cv-bot] Export PDF - moteur serveur:', engine, '(CV_BOT_PDF_ENGINE)');
     } else {
       console.warn(
-        '[cv-bot] Export PDF — en-tête X-CV-PDF-Engine absente. Rebuild backend+frontend, ou onglet Réseau > réponse POST /api/pdf.',
+        '[cv-bot] Export PDF - en-tête X-CV-PDF-Engine absente. Rebuild backend+frontend, ou onglet Réseau > réponse POST /api/pdf.',
       );
     }
   }
@@ -382,9 +382,9 @@ export async function apiGetBlob(path) {
   const engine = r.headers.get('X-CV-PDF-Engine');
   if (path.includes('pdf') || path.includes('download/cv')) {
     if (engine) {
-      console.warn('[cv-bot] Export PDF — moteur serveur:', engine, '(CV_BOT_PDF_ENGINE)');
+      console.warn('[cv-bot] Export PDF - moteur serveur:', engine, '(CV_BOT_PDF_ENGINE)');
     } else {
-      console.warn('[cv-bot] Export PDF — en-tête X-CV-PDF-Engine absente (rebuild backend ?).');
+      console.warn('[cv-bot] Export PDF - en-tête X-CV-PDF-Engine absente (rebuild backend ?).');
     }
   }
   const blob = await r.blob();

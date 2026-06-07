@@ -59,7 +59,7 @@ export const EDITABLE_SECTIONS = [
       if (!item) return '(vide)';
       const poste = (item.poste || '').trim();
       const entreprise = (item.entreprise || '').trim();
-      if (poste && entreprise) return `${poste} — ${entreprise}`;
+      if (poste && entreprise) return `${poste} - ${entreprise}`;
       if (poste) return poste;
       if (entreprise) return entreprise;
       return '(nouvelle expérience)';
@@ -75,7 +75,7 @@ export const EDITABLE_SECTIONS = [
       if (!item) return '(vide)';
       const dip = (item.diplome || '').trim();
       const eta = (item.etablissement || '').trim();
-      if (dip && eta) return `${dip} — ${eta}`;
+      if (dip && eta) return `${dip} - ${eta}`;
       return dip || eta || '(nouvelle formation)';
     },
   },
@@ -89,7 +89,7 @@ export const EDITABLE_SECTIONS = [
       if (!item) return '(vide)';
       const nom = (item.nom || '').trim();
       const org = (item.organisme || '').trim();
-      if (nom && org) return `${nom} — ${org}`;
+      if (nom && org) return `${nom} - ${org}`;
       return nom || org || '(nouvelle certification)';
     },
   },

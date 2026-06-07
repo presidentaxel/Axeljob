@@ -24,7 +24,7 @@ cd "$repo_root" || {
 
 if ! bash "$repo_root/scripts/pre-push.sh" --skip-extras --skip-gitleaks >&2; then
   printf '%s\n' "$(cat <<'EOF'
-{"permission":"deny","user_message":"CI locale échouée — corriger avant le push. Contournement : SKIP_PREPUSH=1 git push","agent_message":"Exécuter bash scripts/pre-push.sh --skip-extras --skip-gitleaks depuis la racine du repo, corriger toutes les erreurs (black 24.10.0, ruff, mypy, pytest, npm lint/build/test:unit), puis relancer git push."}
+{"permission":"deny","user_message":"CI locale échouée - corriger avant le push. Contournement : SKIP_PREPUSH=1 git push","agent_message":"Exécuter bash scripts/pre-push.sh --skip-extras --skip-gitleaks depuis la racine du repo, corriger toutes les erreurs (black 24.10.0, ruff, mypy, pytest, npm lint/build/test:unit), puis relancer git push."}
 EOF
 )"
   exit 2

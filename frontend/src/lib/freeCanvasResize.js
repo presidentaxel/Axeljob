@@ -1,5 +1,5 @@
 /**
- * Redimensionnement des blocs canvas (P3.4) — calcul pur en mm.
+ * Redimensionnement des blocs canvas (P3.4) - calcul pur en mm.
  *
  * Poignées coins + bords (nw, ne, sw, se, n, s, e, w).
  */

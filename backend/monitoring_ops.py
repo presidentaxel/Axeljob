@@ -73,7 +73,7 @@ _HTTP_BUCKETS = (
     float("inf"),
 )
 
-# Tailles corps HTTP (octets) — utile pour corréler charge réseau / parsing avec la latence.
+# Tailles corps HTTP (octets) - utile pour corréler charge réseau / parsing avec la latence.
 _BYTES_BUCKETS = (
     0.0,
     256,

@@ -81,7 +81,7 @@ import '../../styles/EditorInspector.css';
 import '../../styles/EditorCvImportModal.css';
 
 /**
- * Editeur de CV Beta — canvas libre uniquement (L3).
+ * Editeur de CV Beta - canvas libre uniquement (L3).
  */
 
 function sameLayout(a, b) {
@@ -1008,7 +1008,7 @@ function CvEditorBeta({
             />
             {importToast && (
               <div className="cv-editor-beta-import-toast" role="status">
-                Canvas généré — {importToast}
+                Canvas généré - {importToast}
               </div>
             )}
             {startupPromptOpen && (
@@ -1046,7 +1046,7 @@ function CvEditorBeta({
                   </button>
                 </div>
                 <p className="cv-editor-beta-start-panel__hint">
-                  L&apos;import analyse sections, densité et choisit un template — blocs
+                  L&apos;import analyse sections, densité et choisit un template - blocs
                   redimensionnés et vides masqués automatiquement.
                 </p>
               </section>

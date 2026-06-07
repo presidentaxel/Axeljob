@@ -15,14 +15,14 @@ Règles à respecter (toute refonte doit les préserver ou les documenter explic
      (racine projet) et pourrait charger le mauvais fichier ou écraser le bundle pdf_export.
    - Injection en fin de <body> (préférée) ou avant </head> :
        layout (weasyprint_cv_layout.css)
-     + align  (weasyprint_cv_export.css)  — @page, cv-print-split, bandes multi-pages, ATS PDF…
-     + [templates custom_* uniquement] weasyprint_custom_template.css — @page margin 0, body blanc.
+     + align  (weasyprint_cv_export.css)  - @page, cv-print-split, bandes multi-pages, ATS PDF…
+     + [templates custom_* uniquement] weasyprint_custom_template.css - @page margin 0, body blanc.
    - Dernière couche : write_pdf(..., stylesheets=[CSS(string=PDF_FROM_HTML_FINAL_CSS)])
      pour forcer des couleurs de texte sur .cv-main / .cv-sidebar quand l’héritage WeasyPrint casse.
 
 3) Templates personnalisés (id prefix custom_)
    - Le même fichier weasyprint_custom_template.css est injecté dans le bundle (fin de body),
-     comme l’ancien chemin _render_pdf_bytes_from_custom_ctx — plus de duplication ad hoc dans main
+     comme l’ancien chemin _render_pdf_bytes_from_custom_ctx - plus de duplication ad hoc dans main
      (anciens <style> injectés dans </head> seuls).
 
 4) Windows
@@ -123,7 +123,7 @@ def inject_weasyprint_export_bundle(
 
     Ordre (identique à l’ancien generer_pdf_bytes + _render_pdf_bytes_from_custom_ctx) :
     - Feuille « custom base » (weasyprint_custom_template.css) en premier si template custom_*,
-      puis layout, puis align — les :root utilisateur restent dans le <head> du HTML.
+      puis layout, puis align - les :root utilisateur restent dans le <head> du HTML.
     prepend_to_bundle : extension rare (ex. scale injecté hors render_cv_html).
     """
     if 'id="cv-bot-pdf-export-align"' in html_str:

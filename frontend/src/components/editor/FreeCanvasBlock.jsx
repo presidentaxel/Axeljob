@@ -439,7 +439,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
                     <CanvasEditableField path={`formations.${idx}.diplome`} editing tag="strong">
                       {f.diplome || 'Diplôme'}
                     </CanvasEditableField>
-                    {' — '}
+                    {' - '}
                     <CanvasEditableField path={`formations.${idx}.etablissement`} editing>
                       {f.etablissement || 'Établissement'}
                     </CanvasEditableField>
@@ -452,7 +452,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
                 ) : (
                   <>
                     <strong>{f.diplome || f.etablissement}</strong>
-                    {f.etablissement && f.diplome ? ` — ${f.etablissement}` : ''}
+                    {f.etablissement && f.diplome ? ` - ${f.etablissement}` : ''}
                     {f.date ? <span className="free-canvas-block__formation-date"> ({f.date})</span> : null}
                   </>
                 )}
@@ -511,11 +511,11 @@ function SemanticBlockBody({ block, cv, editing = false }) {
             return editing ? (
               <p key={p.id || i}>
                 <CanvasEditableField path={`projets.${idx}.nom`} editing tag="strong">{p.nom || 'Projet'}</CanvasEditableField>
-                {' — '}
+                {' - '}
                 <CanvasEditableField path={`projets.${idx}.description`} editing>{p.description || 'Description'}</CanvasEditableField>
               </p>
             ) : (
-              <p key={p.id || i}><strong>{p.nom}</strong>{p.description ? ` — ${p.description}` : ''}</p>
+              <p key={p.id || i}><strong>{p.nom}</strong>{p.description ? ` - ${p.description}` : ''}</p>
             );
           })}
         </div>
@@ -902,9 +902,9 @@ export default function FreeCanvasBlock({
       }}
       title={
         editing
-          ? 'Mode texte — Échap pour quitter'
+          ? 'Mode texte - Échap pour quitter'
           : interactable
-            ? `${type} — double-clic pour éditer`
+            ? `${type} - double-clic pour éditer`
             : type
       }
       onPointerDown={interactable && !editing ? handlePointerDown : undefined}

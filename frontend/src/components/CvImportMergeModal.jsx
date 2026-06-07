@@ -25,7 +25,7 @@ export default function CvImportMergeModal({
       aria-labelledby="import-merge-title"
     >
       <div className="linkedin-sync-modal import-merge-modal" onClick={(e) => e.stopPropagation()}>
-        <h3 id="import-merge-title" className="import-merge-modal-title">Importer le CV — choisir les champs</h3>
+        <h3 id="import-merge-title" className="import-merge-modal-title">Importer le CV - choisir les champs</h3>
         <p className="linkedin-sync-intro import-merge-intro">
           Champ vide : ajouter le texte importé ou l&apos;ignorer. Champ déjà rempli : remplacer ou conserver ta version actuelle.
         </p>

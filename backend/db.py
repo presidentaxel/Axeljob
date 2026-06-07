@@ -530,7 +530,7 @@ _SIGNED_URL_EXPIRY = 604800
 
 # Cache mémoire des URLs signées : un GET /api/cv ou /api/render-html n'a pas besoin
 # d'un round-trip Supabase Storage à chaque appel. La signed URL reste valide 1 semaine,
-# on la garde 5 min côté process — invalidé manuellement à l'upload d'une nouvelle photo.
+# on la garde 5 min côté process - invalidé manuellement à l'upload d'une nouvelle photo.
 from backend.perf_cache import TTLCache as _TTLCache
 
 _CV_PHOTO_URL_CACHE = _TTLCache(max_size=2000, ttl_sec=300.0)
@@ -635,7 +635,7 @@ def download_application_doc_bytes(
 
 def _legacy_signed_app_doc_url_needs_resign(url: str) -> bool:
     """
-    Anciennes candidatures : URL signée Storage enregistrée sans pdf_*_stored — JWT « exp » expiré.
+    Anciennes candidatures : URL signée Storage enregistrée sans pdf_*_stored - JWT « exp » expiré.
     Les URLs /object/public/ ne passent pas ici (pas de claim exp côté token).
     """
     s = (url or "").strip()

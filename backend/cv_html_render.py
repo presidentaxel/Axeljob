@@ -17,7 +17,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
-# Racine du projet cv-bot (parent de backend/) — mêmes imports dynamiques que main.py
+# Racine du projet cv-bot (parent de backend/) - mêmes imports dynamiques que main.py
 CV_BOT_ROOT = Path(__file__).resolve().parent.parent
 if str(CV_BOT_ROOT) not in sys.path:
     sys.path.insert(0, str(CV_BOT_ROOT))
@@ -272,7 +272,7 @@ def render_cv_html(
 
     actual_tid = tmpl_meta.get("id") or DEFAULT_TEMPLATE_ID
     if tmpl_meta.get("_custom"):
-        # Template perso (HTML/CSS stockés en DB) — Template Jinja parsée 1× et cachée.
+        # Template perso (HTML/CSS stockés en DB) - Template Jinja parsée 1× et cachée.
         tmpl_obj = _get_custom_template(actual_tid, tmpl_meta.get("_html_content") or "")
         html_str = tmpl_obj.render(**ctx)
         custom_css = sanitize_css_for_style_tag((tmpl_meta.get("_css_content") or "").strip())
@@ -294,7 +294,7 @@ def render_cv_html(
             else:
                 html_str = style_block + html_str
     else:
-        # Template fichier — env Jinja + Template + CSS lus 1× et cachés en mémoire.
+        # Template fichier - env Jinja + Template + CSS lus 1× et cachés en mémoire.
         assert tmpl_dir is not None
         _env, template, css_content = _get_file_env_and_template(Path(tmpl_dir))
         html_str = template.render(**ctx)

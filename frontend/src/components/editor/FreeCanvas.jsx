@@ -532,7 +532,7 @@ export default function FreeCanvas({
                 })}
                 {blocks.length === 0 && (
                   <p className="free-canvas-page-empty">
-                    Page {pageIndex + 1} vide — glissez un élément depuis la barre latérale
+                    Page {pageIndex + 1} vide - glissez un élément depuis la barre latérale
                   </p>
                 )}
               </div>
@@ -566,7 +566,7 @@ export default function FreeCanvas({
             </svg>
           </button>
           <span className="free-canvas-add-page-hint">
-            Page {pages.length} — ajouter la page {pages.length + 1}
+            Page {pages.length} - ajouter la page {pages.length + 1}
           </span>
         </div>
       )}

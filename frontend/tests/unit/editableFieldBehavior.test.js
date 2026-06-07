@@ -120,7 +120,7 @@ test('getEditableFieldConfig : path inconnu -> defaut (placeholder vide, single-
 });
 
 // ---------------------------------------------------------------------------
-// attachEditableFieldBehavior — attributs initiaux
+// attachEditableFieldBehavior - attributs initiaux
 // ---------------------------------------------------------------------------
 
 test('attachEditableFieldBehavior : pose placeholder + multiline sur le DOM', () => {

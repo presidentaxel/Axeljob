@@ -245,7 +245,7 @@ Aucun utilisateur ne voit le template tant qu'un humain n'a pas fait la liaison 
 
 ## Deploiement Docker (production)
 
-> Guide detaille dans [docs/deploy.md](docs/deploy.md) — aide-memoire commandes (dev, Docker, SSH) : [docs/ops-commands.md](docs/ops-commands.md)
+> Guide detaille dans [docs/deploy.md](docs/deploy.md) - aide-memoire commandes (dev, Docker, SSH) : [docs/ops-commands.md](docs/ops-commands.md)
 
 ### Resume
 

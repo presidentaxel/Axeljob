@@ -171,7 +171,7 @@ export default function EditorBlockInspectorPanel({
         </div>
         {blockIsSemanticBound(block) && (
           <p className="editor-block-inspector-hint">
-            Contenu lié au CV — modifiez-le via l’onglet Contenu ou l’édition guidée.
+            Contenu lié au CV - modifiez-le via l’onglet Contenu ou l’édition guidée.
           </p>
         )}
       </section>

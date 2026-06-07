@@ -1,5 +1,5 @@
 """
-Import CV Canva — analyse visuelle PDF via Gemini Vision.
+Import CV Canva - analyse visuelle PDF via Gemini Vision.
 
 La vision ne génère PAS de coordonnées mm (trop imprécis) : elle classifie le design
 (template, couleurs, structure) et le frontend applique nos presets canvas calibrés.
@@ -46,7 +46,7 @@ Retourne UNIQUEMENT un JSON valide (pas de markdown) :
   "has_header_band": false
 }
 
-Champ template_match — choisis le modèle le PLUS proche parmi :
+Champ template_match - choisis le modèle le PLUS proche parmi :
 - modern : sidebar colorée ~25% à GAUCHE, photo ronde, nom dans sidebar, contenu à droite
 - creative : sidebar indigo/violette à gauche, style créatif
 - executive : bandeau header sombre en haut + sidebar DROITE claire

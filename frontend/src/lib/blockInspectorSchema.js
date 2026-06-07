@@ -171,7 +171,7 @@ export function blockHasStyleFields(block) {
   return getBlockStyleFields(block).length > 0;
 }
 
-/** True si le bloc lie des donnees CV (bind) — contenu edite via onglet Contenu / guidé. */
+/** True si le bloc lie des donnees CV (bind) - contenu edite via onglet Contenu / guidé. */
 export function blockIsSemanticBound(block) {
   return block && isSemanticBlockType(block.type);
 }

@@ -330,7 +330,7 @@
   flex-shrink: 0;
 }
 
-/* Auto-save indicator pill — voir components/editor/AutoSaveIndicator.jsx.
+/* Auto-save indicator pill - voir components/editor/AutoSaveIndicator.jsx.
  * Toutes les variantes partagent la meme base ; la couleur signale l etat.
  */
 .auto-save-pill {
@@ -408,7 +408,7 @@
   outline-offset: 1px;
 }
 
-/* ATS score badge — styles du composant EditorAtsScoreBadge. */
+/* ATS score badge - styles du composant EditorAtsScoreBadge. */
 .ats-badge-wrap {
   position: relative;
   display: inline-block;

@@ -17,7 +17,7 @@ const ICON_BY_TYPE = {
 };
 
 /**
- * Barre d insertion de blocs (P3.5) — visible en mode canvas libre.
+ * Barre d insertion de blocs (P3.5) - visible en mode canvas libre.
  */
 export default function EditorInsertToolbar({ onInsert, disabled = false }) {
   return (

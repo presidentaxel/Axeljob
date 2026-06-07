@@ -199,8 +199,8 @@ Configure `.venv` (Black **24.10.0** comme GitHub), active le hook **pre-push** 
 
 ### Cursor (tous les chats / agent)
 
-- **Règle** : `.cursor/rules/pre-push-ci.mdc` — l'agent doit lancer `bash scripts/pre-push.sh --skip-extras --skip-gitleaks` avant tout `git push`.
-- **Hook** : `.cursor/hooks.json` — bloque `git push` dans le terminal de l'agent si la CI locale échoue (timeout 15 min).
+- **Règle** : `.cursor/rules/pre-push-ci.mdc` - l'agent doit lancer `bash scripts/pre-push.sh --skip-extras --skip-gitleaks` avant tout `git push`.
+- **Hook** : `.cursor/hooks.json` - bloque `git push` dans le terminal de l'agent si la CI locale échoue (timeout 15 min).
 - Contournement urgence : `SKIP_PREPUSH=1 git push`.
 - Après modification de `hooks.json`, redémarrer Cursor si le hook ne se déclenche pas (onglet **Hooks** / canal **Hooks**).
 
@@ -241,12 +241,12 @@ Cela définit `git config core.hooksPath .githooks` : le hook `.githooks/pre-pus
 
 | Script     | Option                                                                                                         |
 | ---------- | -------------------------------------------------------------------------------------------------------------- |
-| Bash       | `--skip-extras` — pas pip-audit, bandit, npm audit, gitleaks                                                   |
-| Bash       | `--skip-gitleaks` — pas gitleaks (garde pip-audit, bandit, npm audit)                                          |
-| Bash       | `--with-e2e` — Playwright après le build (long ; `npx playwright install chromium` dans `frontend/` au besoin) |
-| PowerShell | `-SkipExtras` — pas pip-audit, bandit, npm audit, gitleaks                                                     |
-| PowerShell | `-SkipGitleaks` — pas gitleaks (garde pip-audit, bandit, npm audit)                                            |
-| PowerShell | `-WithE2E` — Playwright après le build (long ; `npx playwright install chromium` dans `frontend/` au besoin)   |
+| Bash       | `--skip-extras` - pas pip-audit, bandit, npm audit, gitleaks                                                   |
+| Bash       | `--skip-gitleaks` - pas gitleaks (garde pip-audit, bandit, npm audit)                                          |
+| Bash       | `--with-e2e` - Playwright après le build (long ; `npx playwright install chromium` dans `frontend/` au besoin) |
+| PowerShell | `-SkipExtras` - pas pip-audit, bandit, npm audit, gitleaks                                                     |
+| PowerShell | `-SkipGitleaks` - pas gitleaks (garde pip-audit, bandit, npm audit)                                            |
+| PowerShell | `-WithE2E` - Playwright après le build (long ; `npx playwright install chromium` dans `frontend/` au besoin)   |
 
 
 ### Prérequis `.venv`

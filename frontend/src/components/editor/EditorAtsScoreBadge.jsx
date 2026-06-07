@@ -6,7 +6,7 @@ import { useAtsScoreFetching } from '../../lib/useAtsScoreFetching.js';
 /**
  * Badge ATS avec debounce, retry et dernier score conserve pendant le chargement.
  *
- * @param {boolean} [paused] — true pendant drag/resize canvas (pas de rafale API).
+ * @param {boolean} [paused] - true pendant drag/resize canvas (pas de rafale API).
  */
 export default function EditorAtsScoreBadge({
   templateId,
@@ -65,7 +65,7 @@ export default function EditorAtsScoreBadge({
         <button
           type="button"
           className="ats-badge ats-badge--error"
-          title={error || 'Erreur ATS — cliquer pour réessayer'}
+          title={error || 'Erreur ATS - cliquer pour réessayer'}
           onClick={() => refreshNow()}
         >
           ATS : indispo
@@ -89,8 +89,8 @@ export default function EditorAtsScoreBadge({
         aria-haspopup="dialog"
         title={
           status === 'error'
-            ? `${error} — score affiché : dernière valeur connue`
-            : 'Score ATS de parsing — clique pour voir les règles déclenchées'
+            ? `${error} - score affiché : dernière valeur connue`
+            : 'Score ATS de parsing - clique pour voir les règles déclenchées'
         }
       >
         ATS : {score}/100

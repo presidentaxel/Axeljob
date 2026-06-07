@@ -178,7 +178,7 @@ export function summarizeImportAdaptation(analysis, templateLabel, blockCount = 
   const body = parts.length ? parts.join(' · ') : 'Profil structuré';
   const blocks = blockCount > 0 ? ` · ${blockCount} blocs` : '';
   const mode = fromVision ? `style ${templateLabel}` : templateLabel;
-  return `${body} — ${mode}${blocks}`;
+  return `${body} - ${mode}${blocks}`;
 }
 
 const VISION_MIN_CONFIDENCE = 0.15;
@@ -816,7 +816,7 @@ export function isStructuralLayout(layout) {
 
 /**
  * Import "copier-coller" : on utilise tel quel le layout reconstruit depuis le
- * PDF (texte, formes, images positionnés). Aucun preset, aucune IA — juste un
+ * PDF (texte, formes, images positionnés). Aucun preset, aucune IA - juste un
  * nettoyage défensif via sanitizeLayoutV3.
  */
 export function buildStructuralImportLayout(cv, structuralLayout, { templateId = '' } = {}) {

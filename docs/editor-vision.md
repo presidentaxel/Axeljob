@@ -4,13 +4,13 @@
 
 ## Sommaire
 
-1. [Préambule — pour quelqu'un qui débarque](#1-préambule--pour-quelquun-qui-débarque)
+1. [Préambule - pour quelqu'un qui débarque](#1-préambule--pour-quelquun-qui-débarque)
 2. [Glossaire](#2-glossaire)
 3. [État actuel du produit](#3-état-actuel-du-produit)
 4. [Vision cible en une phrase](#4-vision-cible-en-une-phrase)
-5. [Niveau L1 — Édition inline (Word-like)](#5-niveau-l1--édition-inline-word-like)
-6. [Niveau L2 — Mise en page configurable](#6-niveau-l2--mise-en-page-configurable)
-7. [Niveau L3 — Canvas libre (Canva-like)](#7-niveau-l3--canvas-libre-canva-like)
+5. [Niveau L1 - Édition inline (Word-like)](#5-niveau-l1--édition-inline-word-like)
+6. [Niveau L2 - Mise en page configurable](#6-niveau-l2--mise-en-page-configurable)
+7. [Niveau L3 - Canvas libre (Canva-like)](#7-niveau-l3--canvas-libre-canva-like)
 8. [Le double schéma JSON : `cv` + `layout`](#8-le-double-schéma-json--cv--layout)
 9. [Score ATS : Parsing + Match](#9-score-ats--parsing--match)
 10. [Architecture cible (front + back)](#10-architecture-cible-front--back)
@@ -19,11 +19,11 @@
 13. [Règles de tests](#13-règles-de-tests)
 14. [Roadmap de livraison](#14-roadmap-de-livraison)
 15. [Risques produit et techniques](#15-risques-produit-et-techniques)
-16. [Annexes — schémas JSON complets](#16-annexes--schémas-json-complets)
+16. [Annexes - schémas JSON complets](#16-annexes--schémas-json-complets)
 
 ---
 
-## 1. Préambule — pour quelqu'un qui débarque
+## 1. Préambule - pour quelqu'un qui débarque
 
 **cv-bot** est une plateforme SaaS qui aide un utilisateur à :
 
@@ -105,7 +105,7 @@ Aujourd'hui, l'utilisateur édite son CV via un **formulaire à champs** (`front
 
 ---
 
-## 5. Niveau L1 — Édition inline (Word-like)
+## 5. Niveau L1 - Édition inline (Word-like)
 
 ### 5.1 Objectif
 
@@ -216,7 +216,7 @@ Le schéma `cv` ne change pas (voir `frontend/src/data/cvDefault.js`). L1 est un
 
 ---
 
-## 6. Niveau L2 — Mise en page configurable
+## 6. Niveau L2 - Mise en page configurable
 
 ### 6.1 Objectif
 
@@ -287,7 +287,7 @@ Schéma minimal L2 :
 
 ---
 
-## 7. Niveau L3 — Canvas libre (Canva-like)
+## 7. Niveau L3 - Canvas libre (Canva-like)
 
 ### 7.1 Objectif
 
@@ -334,8 +334,8 @@ C'est le niveau le plus puissant **et le plus risqué pour l'ATS**. Il doit touj
 | `languages` | oui | `cv.competences.langues[]` | |
 | `text` | non | `block.content` (string) | Texte libre. |
 | `title` | non | `block.content` | Titre custom (style heading). |
-| `shape:line` | non | — | Trait. |
-| `shape:rect` | non | — | Rectangle de fond. |
+| `shape:line` | non | - | Trait. |
+| `shape:rect` | non | - | Rectangle de fond. |
 | `icon` | non | `block.icon_name` | HiPhone, HiEnvelope, etc. |
 | `qrcode` | non | `block.target_url` | QR code généré côté serveur. |
 
@@ -529,7 +529,7 @@ def verify_parsing_quality(pdf_bytes: bytes, expected_cv: dict) -> dict:
 - Les vrais parsers ATS (Workday, Taleo) sont propriétaires. Personne en dehors d'eux ne sait exactement ce qu'ils font.
 - Le Score Parsing est une **estimation conservatrice** basée sur les patterns connus publiquement.
 - Un score 95 ne **garantit pas** un succès ; un score 30 garantit presque un échec.
-- Pour les métiers créatifs, un toggle `ATS strict / Équilibré / Design libre` est proposé. En mode "Design libre", la jauge est **désactivée** (pas masquée verte — ce serait mentir).
+- Pour les métiers créatifs, un toggle `ATS strict / Équilibré / Design libre` est proposé. En mode "Design libre", la jauge est **désactivée** (pas masquée verte - ce serait mentir).
 
 ### 9.6 UX du score
 
@@ -739,7 +739,7 @@ Contrôle d'accès : toutes les routes `layout` exigent un JWT Supabase valide, 
 
 ### 11.2 Deux options techniques pour le rendu PDF
 
-#### Option A — WeasyPrint avec CSS partagé (actuel, recommandé)
+#### Option A - WeasyPrint avec CSS partagé (actuel, recommandé)
 
 - Le backend rend un HTML à partir de `(cv, layout)` via `services/layout_renderer.py`.
 - WeasyPrint convertit le HTML en PDF.
@@ -750,7 +750,7 @@ Contrôle d'accès : toutes les routes `layout` exigent un JWT Supabase valide, 
 
 **Limites** : ombres complexes, certains effets typographiques (variable fonts) peuvent diverger entre Chrome et WeasyPrint.
 
-#### Option B — Headless Chromium (Puppeteer / Playwright)
+#### Option B - Headless Chromium (Puppeteer / Playwright)
 
 - Le backend lance un Chrome headless qui rend le même composant React qu'à l'écran.
 - "Screenshot PDF" via `page.pdf()`.
@@ -979,7 +979,7 @@ Chaque fixture contient un `expected_score` calculé une fois et **versionné** 
 └────────────┴──────────────┴───────────────────────────────────────┘
 ```
 
-### 14.2 P0 — Score ATS MVP (1 semaine)
+### 14.2 P0 - Score ATS MVP (1 semaine)
 
 **Objectif** : afficher un score parsing sur les 7 templates existants, sans toucher à l'éditeur.
 
@@ -995,7 +995,7 @@ Critères d'acceptation :
 - Le score apparaît dans le sélecteur.
 - Validation ground truth log dans `event_log` à chaque export.
 
-### 14.3 P1 — L1 Édition inline (2 semaines)
+### 14.3 P1 - L1 Édition inline (2 semaines)
 
 Livrables :
 - `frontend/src/components/editor/CvEditor.jsx` + sous-composants.
@@ -1080,7 +1080,7 @@ page L2 (qui exposera le `layout` JSON plutôt que les `templateOptions`).
 
 - **Side-by-side, pas modal** : quand on ouvre le drawer, le canvas réduit sa
   largeur pour laisser place au drawer (340px par défaut). L'utilisateur voit
-  l'effet en temps réel — c'est essentiel pour évaluer des changements de
+  l'effet en temps réel - c'est essentiel pour évaluer des changements de
   couleur ou de typo. Sur écran <900px, le drawer passe en plein large sous
   le canvas.
 - **Aucun appel réseau** : les changements n'affectent que `templateOptions`
@@ -1106,7 +1106,7 @@ page L2 (qui exposera le `layout` JSON plutôt que les `templateOptions`).
 - [x] Tests unitaires verts (15 nouveaux tests sur le schéma).
 - [x] Aucun lint warning sur les fichiers du drawer.
 
-#### 14.3.3 Panneau "Contenu" — add / remove / reorder (livré, P1.5)
+#### 14.3.3 Panneau "Contenu" - add / remove / reorder (livré, P1.5)
 
 Second onglet du drawer inspecteur : permet de gérer les listes répétées du
 CV (expériences, formations, certifications, projets). Pour chaque item :
@@ -1157,7 +1157,7 @@ dnd-kit / react-dnd).
 - [x] 19 nouveaux tests unitaires verts.
 - [x] 0 lint error sur les nouveaux fichiers.
 
-#### 14.3.4 L1 polish — édition inline propre (livré, L1 polish)
+#### 14.3.4 L1 polish - édition inline propre (livré, L1 polish)
 
 Une fois les fondations posées (P1.1 → P1.5), il restait l'expérience
 d'édition inline elle-même : les spans `contentEditable` étaient
@@ -1224,7 +1224,7 @@ dynamiquement.
 - [x] 17 tests unitaires verts (`editableFieldBehavior.test.js`).
 - [x] 0 lint error, 0 régression sur le build.
 
-### 14.4 P2 — L2 Mise en page configurable (en hibernation, repris en P3)
+### 14.4 P2 - L2 Mise en page configurable (en hibernation, repris en P3)
 
 > **Note du 19 mai 2026** : après itération sur l'UX (P2.1 → P2.4b),
 > on a constaté qu'une mise en page modulaire dans un *drawer latéral*
@@ -1275,7 +1275,7 @@ et le réutiliser depuis un renderer ultérieur.
 ```js
 {
   sectionsOrder: ['resume', 'experiences', 'formations', 'certifications', 'projets', 'competences'],
-  sidebarRatio: 0,        // 0 | 25 | 30 | 33 | 35 | 40 — voir SIDEBAR_RATIOS
+  sidebarRatio: 0,        // 0 | 25 | 30 | 33 | 35 | 40 - voir SIDEBAR_RATIOS
   theme: 'neutral',
 }
 ```
@@ -1365,7 +1365,7 @@ L'ordre `sectionsOrder` est désormais APPLIQUÉ au canvas et au scoring ATS.
 le backend) via `frontendLayoutToScoringLayout`. Quand le layout est au
 défaut, on garde `templateId` (path rapide côté backend qui charge le
 meta du template). Dès qu'on personnalise, on bascule sur `layout`
-custom — le backend supporte les deux modes (cf. `backend/api_ats.py`
+custom - le backend supporte les deux modes (cf. `backend/api_ats.py`
 `resolve_layout_for_scoring`).
 
 **Critères d'acceptation (P2.2)** :
@@ -1433,7 +1433,7 @@ Conventions :
 - [x] 5 nouveaux tests Python (`tests/test_cv_layout_persistence.py`).
 - [x] Lint, type, build clean.
 
-### 14.5 P3 — L3 Canvas libre (8 semaines)
+### 14.5 P3 - L3 Canvas libre (8 semaines)
 
 Livrables :
 - `FreeCanvas.jsx` + drag/resize libre.
@@ -1462,7 +1462,7 @@ Critères d'acceptation :
 - **Clamp page 1** : débordement temporaire autorisé sous le pli A4, puis spill
   auto vers page 2 (P3.10).
 
-#### 14.5.1 P3.0 — Modèle pur `cvLayoutModelV3` (livré, 19 mai 2026)
+#### 14.5.1 P3.0 - Modèle pur `cvLayoutModelV3` (livré, 19 mai 2026)
 
 Le canvas libre repose sur un modèle de données différent de v1/v2 :
 au lieu de "zones avec sections", on a une **liste de pages** et chaque
@@ -1566,7 +1566,7 @@ migrateLayoutToV3(input)                       // v1 / v2 / inconnu -> starter (
 - [x] 46 tests unitaires verts.
 - [x] 0 lint error sur le nouveau fichier.
 
-#### 14.5.2 P3.1 — Store immutable + undo/redo (livré, 19 mai 2026)
+#### 14.5.2 P3.1 - Store immutable + undo/redo (livré, 19 mai 2026)
 
 Avant le premier drag, on pose l'historique. Rétrofiter l'undo/redo
 après est un cauchemar (cf. §7.6) ; le doc le dit explicitement.
@@ -1639,11 +1639,11 @@ const { layout, commit, undo, redo, reset, canUndo, canRedo, historyDepth } =
 - [x] 21 tests unitaires verts sur le store pur.
 - [x] 0 lint error, 0 dépendance ajoutée au `package.json`.
 
-#### 14.5.3 P3.2 — `<FreeCanvas>` read-only (livré, 19 mai 2026)
+#### 14.5.3 P3.2 - `<FreeCanvas>` read-only (livré, 19 mai 2026)
 
 Premier rendu **visible** du canvas libre : une page A4 (ou plusieurs)
 avec les blocs positionnés en `mm`, contenu CV résolu via `bind`. Pas
-encore de drag / resize — objectif = valider le pipeline
+encore de drag / resize - objectif = valider le pipeline
 `layout v3 + cv → pixels`.
 
 **Implémentation** :
@@ -1674,13 +1674,13 @@ encore de drag / resize — objectif = valider le pipeline
 - [x] Choix page blanche vs starter au premier démarrage sans layout.
 - [x] 11 tests unitaires purs + build frontend OK.
 
-#### 14.5.4 P3.3 — Sélection + drag natif (livré, 19 mai 2026)
+#### 14.5.4 P3.3 - Sélection + drag natif (livré, 19 mai 2026)
 
 **Comportement P3.2 clarifié** : chaque bloc avait `overflow: auto` sur
-`.free-canvas-block__inner` — d’où des **barres de scroll à l’intérieur**
+`.free-canvas-block__inner` - d’où des **barres de scroll à l’intérieur**
 des sections (expériences, etc.) quand le contenu dépassait la hauteur
 fixe du bloc starter. C’était un compromis read-only, **pas** la vision
-Canva finale. Règle produit (P3.3+) : **jamais de scroll interne** dans un bloc —
+Canva finale. Règle produit (P3.3+) : **jamais de scroll interne** dans un bloc -
 `overflow: hidden` / `clip` à 100 % largeur/hauteur du cadre. Contenu
 trop long = rogné. Pour adapter : **redimensionner** le bloc (P3.4),
 **typo** (theme / inspecteur, à venir) ou **moins de contenu** (drawer
@@ -1704,9 +1704,9 @@ Contenu / édition guidée). L’auto-grow optionnel reste prévu en P3.10.
 - [x] Auto-save déclenché à la fin du drag.
 - [x] Aucun scroll interne dans les blocs (contenu rogné, cadre 100 %).
 
-#### 14.5.5 P3.4 — Redimensionnement (poignées aux coins) (livré, 19 mai 2026)
+#### 14.5.5 P3.4 - Redimensionnement (poignées aux coins) (livré, 19 mai 2026)
 
-**Note produit — cadre vs contenu** : les blocs **ne s’agrandissent pas
+**Note produit - cadre vs contenu** : les blocs **ne s’agrandissent pas
 avec le texte** (pas d’auto-grow en P3.4). C’est voulu type Canva : taille
 = propriété du layout en mm. Contenu trop long = rogné jusqu’à ce que
 l’utilisateur **tire une poignée** ou réduise le contenu / la typo (plus
@@ -1728,7 +1728,7 @@ tard). L’auto-grow optionnel reste en P3.10 si besoin.
 - [x] Tailles min et limites page respectées.
 - [x] Pas d’auto-grow : l’utilisateur agrandit le cadre pour voir la fin du contenu.
 
-#### 14.5.6 P3.5 — Barre d’insertion de blocs (livré, 19 mai 2026)
+#### 14.5.6 P3.5 - Barre d’insertion de blocs (livré, 19 mai 2026)
 
 Barre **Insérer** au-dessus du canvas (mode libre uniquement) :
 texte, titre, trait (`shape:line`), bandeau (`shape:rect`), icône.
@@ -1751,7 +1751,7 @@ texte, titre, trait (`shape:line`), bandeau (`shape:rect`), icône.
 - [x] Layout persisté via auto-save en mode libre.
 - [x] Barre masquée tant que le picker « page blanche / modèle » est affiché.
 
-#### 14.5.7 P3.6 — Inspecteur du bloc sélectionné (livré, 19 mai 2026)
+#### 14.5.7 P3.6 - Inspecteur du bloc sélectionné (livré, 19 mai 2026)
 
 Onglet **Bloc** dans le drawer (mode canvas libre, bloc sélectionné) :
 position/taille en mm, z-index, premier/arrière plan, contenu
@@ -1776,7 +1776,7 @@ position/taille en mm, z-index, premier/arrière plan, contenu
 - [x] Boutons premier plan / arrière-plan.
 - [x] Styles pertinents par type (couleur trait, format expériences, etc.).
 
-#### 14.5.8 P3.7–P3.9 — Snap, rendu backend, score ATS L3 (livré)
+#### 14.5.8 P3.7–P3.9 - Snap, rendu backend, score ATS L3 (livré)
 
 **P3.7** : grille 5 mm, guides magnétiques (bords page, centre, marges, quarts,
 autres blocs), priorité magnétique sur la grille. Fichiers :
@@ -1804,7 +1804,7 @@ Le badge ATS en mode canvas libre envoie le `layout` v3 courant (plus le
 pause pendant drag/resize, conservation du dernier score en erreur, bouton
 réessayer. Fichiers : `useAtsScoreFetching.js`, `atsScoreLayoutFingerprint.js`.
 
-**P3.10** : `layoutPagination.js` — blocs dont le bas dépasse 297 mm sont
+**P3.10** : `layoutPagination.js` - blocs dont le bas dépasse 297 mm sont
 déplacés sur la page suivante à la fin du drag/resize (`pagination:auto`).
 
 #### 14.5.10 Bilan P3 (état livré)
@@ -1819,7 +1819,7 @@ déplacés sur la page suivante à la fin du drag/resize (`pagination:auto`).
 | Bouton « Optimiser pour ATS » | P4.4 |
 | Auto-grow bloc | Reporté P4+ |
 
-### 14.6 P4 — Canva total (en cours)
+### 14.6 P4 - Canva total (en cours)
 
 **Objectif** : expérience type Canva sur le CV, avec score ATS en boucle de
 rétroaction, puis personnalisation IA (flux adaptation existant).
@@ -1835,14 +1835,14 @@ rétroaction, puis personnalisation IA (flux adaptation existant).
 
 ### 14.7 Abandonné / hiberné (ne pas réimplémenter tel quel)
 
-- **UI L2 drawer « Mise en page »** (P2.1–P2.4b) : drag zones dans le drawer —
+- **UI L2 drawer « Mise en page »** (P2.1–P2.4b) : drag zones dans le drawer -
   abandonné UX ; remplacé par canvas libre P3/P4.
 - **Fichiers supprimés** : `EditorLayoutPanel`, `EditorLayoutMiniMap`,
   `applyLayoutToDom`, `sectionsAvailability`.
 - **Conservé** : `cvLayoutModelV2.js`, persistance `data.layout`, `data-cv-section`
   dans `CvEditablePreview`, score ATS templates (P0).
 
-### 14.8 P4+ — Calibration et expansion (continu)
+### 14.8 P4+ - Calibration et expansion (continu)
 
 - Job mensuel de recalibration des pondérations sur les ground truths collectées.
 - Nouveaux blocs (timeline, graphique de compétences, …).
@@ -1881,7 +1881,7 @@ rétroaction, puis personnalisation IA (flux adaptation existant).
 
 ---
 
-## 16. Annexes — schémas JSON complets
+## 16. Annexes - schémas JSON complets
 
 ### 16.1 Schéma `cv` (référence, existant)
 
@@ -2018,13 +2018,13 @@ Les ids sont **persistants** (jamais recalculés à partir de l'ordre). Voir hel
 
 ## 17. Pour aller plus loin
 
-- `docs/guide-bonnes-pratiques.md` — référence prioritaire de style et de sécurité.
-- `docs/engineering-standards.md` — Definition of Done, pyramide de tests, release process.
-- `docs/security.md` — baseline sécurité (JWT, RLS, secrets, dépendances).
-- `docs/contributing.md` — process PR, hooks, quality gates.
-- `frontend/src/components/CvEditablePreview.jsx` — cœur de L1, déjà éditable.
-- `backend/services/cv_render_helpers.py` — pipeline de rendu actuel.
-- `backend/template_registry.py` — registre des templates et options.
+- `docs/guide-bonnes-pratiques.md` - référence prioritaire de style et de sécurité.
+- `docs/engineering-standards.md` - Definition of Done, pyramide de tests, release process.
+- `docs/security.md` - baseline sécurité (JWT, RLS, secrets, dépendances).
+- `docs/contributing.md` - process PR, hooks, quality gates.
+- `frontend/src/components/CvEditablePreview.jsx` - cœur de L1, déjà éditable.
+- `backend/services/cv_render_helpers.py` - pipeline de rendu actuel.
+- `backend/template_registry.py` - registre des templates et options.
 
 ---
 

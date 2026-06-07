@@ -60,7 +60,7 @@
   transition: background-color 110ms ease-out;
 }
 
-/* L1 polish — hover : indication discrete que la zone est cliquable.
+/* L1 polish - hover : indication discrete que la zone est cliquable.
    On reste tres subtil pour ne pas perturber la lecture du CV. */
 .cv-editable-preview [data-cv-field][contenteditable="true"]:hover:not(:focus) {
   background: rgba(79, 70, 229, 0.05);
@@ -74,7 +74,7 @@
   box-shadow: none;
 }
 
-/* L1 polish — placeholders.
+/* L1 polish - placeholders.
    Affiche un hint italique discret quand le champ est vide. Utilise
    `currentColor` + opacite pour s adapter aussi bien au texte sombre
    du body qu au texte clair d un header sombre (Impact/Executive).
@@ -96,7 +96,7 @@
   opacity: 0.28;
 }
 
-/* L1 polish — auto-grow visuel des champs multi-line vides.
+/* L1 polish - auto-grow visuel des champs multi-line vides.
    Donne assez de largeur pour afficher le placeholder integral sans
    forcer un saut a la ligne, sans non plus deformer le layout du
    single-line. */
@@ -146,7 +146,7 @@
   word-break: normal !important;
 }
 
-/* Modern / Créatif : titre en sidebar étroit — équilibre des lignes + pas de dernier mot isolé (renforcé par NBSP côté données au blur). */
+/* Modern / Créatif : titre en sidebar étroit - équilibre des lignes + pas de dernier mot isolé (renforcé par NBSP côté données au blur). */
 .cv-editable-preview .cv-sidebar .sidebar-titre {
   text-wrap: balance;
   hyphens: manual;
@@ -167,7 +167,7 @@
   -webkit-box-decoration-break: clone;
 }
 
-/* Impact / Classique / Executive : bandeau sombre — focus dans le header → texte éditable en blanc (priorité sur .cv-changed foncé). */
+/* Impact / Classique / Executive : bandeau sombre - focus dans le header → texte éditable en blanc (priorité sur .cv-changed foncé). */
 .cv-editable-preview .cv.cv-print-split .cv-header:focus-within [data-cv-field][contenteditable="true"] {
   color: #ffffff !important;
 }

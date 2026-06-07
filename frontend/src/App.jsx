@@ -822,7 +822,7 @@ export default function App() {
   const [justAddedAppId, setJustAddedAppId] = useState(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
-  /** Erreur réseau/API sur GET /api/cv?profile=1 — ne pas confondre avec « profil vide ». */
+  /** Erreur réseau/API sur GET /api/cv?profile=1 - ne pas confondre avec « profil vide ». */
   const [profileCvLoadError, setProfileCvLoadError] = useState(null);
   const [profileRefreshKey, setProfileRefreshKey] = useState(0);
   /** Évite de repasser onboardingChecked à false (écran « Chargement… ») sur un simple refresh profil / même user. */
@@ -870,7 +870,7 @@ export default function App() {
   const [tourDemoPreviewHtml, setTourDemoPreviewHtml] = useState('');
   const prevTourHighlightRef = useRef(false);
   const cvChatInputRef = useRef(null);
-  /** Après la 1re adaptation réussie (chat), ouvre le tutoriel phase 2 — pas au début (évite conflit avec le modal « en cours »). */
+  /** Après la 1re adaptation réussie (chat), ouvre le tutoriel phase 2 - pas au début (évite conflit avec le modal « en cours »). */
   const openPhase2AfterFirstAdaptRef = useRef(false);
 
   const guidedTourUid = session?.user?.id || '';
@@ -1060,7 +1060,7 @@ export default function App() {
     return () => subscription?.unsubscribe();
   }, []);
 
-  // Compte supprimé côté Supabase : le JWT peut rester valide un moment — getUser() interroge Auth et déclenche une déconnexion si l’utilisateur n’existe plus.
+  // Compte supprimé côté Supabase : le JWT peut rester valide un moment - getUser() interroge Auth et déclenche une déconnexion si l’utilisateur n’existe plus.
   useEffect(() => {
     if (!supabase || !session?.user?.id) return undefined;
     const kickIfGone = () => {
@@ -1353,7 +1353,7 @@ export default function App() {
       return;
     }
     if (!isCvView) return;
-    /** Pendant le flux NDJSON, le HTML arrive déjà dans le client — évite des POST /render-html en rafale. */
+    /** Pendant le flux NDJSON, le HTML arrive déjà dans le client - évite des POST /render-html en rafale. */
     if (adaptStreamMode) return;
 
     const sessionBecameActive = !prevHadSessionRef.current;
@@ -1915,7 +1915,7 @@ export default function App() {
       setAnnonce(description);
       trackEvent('job_description_pasted', { word_count: description.split(/\s+/).length, source });
       let streamedData = null;
-      /** HTML complet du dernier segment de preview (chaque étape + final) — appliqué à l’iframe à chaque fin de segment. */
+      /** HTML complet du dernier segment de preview (chaque étape + final) - appliqué à l’iframe à chaque fin de segment. */
       let lastStreamPreviewHtml = '';
       let previewAccum = '';
       let previewPartialTimer = null;
@@ -2184,7 +2184,7 @@ export default function App() {
           }
           await apiPatch(`/api/applications/${encodeURIComponent(lastAdaptationId)}`, patch);
         } catch (persistErr) {
-          showError(persistErr.message || 'CV affiné en local — enregistrement serveur incomplet. Réessaie ou exporte le dossier.');
+          showError(persistErr.message || 'CV affiné en local - enregistrement serveur incomplet. Réessaie ou exporte le dossier.');
         }
       }
       const html = await apiPost('/api/render-html', {
@@ -2992,7 +2992,7 @@ export default function App() {
               La version mobile du tableau de bord arrive. En attendant, les <strong>pages du site</strong> (guides, FAQ, articles) restent accessibles sur ton téléphone.
             </p>
             <p className="app-mobile-gate-hint">
-              Pour adapter ton CV, l’aperçu et le suivi des candidatures, ça fonctionne <strong>beaucoup mieux sur ordinateur</strong> — repasse depuis un PC ou une grande tablette.
+              Pour adapter ton CV, l’aperçu et le suivi des candidatures, ça fonctionne <strong>beaucoup mieux sur ordinateur</strong> - repasse depuis un PC ou une grande tablette.
             </p>
             <div className="app-mobile-gate-actions">
               <button type="button" className="btn btn-primary" onClick={() => navigate('/faq')}>
@@ -3494,7 +3494,7 @@ export default function App() {
                             onClick={(e) => e.stopPropagation()}
                           >
                             <div className="ats-score-modal-header">
-                              <h3 id="ats-score-modal-title">Score ATS — {rapport.score_global}/100</h3>
+                              <h3 id="ats-score-modal-title">Score ATS - {rapport.score_global}/100</h3>
                               <button
                                 type="button"
                                 className="ats-score-modal-close"

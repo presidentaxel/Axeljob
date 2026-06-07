@@ -505,7 +505,7 @@
   transform: translateY(1px);
 }
 
-/* Bouton compagnon (ex. PDF CV de base) — aligné sur tpl-btn-open-modal */
+/* Bouton compagnon (ex. PDF CV de base) - aligné sur tpl-btn-open-modal */
 .tpl-btn-bar-extra {
   display: inline-flex;
   align-items: center;

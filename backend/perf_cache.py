@@ -108,7 +108,7 @@ class TTLCache:
         if cached is not None:
             return cached
         value = factory()
-        # On stocke même si factory() a renvoyé une valeur "vide" — c'est l'appelant
+        # On stocke même si factory() a renvoyé une valeur "vide" - c'est l'appelant
         # qui décide de stocker None ou pas (ne pas la cacher : utiliser invalidate).
         self.set(key, value, ttl_sec=ttl_sec)
         return value

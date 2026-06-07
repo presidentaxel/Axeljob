@@ -23,7 +23,7 @@ def cv_pdf_engine() -> str:
 
 
 def pdf_engine_is_chromium() -> bool:
-    """True si le PDF est rendu via Chromium (Playwright) — même moteur que l’aperçu navigateur."""
+    """True si le PDF est rendu via Chromium (Playwright) - même moteur que l’aperçu navigateur."""
     return cv_pdf_engine() == "chromium"
 
 

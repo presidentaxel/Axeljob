@@ -15,7 +15,7 @@ Avant **tout** `git push` (toute branche, tout remote) :
 
 2. Corriger **toutes** les erreurs avant de pousser.
 
-3. Ne pousser que si la commande se termine par `OK — pre-push terminé sans erreur.`
+3. Ne pousser que si la commande se termine par `OK - pre-push terminé sans erreur.`
 
 ## Outils (alignés CI)
 
@@ -37,4 +37,4 @@ bash scripts/setup-dev.sh
 
 ## Contournement (urgence uniquement)
 
-`SKIP_PREPUSH=1 git push` — à éviter sauf urgence explicite demandée par l'utilisateur.
+`SKIP_PREPUSH=1 git push` - à éviter sauf urgence explicite demandée par l'utilisateur.

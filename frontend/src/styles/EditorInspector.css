@@ -644,7 +644,7 @@
 
 /* Responsive : sur ecran etroit, le drawer prend tout l espace dispo
  * (le canvas est masque par-dessous). */
-/* P3.6+ — Onglet Bloc (canvas libre) */
+/* P3.6+ - Onglet Bloc (canvas libre) */
 .editor-block-inspector {
   display: flex;
   flex-direction: column;

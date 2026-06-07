@@ -329,7 +329,7 @@ def _render_formations(cv: dict, limit: Any) -> str:
         date = (f.get("date") or "").strip()
         line = f"<strong>{_text(dip or etab)}</strong>"
         if etab and dip:
-            line += f" — {_text(etab)}"
+            line += f" - {_text(etab)}"
         if date:
             line += f' <span class="cv-layout-exp-dates">({_text(date)})</span>'
         lines.append(f"<p>{line}</p>")
@@ -365,7 +365,7 @@ def _render_projets(cv: dict, limit: Any) -> str:
         desc = (p.get("description") or "").strip()
         line = f"<strong>{_text(nom)}</strong>"
         if desc:
-            line += f" — {_text(desc)}"
+            line += f" - {_text(desc)}"
         lines.append(f"<p>{line}</p>")
     return _section("projets", "".join(lines))
 

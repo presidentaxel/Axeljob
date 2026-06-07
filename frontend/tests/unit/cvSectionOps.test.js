@@ -64,7 +64,7 @@ test('EDITABLE_SECTIONS : 4 sections supportees', () => {
 
 test('schema.displayLabel : libelle parlant', () => {
   const exp = findSectionSchema('experiences');
-  assert.equal(exp.displayLabel({ poste: 'Dev', entreprise: 'Acme' }), 'Dev — Acme');
+  assert.equal(exp.displayLabel({ poste: 'Dev', entreprise: 'Acme' }), 'Dev - Acme');
   assert.equal(exp.displayLabel({ poste: 'Dev' }), 'Dev');
   assert.equal(exp.displayLabel({ entreprise: 'Acme' }), 'Acme');
   assert.equal(exp.displayLabel({}), '(nouvelle expérience)');

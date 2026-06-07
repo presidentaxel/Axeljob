@@ -1,5 +1,5 @@
 /**
- * Propositions de layout nommées (P4.3) — localStorage en attendant user_layouts API.
+ * Propositions de layout nommées (P4.3) - localStorage en attendant user_layouts API.
  */
 
 const STORAGE_KEY = 'cv_layout_proposals_v1';

@@ -85,7 +85,7 @@ export default function EditorCvImportModal({
                 <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
               <strong>Choisir un fichier</strong>
-              <span>PDF, DOC ou DOCX — extraction + adaptation canvas en quelques secondes</span>
+              <span>PDF, DOC ou DOCX - extraction + adaptation canvas en quelques secondes</span>
             </button>
           </div>
         ) : (

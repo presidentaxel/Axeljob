@@ -12,7 +12,7 @@
   une grille sur .cv-body a tronqué le document sur une page (2e page absente) et le z-index du .cv-main masquait
   la colonne droite (texte « invisible »). Le décalage sidebar page 2 vs bande @page reste un cas limite WeasyPrint.
 
-  Reprise du texte pages 2+ : padding sur .cv-main / .cv-body (box-decoration-break: clone), pas margin @page —
+  Reprise du texte pages 2+ : padding sur .cv-main / .cv-body (box-decoration-break: clone), pas margin @page -
   sinon une marge @page crée une bande « trou » au-dessus du fond sidebar (stripe_*).
 */
 

@@ -1,4 +1,4 @@
-/* Canvas libre L3 — apercu read-only (P3.2) */
+/* Canvas libre L3 - apercu read-only (P3.2) */
 
 .free-canvas {
   width: 100%;
@@ -149,7 +149,7 @@
   pointer-events: none;
 }
 
-/* Grille 5 mm (P3.7) — visible en mode edition */
+/* Grille 5 mm (P3.7) - visible en mode edition */
 .free-canvas-page--interactive.free-canvas-page--grid {
   background-color: #ffffff;
   background-image:
@@ -203,7 +203,7 @@
   border-top-style: solid;
 }
 
-/* Bloc positionne en mm — cadre d edition via pseudo-element */
+/* Bloc positionne en mm - cadre d edition via pseudo-element */
 .free-canvas-block {
   position: absolute;
   box-sizing: border-box;
@@ -342,7 +342,7 @@
   transition: none;
 }
 
-/* Poignees resize — pastilles rondes */
+/* Poignees resize - pastilles rondes */
 .free-canvas-resize-handles {
   position: absolute;
   inset: 0;
@@ -788,7 +788,7 @@
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
 }
 
-/* Choix de demarrage (page blanche vs starter) — CvEditorBeta */
+/* Choix de demarrage (page blanche vs starter) - CvEditorBeta */
 .free-canvas-starter-picker {
   width: 100%;
   max-width: 32rem;

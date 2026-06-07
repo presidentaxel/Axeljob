@@ -1420,7 +1420,7 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
     is_pdf = content_type == "application/pdf" or (file.filename or "").lower().endswith(".pdf")
     if is_pdf:
         # Étape 1 (prioritaire) : reconstruction déterministe sans IA. Pour un PDF
-        # natif (texte extractible), on copie la mise en page 1:1 — c'est le rendu
+        # natif (texte extractible), on copie la mise en page 1:1 - c'est le rendu
         # le plus fidèle et gratuit.
         from backend.services.pdf_structural_extract import extract_layout_from_pdf
 
@@ -1441,7 +1441,7 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
 
             jpeg = pdf_first_page_to_jpeg_bytes(file_bytes)
             if not jpeg:
-                logger.warning("Import PDF: rasterize page 1 échoué — repli preset sans vision")
+                logger.warning("Import PDF: rasterize page 1 échoué - repli preset sans vision")
             else:
                 try:
                     _vision_layout_unused, vision_meta = parse_cv_layout_from_vision(jpeg, user_id)
@@ -1451,7 +1451,7 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
                     vision_hints = detection_to_layout_hints(vision_meta)
                     layout_hints = {**layout_hints, **vision_hints}
                 else:
-                    logger.warning("Import PDF: vision sans détection — repli preset")
+                    logger.warning("Import PDF: vision sans détection - repli preset")
 
     structural_blocks = (
         sum(len(p.get("blocks", [])) for p in structural_layout.get("pages", []))
@@ -1810,7 +1810,7 @@ def _invalidate_stripe_caches_for_user(user_id: str) -> None:
     """À appeler quand on sait que l'abonnement vient de changer (cancel, webhook)."""
     if user_id:
         _STRIPE_SUB_RESOLVE_CACHE.invalidate(user_id)
-    # Snapshot indexé par sub_id : on ne connaît pas forcément lequel — laisser expirer naturellement.
+    # Snapshot indexé par sub_id : on ne connaît pas forcément lequel - laisser expirer naturellement.
 
 
 def _send_subscription_cancelled_email(to_email: str, period_end_label: str) -> bool:

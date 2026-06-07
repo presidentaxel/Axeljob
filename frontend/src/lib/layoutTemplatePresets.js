@@ -1,5 +1,5 @@
 /**
- * Layouts canvas v3 — copie structurelle des templates HTML.
+ * Layouts canvas v3 - copie structurelle des templates HTML.
  */
 import { buildTemplateBlocks, parseCanvasTheme } from './canvasTemplateSpecs.js';
 import { createBlankLayoutV3, createStarterLayoutV3, sanitizeLayoutV3 } from './cvLayoutModelV3.js';

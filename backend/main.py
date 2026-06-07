@@ -1416,28 +1416,48 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
         )
 
     vision_meta: dict[str, Any] = {}
+    structural_layout: dict[str, Any] | None = None
     is_pdf = content_type == "application/pdf" or (file.filename or "").lower().endswith(".pdf")
     if is_pdf:
-        from backend.services.cv_import_layout_vision import (
-            detection_to_layout_hints,
-            parse_cv_layout_from_vision,
-            pdf_first_page_to_jpeg_bytes,
-        )
+        # Étape 1 (prioritaire) : reconstruction déterministe sans IA. Pour un PDF
+        # natif (texte extractible), on copie la mise en page 1:1 — c'est le rendu
+        # le plus fidèle et gratuit.
+        from backend.services.pdf_structural_extract import extract_layout_from_pdf
 
-        jpeg = pdf_first_page_to_jpeg_bytes(file_bytes)
-        if not jpeg:
-            logger.warning("Import PDF: rasterize page 1 échoué — repli preset sans vision")
-        else:
-            try:
-                _vision_layout_unused, vision_meta = parse_cv_layout_from_vision(jpeg, user_id)
-            except Exception as exc:
-                logger.warning("Import vision design échoué (repli preset): %s", exc)
-            if vision_meta:
-                vision_hints = detection_to_layout_hints(vision_meta)
-                layout_hints = {**layout_hints, **vision_hints}
+        try:
+            structural_layout = extract_layout_from_pdf(file_bytes)
+        except Exception as exc:
+            logger.warning("Import PDF: extraction structurelle échouée: %s", exc)
+            structural_layout = None
+
+        # Étape 2 (repli) : seulement si le PDF n'est pas natif (scanné/illisible),
+        # on retombe sur la vision Gemini pour deviner un template + couleurs.
+        if structural_layout is None:
+            from backend.services.cv_import_layout_vision import (
+                detection_to_layout_hints,
+                parse_cv_layout_from_vision,
+                pdf_first_page_to_jpeg_bytes,
+            )
+
+            jpeg = pdf_first_page_to_jpeg_bytes(file_bytes)
+            if not jpeg:
+                logger.warning("Import PDF: rasterize page 1 échoué — repli preset sans vision")
             else:
-                logger.warning("Import PDF: vision sans détection — repli preset")
+                try:
+                    _vision_layout_unused, vision_meta = parse_cv_layout_from_vision(jpeg, user_id)
+                except Exception as exc:
+                    logger.warning("Import vision design échoué (repli preset): %s", exc)
+                if vision_meta:
+                    vision_hints = detection_to_layout_hints(vision_meta)
+                    layout_hints = {**layout_hints, **vision_hints}
+                else:
+                    logger.warning("Import PDF: vision sans détection — repli preset")
 
+    structural_blocks = (
+        sum(len(p.get("blocks", [])) for p in structural_layout.get("pages", []))
+        if structural_layout
+        else 0
+    )
     file_ext = (file.filename or "").rsplit(".", 1)[-1].lower() if file.filename else "unknown"
     _track_analytics(
         request,
@@ -1448,6 +1468,8 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
             "file_type": file_ext,
             "text_length": len(text),
             "import_profile": cv_import_completeness(cv),
+            "structural_layout": bool(structural_layout),
+            "structural_blocks": structural_blocks,
             "vision_detection": bool(vision_meta),
             "vision_template": vision_meta.get("template_match"),
             "vision_confidence": vision_meta.get("confidence"),
@@ -1456,7 +1478,7 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
     return {
         "cv": cv,
         "layout_hints": layout_hints,
-        "layout": None,
+        "layout": structural_layout,
         "vision": vision_meta,
     }
 

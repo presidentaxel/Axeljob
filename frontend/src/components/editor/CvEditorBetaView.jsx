@@ -377,12 +377,21 @@ function CvEditorBeta({
       setLoadError(err?.message || 'Import réussi mais enregistrement échoué.');
     }
     const label = recommendTemplateLabel(recTemplate?.id, templates);
-    const visionNote = importSource === 'vision-guided'
-      ? ' · analyse visuelle PDF'
-      : visionMeta?.source === 'gemini_vision' ? ' · vision partielle' : '';
-    setImportToast(`${summarizeImportAdaptation(analysis, label, blockCount, {
-      fromVision: importSource === 'vision-guided',
-    })}${visionNote}`);
+    let sourceNote = '';
+    if (importSource === 'structural') {
+      sourceNote = ' · copie fidèle du PDF';
+    } else if (importSource === 'vision-guided') {
+      sourceNote = ' · analyse visuelle PDF';
+    } else if (visionMeta?.source === 'gemini_vision') {
+      sourceNote = ' · vision partielle';
+    }
+    if (importSource === 'structural') {
+      setImportToast(`${blockCount} éléments importés${sourceNote}`);
+    } else {
+      setImportToast(`${summarizeImportAdaptation(analysis, label, blockCount, {
+        fromVision: importSource === 'vision-guided',
+      })}${sourceNote}`);
+    }
   }, [
     templatesList,
     templateId,

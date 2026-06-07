@@ -8,9 +8,11 @@ import {
   applyVisionSectionPlacement,
   buildFullCanvasImportLayout,
   buildLayoutFromVisionDetection,
+  buildStructuralImportLayout,
   buildThemeFromVisionImport,
   estimateSemanticBlockHeight,
   inferThemeFromProfile,
+  isStructuralLayout,
   mergePresetDecorations,
   recommendTemplateId,
 } from '../../src/lib/canvasCvImportAdapter.js';
@@ -111,6 +113,53 @@ test('applyVisionSectionPlacement déplace compétences vers colonne principale'
   for (const block of skills) {
     assert.ok((Number(block.x) || 0) > 40, 'skills devraient être en colonne principale');
   }
+});
+
+const STRUCTURAL_LAYOUT = {
+  version: 3,
+  format: 'A4',
+  grid: 'free',
+  unit: 'mm',
+  source: 'pdf_structural',
+  pages: [
+    {
+      id: 'page_1',
+      blocks: [
+        { type: 'shape:rect', x: 0, y: 0, w: 63, h: 297, z: 0, style: { color: '#1e3a5f' } },
+        { type: 'text', content: 'Louis Vedovato', x: 14, y: 21, w: 80, h: 8, z: 3, style: { font_size: 20, color: '#000000', bold: true } },
+        { type: 'text', content: 'Fondateur', x: 14, y: 35, w: 90, h: 5, z: 3, style: { font_size: 11, color: '#333333' } },
+      ],
+    },
+  ],
+  theme: { template_id: 'imported', color_body: '#1a1a1a' },
+};
+
+test('isStructuralLayout : détecte un layout backend avec blocs', () => {
+  assert.equal(isStructuralLayout(STRUCTURAL_LAYOUT), true);
+  assert.equal(isStructuralLayout({ pages: [{ blocks: [] }] }), false);
+  assert.equal(isStructuralLayout(null), false);
+});
+
+test('buildStructuralImportLayout : copie fidèle, aucun preset', () => {
+  const result = buildStructuralImportLayout(DENSE_CV, STRUCTURAL_LAYOUT, { templateId: 'minimal' });
+  assert.equal(result.importSource, 'structural');
+  assert.equal(result.blockCount, 3);
+  const blocks = result.layout.pages[0].blocks;
+  const rect = blocks.find((b) => b.type === 'shape:rect');
+  assert.equal(rect.style.color, '#1e3a5f');
+  const title = blocks.find((b) => b.type === 'text' && b.content.includes('Louis'));
+  assert.equal(title.style.font_size, 20);
+  assert.equal(title.style.bold, true);
+});
+
+test('buildFullCanvasImportLayout : layout structurel prioritaire sur vision', () => {
+  const templates = [{ id: 'modern', name: 'Modern' }, { id: 'executive', name: 'Executive' }];
+  const result = buildFullCanvasImportLayout(DENSE_CV, templates, {
+    visionLayout: STRUCTURAL_LAYOUT,
+    visionMeta: { source: 'gemini_vision', template_match: 'executive', confidence: 0.9 },
+  });
+  assert.equal(result.importSource, 'structural');
+  assert.equal(result.blockCount, 3);
 });
 
 test('buildThemeFromVisionImport : couleurs PDF, pas preset executive', () => {

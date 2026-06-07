@@ -805,14 +805,49 @@ export function buildAdaptedCanvasLayoutForCv(cv, template, options = {}) {
 }
 
 /**
+ * Vrai si le layout fourni par le backend est une reconstruction structurelle
+ * exploitable (copie fidèle du PDF, blocs positionnés en mm).
+ */
+export function isStructuralLayout(layout) {
+  if (!layout || typeof layout !== 'object' || !Array.isArray(layout.pages)) return false;
+  const blocks = layout.pages.reduce((n, p) => n + (p?.blocks?.length || 0), 0);
+  return blocks > 0;
+}
+
+/**
+ * Import "copier-coller" : on utilise tel quel le layout reconstruit depuis le
+ * PDF (texte, formes, images positionnés). Aucun preset, aucune IA — juste un
+ * nettoyage défensif via sanitizeLayoutV3.
+ */
+export function buildStructuralImportLayout(cv, structuralLayout, { templateId = '' } = {}) {
+  const analysis = analyzeCvProfile(cv);
+  const sanitized = sanitizeLayoutV3(structuralLayout);
+  const layout = applyLayoutPagination(sanitized);
+  return {
+    layout,
+    analysis,
+    recommendedTemplateId: templateId || layout.theme?.template_id || 'imported',
+    removedBlockCount: 0,
+    resizedBlockCount: 0,
+    blockCount: countLayoutBlocks(layout),
+    importSource: 'structural',
+  };
+}
+
+/**
  * Point d'entrée import Beta : CV + hints → canvas complet prêt à l'emploi.
  */
 export function buildFullCanvasImportLayout(cv, templatesList = [], {
   templateId = '',
   layoutHints = {},
-  visionLayout: _visionLayout = null,
+  visionLayout = null,
   visionMeta = {},
 } = {}) {
+  // Priorité absolue : reconstruction structurelle (copie fidèle du PDF natif).
+  if (isStructuralLayout(visionLayout)) {
+    return buildStructuralImportLayout(cv, visionLayout, { templateId });
+  }
+
   const confidence = Number(visionMeta?.confidence ?? 0);
   const hasVisionDetection = Boolean(
     visionMeta?.source === 'gemini_vision'

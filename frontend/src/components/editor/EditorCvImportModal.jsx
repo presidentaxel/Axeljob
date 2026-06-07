@@ -35,8 +35,8 @@ export default function EditorCvImportModal({
             <span className="editor-cv-import-eyebrow">Import intelligent</span>
             <h2 id="editor-cv-import-title">Importer un CV</h2>
             <p>
-              PDF : Gemini analyse le design (template + couleurs) puis génère un canvas
-              pro avec la mise en page calibrée la plus proche de ton CV.
+              PDF : on recopie directement la mise en page (texte, couleurs, formes,
+              photo) en blocs éditables. Aucune perte de design quand le PDF est natif.
             </p>
           </div>
           <button type="button" className="editor-cv-import-close" onClick={onClose} aria-label="Fermer">×</button>

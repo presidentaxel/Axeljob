@@ -1,8 +1,8 @@
 """
-Import CV Canva — reconstruction *déterministe* du layout v3 depuis un PDF natif.
+Import CV Canva - reconstruction *déterministe* du layout v3 depuis un PDF natif.
 
-Aucune IA : on lit directement les instructions du PDF via PyMuPDF (fitz) —
-texte positionné, polices, couleurs, rectangles de fond, images — et on les
+Aucune IA : on lit directement les instructions du PDF via PyMuPDF (fitz) -
+texte positionné, polices, couleurs, rectangles de fond, images - et on les
 transpose 1:1 en blocs canvas v3 (coordonnées en millimètres, origine haut-gauche).
 
 C'est un vrai "copier-coller" visuel du PDF, contrairement à l'approche vision
@@ -30,6 +30,14 @@ MM_PER_PT = 25.4 / 72.0
 # Garde-fous (évite de polluer le canvas avec des micro-artefacts vectoriels).
 MIN_SHAPE_AREA_MM2 = 12.0
 LINE_MAX_THICKNESS_MM = 1.6
+# Surface mini d'un rectangle plein pour être considéré comme bandeau/fond
+# structurel (sidebar, header). En dessous = petit encart/icône → ignoré
+# (évite de polluer le canvas avec des micro-rectangles).
+BACKGROUND_MIN_AREA_MM2 = 500.0
+# Au-delà de cette fraction de la page, un rectangle est le fond de page → ignoré.
+PAGE_BG_AREA_RATIO = 0.82
+# Longueur mini (mm) d'un trait pour être gardé comme filet de séparation.
+MIN_SEPARATOR_LEN_MM = 25.0
 MIN_TEXT_CHARS_FOR_NATIVE = 40
 MAX_PAGES = 3
 MAX_IMAGES_PER_DOC = 8
@@ -143,8 +151,13 @@ def _extract_text_blocks(page, pos_scale: float, font_scale: float) -> tuple[lis
                 continue
             char_count += len(text)
 
-            # Style dominant = span avec la plus grande taille de police.
-            lead = max(spans, key=lambda s: float(s.get("size", 0) or 0))
+            # Style dominant = span qui porte le plus de caractères (et non le
+            # plus grand) : un simple tiret en 14pt ne doit pas imposer sa
+            # taille à toute une ligne rédigée en 9.5pt.
+            lead = max(
+                spans,
+                key=lambda s: (len(str(s.get("text", "")).strip()), float(s.get("size", 0) or 0)),
+            )
             size_pt = float(lead.get("size", 10) or 10) * font_scale
             style: dict[str, Any] = {
                 "font_size": round(size_pt, 1),
@@ -161,7 +174,7 @@ def _extract_text_blocks(page, pos_scale: float, font_scale: float) -> tuple[lis
 
             # Largeur généreuse pour éviter le wrap ; hauteur ≈ taille de police.
             w_mm = max(4.0, (x1 - x0) * pos_scale + 3.0)
-            line_h_mm = max((y1 - y0) * pos_scale, size_pt * MM_PER_PT * 1.2)
+            line_h_mm = max((y1 - y0) * pos_scale, size_pt * MM_PER_PT * 1.05)
             x_mm = max(0.0, x0 * pos_scale)
             y_mm = max(0.0, y0 * pos_scale)
             blocks.append(
@@ -194,11 +207,19 @@ def _shape_block_from_box(
     h_mm = (y_hi - y_lo) * scale
     if w_mm <= 0 or h_mm <= 0:
         return None
-    # Ignore les micro-artefacts (sauf s'ils sont fins = filets).
-    if (w_mm * h_mm) < MIN_SHAPE_AREA_MM2 and min(w_mm, h_mm) > LINE_MAX_THICKNESS_MM:
-        return None
 
+    area = w_mm * h_mm
     thin = min(w_mm, h_mm) <= LINE_MAX_THICKNESS_MM
+
+    # Fond de page entier → on ne le reproduit pas (il masquerait tout).
+    if area > (PAGE_W_MM * PAGE_H_MM * PAGE_BG_AREA_RATIO):
+        return None
+    # Micro-artefacts vectoriels.
+    if area < MIN_SHAPE_AREA_MM2 and not thin:
+        return None
+    # Rectangle plein ni fin (filet) ni assez grand (bandeau) → encart parasite.
+    if not thin and area < BACKGROUND_MIN_AREA_MM2:
+        return None
     horizontal = w_mm >= h_mm
     x_mm = max(0.0, x_lo * scale)
     y_mm = max(0.0, y_lo * scale)
@@ -241,11 +262,42 @@ def _line_block_from_segment(
     return _shape_block_from_box(x0, y0, x1, y1, scale, color)
 
 
-def _extract_shape_blocks(page, scale: float) -> list[dict]:
-    """Rectangles pleins (sidebar, bandeau) + filets de séparation.
+def _frame_strips_from_rects(r_a, r_b, scale: float, color: str) -> list[dict]:
+    """Deux rectangles imbriqués remplis en *even-odd* = un cadre/filet.
 
-    On itère sur les *items* de chaque chemin (et non le rect englobant du
-    chemin) : sinon plusieurs filets d'un même path fusionnent en un gros bloc.
+    Seule la différence (outer − inner) est réellement peinte. On émet donc une
+    fine bande par bord présentant un écart (souvent un seul → soulignement de
+    section), au lieu de deux gros rectangles pleins.
+    """
+    a_a = (r_a.x1 - r_a.x0) * (r_a.y1 - r_a.y0)
+    a_b = (r_b.x1 - r_b.x0) * (r_b.y1 - r_b.y0)
+    outer, inner = (r_a, r_b) if a_a >= a_b else (r_b, r_a)
+
+    # (x0, y0, x1, y1) en points pour chaque bord du cadre.
+    edges = [
+        (outer.x0, outer.y0, inner.x0, outer.y1),  # gauche
+        (inner.x1, outer.y0, outer.x1, outer.y1),  # droite
+        (outer.x0, outer.y0, outer.x1, inner.y0),  # haut
+        (outer.x0, inner.y1, outer.x1, outer.y1),  # bas
+    ]
+    out: list[dict] = []
+    for x0, y0, x1, y1 in edges:
+        if (x1 - x0) <= 0.2 or (y1 - y0) <= 0.2:  # bord sans écart (en points)
+            continue
+        blk = _shape_block_from_box(x0, y0, x1, y1, scale, color)
+        if blk:
+            out.append(blk)
+    return out
+
+
+def _extract_shape_blocks(page, scale: float) -> list[dict]:
+    """Rectangles pleins (sidebar, bandeau), filets/soulignements + séparateurs.
+
+    Cas gérés par chemin (``get_drawings``) :
+    - 1 rectangle plein → fond (header, sidebar) tel quel ;
+    - 2 rectangles imbriqués (even-odd) → cadre/filet : seule la fine
+      différence est peinte (cf. ``_frame_strips_from_rects``) ;
+    - segments tracés → filets de séparation horizontaux.
     """
     blocks: list[dict] = []
     try:
@@ -259,19 +311,35 @@ def _extract_shape_blocks(page, scale: float) -> list[dict]:
         stroke_hex = _float_rgb_to_hex(d.get("color")) if d.get("color") is not None else None
         stroke_w_pt = float(d.get("width") or 0)
 
-        for item in d.get("items", []):
-            if not item:
-                continue
-            op = item[0]
-            if op == "re" and fill_hex and not _is_near_white(fill_hex):
-                rect = item[1]
-                blk = _shape_block_from_box(rect.x0, rect.y0, rect.x1, rect.y1, scale, fill_hex)
+        items = [it for it in d.get("items", []) if it]
+        re_items = [it[1] for it in items if it[0] == "re"]
+        line_items = [it for it in items if it[0] == "l"]
+
+        if fill_hex and not _is_near_white(fill_hex):
+            if len(re_items) == 1:
+                r = re_items[0]
+                blk = _shape_block_from_box(r.x0, r.y0, r.x1, r.y1, scale, fill_hex)
                 if blk:
                     blocks.append(blk)
-            elif op == "l" and stroke_hex and not _is_near_white(stroke_hex):
-                blk = _line_block_from_segment(item[1], item[2], stroke_w_pt, scale, stroke_hex)
-                if blk:
-                    blocks.append(blk)
+            elif len(re_items) == 2:
+                blocks.extend(_frame_strips_from_rects(re_items[0], re_items[1], scale, fill_hex))
+            # ≥3 rectangles = art vectoriel complexe → ignoré (pollution).
+
+        if stroke_hex and not _is_near_white(stroke_hex):
+            # Un chemin avec rectangle(s) ou ≥3 segments = cadre → on ignore ses
+            # traits (on ne sait pas rendre un contour proprement).
+            is_frame = bool(re_items) or len(line_items) >= 3
+            if not is_frame:
+                for item in line_items:
+                    p1, p2 = item[1], item[2]
+                    # Filets de séparation horizontaux assez longs seulement.
+                    dx = abs(float(p2.x) - float(p1.x))
+                    dy = abs(float(p2.y) - float(p1.y))
+                    if dy > dx or dx * scale < MIN_SEPARATOR_LEN_MM:
+                        continue
+                    blk = _line_block_from_segment(p1, p2, stroke_w_pt, scale, stroke_hex)
+                    if blk:
+                        blocks.append(blk)
     return blocks
 
 
@@ -393,7 +461,7 @@ def extract_layout_from_pdf(file_bytes: bytes, max_pages: int = MAX_PAGES) -> di
             pages_out.append({"id": f"page_{page_index + 1}", "blocks": blocks})
 
         if not pages_out or total_chars < MIN_TEXT_CHARS_FOR_NATIVE:
-            logger.info("pdf_structural_extract: PDF non natif (chars=%s) — fallback", total_chars)
+            logger.info("pdf_structural_extract: PDF non natif (chars=%s) - fallback", total_chars)
             return None
 
         return {

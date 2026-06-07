@@ -4,10 +4,13 @@ import unittest
 
 from backend.services.pdf_structural_extract import (
     _float_rgb_to_hex,
+    _frame_strips_from_rects,
     _int_color_to_hex,
     _is_near_white,
     extract_layout_from_pdf,
 )
+
+MM_PER_PT = 25.4 / 72.0
 
 
 def _build_sample_pdf() -> bytes | None:
@@ -22,7 +25,7 @@ def _build_sample_pdf() -> bytes | None:
     page.draw_rect(fitz.Rect(0, 0, 180, 842), color=None, fill=(0.1, 0.2, 0.4))
     # Quelques lignes de texte (assez de caractères pour passer le seuil natif).
     page.insert_text((40, 60), "Louis Vedovato", fontsize=20, color=(0, 0, 0))
-    page.insert_text((40, 100), "Fondateur — Entrepreneuriat / Creatif / Tech", fontsize=11)
+    page.insert_text((40, 100), "Fondateur - Entrepreneuriat / Creatif / Tech", fontsize=11)
     page.insert_text(
         (40, 140),
         "Experience professionnelle riche en automatisation et gestion de projet.",
@@ -126,6 +129,22 @@ class ExtractLayoutTest(unittest.TestCase):
             if b["type"] == "shape:rect" and b["h"] > 50 and b["w"] > 100
         ]
         self.assertEqual(big, [])
+
+    def test_even_odd_nested_rects_become_thin_underline(self):
+        # Régression : deux rectangles imbriqués (remplissage even-odd) =
+        # un soulignement de section. Seule la fine différence doit être peinte,
+        # PAS deux gros rectangles pleins de ~5mm.
+        import fitz
+
+        # Bord bas plus haut de 1.5pt → un seul filet fin en bas, pleine largeur.
+        outer = fitz.Rect(10, 100, 160, 105.0)
+        inner = fitz.Rect(10, 100, 160, 103.5)
+        strips = _frame_strips_from_rects(outer, inner, MM_PER_PT, "#1e2a3a")
+        self.assertEqual(len(strips), 1)
+        strip = strips[0]
+        self.assertEqual(strip["type"], "shape:line")
+        self.assertLessEqual(strip["h"], 1.0)  # fin, pas un gros bloc
+        self.assertGreater(strip["w"], 40)  # s'étend sur la largeur
 
     def test_empty_bytes_returns_none(self):
         self.assertIsNone(extract_layout_from_pdf(b""))

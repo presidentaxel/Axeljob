@@ -107,18 +107,26 @@ def _span_is_italic(span: dict) -> bool:
     return "italic" in name or "oblique" in name
 
 
-def _page_scale(page_width_pt: float, page_height_pt: float) -> float:
-    """Facteur uniforme pt→canvas pour faire tenir la page dans l'A4 (210×297mm)."""
+def _fit_factor(page_width_pt: float, page_height_pt: float) -> float:
+    """Facteur (≤1) pour faire tenir une page non-A4 dans l'A4 (210×297mm).
+
+    Ne s'applique PAS à la conversion pt→mm : seulement à la réduction
+    homothétique d'une page plus grande que l'A4.
+    """
     w_mm = page_width_pt * MM_PER_PT
     h_mm = page_height_pt * MM_PER_PT
     if w_mm <= 0 or h_mm <= 0:
-        return MM_PER_PT
-    fit = min(PAGE_W_MM / w_mm, PAGE_H_MM / h_mm, 1.0)
-    return MM_PER_PT * fit
+        return 1.0
+    return min(PAGE_W_MM / w_mm, PAGE_H_MM / h_mm, 1.0)
 
 
-def _extract_text_blocks(page, scale: float) -> tuple[list[dict], int]:
-    """Une ligne PDF = un bloc texte canvas. Retourne (blocs, nb_chars)."""
+def _extract_text_blocks(page, pos_scale: float, font_scale: float) -> tuple[list[dict], int]:
+    """Une ligne PDF = un bloc texte canvas. Retourne (blocs, nb_chars).
+
+    - ``pos_scale`` (= MM_PER_PT × fit) : conversion des positions pt→mm.
+    - ``font_scale`` (= fit) : la taille de police RESTE en points (CSS pt),
+      on n'applique que la réduction homothétique éventuelle.
+    """
     blocks: list[dict] = []
     char_count = 0
     data = page.get_text("dict")
@@ -137,7 +145,7 @@ def _extract_text_blocks(page, scale: float) -> tuple[list[dict], int]:
 
             # Style dominant = span avec la plus grande taille de police.
             lead = max(spans, key=lambda s: float(s.get("size", 0) or 0))
-            size_pt = float(lead.get("size", 10) or 10) * scale
+            size_pt = float(lead.get("size", 10) or 10) * font_scale
             style: dict[str, Any] = {
                 "font_size": round(size_pt, 1),
                 "color": _int_color_to_hex(lead.get("color")),
@@ -151,10 +159,11 @@ def _extract_text_blocks(page, scale: float) -> tuple[list[dict], int]:
             if all(_span_is_italic(s) for s in spans):
                 style["italic"] = True
 
-            w_mm = max(4.0, (x1 - x0) * scale + 2.0)
-            h_mm = max(3.0, (y1 - y0) * scale + 1.2)
-            x_mm = max(0.0, x0 * scale)
-            y_mm = max(0.0, y0 * scale)
+            # Largeur généreuse pour éviter le wrap ; hauteur ≈ taille de police.
+            w_mm = max(4.0, (x1 - x0) * pos_scale + 3.0)
+            line_h_mm = max((y1 - y0) * pos_scale, size_pt * MM_PER_PT * 1.2)
+            x_mm = max(0.0, x0 * pos_scale)
+            y_mm = max(0.0, y0 * pos_scale)
             blocks.append(
                 {
                     "type": "text",
@@ -162,7 +171,7 @@ def _extract_text_blocks(page, scale: float) -> tuple[list[dict], int]:
                     "x": round(x_mm, 2),
                     "y": round(y_mm, 2),
                     "w": round(min(w_mm, PAGE_W_MM), 2),
-                    "h": round(h_mm, 2),
+                    "h": round(max(3.0, line_h_mm), 2),
                     "z": 3,
                     "style": style,
                 }
@@ -170,8 +179,74 @@ def _extract_text_blocks(page, scale: float) -> tuple[list[dict], int]:
     return blocks, char_count
 
 
+def _shape_block_from_box(
+    x0_pt: float,
+    y0_pt: float,
+    x1_pt: float,
+    y1_pt: float,
+    scale: float,
+    color: str,
+) -> dict | None:
+    """Construit un bloc forme depuis une box en points (rect ou trait épais)."""
+    x_lo, x_hi = sorted((x0_pt, x1_pt))
+    y_lo, y_hi = sorted((y0_pt, y1_pt))
+    w_mm = (x_hi - x_lo) * scale
+    h_mm = (y_hi - y_lo) * scale
+    if w_mm <= 0 or h_mm <= 0:
+        return None
+    # Ignore les micro-artefacts (sauf s'ils sont fins = filets).
+    if (w_mm * h_mm) < MIN_SHAPE_AREA_MM2 and min(w_mm, h_mm) > LINE_MAX_THICKNESS_MM:
+        return None
+
+    thin = min(w_mm, h_mm) <= LINE_MAX_THICKNESS_MM
+    horizontal = w_mm >= h_mm
+    x_mm = max(0.0, x_lo * scale)
+    y_mm = max(0.0, y_lo * scale)
+
+    # Trait fin horizontal → shape:line (barre fine), sinon rectangle.
+    if thin and horizontal:
+        return {
+            "type": "shape:line",
+            "x": round(x_mm, 2),
+            "y": round(y_mm, 2),
+            "w": round(min(w_mm, PAGE_W_MM), 2),
+            "h": round(max(h_mm, 0.3), 2),
+            "z": 1,
+            "style": {"color": color, "stroke_width": round(max(h_mm, 0.3), 2)},
+        }
+    return {
+        "type": "shape:rect",
+        "x": round(x_mm, 2),
+        "y": round(y_mm, 2),
+        "w": round(max(min(w_mm, PAGE_W_MM), 0.3), 2),
+        "h": round(max(min(h_mm, PAGE_H_MM), 0.3), 2),
+        "z": 1 if thin else 0,
+        "style": {"color": color},
+    }
+
+
+def _line_block_from_segment(
+    p1, p2, stroke_width_pt: float, scale: float, color: str
+) -> dict | None:
+    """Trait (segment) tracé → bloc fin. Gère horizontal et vertical."""
+    x0, y0 = float(p1.x), float(p1.y)
+    x1, y1 = float(p2.x), float(p2.y)
+    thickness_pt = max(stroke_width_pt, 0.5)
+    if abs(y1 - y0) <= abs(x1 - x0):  # horizontal
+        y0 -= thickness_pt / 2
+        y1 = y0 + thickness_pt
+    else:  # vertical
+        x0 -= thickness_pt / 2
+        x1 = x0 + thickness_pt
+    return _shape_block_from_box(x0, y0, x1, y1, scale, color)
+
+
 def _extract_shape_blocks(page, scale: float) -> list[dict]:
-    """Rectangles/lignes pleins (sidebar, bandeau header, filets accent)."""
+    """Rectangles pleins (sidebar, bandeau) + filets de séparation.
+
+    On itère sur les *items* de chaque chemin (et non le rect englobant du
+    chemin) : sinon plusieurs filets d'un même path fusionnent en un gros bloc.
+    """
     blocks: list[dict] = []
     try:
         drawings = page.get_drawings()
@@ -180,37 +255,23 @@ def _extract_shape_blocks(page, scale: float) -> list[dict]:
         return blocks
 
     for d in drawings:
-        fill = d.get("fill")
-        if fill is None:
-            continue
-        hex_color = _float_rgb_to_hex(fill)
-        if not hex_color or _is_near_white(hex_color):
-            continue
-        rect = d.get("rect")
-        if rect is None:
-            continue
-        x0, y0, x1, y1 = rect.x0, rect.y0, rect.x1, rect.y1
-        w_mm = (x1 - x0) * scale
-        h_mm = (y1 - y0) * scale
-        if w_mm <= 0 or h_mm <= 0:
-            continue
-        if (w_mm * h_mm) < MIN_SHAPE_AREA_MM2 and min(w_mm, h_mm) > LINE_MAX_THICKNESS_MM:
-            continue
+        fill_hex = _float_rgb_to_hex(d.get("fill")) if d.get("fill") is not None else None
+        stroke_hex = _float_rgb_to_hex(d.get("color")) if d.get("color") is not None else None
+        stroke_w_pt = float(d.get("width") or 0)
 
-        x_mm = max(0.0, x0 * scale)
-        y_mm = max(0.0, y0 * scale)
-        thin = min(w_mm, h_mm) <= LINE_MAX_THICKNESS_MM
-        blocks.append(
-            {
-                "type": "shape:line" if thin else "shape:rect",
-                "x": round(x_mm, 2),
-                "y": round(y_mm, 2),
-                "w": round(min(w_mm, PAGE_W_MM), 2),
-                "h": round(min(h_mm, PAGE_H_MM), 2),
-                "z": 1 if thin else 0,
-                "style": {"color": hex_color},
-            }
-        )
+        for item in d.get("items", []):
+            if not item:
+                continue
+            op = item[0]
+            if op == "re" and fill_hex and not _is_near_white(fill_hex):
+                rect = item[1]
+                blk = _shape_block_from_box(rect.x0, rect.y0, rect.x1, rect.y1, scale, fill_hex)
+                if blk:
+                    blocks.append(blk)
+            elif op == "l" and stroke_hex and not _is_near_white(stroke_hex):
+                blk = _line_block_from_segment(item[1], item[2], stroke_w_pt, scale, stroke_hex)
+                if blk:
+                    blocks.append(blk)
     return blocks
 
 
@@ -320,10 +381,11 @@ def extract_layout_from_pdf(file_bytes: bytes, max_pages: int = MAX_PAGES) -> di
 
         for page_index in range(n_pages):
             page = doc[page_index]
-            scale = _page_scale(page.rect.width, page.rect.height)
-            shape_blocks = _extract_shape_blocks(page, scale)
-            image_blocks = _extract_image_blocks(page, doc, scale, image_budget)
-            text_blocks, chars = _extract_text_blocks(page, scale)
+            fit = _fit_factor(page.rect.width, page.rect.height)
+            pos_scale = MM_PER_PT * fit
+            shape_blocks = _extract_shape_blocks(page, pos_scale)
+            image_blocks = _extract_image_blocks(page, doc, pos_scale, image_budget)
+            text_blocks, chars = _extract_text_blocks(page, pos_scale, fit)
             total_chars += chars
             blocks = [*shape_blocks, *image_blocks, *text_blocks]
             if not blocks:

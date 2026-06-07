@@ -86,6 +86,47 @@ class ExtractLayoutTest(unittest.TestCase):
             self.assertLessEqual(b["y"], 297)
             self.assertIn("font_size", b["style"])
 
+    def test_font_size_stays_in_points(self):
+        # Régression : la taille de police ne doit PAS être convertie en mm.
+        # Un titre inséré à 20pt sur une page A4 doit rester ~20pt (>= 18).
+        layout = extract_layout_from_pdf(self.pdf)
+        text_blocks = [b for b in layout["pages"][0]["blocks"] if b["type"] == "text"]
+        title = max(text_blocks, key=lambda b: b["style"].get("font_size", 0))
+        self.assertGreaterEqual(title["style"]["font_size"], 18)
+        self.assertLessEqual(title["style"]["font_size"], 24)
+
+    def test_separator_line_is_thin(self):
+        # Régression : un filet de séparation tracé doit donner un bloc fin,
+        # pas un gros rectangle (fusion du rect englobant du chemin).
+        import fitz
+
+        doc = fitz.open()
+        page = doc.new_page(width=595, height=842)
+        page.insert_text(
+            (40, 60), "Section A avec assez de texte pour le seuil natif.", fontsize=11
+        )
+        page.insert_text((40, 200), "Section B egalement avec du contenu textuel ici.", fontsize=11)
+        # Deux filets horizontaux séparés dans le même appel de dessin.
+        page.draw_line(fitz.Point(40, 80), fitz.Point(540, 80), color=(0.5, 0.5, 0.5), width=0.8)
+        page.draw_line(fitz.Point(40, 180), fitz.Point(540, 180), color=(0.5, 0.5, 0.5), width=0.8)
+        data = doc.tobytes()
+        doc.close()
+
+        layout = extract_layout_from_pdf(data)
+        self.assertIsNotNone(layout)
+        lines = [b for b in layout["pages"][0]["blocks"] if b["type"] == "shape:line"]
+        self.assertGreaterEqual(len(lines), 1)
+        for line in lines:
+            self.assertLessEqual(line["h"], 2.0)  # fin, pas un gros bloc
+            self.assertGreater(line["w"], 100)  # s'étend sur la largeur
+        # Aucun gros rectangle parasite qui couvrirait toute la page.
+        big = [
+            b
+            for b in layout["pages"][0]["blocks"]
+            if b["type"] == "shape:rect" and b["h"] > 50 and b["w"] > 100
+        ]
+        self.assertEqual(big, [])
+
     def test_empty_bytes_returns_none(self):
         self.assertIsNone(extract_layout_from_pdf(b""))
 

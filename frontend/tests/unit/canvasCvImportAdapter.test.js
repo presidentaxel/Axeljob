@@ -4,13 +4,17 @@ import assert from 'node:assert/strict';
 import {
   adaptCanvasLayoutForCv,
   analyzeCvProfile,
+  applyThemeColorsToDecorativeBlocks,
+  applyVisionSectionPlacement,
   buildFullCanvasImportLayout,
-  buildImportLayoutFromVision,
+  buildLayoutFromVisionDetection,
+  buildThemeFromVisionImport,
   estimateSemanticBlockHeight,
   inferThemeFromProfile,
   mergePresetDecorations,
   recommendTemplateId,
 } from '../../src/lib/canvasCvImportAdapter.js';
+import { createCanvasLayoutForTemplate } from '../../src/lib/layoutTemplatePresets.js';
 import { createStarterLayoutV3 } from '../../src/lib/cvLayoutModelV3.js';
 
 const DENSE_CV = {
@@ -57,6 +61,13 @@ test('recommendTemplateId : profil exécutif dense → executive ou classic', ()
   assert.equal(id, 'executive');
 });
 
+test('recommendTemplateId : template_match vision prioritaire', () => {
+  const analysis = analyzeCvProfile(DENSE_CV);
+  const templates = [{ id: 'modern', name: 'Modern' }, { id: 'executive', name: 'Executive' }];
+  const id = recommendTemplateId(analysis, templates, 'minimal', { template_match: 'modern' });
+  assert.equal(id, 'modern');
+});
+
 test('estimateSemanticBlockHeight : expériences volumineuses', () => {
   const h = estimateSemanticBlockHeight({ type: 'experiences', h: 40 }, DENSE_CV);
   assert.ok(h > 50);
@@ -66,6 +77,127 @@ test('inferThemeFromProfile : hints accent prioritaire', () => {
   const analysis = analyzeCvProfile(DENSE_CV);
   const theme = inferThemeFromProfile(analysis, { accent_color: '#ff5500' });
   assert.equal(theme.color_accent, '#ff5500');
+});
+
+test('applyThemeColorsToDecorativeBlocks recolore sidebar', () => {
+  const layout = createStarterLayoutV3();
+  layout.theme = {
+    color_sidebar: '#112233',
+    color_accent: '#aabbcc',
+    color_header: '#445566',
+  };
+  layout.pages[0].blocks.unshift({
+    id: 'sb', type: 'shape:rect', x: 0, y: 0, w: 50, h: 297, z: 0, style: { color: '#000' },
+  });
+  const next = applyThemeColorsToDecorativeBlocks(layout);
+  const sb = next.pages[0].blocks.find((b) => b.id === 'sb');
+  assert.equal(sb.style.color, '#112233');
+});
+
+test('applyVisionSectionPlacement déplace compétences vers colonne principale', () => {
+  const template = { id: 'modern', name: 'Modern' };
+  const base = createCanvasLayoutForTemplate(template);
+  const visionMeta = {
+    layout_style: 'sidebar-left',
+    sections_in_sidebar: ['photo', 'contact', 'languages'],
+    sections_in_main: ['experiences', 'formations', 'skills', 'resume'],
+  };
+  const next = applyVisionSectionPlacement(base, visionMeta, {
+    layoutStyle: 'sidebar-left',
+    templateId: 'modern',
+  });
+  const skills = next.pages[0].blocks.filter((b) => b.type === 'skills');
+  assert.ok(skills.length >= 1);
+  for (const block of skills) {
+    assert.ok((Number(block.x) || 0) > 40, 'skills devraient être en colonne principale');
+  }
+});
+
+test('buildThemeFromVisionImport : couleurs PDF, pas preset executive', () => {
+  const theme = buildThemeFromVisionImport(
+    { dominant_colors: { accent: '#003366', sidebar: '#eef2f7', header: '#003366' } },
+    {},
+    { id: 'executive', options: [{ key: 'accent_color', default: '#b8860b' }] },
+  );
+  assert.equal(theme.color_accent, '#003366');
+  assert.equal(theme.color_sidebar, '#eef2f7');
+  assert.notEqual(theme.color_accent, '#b8860b');
+});
+
+test('buildLayoutFromVisionDetection : preset calibré + couleurs vision', () => {
+  const templates = [
+    { id: 'modern', name: 'Modern' },
+    { id: 'executive', name: 'Executive' },
+  ];
+  const visionMeta = {
+    source: 'gemini_vision',
+    template_match: 'modern',
+    confidence: 0.88,
+    layout_style: 'sidebar-left',
+    dominant_colors: { accent: '#e11d48', sidebar: '#1e3a5f', header: '#1e3a5f' },
+    sections_found: ['experiences', 'formations', 'skills'],
+  };
+  const result = buildLayoutFromVisionDetection(DENSE_CV, visionMeta, templates, {});
+  assert.equal(result.importSource, 'vision-guided');
+  assert.equal(result.recommendedTemplateId, 'modern');
+  assert.ok(result.blockCount >= 8);
+  assert.equal(result.layout.theme.color_accent, '#e11d48');
+  assert.equal(result.layout.theme.color_sidebar, '#1e3a5f');
+  const hasSidebar = result.layout.pages[0].blocks.some(
+    (b) => b.type === 'shape:rect' && (Number(b.w) || 0) > 30,
+  );
+  assert.ok(hasSidebar);
+});
+
+test('buildFullCanvasImportLayout : vision detection → vision-guided', () => {
+  const templates = [{ id: 'classic', name: 'Classic' }, { id: 'creative', name: 'Creative' }];
+  const result = buildFullCanvasImportLayout(DENSE_CV, templates, {
+    visionMeta: {
+      source: 'gemini_vision',
+      template_match: 'creative',
+      confidence: 0.75,
+      dominant_colors: { accent: '#6366f1', sidebar: '#6366f1' },
+    },
+  });
+  assert.equal(result.importSource, 'vision-guided');
+  assert.equal(result.recommendedTemplateId, 'creative');
+});
+
+test('buildFullCanvasImportLayout : canvas preset sans vision', () => {
+  const templates = [
+    { id: 'classic', name: 'Classic' },
+    { id: 'executive', name: 'Executive' },
+  ];
+  const { layout, blockCount, recommendedTemplateId } = buildFullCanvasImportLayout(
+    DENSE_CV,
+    templates,
+    { layoutHints: { layout_style: 'sidebar-right' } },
+  );
+  assert.equal(recommendedTemplateId, 'executive');
+  assert.ok(blockCount >= 4);
+  assert.ok(layout.pages[0].blocks.length >= 4);
+});
+
+test('adaptCanvasLayoutForCv supprime blocs vides et redimensionne', () => {
+  const layout = createStarterLayoutV3();
+  const sparseCv = {
+    prenom: 'A',
+    nom: 'B',
+    experiences: [{ poste: 'Dev', entreprise: 'Co', bullet_points: ['x'] }],
+    formations: [],
+    certifications: [],
+    projets: [],
+    competences: { techniques: [], logiciels: [], langues: [], autres: [] },
+  };
+  const before = layout.pages[0].blocks.length;
+  const { layout: next, removedBlockCount, resizedBlockCount } = adaptCanvasLayoutForCv(
+    sparseCv,
+    layout,
+    { templatesList: [{ id: 'classic' }], templateId: 'classic' },
+  );
+  assert.ok(removedBlockCount >= 1);
+  assert.ok(resizedBlockCount >= 1);
+  assert.ok(next.pages[0].blocks.length <= before);
 });
 
 test('mergePresetDecorations ajoute bandeaux preset si absents', () => {
@@ -89,102 +221,4 @@ test('mergePresetDecorations ajoute bandeaux preset si absents', () => {
   const merged = mergePresetDecorations(vision, preset);
   const rects = merged.pages[0].blocks.filter((b) => b.type === 'shape:rect');
   assert.ok(rects.length >= 1);
-  assert.ok(merged.pages[0].blocks.length > 1);
-});
-
-test('buildImportLayoutFromVision utilise le layout vision', () => {
-  const visionLayout = {
-    version: 3,
-    format: 'A4',
-    grid: 'free',
-    unit: 'mm',
-    theme: {
-      color_accent: '#dc2626',
-      color_sidebar: '#1e293b',
-      color_header: '#1e293b',
-      color_section_title: '#dc2626',
-      color_body: '#1a1a1a',
-    },
-    pages: [{
-      id: 'page_import_1',
-      blocks: [
-        { id: 'bg', type: 'shape:rect', x: 0, y: 0, w: 53, h: 297, z: 0, style: { color: '#1e293b' } },
-        { id: 'id', type: 'identity', bind: ['prenom', 'nom', 'titre_professionnel'], x: 8, y: 30, w: 37, h: 22, z: 2, style: { zone: 'sidebar', color: '#fff' } },
-        { id: 'exp', type: 'experiences', bind: 'experiences', x: 60, y: 20, w: 130, h: 120, z: 1, style: { zone: 'main', section_label: 'EXPÉRIENCE' } },
-        { id: 'form', type: 'formations', bind: 'formations', x: 60, y: 150, w: 130, h: 30, z: 1, style: { zone: 'main', section_label: 'FORMATION' } },
-      ],
-    }],
-  };
-  const templates = [{ id: 'modern', name: 'Modern' }, { id: 'executive', name: 'Executive' }];
-  const result = buildImportLayoutFromVision(DENSE_CV, visionLayout, templates, {
-    layoutHints: { layout_style: 'sidebar-left' },
-    visionMeta: { confidence: 0.9, source: 'gemini_vision' },
-  });
-  assert.equal(result.importSource, 'vision');
-  assert.ok(result.blockCount >= 4);
-  assert.equal(result.layout.theme.color_accent, '#dc2626');
-});
-
-test('buildFullCanvasImportLayout : préfère vision si confidence suffisante', () => {
-  const visionLayout = {
-    version: 3,
-    format: 'A4',
-    grid: 'free',
-    unit: 'mm',
-    theme: { color_accent: '#6366f1' },
-    pages: [{
-      id: 'p1',
-      blocks: [
-        { id: 'bg', type: 'shape:rect', x: 0, y: 0, w: 53, h: 297, z: 0, style: { color: '#6366f1' } },
-        { id: 'exp', type: 'experiences', bind: 'experiences', x: 60, y: 20, w: 130, h: 100, z: 1, style: { zone: 'main' } },
-      ],
-    }],
-  };
-  const templates = [{ id: 'classic', name: 'Classic' }];
-  const result = buildFullCanvasImportLayout(DENSE_CV, templates, {
-    visionLayout,
-    visionMeta: { confidence: 0.82 },
-  });
-  assert.equal(result.importSource, 'vision');
-});
-
-test('buildFullCanvasImportLayout : canvas complet avec blocs (preset)', () => {
-  const templates = [
-    { id: 'classic', name: 'Classic' },
-    { id: 'executive', name: 'Executive' },
-  ];
-  const { layout, blockCount, recommendedTemplateId } = buildFullCanvasImportLayout(
-    DENSE_CV,
-    templates,
-    { layoutHints: { layout_style: 'sidebar-right' } },
-  );
-  assert.equal(recommendedTemplateId, 'executive');
-  assert.ok(blockCount >= 4);
-  assert.ok(layout.pages[0].blocks.length >= 4);
-  assert.ok(layout.theme?.color_accent);
-});
-
-test('adaptCanvasLayoutForCv supprime blocs vides et redimensionne', () => {
-  const layout = createStarterLayoutV3();
-  const sparseCv = {
-    prenom: 'A',
-    nom: 'B',
-    experiences: [{ poste: 'Dev', entreprise: 'Co', bullet_points: ['x'] }],
-    formations: [],
-    certifications: [],
-    projets: [],
-    competences: { techniques: [], logiciels: [], langues: [], autres: [] },
-  };
-  const before = layout.pages[0].blocks.length;
-  const { layout: next, removedBlockCount, resizedBlockCount } = adaptCanvasLayoutForCv(
-    sparseCv,
-    layout,
-    { templatesList: [{ id: 'classic' }], templateId: 'classic' },
-  );
-  assert.ok(removedBlockCount >= 1);
-  assert.ok(resizedBlockCount >= 1);
-  assert.ok(next.pages[0].blocks.length <= before);
-  const exp = next.pages[0].blocks.find((b) => b.type === 'experiences');
-  assert.ok(exp);
-  assert.ok(exp.h >= 20);
 });

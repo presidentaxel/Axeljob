@@ -5,14 +5,20 @@
  * reflow → pagination → ordre ATS.
  */
 import { applyAtsLayoutOptimizations } from './atsLayoutOptimize.js';
-import { parseCanvasTheme } from './canvasTemplateSpecs.js';
+import {
+  LAYOUT,
+  MAIN_PAD_X,
+  MAIN_PAD_Y,
+  parseCanvasTheme,
+  SIDE_PAD_X,
+  SIDE_PAD_Y,
+} from './canvasTemplateSpecs.js';
 import { createCanvasLayoutForTemplate } from './layoutTemplatePresets.js';
 import { reflowColumnBlocksOnPage } from './layoutReflow.js';
 import { applyLayoutPagination } from './layoutPagination.js';
 import {
   PAGE_HEIGHT_MM,
   PAGE_WIDTH_MM,
-  migrateLayoutToV3,
   removeBlock,
   sanitizeLayoutV3,
   setBlockPosition,
@@ -124,10 +130,20 @@ function isValidHexColor(value) {
   return /^#[0-9a-fA-F]{6}$/.test(String(value || '').trim());
 }
 
+const KNOWN_TEMPLATE_IDS = new Set([
+  'modern', 'creative', 'executive', 'bold', 'classic', 'minimal', 'elegant',
+]);
+
 /** Choisit le template le plus adapté au profil importé. */
 export function recommendTemplateId(analysis, templatesList = [], currentTemplateId = '', layoutHints = {}) {
   const ids = new Set((templatesList || []).map((t) => t?.id).filter(Boolean));
   const pick = (id) => (ids.has(id) ? id : null);
+
+  const visionTemplate = String(layoutHints?.template_match || '').trim();
+  if (KNOWN_TEMPLATE_IDS.has(visionTemplate) && pick(visionTemplate)) {
+    return visionTemplate;
+  }
+
   const style = String(layoutHints?.layout_style || '').trim();
 
   if (style && LAYOUT_STYLE_TEMPLATES[style]) {
@@ -161,11 +177,11 @@ export function summarizeImportAdaptation(analysis, templateLabel, blockCount = 
   if (analysis.skillCount) parts.push(`${analysis.skillCount} compétences`);
   const body = parts.length ? parts.join(' · ') : 'Profil structuré';
   const blocks = blockCount > 0 ? ` · ${blockCount} blocs` : '';
-  const mode = fromVision ? 'reconstruction visuelle' : templateLabel;
+  const mode = fromVision ? `style ${templateLabel}` : templateLabel;
   return `${body} — ${mode}${blocks}`;
 }
 
-const VISION_MIN_CONFIDENCE = 0.3;
+const VISION_MIN_CONFIDENCE = 0.15;
 
 function cloneBlock(block) {
   return JSON.parse(JSON.stringify(block));
@@ -216,51 +232,288 @@ export function mergePresetDecorations(visionLayout, presetLayout) {
   };
 }
 
-/** Applique le layout vision Gemini + adaptation contenu. */
-export function buildImportLayoutFromVision(cv, rawVisionLayout, templatesList = [], {
+/** Fusionne les hints API + détection vision. */
+export function mergeVisionLayoutHints(layoutHints = {}, visionMeta = {}) {
+  const merged = { ...layoutHints };
+  if (visionMeta?.template_match) merged.template_match = visionMeta.template_match;
+  if (visionMeta?.layout_style) merged.layout_style = visionMeta.layout_style;
+  const dom = visionMeta?.dominant_colors;
+  if (dom && typeof dom === 'object') {
+    if (isValidHexColor(dom.accent)) merged.accent_color = dom.accent;
+    if (isValidHexColor(dom.sidebar)) merged.sidebar_color = dom.sidebar;
+    if (isValidHexColor(dom.header)) merged.header_color = dom.header;
+    if (isValidHexColor(dom.body_text)) merged.body_text_color = dom.body_text;
+  }
+  const sections = visionMeta?.sections_found || visionMeta?.sections_in_main;
+  if (Array.isArray(sections) && sections.length) {
+    merged.sections_emphasis = sections;
+  }
+  if (Array.isArray(visionMeta?.sections_in_sidebar)) {
+    merged.sections_in_sidebar = visionMeta.sections_in_sidebar;
+  }
+  if (Array.isArray(visionMeta?.sections_in_main)) {
+    merged.sections_in_main = visionMeta.sections_in_main;
+  }
+  return merged;
+}
+
+/** Thème import PDF : couleurs vision uniquement (jamais preset template / profil). */
+export function buildThemeFromVisionImport(visionMeta = {}, layoutHints = {}, template = null) {
+  const fonts = template ? parseCanvasTheme(template) : {};
+  const theme = {
+    template_id: template?.id || 'imported',
+    font_heading: fonts.font_heading || 'Inter, sans-serif',
+    font_body: fonts.font_body || fonts.font_heading || 'Inter, sans-serif',
+    color_body: '#1a1a1a',
+  };
+
+  const dom = visionMeta?.dominant_colors && typeof visionMeta.dominant_colors === 'object'
+    ? visionMeta.dominant_colors
+    : {};
+
+  const accent = [dom.accent, layoutHints.accent_color].find(isValidHexColor);
+  const sidebar = [dom.sidebar, layoutHints.sidebar_color].find(isValidHexColor);
+  const header = [dom.header, layoutHints.header_color].find(isValidHexColor);
+  const bodyText = [dom.body_text, layoutHints.body_text_color].find(isValidHexColor);
+
+  if (accent) {
+    theme.color_accent = accent;
+    theme.color_section_title = accent;
+  }
+  if (sidebar) theme.color_sidebar = sidebar;
+  if (header) theme.color_header = header;
+  if (bodyText) theme.color_body = bodyText;
+
+  if (!theme.color_accent) theme.color_accent = '#1e2a3a';
+  if (!theme.color_section_title) theme.color_section_title = theme.color_accent;
+  if (!theme.color_header) theme.color_header = theme.color_accent;
+  if (!theme.color_sidebar) theme.color_sidebar = '#f4f4f5';
+
+  return theme;
+}
+
+function finalizeImportLayout(layout, visionMeta, layoutHints, template, recommendedTemplateId) {
+  const layoutTemplate = stripTemplateColorOptions(template);
+  const mergedHints = mergeVisionLayoutHints(layoutHints, visionMeta);
+  const importTheme = buildThemeFromVisionImport(visionMeta, mergedHints, layoutTemplate);
+  importTheme.template_id = recommendedTemplateId || importTheme.template_id;
+  return applyThemeColorsToDecorativeBlocks({ ...layout, theme: importTheme });
+}
+
+/** Retire les couleurs sauvegardées du template utilisateur (import = couleurs PDF). */
+function stripTemplateColorOptions(template) {
+  if (!template?.options?.length) return template;
+  return {
+    ...template,
+    options: template.options.filter(
+      (o) => !['accent_color', 'sidebar_color', 'header_color'].includes(o?.key),
+    ),
+  };
+}
+
+const HEADER_BAND_TEMPLATES = new Set(['executive', 'bold']);
+
+function isRightSidebarLayout(layoutStyle = '', templateId = '') {
+  return layoutStyle === 'sidebar-right' || HEADER_BAND_TEMPLATES.has(templateId);
+}
+
+function isSingleColumnLayout(layoutStyle = '', templateId = '') {
+  return layoutStyle === 'single-column' || templateId === 'minimal' || templateId === 'elegant';
+}
+
+function visionLaneForSectionType(type, visionMeta = {}) {
+  const key = type === 'skills' ? 'skills' : type;
+  const inSidebar = visionMeta?.sections_in_sidebar || [];
+  const inMain = visionMeta?.sections_in_main || [];
+  if (inSidebar.includes(key)) return 'sidebar';
+  if (inMain.includes(key)) return 'main';
+  return null;
+}
+
+function columnMetricsForLayout(layoutStyle, templateId) {
+  if (isSingleColumnLayout(layoutStyle, templateId)) return null;
+  const { SB, MAIN_L, MAIN_R, SB_R } = LAYOUT;
+  if (isRightSidebarLayout(layoutStyle, templateId)) {
+    return {
+      sidebar: { x: SB_R.x + SIDE_PAD_X, w: SB_R.w - SIDE_PAD_X * 2, zone: 'sidebar-light' },
+      main: { x: MAIN_R.x + MAIN_PAD_X, w: MAIN_R.w - MAIN_PAD_X * 2, zone: 'main' },
+    };
+  }
+  return {
+    sidebar: { x: SIDE_PAD_X, w: SB - SIDE_PAD_X * 2, zone: 'sidebar' },
+    main: { x: MAIN_L.x + MAIN_PAD_X, w: MAIN_L.w - MAIN_PAD_X * 2, zone: 'main' },
+  };
+}
+
+const VISION_MOVABLE_TYPES = new Set([
+  'experiences', 'formations', 'certifications', 'languages', 'projets', 'skills',
+]);
+
+const HEADER_ZONE_TYPES = new Set(['header', 'sidebar-light']);
+
+/** Repositionne les sections selon sections_in_sidebar / sections_in_main (vision PDF). */
+export function applyVisionSectionPlacement(layout, visionMeta = {}, {
+  layoutStyle = '',
+  templateId = '',
+} = {}) {
+  if (!layout?.pages?.length) return layout;
+  const metrics = columnMetricsForLayout(
+    layoutStyle || visionMeta?.layout_style || '',
+    templateId,
+  );
+  if (!metrics) return layout;
+
+  const skipHeaderTypes = visionMeta?.has_header_band && HEADER_BAND_TEMPLATES.has(templateId)
+    ? new Set(['identity', 'contact', 'resume', 'photo'])
+    : new Set(['identity', 'contact', 'photo', 'resume']);
+
+  const pages = layout.pages.map((page) => ({
+    ...page,
+    blocks: (page.blocks || []).map((block) => {
+      if (DECORATIVE_TYPES.has(block.type) || !VISION_MOVABLE_TYPES.has(block.type)) {
+        return block;
+      }
+      if (skipHeaderTypes.has(block.type)) return block;
+
+      const targetLane = visionLaneForSectionType(block.type, visionMeta);
+      if (!targetLane) return block;
+
+      const currentLane = blockLane(block);
+      if (currentLane === targetLane) return block;
+
+      const col = metrics[targetLane];
+      const style = { ...(block.style || {}), zone: col.zone };
+      if (targetLane === 'sidebar' && templateId === 'creative') {
+        style.color = 'rgba(255,255,255,0.92)';
+        style.title_style = style.title_style || 'sidebar-creative';
+      }
+      return {
+        ...block,
+        x: col.x,
+        w: col.w,
+        style,
+      };
+    }),
+  }));
+
+  return { ...layout, pages };
+}
+
+/** Applique photo_shape détectée par la vision (cercle / carré). */
+export function applyVisionPhotoShape(layout, visionMeta = {}) {
+  const shape = visionMeta?.photo_shape;
+  if (!shape || !layout?.pages?.length) return layout;
+  const pages = layout.pages.map((page) => ({
+    ...page,
+    blocks: (page.blocks || []).map((block) => (
+      block.type === 'photo'
+        ? { ...block, style: { ...(block.style || {}), shape } }
+        : block
+    )),
+  }));
+  return { ...layout, pages };
+}
+
+/** Recolore bandeaux / sidebar du preset selon le thème vision. */
+export function applyThemeColorsToDecorativeBlocks(layout) {
+  if (!layout?.pages?.length) return layout;
+  const theme = layout.theme || {};
+  const accent = theme.color_accent;
+  const sidebar = theme.color_sidebar;
+  const header = theme.color_header;
+
+  const pages = layout.pages.map((page) => ({
+    ...page,
+    blocks: (page.blocks || []).map((block) => {
+      if (block.type !== 'shape:rect' && block.type !== 'shape:line') return block;
+      const w = Number(block.w) || 0;
+      const h = Number(block.h) || 0;
+      const x = Number(block.x) || 0;
+      const y = Number(block.y) || 0;
+      const style = { ...(block.style || {}) };
+
+      if (block.type === 'shape:rect') {
+        if (h > PAGE_HEIGHT_MM * 0.45 && w < PAGE_WIDTH_MM * 0.4 && sidebar) {
+          style.color = sidebar;
+        } else if (y < 14 && h < 80 && w > PAGE_WIDTH_MM * 0.45 && header) {
+          style.color = header;
+        } else if (h < 3 && accent) {
+          style.color = accent;
+        }
+      }
+      if (block.type === 'shape:line' && accent) {
+        style.color = accent;
+      }
+      if (x > PAGE_WIDTH_MM * 0.62 && h > PAGE_HEIGHT_MM * 0.4 && sidebar) {
+        style.color = sidebar;
+      }
+      return { ...block, style };
+    }),
+  }));
+
+  return { ...layout, pages };
+}
+
+/**
+ * Pipeline fiable : vision classifie template + couleurs → preset canvas calibré.
+ */
+export function buildLayoutFromVisionDetection(cv, visionMeta = {}, templatesList = [], {
   templateId = '',
   layoutHints = {},
-  visionMeta = {},
 } = {}) {
   const analysis = analyzeCvProfile(cv);
+  const mergedHints = mergeVisionLayoutHints(layoutHints, visionMeta);
   const recommendedTemplateId = recommendTemplateId(
     analysis,
     templatesList,
     templateId,
-    layoutHints,
+    mergedHints,
   );
   const template = (templatesList || []).find((t) => t?.id === recommendedTemplateId)
     || (templatesList || [])[0];
-  const preset = template ? createCanvasLayoutForTemplate(template) : null;
+  const layoutTemplate = stripTemplateColorOptions(template);
 
-  let layout = sanitizeLayoutV3(migrateLayoutToV3(rawVisionLayout));
-  if (preset) {
-    layout = mergePresetDecorations(layout, preset);
-    const presetTheme = parseCanvasTheme(template);
-    layout.theme = {
-      ...presetTheme,
-      ...inferThemeFromProfile(analysis, layoutHints),
-      ...layout.theme,
-      template_id: 'imported',
-    };
-  }
-
-  const result = adaptCanvasLayoutForCv(cv, layout, {
+  let result = buildAdaptedCanvasLayoutForCv(cv, layoutTemplate, {
     templatesList,
     templateId: recommendedTemplateId,
-    layoutHints,
-    fromVision: true,
+    layoutHints: mergedHints,
+    forImport: true,
+    skipAdaptReorder: true,
   });
+
+  let layout = result.layout;
+  layout = applyVisionSectionPlacement(layout, visionMeta, {
+    layoutStyle: mergedHints.layout_style || visionMeta?.layout_style,
+    templateId: recommendedTemplateId,
+  });
+  layout = applyVisionPhotoShape(layout, visionMeta);
+
+  const analysis2 = analyzeCvProfile(cv);
+  layout = reorderSemanticBlocksByPriority(layout, cv, analysis2, mergedHints);
+  for (let pi = 0; pi < (layout.pages?.length || 0); pi += 1) {
+    layout = reflowColumnBlocksOnPage(layout, pi);
+  }
+  layout = applyLayoutPagination(layout);
+
+  result.layout = finalizeImportLayout(
+    layout,
+    visionMeta,
+    mergedHints,
+    template,
+    recommendedTemplateId,
+  );
 
   return {
     ...result,
-    recommendedTemplateId: 'imported',
-    importSource: 'vision',
+    layout: result.layout,
+    blockCount: countLayoutBlocks(result.layout),
+    recommendedTemplateId,
+    importSource: 'vision-guided',
     visionConfidence: Number(visionMeta?.confidence ?? 0),
   };
 }
 
-export function inferThemeFromProfile(analysis, layoutHints = {}) {
+export function inferThemeFromProfile(analysis, layoutHints = {}, { skipPresets = false } = {}) {
   const theme = {};
   if (isValidHexColor(layoutHints.accent_color)) {
     theme.color_accent = layoutHints.accent_color;
@@ -273,7 +526,7 @@ export function inferThemeFromProfile(analysis, layoutHints = {}) {
     theme.color_header = layoutHints.header_color;
   }
 
-  if (!theme.color_accent) {
+  if (!skipPresets && !theme.color_accent) {
     if (analysis.isCreativeProfile) Object.assign(theme, THEME_PRESETS.creative);
     else if (analysis.isExecutiveProfile) Object.assign(theme, THEME_PRESETS.executive);
     else if (analysis.isTechProfile) Object.assign(theme, THEME_PRESETS.tech);
@@ -358,6 +611,9 @@ export function estimateSemanticBlockHeight(block, cv, { respectCurrentMin = fal
     case 'resume': {
       const chars = String(cv?.resume || '').trim().length;
       if (!chars) return 0;
+      if (block.style?.zone === 'header') {
+        return Math.min(14, Math.max(10, 8 + chars * 0.06));
+      }
       return Math.max(16, Math.min(52, 12 + chars * 0.22));
     }
     case 'experiences':
@@ -416,7 +672,10 @@ export function reorderSemanticBlocksByPriority(layout, cv, analysis, layoutHint
     const lanes = new Map();
     for (const block of blocks) {
       if (DECORATIVE_TYPES.has(block.type)) continue;
+      const zone = block.style?.zone;
+      if (zone === 'header') continue;
       const lane = blockLane(block);
+      if (HEADER_ZONE_TYPES.has(lane)) continue;
       if (!lanes.has(lane)) lanes.set(lane, []);
       lanes.get(lane).push(block);
     }
@@ -453,6 +712,7 @@ export function adaptCanvasLayoutForCv(cv, layout, {
   templateId = '',
   layoutHints = {},
   fromVision = false,
+  forImport = false,
 } = {}) {
   const analysis = analyzeCvProfile(cv);
   const recommendedTemplateId = recommendTemplateId(
@@ -493,7 +753,7 @@ export function adaptCanvasLayoutForCv(cv, layout, {
     }
   }
 
-  if (!fromVision) {
+  if (!fromVision && !forImport) {
     next = reorderSemanticBlocksByPriority(next, cv, analysis, layoutHints);
   }
 
@@ -504,7 +764,7 @@ export function adaptCanvasLayoutForCv(cv, layout, {
   next = applyLayoutPagination(next);
   next = applyAtsLayoutOptimizations(next);
 
-  if (!fromVision) {
+  if (!fromVision && !forImport) {
     const themePatch = inferThemeFromProfile(analysis, layoutHints);
     next = {
       ...next,
@@ -532,12 +792,15 @@ export function buildAdaptedCanvasLayoutForCv(cv, template, options = {}) {
     templatesList: options.templatesList,
     templateId,
     layoutHints: options.layoutHints || {},
+    forImport: Boolean(options.forImport),
   });
   let layout = result.layout;
-  for (let pi = 0; pi < (layout.pages?.length || 0); pi += 1) {
-    layout = reflowColumnBlocksOnPage(layout, pi);
+  if (!options.skipAdaptReorder) {
+    for (let pi = 0; pi < (layout.pages?.length || 0); pi += 1) {
+      layout = reflowColumnBlocksOnPage(layout, pi);
+    }
+    layout = applyLayoutPagination(layout);
   }
-  layout = applyLayoutPagination(layout);
   return { ...result, layout, blockCount: countLayoutBlocks(layout) };
 }
 
@@ -547,20 +810,21 @@ export function buildAdaptedCanvasLayoutForCv(cv, template, options = {}) {
 export function buildFullCanvasImportLayout(cv, templatesList = [], {
   templateId = '',
   layoutHints = {},
-  visionLayout = null,
+  visionLayout: _visionLayout = null,
   visionMeta = {},
 } = {}) {
   const confidence = Number(visionMeta?.confidence ?? 0);
-  const visionUsable = Boolean(
-    visionLayout?.pages?.length
-    && confidence >= VISION_MIN_CONFIDENCE,
+  const hasVisionDetection = Boolean(
+    visionMeta?.source === 'gemini_vision'
+    || visionMeta?.template_match
+    || visionMeta?.layout_style
+    || (visionMeta?.dominant_colors && confidence >= VISION_MIN_CONFIDENCE),
   );
 
-  if (visionUsable) {
-    return buildImportLayoutFromVision(cv, visionLayout, templatesList, {
+  if (hasVisionDetection && (visionMeta?.template_match || confidence >= VISION_MIN_CONFIDENCE)) {
+    return buildLayoutFromVisionDetection(cv, visionMeta, templatesList, {
       templateId,
       layoutHints,
-      visionMeta,
     });
   }
 
@@ -573,10 +837,20 @@ export function buildFullCanvasImportLayout(cv, templatesList = [], {
   );
   const template = (templatesList || []).find((t) => t?.id === recommendedTemplateId)
     || (templatesList || [])[0];
-  const result = buildAdaptedCanvasLayoutForCv(cv, template, {
+  const layoutTemplate = stripTemplateColorOptions(template);
+  const mergedHints = mergeVisionLayoutHints(layoutHints, visionMeta);
+  const result = buildAdaptedCanvasLayoutForCv(cv, layoutTemplate, {
     templatesList,
     templateId: recommendedTemplateId,
-    layoutHints,
+    layoutHints: mergedHints,
+    forImport: true,
   });
+  result.layout = finalizeImportLayout(
+    result.layout,
+    visionMeta,
+    mergedHints,
+    template,
+    recommendedTemplateId,
+  );
   return { ...result, importSource: 'preset' };
 }

@@ -60,6 +60,7 @@ import {
   updateBlockStyle,
   isAutoHeightBlockType,
 } from '../../lib/cvLayoutModelV3.js';
+import { resetTemplateOptionsToDefaults } from '../../lib/templateOptionsSchema.js';
 import { reflowColumnBlocksOnPage } from '../../lib/layoutReflow.js';
 import { moveBlockToPage } from '../../lib/canvasPageTransfer.js';
 import { useAutoSave } from '../../lib/useAutoSave.js';
@@ -113,8 +114,8 @@ function CvEditorBeta({
   templateId,
   templateOptions,
   templatesList,
-  onTemplateIdChange: _onTemplateIdChange,
-  onTemplateOptionsChange: _onTemplateOptionsChange,
+  onTemplateIdChange,
+  onTemplateOptionsChange,
 }) {
   const [cv, setCv] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -171,12 +172,15 @@ function CvEditorBeta({
   const saveFn = useCallback(async (payload) => {
     const body = {
       ...payload,
-      template_id: templateId,
-      template_options: templateOptions,
+      template_id: payload.template_id ?? templateId,
+      template_options: payload.template_options ?? templateOptions,
     };
-    if (layout) body.layout = isEmptyLayoutV3(layout) ? null : layout;
+    const layoutToSave = payload.layout !== undefined ? payload.layout : layoutRef.current;
+    if (layoutToSave !== undefined) {
+      body.layout = layoutToSave && !isEmptyLayoutV3(layoutToSave) ? layoutToSave : null;
+    }
     return apiPut('/api/cv', body);
-  }, [templateId, templateOptions, layout]);
+  }, [templateId, templateOptions]);
 
   const autoSave = useAutoSave({
     saveFn,
@@ -335,14 +339,22 @@ function CvEditorBeta({
       visionMeta,
     });
     const recTemplate = templates.find((t) => t?.id === recommendedTemplateId) || templates[0];
-    const contextKey = importSource === 'vision'
-      ? templateCanvasContextKey('imported')
-      : templateCanvasContextKey(recTemplate?.id || BLANK_CANVAS_CONTEXT_KEY);
+    const contextKey = templateCanvasContextKey(recTemplate?.id || BLANK_CANVAS_CONTEXT_KEY);
+    const nextTemplateOptions = recTemplate
+      ? resetTemplateOptionsToDefaults(recTemplate)
+      : templateOptions;
+    if (recommendedTemplateId && onTemplateIdChange) {
+      onTemplateIdChange(recommendedTemplateId);
+    }
+    if (recTemplate && onTemplateOptionsChange) {
+      onTemplateOptionsChange(nextTemplateOptions);
+    }
     setCv(nextCv);
     setStartupPromptOpen(false);
     setImportModalOpen(false);
     setImportError('');
     resetLayout(finalLayout);
+    layoutRef.current = finalLayout;
     setSelectedBlockId(null);
     setEditingBlockId(null);
     setImageEditBlockId(null);
@@ -354,22 +366,33 @@ function CvEditorBeta({
     });
     refreshCanvasDrafts();
     try {
-      await saveFn({ ...nextCv, layout: finalLayout });
+      await autoSave.flush();
+      await saveFn({
+        ...nextCv,
+        layout: finalLayout,
+        template_id: recommendedTemplateId || templateId,
+        template_options: nextTemplateOptions,
+      });
     } catch (err) {
       setLoadError(err?.message || 'Import réussi mais enregistrement échoué.');
     }
-    const label = importSource === 'vision'
-      ? 'Import visuel'
-      : recommendTemplateLabel(recTemplate?.id, templates);
-    setImportToast(summarizeImportAdaptation(analysis, label, blockCount, {
-      fromVision: importSource === 'vision',
-    }));
+    const label = recommendTemplateLabel(recTemplate?.id, templates);
+    const visionNote = importSource === 'vision-guided'
+      ? ' · analyse visuelle PDF'
+      : visionMeta?.source === 'gemini_vision' ? ' · vision partielle' : '';
+    setImportToast(`${summarizeImportAdaptation(analysis, label, blockCount, {
+      fromVision: importSource === 'vision-guided',
+    })}${visionNote}`);
   }, [
     templatesList,
     templateId,
     resetLayout,
     refreshCanvasDrafts,
     saveFn,
+    autoSave,
+    onTemplateIdChange,
+    onTemplateOptionsChange,
+    templateOptions,
   ]);
 
   const runCvImport = useCallback(async (importFn) => {

@@ -15,9 +15,7 @@ PyJWT==2.13.0
 stripe==12.3.0
 resend>=2.5.1
 pdfplumber==0.11.9
-# PyMuPDF (fitz) déplacé dans backend/requirements-dev.txt : utilisé uniquement par
-# backend/scripts/cv_pdf_to_template.py (script de maintenance, jamais importé en runtime).
-# Le retirer du runtime économise ~50 Mo d'image Docker et ~100 Mo de libs natives.
+pymupdf==1.25.5
 python-docx==1.2.0
 python-multipart==0.0.27
 starlette==1.2.1

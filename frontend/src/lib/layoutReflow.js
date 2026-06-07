@@ -22,6 +22,7 @@ const REFLOW_SKIP_TYPES = new Set([
 
 function laneKey(block) {
   if (!block || REFLOW_SKIP_TYPES.has(block.type)) return null;
+  if (block.style?.zone === 'header') return null;
   if (block.style?.zone) return block.style.zone;
   const x = Number(block.x) || 0;
   if (x > PAGE_WIDTH_MM * 0.62) return 'sidebar';

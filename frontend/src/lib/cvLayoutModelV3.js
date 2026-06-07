@@ -343,7 +343,7 @@ export function sanitizeLayoutV3(input, { idHelpers } = {}) {
     cleanPages.push({ id: generateItemId('page', idHelpers || {}), blocks: [] });
   }
 
-  return {
+  const out = {
     version: LAYOUT_V3_VERSION,
     format: 'A4',
     grid: 'free',
@@ -353,6 +353,10 @@ export function sanitizeLayoutV3(input, { idHelpers } = {}) {
       ? { ...DEFAULT_THEME, ...safe.theme }
       : { ...DEFAULT_THEME },
   };
+  // Layout "libre" (copie fidèle d'un PDF importé) : positions absolues à
+  // préserver telles quelles, on ne doit JAMAIS le re-flow en colonnes.
+  if (safe.freeform === true) out.freeform = true;
+  return out;
 }
 
 // ---------------------------------------------------------------------------

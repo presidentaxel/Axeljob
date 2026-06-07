@@ -821,7 +821,9 @@ export function isStructuralLayout(layout) {
  */
 export function buildStructuralImportLayout(cv, structuralLayout, { templateId = '' } = {}) {
   const analysis = analyzeCvProfile(cv);
-  const sanitized = sanitizeLayoutV3(structuralLayout);
+  // `freeform` : positions absolues figées (cf. reflow/pagination) → copie
+  // fidèle du PDF, jamais ré-empilée en colonnes par l'auto-height.
+  const sanitized = sanitizeLayoutV3({ ...structuralLayout, freeform: true });
   const layout = applyLayoutPagination(sanitized);
   return {
     layout,

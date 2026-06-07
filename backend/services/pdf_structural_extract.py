@@ -469,6 +469,8 @@ def extract_layout_from_pdf(file_bytes: bytes, max_pages: int = MAX_PAGES) -> di
             "format": "A4",
             "grid": "free",
             "unit": "mm",
+            # Copie fidèle : positions absolues à préserver (pas de reflow colonne).
+            "freeform": True,
             "pages": pages_out,
             "theme": {
                 "template_id": "imported",

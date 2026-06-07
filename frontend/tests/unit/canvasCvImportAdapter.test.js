@@ -17,7 +17,8 @@ import {
   recommendTemplateId,
 } from '../../src/lib/canvasCvImportAdapter.js';
 import { createCanvasLayoutForTemplate } from '../../src/lib/layoutTemplatePresets.js';
-import { createStarterLayoutV3 } from '../../src/lib/cvLayoutModelV3.js';
+import { createStarterLayoutV3, sanitizeLayoutV3 } from '../../src/lib/cvLayoutModelV3.js';
+import { reflowColumnBlocksOnPage } from '../../src/lib/layoutReflow.js';
 
 const DENSE_CV = {
   prenom: 'Marie',
@@ -150,6 +151,59 @@ test('buildStructuralImportLayout : copie fidèle, aucun preset', () => {
   const title = blocks.find((b) => b.type === 'text' && b.content.includes('Louis'));
   assert.equal(title.style.font_size, 20);
   assert.equal(title.style.bold, true);
+});
+
+test('buildStructuralImportLayout : marque le layout freeform (pas de reflow)', () => {
+  const result = buildStructuralImportLayout(DENSE_CV, STRUCTURAL_LAYOUT, { templateId: '' });
+  assert.equal(result.layout.freeform, true);
+});
+
+test('sanitizeLayoutV3 : préserve le flag freeform', () => {
+  const out = sanitizeLayoutV3({ ...STRUCTURAL_LAYOUT, freeform: true });
+  assert.equal(out.freeform, true);
+});
+
+test('reflowColumnBlocksOnPage : ne touche pas un layout freeform', () => {
+  // Deux blocs texte côte à côte (même lane "main", même y) : un reflow
+  // classique empilerait le second sous le premier. En freeform on garde tout.
+  const layout = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    freeform: true,
+    pages: [{
+      id: 'p1',
+      blocks: [
+        { id: 'a', type: 'text', content: 'Organisation : Louitos', x: 4, y: 50, w: 35, h: 4, z: 3, style: {} },
+        { id: 'b', type: 'text', content: '2022 - Aujourd\'hui', x: 113, y: 50, w: 46, h: 4, z: 3, style: {} },
+      ],
+    }],
+    theme: {},
+  };
+  const out = reflowColumnBlocksOnPage(layout, 0);
+  assert.equal(out, layout); // identité : aucun repositionnement
+  assert.equal(out.pages[0].blocks[1].y, 50);
+});
+
+test('reflowColumnBlocksOnPage : empile bien hors freeform (régression du flag)', () => {
+  const layout = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    pages: [{
+      id: 'p1',
+      blocks: [
+        { id: 'a', type: 'experiences', bind: 'experiences', x: 4, y: 50, w: 120, h: 30, z: 3, style: {} },
+        { id: 'b', type: 'formations', bind: 'formations', x: 4, y: 50, w: 120, h: 20, z: 3, style: {} },
+      ],
+    }],
+    theme: {},
+  };
+  const out = reflowColumnBlocksOnPage(layout, 0);
+  const b = out.pages[0].blocks.find((blk) => blk.id === 'b');
+  assert.ok(b.y > 50); // empilé sous le premier
 });
 
 test('buildFullCanvasImportLayout : layout structurel prioritaire sur vision', () => {

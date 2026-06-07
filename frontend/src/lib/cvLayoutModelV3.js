@@ -70,6 +70,9 @@ export const PAGE_USABLE_WIDTH_MM = PAGE_WIDTH_MM - 2 * PAGE_MARGIN_MM;
 /** Tailles minimales d un bloc pour rester selectionnable et editable. */
 export const BLOCK_MIN_WIDTH_MM = 5;
 export const BLOCK_MIN_HEIGHT_MM = 3;
+// Imports fidèles (freeform) : on conserve les tailles exactes (filets fins,
+// puces, icônes) sans imposer le minimum d'édition qui les déformerait.
+export const BLOCK_MIN_EXACT_MM = 0.2;
 
 /**
  * Marge sous la page 1 (mm) avant spill P3.10 : permet de placer un bloc
@@ -178,7 +181,10 @@ export function isAutoHeightBlockType(type) {
  *
  * Retourne `null` si le bloc est irrecuperable (type inconnu).
  */
-export function sanitizeBlock(input, { idHelpers, allowPageOverflow = false, pageIndex = 0 } = {}) {
+export function sanitizeBlock(
+  input,
+  { idHelpers, allowPageOverflow = false, pageIndex = 0, exactSize = false } = {},
+) {
   if (!input || typeof input !== 'object') return null;
   const type = typeof input.type === 'string' ? input.type : null;
   if (!type || !ALL_TYPES_SET.has(type)) return null;
@@ -187,14 +193,16 @@ export function sanitizeBlock(input, { idHelpers, allowPageOverflow = false, pag
     ? input.id
     : generateItemId('blk', idHelpers || {});
 
+  const minW = exactSize ? BLOCK_MIN_EXACT_MM : BLOCK_MIN_WIDTH_MM;
+  const minH = exactSize ? BLOCK_MIN_EXACT_MM : BLOCK_MIN_HEIGHT_MM;
   const w = clamp(
-    isFiniteNumber(input.w) ? input.w : BLOCK_MIN_WIDTH_MM,
-    BLOCK_MIN_WIDTH_MM,
+    isFiniteNumber(input.w) ? input.w : minW,
+    minW,
     PAGE_WIDTH_MM,
   );
   const h = clamp(
-    isFiniteNumber(input.h) ? input.h : BLOCK_MIN_HEIGHT_MM,
-    BLOCK_MIN_HEIGHT_MM,
+    isFiniteNumber(input.h) ? input.h : minH,
+    minH,
     PAGE_HEIGHT_MM,
   );
   const x = clamp(
@@ -330,12 +338,14 @@ export function sanitizeLayoutV3(input, { idHelpers } = {}) {
   const safe = (input && typeof input === 'object') ? input : {};
   const pages = Array.isArray(safe.pages) ? safe.pages : [];
 
+  // Import fidèle : on préserve les tailles exactes (pas de minimum d'édition).
+  const exactSize = safe.freeform === true;
   const cleanPages = pages
     .filter((p) => p && typeof p === 'object')
     .map((p) => ({
       id: typeof p.id === 'string' && p.id ? p.id : generateItemId('page', idHelpers || {}),
       blocks: Array.isArray(p.blocks)
-        ? p.blocks.map((b) => sanitizeBlock(b, { idHelpers })).filter(Boolean)
+        ? p.blocks.map((b) => sanitizeBlock(b, { idHelpers, exactSize })).filter(Boolean)
         : [],
     }));
 
@@ -484,7 +494,11 @@ export function updateBlock(layout, blockId, patch) {
     merged.style = { ...(found.block.style || {}), ...patch.style };
   }
   const allowPageOverflow = layout?.grid === 'free';
-  const cleaned = sanitizeBlock(merged, { allowPageOverflow, pageIndex: found.pageIndex });
+  const cleaned = sanitizeBlock(merged, {
+    allowPageOverflow,
+    pageIndex: found.pageIndex,
+    exactSize: layout?.freeform === true,
+  });
   if (!cleaned) return layout;
   return withPagesUpdate(layout, found.pageIndex, (page) => ({
     ...page,

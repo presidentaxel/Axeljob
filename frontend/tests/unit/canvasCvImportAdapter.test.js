@@ -163,6 +163,26 @@ test('sanitizeLayoutV3 : préserve le flag freeform', () => {
   assert.equal(out.freeform, true);
 });
 
+test('sanitizeLayoutV3 : conserve les tailles exactes en freeform (pas de min 5×3)', () => {
+  const tiny = {
+    version: 3, format: 'A4', grid: 'free', unit: 'mm', freeform: true,
+    pages: [{ id: 'p1', blocks: [{ type: 'shape:rect', x: 10, y: 10, w: 0.4, h: 60, z: 1, style: { color: '#000' } }] }],
+  };
+  const b = sanitizeLayoutV3(tiny).pages[0].blocks[0];
+  assert.ok(b.w < 1, `attendu fin, reçu ${b.w}`);
+  assert.equal(b.h, 60);
+});
+
+test('sanitizeLayoutV3 : applique le min 5×3 hors freeform', () => {
+  const tiny = {
+    version: 3, format: 'A4', grid: 'free', unit: 'mm',
+    pages: [{ id: 'p1', blocks: [{ type: 'shape:rect', x: 10, y: 10, w: 0.4, h: 1, z: 1, style: {} }] }],
+  };
+  const b = sanitizeLayoutV3(tiny).pages[0].blocks[0];
+  assert.equal(b.w, 5);
+  assert.equal(b.h, 3);
+});
+
 test('sanitizeLayoutV3 : préserve les polices embarquées (@font-face)', () => {
   const fonts = [
     { family: 'PDFEmbed-Garet', weight: 700, style: 'normal', format: 'truetype', src: 'data:font/ttf;base64,AAA' },

@@ -31,6 +31,7 @@ import { useCanvasBlockAutoHeight } from '../../lib/useCanvasBlockAutoHeight.js'
 import { isFloatingToolbarTarget, placeCaretAtPoint } from '../../lib/canvasCaret.js';
 import { RESIZE_HANDLES } from '../../lib/freeCanvasResize.js';
 import CanvasEditableField from './CanvasEditableField.jsx';
+import CanvasIconGlyph from './CanvasIconGlyph.jsx';
 import { isVectorShapeType } from '../../lib/canvasShapePresets.js';
 import { blockEffectToCss } from '../../lib/canvasBlockEffects.js';
 import CanvasShapeSvg from './CanvasShapeSvg.jsx';

@@ -1090,47 +1090,51 @@ function CvEditorBeta({
           {atsOptimizeMessage}
         </div>
       )}
-      {editHintOpen && selectedBlock && blockSupportsEditHint(selectedBlock) && (
-        <div className="cv-editor-beta-edit-hint" role="status" aria-live="polite">
-          <span className="cv-editor-beta-edit-hint__text">
-            {editHintMessageForBlock(selectedBlock)}
-          </span>
-          <button
-            type="button"
-            className="cv-editor-beta-edit-hint__dismiss"
-            onClick={handleDismissEditHint}
-          >
-            Compris
-          </button>
-        </div>
-      )}
-      {semanticEditNoteOpen && (
-        <div className="cv-editor-beta-semantic-note" role="status" aria-live="polite">
-          <span className="cv-editor-beta-semantic-note__text">
-            Les modifications sur ce bloc mettent à jour ton CV de base (partagé avec le mode Stable).
-          </span>
-          <button
-            type="button"
-            className="cv-editor-beta-semantic-note__dismiss"
-            onClick={handleDismissSemanticEditNote}
-          >
-            Compris
-          </button>
-        </div>
-      )}
 
-      {selectedBlock && blockSupportsStyleToolbar(selectedBlock.type) && (
-        <EditorFloatingTextToolbar
-          block={selectedBlock}
-          isEditing={editingBlockId === selectedBlock.id}
-          onBlockStylePatch={handleBlockStylePatch}
-          onOpenFontPanel={handleOpenFontPanel}
-          onOpenColorPanel={handleOpenColorPanel}
-          onOpenEffectsPanel={handleOpenEffectsPanel}
-          onOpenShapePanel={handleOpenShapePanel}
-          onOpenPositionPanel={handleOpenPositionPanel}
-        />
-      )}
+      <div className="cv-editor-beta-subchrome">
+        {editHintOpen && selectedBlock && blockSupportsEditHint(selectedBlock) && (
+          <div className="cv-editor-beta-edit-hint" role="status" aria-live="polite">
+            <span className="cv-editor-beta-edit-hint__text">
+              {editHintMessageForBlock(selectedBlock)}
+            </span>
+            <button
+              type="button"
+              className="cv-editor-beta-edit-hint__dismiss"
+              onClick={handleDismissEditHint}
+            >
+              Compris
+            </button>
+          </div>
+        )}
+        {semanticEditNoteOpen && (
+          <div className="cv-editor-beta-semantic-note" role="status" aria-live="polite">
+            <span className="cv-editor-beta-semantic-note__text">
+              Les modifications sur ce bloc mettent à jour ton CV de base (partagé avec le mode Stable).
+            </span>
+            <button
+              type="button"
+              className="cv-editor-beta-semantic-note__dismiss"
+              onClick={handleDismissSemanticEditNote}
+            >
+              Compris
+            </button>
+          </div>
+        )}
+        {selectedBlock && blockSupportsStyleToolbar(selectedBlock.type) && (
+          <div className="cv-editor-beta-format-slot">
+            <EditorFloatingTextToolbar
+              block={selectedBlock}
+              isEditing={editingBlockId === selectedBlock.id}
+              onBlockStylePatch={handleBlockStylePatch}
+              onOpenFontPanel={handleOpenFontPanel}
+              onOpenColorPanel={handleOpenColorPanel}
+              onOpenEffectsPanel={handleOpenEffectsPanel}
+              onOpenShapePanel={handleOpenShapePanel}
+              onOpenPositionPanel={handleOpenPositionPanel}
+            />
+          </div>
+        )}
+      </div>
 
       <div className="cv-editor-beta-workspace cv-editor-beta-workspace--canva">
         <EditorCanvaSidebar

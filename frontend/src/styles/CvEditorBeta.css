@@ -5,8 +5,30 @@
  * Police : alias de --app-font-family (App.css) pour les composants editeur.
  */
 .cv-editor-beta {
+  /* Tokens Cohere 2026 — voir docs/DESIGN-cohere.md */
+  --color-primary: #17171c;
+  --color-ink: #212121;
+  --color-deep-green: #003c33;
+  --color-dark-navy: #071829;
+  --color-canvas: #ffffff;
+  --color-soft-stone: #eeece7;
+  --color-pale-green: #edfce9;
+  --color-pale-blue: #f1f5ff;
+  --color-hairline: #d9d9dd;
+  --color-border-light: #e5e7eb;
+  --color-card-border: #f2f2f2;
+  --color-muted: #93939f;
+  --color-slate: #75758a;
+  --color-body-muted: #616161;
+  --color-action-blue: #1863dc;
+  --color-focus-blue: #4c6ee6;
+  --color-coral: #ff7759;
+  --color-form-focus: #9b60aa;
+  --color-error: #b30000;
+  --color-on-dark: #ffffff;
   --editor-font-family: var(--app-font-family);
-  font-family: var(--app-font-family);
+  --cv-editor-beta-topbar-h: 52px;
+  font-family: var(--editor-font-family);
 }
 
 /* Mode plein ecran : uniquement le panneau Profil qui contient l editeur Beta.
@@ -49,7 +71,7 @@
   flex: 1;
   min-height: 0;
   height: auto;
-  background: #f8fafc;
+  background: var(--color-soft-stone);
   border-radius: 0;
   overflow: hidden;
   border: none;
@@ -59,7 +81,7 @@
   align-items: center;
   justify-content: center;
   padding: 3rem;
-  color: #64748b;
+  color: var(--color-muted);
 }
 
 .cv-editor-beta--load-error {
@@ -73,42 +95,38 @@
   max-width: 420px;
   width: 100%;
   padding: 1.5rem 1.75rem;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+  background: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  border-radius: 16px;
   text-align: center;
 }
 
 .cv-editor-beta-load-error-card h2 {
   margin: 0 0 0.75rem;
   font-size: 1.15rem;
-  font-weight: 600;
-  color: #0f172a;
+  font-weight: 500;
+  color: var(--color-ink);
 }
 
 .cv-editor-beta-load-error-card p {
   margin: 0 0 1.25rem;
   font-size: 0.9rem;
   line-height: 1.5;
-  color: #64748b;
-}
-
-.cv-editor-beta {
-  --cv-editor-beta-topbar-h: 52px;
+  color: var(--color-body-muted);
 }
 
 .cv-editor-beta-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.75rem 1rem;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-  border-bottom: 1px solid #e2e8f0;
+  padding: 0.65rem 1rem;
+  min-height: var(--cv-editor-beta-topbar-h);
+  background: var(--color-canvas);
+  border-bottom: 1px solid var(--color-hairline);
   gap: 1rem;
   flex-wrap: wrap;
   flex-shrink: 0;
-  z-index: 2;
+  z-index: 30;
 }
 
 .cv-editor-beta-topbar-left,
@@ -124,20 +142,21 @@
 }
 
 .cv-editor-beta-history-btn {
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  border-radius: 0.35rem;
-  padding: 0.28rem 0.5rem;
+  border: 1px solid var(--color-hairline);
+  background: var(--color-canvas);
+  border-radius: 30px;
+  padding: 0.35rem 0.75rem;
   font-size: 0.75rem;
-  font-weight: 600;
-  color: #475569;
+  font-weight: 500;
+  color: var(--color-ink);
   cursor: pointer;
   font-family: var(--editor-font-family);
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .cv-editor-beta-history-btn:hover:not(:disabled) {
-  border-color: #94a3b8;
-  background: #f8fafc;
+  border-color: var(--color-slate);
+  background: var(--color-soft-stone);
 }
 
 .cv-editor-beta-history-btn:disabled {
@@ -147,7 +166,7 @@
 
 .cv-editor-beta-delete-block-btn {
   border-color: #fecaca;
-  color: #b91c1c;
+  color: var(--color-error);
   background: #fef2f2;
 }
 
@@ -157,20 +176,36 @@
 }
 
 .cv-editor-beta-badge {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: white;
-  padding: 0.2rem 0.55rem;
-  border-radius: 0.35rem;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  background: var(--color-primary);
+  color: var(--color-on-dark);
+  padding: 0.25rem 0.65rem;
+  border-radius: 30px;
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .cv-editor-beta-title {
   font-size: 0.95rem;
-  font-weight: 600;
-  color: #1e293b;
+  font-weight: 500;
+  color: var(--color-ink);
+}
+
+/* Zone sous la topbar : astuces + barre de format */
+.cv-editor-beta-subchrome {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 100%;
+  background: var(--color-canvas);
+  border-bottom: 1px solid var(--color-hairline);
+  z-index: 25;
+}
+
+.cv-editor-beta-format-slot {
+  width: 100%;
+  flex-shrink: 0;
 }
 
 /* Selecteur de template dans la topbar editeur. */
@@ -233,19 +268,19 @@
 
 .cv-editor-beta-error {
   background: #fef2f2;
-  color: #991b1b;
-  border-bottom: 1px solid #fecaca;
+  color: var(--color-error);
+  border-bottom: 1px solid var(--color-hairline);
   padding: 0.5rem 1rem;
   font-size: 0.85rem;
 }
 
 .cv-editor-beta-info {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border-bottom: 1px solid #bfdbfe;
+  background: var(--color-pale-blue);
+  color: var(--color-action-blue);
+  border-bottom: 1px solid var(--color-hairline);
   padding: 0.5rem 1rem;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .cv-editor-beta-canvas {
@@ -253,14 +288,12 @@
   flex: 1;
   min-height: 0;
   min-width: 0;
-  padding: 6rem;
+  padding: 2rem;
   display: flex;
   justify-content: center;
   align-items: flex-start;
   overflow: auto;
-  background:
-    radial-gradient(circle at 20% 0%, rgba(99, 102, 241, 0.04), transparent 60%),
-    #f1f5f9;
+  background: var(--color-soft-stone);
 }
 
 .cv-editor-beta-start-panel {
@@ -270,38 +303,37 @@
   z-index: 20;
   width: min(92%, 440px);
   transform: translate(-50%, -50%);
-  padding: 1.25rem;
-  background: rgba(255, 255, 255, 0.98);
-  border: 1px solid #dbe4ff;
-  border-radius: 1rem;
-  box-shadow:
-    0 20px 45px rgba(15, 23, 42, 0.18),
-    0 0 0 1px rgba(255, 255, 255, 0.75) inset;
-  color: #1e293b;
+  padding: 1.5rem;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-card-border);
+  border-radius: 22px;
+  color: var(--color-ink);
 }
 
 .cv-editor-beta-start-panel__eyebrow {
   display: inline-flex;
   margin-bottom: 0.55rem;
-  padding: 0.18rem 0.5rem;
-  border-radius: 999px;
-  background: #eef2ff;
-  color: #4338ca;
+  padding: 0.2rem 0.55rem;
+  border-radius: 30px;
+  background: var(--color-pale-green);
+  color: var(--color-deep-green);
   font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .cv-editor-beta-start-panel h2 {
   margin: 0 0 0.5rem;
   font-size: 1.15rem;
+  font-weight: 500;
   line-height: 1.25;
+  color: var(--color-ink);
 }
 
 .cv-editor-beta-start-panel p {
   margin: 0;
-  color: #64748b;
+  color: var(--color-body-muted);
   font-size: 0.86rem;
   line-height: 1.5;
 }
@@ -315,38 +347,38 @@
 
 .cv-editor-beta-start-panel__primary,
 .cv-editor-beta-start-panel__secondary {
-  border-radius: 0.65rem;
-  padding: 0.62rem 0.85rem;
+  border-radius: 32px;
+  padding: 0.62rem 1.1rem;
   font-family: var(--editor-font-family);
   font-size: 0.84rem;
-  font-weight: 800;
+  font-weight: 500;
   cursor: pointer;
 }
 
 .cv-editor-beta-start-panel__primary {
-  border: 1px solid #4f46e5;
-  background: #4f46e5;
-  color: #fff;
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-dark);
 }
 
 .cv-editor-beta-start-panel__primary:hover {
-  background: #4338ca;
+  background: var(--color-ink);
+  border-color: var(--color-ink);
 }
 
 .cv-editor-beta-start-panel__secondary {
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  color: #334155;
+  border: 1px solid var(--color-primary);
+  background: transparent;
+  color: var(--color-primary);
 }
 
 .cv-editor-beta-start-panel__secondary:hover {
-  border-color: #94a3b8;
-  background: #f8fafc;
+  background: var(--color-soft-stone);
 }
 
 .cv-editor-beta-start-panel__hint {
   padding-top: 0.75rem;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--color-hairline);
   font-size: 0.78rem !important;
 }
 
@@ -355,10 +387,10 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.4rem 1rem;
-  background: white;
-  border-top: 1px solid #e2e8f0;
+  background: var(--color-canvas);
+  border-top: 1px solid var(--color-hairline);
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--color-muted);
   flex-shrink: 0;
 }
 
@@ -368,13 +400,12 @@
   justify-content: space-between;
   gap: 0.75rem;
   flex-wrap: wrap;
-  margin: 0 1rem;
-  padding: 0.55rem 0.85rem;
-  background: linear-gradient(90deg, #eef2ff 0%, #f8fafc 100%);
-  border: 1px solid #c7d2fe;
-  border-radius: 8px;
+  margin: 0;
+  padding: 0.55rem 1rem;
+  background: var(--color-pale-blue);
+  border-bottom: 1px solid var(--color-hairline);
   font-size: 0.82rem;
-  color: #3730a3;
+  color: var(--color-ink);
   flex-shrink: 0;
 }
 
@@ -386,21 +417,21 @@
 
 .cv-editor-beta-edit-hint__dismiss {
   flex-shrink: 0;
-  padding: 0.3rem 0.65rem;
+  padding: 0.3rem 0.75rem;
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 500;
   font-family: inherit;
-  color: #4338ca;
-  background: #fff;
-  border: 1px solid #a5b4fc;
-  border-radius: 6px;
+  color: var(--color-primary);
+  background: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  border-radius: 30px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
 
 .cv-editor-beta-edit-hint__dismiss:hover {
-  background: #eef2ff;
-  border-color: #6366f1;
+  background: var(--color-soft-stone);
+  border-color: var(--color-slate);
 }
 
 .cv-editor-beta-semantic-note {
@@ -409,13 +440,12 @@
   justify-content: space-between;
   gap: 0.75rem;
   flex-wrap: wrap;
-  margin: 0 1rem;
-  padding: 0.55rem 0.85rem;
-  background: linear-gradient(90deg, #fffbeb 0%, #f8fafc 100%);
-  border: 1px solid #fde68a;
-  border-radius: 8px;
+  margin: 0;
+  padding: 0.55rem 1rem;
+  background: var(--color-pale-green);
+  border-bottom: 1px solid var(--color-hairline);
   font-size: 0.82rem;
-  color: #92400e;
+  color: var(--color-deep-green);
   flex-shrink: 0;
 }
 
@@ -427,21 +457,20 @@
 
 .cv-editor-beta-semantic-note__dismiss {
   flex-shrink: 0;
-  padding: 0.3rem 0.65rem;
+  padding: 0.3rem 0.75rem;
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 500;
   font-family: inherit;
-  color: #b45309;
-  background: #fff;
-  border: 1px solid #fcd34d;
-  border-radius: 6px;
+  color: var(--color-deep-green);
+  background: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  border-radius: 30px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
 
 .cv-editor-beta-semantic-note__dismiss:hover {
-  background: #fffbeb;
-  border-color: #f59e0b;
+  background: var(--color-soft-stone);
 }
 
 /* Auto-save indicator pill - voir components/editor/AutoSaveIndicator.jsx.

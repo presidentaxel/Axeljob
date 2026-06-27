@@ -15,18 +15,25 @@
   flex-direction: column;
   gap: 2px;
   font-size: 0.65rem;
-  font-weight: 600;
-  color: #64748b;
+  font-weight: 500;
+  color: var(--color-muted, #93939f);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .editor-canva-position-drawer__geom input {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  padding: 4px 6px;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-hairline, #d9d9dd);
+  border-radius: 8px;
   font-size: 0.75rem;
+}
+
+.editor-canva-position-drawer__geom input:focus-visible {
+  outline: none;
+  border-color: var(--color-form-focus, #9b60aa);
 }
 
 .editor-canva-position-drawer__z-actions {
@@ -39,21 +46,29 @@
 .editor-canva-position-drawer__z-actions button {
   flex: 1 1 calc(50% - 4px);
   min-width: 0;
-  padding: 6px 6px;
+  padding: 6px 8px;
   font-size: 0.65rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  background: #f8fafc;
+  font-weight: 500;
+  border: 1px solid var(--color-hairline, #d9d9dd);
+  border-radius: 8px;
+  background: var(--color-canvas, #fff);
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.editor-canva-position-drawer__z-actions button:hover {
+  background: var(--color-soft-stone, #eeece7);
+}
+
 .editor-canva-position-drawer__layers {
   list-style: none;
   margin: 0;
   padding: 0;
+  border: 1px solid var(--color-card-border, #f2f2f2);
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .editor-canva-position-drawer__layer {
@@ -63,25 +78,22 @@
   width: 100%;
   padding: 8px 10px;
   border: none;
-  border-bottom: 1px solid #f1f5f9;
-  background: #fff;
+  border-bottom: 1px solid var(--color-card-border, #f2f2f2);
+  background: var(--color-canvas, #fff);
   text-align: left;
   font-size: 0.78rem;
   cursor: pointer;
 }
 
+.editor-canva-position-drawer__layer:last-child {
+  border-bottom: none;
+}
+
 .editor-canva-position-drawer__layer:hover {
-  background: #f8fafc;
+  background: var(--color-soft-stone, #eeece7);
 }
 
 .editor-canva-position-drawer__layer--active {
-  background: #eef2ff;
-  color: #3730a3;
-}
-
-.editor-canva-position-drawer__layer-z {
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: #94a3b8;
-  min-width: 1.5rem;
+  background: var(--color-pale-green, #edfce9);
+  color: var(--color-primary, #17171c);
 }

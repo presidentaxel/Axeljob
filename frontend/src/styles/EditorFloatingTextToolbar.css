@@ -3,14 +3,13 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 4px;
+  width: 100%;
+  box-sizing: border-box;
   padding: 8px 12px;
   margin: 0;
   background: var(--color-canvas, #ffffff);
-  border-bottom: 1px solid var(--color-hairline, #d9d9dd);
-  font-family: var(--app-font-family);
+  font-family: var(--editor-font-family, var(--app-font-family));
   font-size: 0.8rem;
-  flex-shrink: 0;
-  z-index: 20;
 }
 
 .editor-format-bar button {
@@ -34,9 +33,14 @@
 }
 
 .editor-format-bar button.is-active {
-  background: var(--color-pale-blue, #f1f5ff);
+  background: var(--color-pale-green, #edfce9);
   border-color: var(--color-hairline, #d9d9dd);
   color: var(--color-primary, #17171c);
+}
+
+.editor-format-bar button:focus-visible {
+  outline: 2px solid var(--color-focus-blue, #4c6ee6);
+  outline-offset: 1px;
 }
 
 .editor-format-bar__pill {
@@ -50,7 +54,7 @@
 
 .editor-format-bar__pill--wide {
   min-width: 7rem;
-  max-width: 10rem;
+  max-width: 11rem;
   justify-content: flex-start;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -91,7 +95,7 @@
   line-height: 1;
 }
 
-.editor-format-bar__case-btn span:first-child { font-size: 0.95rem; font-weight: 600; }
+.editor-format-bar__case-btn span:first-child { font-size: 0.95rem; font-weight: 500; }
 .editor-format-bar__case-btn span:last-child { font-size: 0.65rem; }
 
 .editor-format-bar__align-group {

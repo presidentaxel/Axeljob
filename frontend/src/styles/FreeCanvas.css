@@ -54,23 +54,17 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  border: 2px solid #c7d2fe;
-  background: #ffffff;
-  color: #4338ca;
+  border: 1px solid var(--color-hairline, #d9d9dd);
+  background: var(--color-canvas, #ffffff);
+  color: var(--color-primary, #17171c);
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.12);
-  transition:
-    background-color 150ms ease,
-    border-color 150ms ease,
-    box-shadow 150ms ease,
-    transform 120ms ease;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 120ms ease;
   font-family: var(--app-font-family);
 }
 
 .free-canvas-add-page-btn:hover {
-  background: #eef2ff;
-  border-color: #6366f1;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.2);
+  background: var(--color-soft-stone, #eeece7);
+  border-color: var(--color-slate, #75758a);
 }
 
 .free-canvas-add-page-btn:active {
@@ -293,7 +287,7 @@
 }
 
 .free-canvas-block--editing .free-canvas-block__inner {
-  outline: 2px solid #6366f1;
+  outline: 2px solid var(--color-focus-blue, #4c6ee6);
   outline-offset: 2px;
   border-radius: 2px;
 }
@@ -313,23 +307,19 @@
 
 .free-canvas-block--interactive.free-canvas-block--selected::after {
   inset: -0.5mm;
-  border: 2px solid #4f46e5;
+  border: 2px solid var(--color-focus-blue, #4c6ee6);
   border-radius: 2px;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.95),
-    0 2px 8px rgba(79, 70, 229, 0.12);
 }
 
 .free-canvas-block--interactive.free-canvas-block--dragging::after {
   inset: -0.5mm;
-  border-color: #4f46e5;
-  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.18);
+  border-color: var(--color-focus-blue, #4c6ee6);
   transition: none;
 }
 
 .free-canvas-block--interactive.free-canvas-block--resizing::after {
   inset: -0.5mm;
-  border-color: #4f46e5;
+  border-color: var(--color-focus-blue, #4c6ee6);
   transition: none;
 }
 
@@ -354,12 +344,11 @@
   position: absolute;
   width: 2.4mm;
   height: 2.4mm;
-  background: #ffffff;
-  border: 1.5px solid #4f46e5;
+  background: var(--color-canvas, #ffffff);
+  border: 1.5px solid var(--color-primary, #17171c);
   border-radius: 50%;
   box-sizing: border-box;
   pointer-events: auto;
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.18);
 }
 
 .free-canvas-resize-handle--nw {
@@ -824,18 +813,18 @@
 
 .free-canvas-starter-picker__btn {
   border: none;
-  border-radius: 0.4rem;
+  border-radius: 32px;
   padding: 0.45rem 0.85rem;
   font-size: 0.82rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: #fff;
+  background: var(--color-primary, #17171c);
+  color: var(--color-on-dark, #fff);
   font-family: var(--editor-font-family, inherit);
 }
 
 .free-canvas-starter-picker__btn:hover {
-  filter: brightness(1.05);
+  background: var(--color-ink, #212121);
 }
 
 .free-canvas-starter-picker__btn--secondary {

@@ -68,7 +68,6 @@
   background: var(--color-focus-blue, #4c6ee6);
   cursor: nwse-resize;
   z-index: 2;
-  box-shadow: 0 0 0 1px var(--color-primary, #17171c);
 }
 
 .editor-image-edit-modal__radius-handle--nw { top: -7px; left: -7px; }

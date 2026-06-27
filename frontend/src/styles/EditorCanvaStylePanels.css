@@ -21,6 +21,12 @@
   letter-spacing: 0.06em;
 }
 
+.editor-style-panel--font {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .editor-style-panel__font-list {
   list-style: none;
   margin: 0;
@@ -28,7 +34,8 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-height: min(52vh, 420px);
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -93,7 +100,11 @@
   cursor: pointer;
 }
 
-.editor-style-panel__range-row input[type="range"] {
+.editor-style-panel__range-row .ds-range {
+  flex: 1;
+}
+
+.editor-style-panel__range-row input[type="range"]:not(.ds-range) {
   flex: 1;
 }
 

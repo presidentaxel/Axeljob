@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import {
   HiBars3BottomLeft,
   HiBars3,
-  HiBars3BottomRight,
   HiBars4,
   HiListBullet,
+  HiAdjustmentsHorizontal,
 } from 'react-icons/hi2';
 import {
   applyColorToSelection,
@@ -19,6 +19,7 @@ import {
   hasTextSelection,
   queryCommandState,
   toggleTextCase,
+  toggleTextCaseOnBlockContent,
 } from '../../lib/canvasRichTextFormat.js';
 import { CANVAS_FONT_FAMILIES } from '../../lib/canvasFontOptions.js';
 import {
@@ -29,11 +30,11 @@ import {
 import { DEFAULT_TEXT_COLOR } from '../../lib/canvasColorPalette.js';
 import '../../styles/EditorFloatingTextToolbar.css';
 
-const ALIGN_OPTIONS = [
-  { value: 'left', cmd: 'justifyLeft', Icon: HiBars3BottomLeft },
-  { value: 'center', cmd: 'justifyCenter', Icon: HiBars3 },
-  { value: 'right', cmd: 'justifyRight', Icon: HiBars3BottomRight },
-  { value: 'justify', cmd: 'justifyFull', Icon: HiBars4 },
+/** Cycle alignement : centre → gauche → justifié */
+const ALIGN_CYCLE = [
+  { value: 'center', cmd: 'justifyCenter', Icon: HiBars3, title: 'Centré' },
+  { value: 'left', cmd: 'justifyLeft', Icon: HiBars3BottomLeft, title: 'Gauche' },
+  { value: 'justify', cmd: 'justifyFull', Icon: HiBars4, title: 'Justifié' },
 ];
 
 function cssColorToHex(value, fallback = DEFAULT_TEXT_COLOR) {
@@ -53,10 +54,17 @@ function fontLabel(value) {
   return CANVAS_FONT_FAMILIES.find((f) => f.value === value)?.label || 'Police';
 }
 
+function nextAlignValue(current) {
+  if (current === 'center') return ALIGN_CYCLE[1];
+  if (current === 'left') return ALIGN_CYCLE[2];
+  return ALIGN_CYCLE[0];
+}
+
 export default function EditorFloatingTextToolbar({
   block,
   isEditing = false,
   onBlockStylePatch,
+  onBlockContentPatch,
   onOpenFontPanel,
   onOpenColorPanel,
   onOpenEffectsPanel,
@@ -64,6 +72,8 @@ export default function EditorFloatingTextToolbar({
   onOpenPositionPanel,
 }) {
   const [, tick] = useState(0);
+  const [opacityOpen, setOpacityOpen] = useState(false);
+  const opacityWrapRef = useRef(null);
 
   useEffect(() => {
     if (!isEditing) return undefined;
@@ -71,6 +81,16 @@ export default function EditorFloatingTextToolbar({
     document.addEventListener('selectionchange', onSel);
     return () => document.removeEventListener('selectionchange', onSel);
   }, [isEditing]);
+
+  useEffect(() => {
+    if (!opacityOpen) return undefined;
+    const onDoc = (e) => {
+      if (opacityWrapRef.current?.contains(e.target)) return;
+      setOpacityOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [opacityOpen]);
 
   if (!block || !blockSupportsStyleToolbar(block.type)) return null;
 
@@ -82,6 +102,9 @@ export default function EditorFloatingTextToolbar({
   const isImage = block.type === 'image' || block.type === 'photo';
   const fontSize = style.font_size || 12;
   const align = style.align || 'left';
+  const alignEntry = ALIGN_CYCLE.find((a) => a.value === align) || ALIGN_CYCLE[1];
+  const opacity = style.opacity ?? 1;
+  const opacityPercent = Math.round(opacity * 100);
   const colorPickerValue = cssColorToHex(style.color || DEFAULT_TEXT_COLOR);
 
   const patchStyle = (key, value) => {
@@ -105,6 +128,11 @@ export default function EditorFloatingTextToolbar({
         applyStyleToBlockEditables(getEditingBlockInnerRoot(), map[key]);
       }
     }
+  };
+
+  const setOpacityFromPercent = (percent) => {
+    const clamped = Math.min(100, Math.max(10, percent));
+    patchStyle('opacity', clamped / 100);
   };
 
   const stepFontSize = (e, delta) => {
@@ -138,14 +166,27 @@ export default function EditorFloatingTextToolbar({
     if (map[cmd]) onBlockStylePatch(map[cmd]);
   };
 
-  const setAlign = (e, value, cmd) => {
+  const cycleAlign = (e) => {
     formatAction(e, () => {
+      const next = nextAlignValue(align);
       if (isEditing && showText) {
-        applyRichTextCommandWithFallback(cmd);
-        if (!hasTextSelection()) patchStyle('align', value);
+        applyRichTextCommandWithFallback(next.cmd);
+        if (!hasTextSelection()) patchStyle('align', next.value);
         return;
       }
-      patchStyle('align', value);
+      patchStyle('align', next.value);
+    });
+  };
+
+  const handleCaseToggle = (e) => {
+    formatAction(e, () => {
+      if (isEditing && showText) {
+        toggleTextCase();
+        return;
+      }
+      if (typeof onBlockContentPatch !== 'function') return;
+      const next = toggleTextCaseOnBlockContent(block.content);
+      onBlockContentPatch({ content: next });
     });
   };
 
@@ -158,6 +199,8 @@ export default function EditorFloatingTextToolbar({
       </div>
     );
   }
+
+  const AlignIcon = alignEntry.Icon;
 
   return (
     <div
@@ -238,23 +281,20 @@ export default function EditorFloatingTextToolbar({
             type="button"
             className="editor-format-bar__case-btn"
             title="Majuscules / minuscules"
-            onMouseDown={(e) => formatAction(e, () => toggleTextCase())}
+            onMouseDown={handleCaseToggle}
           >
-            <span>A</span><span>a</span>
+            <span className="editor-format-bar__case-a">A</span>
+            <span className="editor-format-bar__case-a editor-format-bar__case-a--small">a</span>
           </button>
-          <div className="editor-format-bar__align-group">
-            {ALIGN_OPTIONS.map(({ value, cmd, Icon }) => (
-              <button
-                key={value}
-                type="button"
-                className={align === value ? 'is-active' : ''}
-                title={value}
-                onMouseDown={(e) => setAlign(e, value, cmd)}
-              >
-                <Icon size={17} aria-hidden />
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            className={alignEntry.value === align ? 'is-active' : ''}
+            title={`Alignement : ${alignEntry.title} (cliquer pour changer)`}
+            aria-label={`Alignement : ${alignEntry.title}`}
+            onMouseDown={cycleAlign}
+          >
+            <AlignIcon size={17} aria-hidden />
+          </button>
           <button
             type="button"
             title="Liste (puces / numéros)"
@@ -262,16 +302,50 @@ export default function EditorFloatingTextToolbar({
           >
             <HiListBullet size={17} aria-hidden />
           </button>
-          <label className="editor-format-bar__opacity" title="Transparence">
-            <input
-              type="range"
-              min="0.1"
-              max="1"
-              step="0.05"
-              value={style.opacity ?? 1}
-              onChange={(e) => patchStyle('opacity', parseFloat(e.target.value))}
-            />
-          </label>
+          <div className="editor-format-bar__opacity-wrap" ref={opacityWrapRef}>
+            <button
+              type="button"
+              className={opacityOpen ? 'is-active' : ''}
+              title="Transparence"
+              aria-label="Transparence"
+              aria-expanded={opacityOpen}
+              onClick={() => setOpacityOpen((v) => !v)}
+            >
+              <HiAdjustmentsHorizontal size={17} aria-hidden />
+            </button>
+            {opacityOpen && (
+              <div className="editor-format-bar__opacity-popover" role="group" aria-label="Transparence">
+                <span className="editor-format-bar__opacity-label">Opacité</span>
+                <div className="ds-range-row">
+                  <input
+                    type="range"
+                    className="ds-range"
+                    min="10"
+                    max="100"
+                    step="5"
+                    value={opacityPercent}
+                    onChange={(e) => setOpacityFromPercent(parseInt(e.target.value, 10))}
+                  />
+                  <input
+                    type="text"
+                    className="ds-range-input"
+                    inputMode="numeric"
+                    value={opacityPercent}
+                    onChange={(e) => {
+                      const n = parseInt(e.target.value.replace(/\D/g, ''), 10);
+                      if (!Number.isNaN(n)) setOpacityFromPercent(n);
+                    }}
+                    onBlur={(e) => {
+                      const n = parseInt(e.target.value.replace(/\D/g, ''), 10);
+                      setOpacityFromPercent(Number.isNaN(n) ? opacityPercent : n);
+                    }}
+                    aria-label="Opacité en pourcentage"
+                  />
+                  <span className="editor-format-bar__opacity-suffix">%</span>
+                </div>
+              </div>
+            )}
+          </div>
           <button type="button" className="editor-format-bar__pill" onClick={() => onOpenEffectsPanel?.()}>
             Effets
           </button>

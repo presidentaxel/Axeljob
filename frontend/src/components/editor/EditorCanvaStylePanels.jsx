@@ -27,7 +27,7 @@ export function EditorCanvaFontPanel({ block, onBlockStylePatch }) {
   const current = style.font_family || CANVAS_FONT_FAMILIES[0].value;
 
   return (
-    <div className="editor-style-panel">
+    <div className="editor-style-panel editor-style-panel--font">
       <h3 className="editor-style-panel__title">Police</h3>
       <ul className="editor-style-panel__font-list">
         {CANVAS_FONT_FAMILIES.map((font) => (
@@ -105,11 +105,12 @@ export function EditorCanvaEffectsPanel({ block, onBlockStylePatch }) {
         <span>Transparence</span>
         <input
           type="range"
-          min="0.1"
-          max="1"
-          step="0.05"
-          value={opacity}
-          onChange={(e) => onBlockStylePatch?.({ opacity: parseFloat(e.target.value) })}
+          className="ds-range"
+          min="10"
+          max="100"
+          step="5"
+          value={Math.round(opacity * 100)}
+          onChange={(e) => onBlockStylePatch?.({ opacity: parseInt(e.target.value, 10) / 100 })}
         />
         <span className="editor-style-panel__range-value">{Math.round(opacity * 100)}%</span>
       </label>
@@ -139,6 +140,7 @@ export function EditorCanvaShapePanel({ block, onBlockStylePatch }) {
         <span>Épaisseur</span>
         <input
           type="range"
+          className="ds-range"
           min="0"
           max="4"
           step="0.1"

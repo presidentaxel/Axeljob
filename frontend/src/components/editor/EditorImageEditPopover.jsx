@@ -79,9 +79,26 @@ export default function EditorImageEditPopover({
   const radiusCss = draftRadius > 0
     ? `${(draftRadius / blockRatioW) * frameW}px`
     : '0';
+  const zoomPercent = Math.round((draftZoom - 1) / 2 * 100);
+  const radiusPercent = maxRadiusMm > 0 ? Math.round((draftRadius / maxRadiusMm) * 100) : 0;
+
+  const setZoomFromPercent = (percent) => {
+    const clamped = Math.min(200, Math.max(0, percent));
+    const next = 1 + (clamped / 100) * 2;
+    setDraftZoom(next);
+    patchStyle({ image_zoom: next });
+  };
+
+  const setRadiusFromPercent = (percent) => {
+    const clamped = Math.min(100, Math.max(0, percent));
+    const nextMm = clampRadius((clamped / 100) * maxRadiusMm, maxRadiusMm);
+    setDraftRadius(nextMm);
+    patchStyle({ border_radius_mm: nextMm, shape: 'rect' });
+  };
 
   const startImageDrag = (event) => {
     if (radiusDragRef.current) return;
+    if (event.target?.closest?.('.editor-image-edit-modal__radius-handle')) return;
     event.preventDefault();
     event.stopPropagation();
     dragRef.current = {
@@ -152,10 +169,8 @@ export default function EditorImageEditPopover({
   const handleWheel = (event) => {
     event.preventDefault();
     event.stopPropagation();
-    const delta = event.deltaY > 0 ? -0.08 : 0.08;
-    const next = Math.min(3, Math.max(1, draftZoom + delta));
-    setDraftZoom(next);
-    patchStyle({ image_zoom: next });
+    const delta = event.deltaY > 0 ? -10 : 10;
+    setZoomFromPercent(zoomPercent + delta);
   };
 
   return (
@@ -167,31 +182,39 @@ export default function EditorImageEditPopover({
         aria-label="Ajuster l’image"
         onPointerDown={(e) => e.stopPropagation()}
       >
+        <p className="editor-image-edit-modal__hint">
+          Glissez l&apos;image pour recadrer · molette pour zoomer · poignées aux coins pour arrondir
+        </p>
         <div
-          ref={frameRef}
-          className="editor-image-edit-modal__frame"
-          style={{ width: `${frameW}px`, height: `${frameH}px`, borderRadius: radiusCss }}
-          onPointerDown={startImageDrag}
-          onPointerMove={moveImageDrag}
-          onPointerUp={endImageDrag}
-          onPointerCancel={endImageDrag}
-          onWheel={handleWheel}
+          className="editor-image-edit-modal__frame-outer"
+          style={{ width: `${frameW}px`, height: `${frameH}px` }}
         >
-          {imageSrc ? (
-            <img
-              src={imageSrc}
-              alt=""
-              draggable="false"
-              style={{
-                objectPosition: `${draftFocal.x}% ${draftFocal.y}%`,
-                transform: `scale(${draftZoom})`,
-                transformOrigin: `${draftFocal.x}% ${draftFocal.y}%`,
-              }}
-            />
-          ) : (
-            <span className="editor-image-edit-modal__empty" aria-hidden />
-          )}
-          <div className="editor-image-edit-modal__mask" aria-hidden />
+          <div
+            ref={frameRef}
+            className="editor-image-edit-modal__frame"
+            style={{ borderRadius: radiusCss }}
+            onPointerDown={startImageDrag}
+            onPointerMove={moveImageDrag}
+            onPointerUp={endImageDrag}
+            onPointerCancel={endImageDrag}
+            onWheel={handleWheel}
+          >
+            {imageSrc ? (
+              <img
+                src={imageSrc}
+                alt=""
+                draggable="false"
+                style={{
+                  objectPosition: `${draftFocal.x}% ${draftFocal.y}%`,
+                  transform: `scale(${draftZoom})`,
+                  transformOrigin: `${draftFocal.x}% ${draftFocal.y}%`,
+                }}
+              />
+            ) : (
+              <span className="editor-image-edit-modal__empty" aria-hidden />
+            )}
+            <div className="editor-image-edit-modal__mask" aria-hidden />
+          </div>
           {RADIUS_HANDLES.map((handle) => (
             <button
               key={handle}
@@ -199,8 +222,73 @@ export default function EditorImageEditPopover({
               className={`editor-image-edit-modal__radius-handle editor-image-edit-modal__radius-handle--${handle}`}
               aria-label="Ajuster les coins arrondis"
               onPointerDown={(e) => startRadiusDrag(e, handle)}
+              onPointerMove={moveImageDrag}
+              onPointerUp={endImageDrag}
+              onPointerCancel={endImageDrag}
             />
           ))}
+        </div>
+        <div className="editor-image-edit-modal__controls">
+          <label className="editor-image-edit-modal__control">
+            <span>Zoom</span>
+            <div className="ds-range-row">
+              <input
+                type="range"
+                className="ds-range"
+                min="0"
+                max="200"
+                step="5"
+                value={zoomPercent}
+                onChange={(e) => setZoomFromPercent(parseInt(e.target.value, 10))}
+              />
+              <input
+                type="text"
+                className="ds-range-input"
+                inputMode="numeric"
+                value={zoomPercent}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value.replace(/\D/g, ''), 10);
+                  if (!Number.isNaN(n)) setZoomFromPercent(n);
+                }}
+                onBlur={(e) => {
+                  const n = parseInt(e.target.value.replace(/\D/g, ''), 10);
+                  setZoomFromPercent(Number.isNaN(n) ? zoomPercent : n);
+                }}
+                aria-label="Zoom en pourcentage"
+              />
+              <span className="editor-image-edit-modal__suffix">%</span>
+            </div>
+          </label>
+          <label className="editor-image-edit-modal__control">
+            <span>Coins arrondis</span>
+            <div className="ds-range-row">
+              <input
+                type="range"
+                className="ds-range"
+                min="0"
+                max="100"
+                step="1"
+                value={radiusPercent}
+                onChange={(e) => setRadiusFromPercent(parseInt(e.target.value, 10))}
+              />
+              <input
+                type="text"
+                className="ds-range-input"
+                inputMode="numeric"
+                value={radiusPercent}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value.replace(/\D/g, ''), 10);
+                  if (!Number.isNaN(n)) setRadiusFromPercent(n);
+                }}
+                onBlur={(e) => {
+                  const n = parseInt(e.target.value.replace(/\D/g, ''), 10);
+                  setRadiusFromPercent(Number.isNaN(n) ? radiusPercent : n);
+                }}
+                aria-label="Arrondi en pourcentage"
+              />
+              <span className="editor-image-edit-modal__suffix">%</span>
+            </div>
+          </label>
         </div>
       </div>
     </div>

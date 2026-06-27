@@ -1,33 +1,34 @@
-/* ========== SYSTÈME DE DESIGN GLOBAL ========== */
+@import './styles/design-tokens.css';
+
+/* ========== SYSTÈME DE DESIGN GLOBAL (alias Cohere 2026) ========== */
 :root {
-  --bg: #ffffff;
-  --bg-page: #f8fafc;
-  --surface: #ffffff;
-  --surface-sidebar: #f1f5f9;
-  --border: #e2e8f0;
-  --border-light: #f1f5f9;
-  --text: #0f172a;
-  --text-secondary: #334155;
-  --muted: #64748b;
-  --accent: #4f46e5;
-  --accent-hover: #4338ca;
-  --accent-light: #eef2ff;
-  --accent-subtle: rgba(79, 70, 229, 0.06);
-  --success: #059669;
-  --success-light: #ecfdf5;
-  --danger: #dc2626;
+  --bg: var(--color-canvas);
+  --bg-page: var(--color-soft-stone);
+  --surface: var(--color-canvas);
+  --surface-sidebar: var(--color-soft-stone);
+  --border: var(--color-hairline);
+  --border-light: var(--color-card-border);
+  --text: var(--color-ink);
+  --text-secondary: var(--color-body-muted);
+  --muted: var(--color-muted);
+  --accent: var(--color-action-blue);
+  --accent-hover: #1456c4;
+  --accent-light: var(--color-pale-blue);
+  --accent-subtle: var(--color-pale-blue);
+  --success: var(--color-deep-green);
+  --success-light: var(--color-pale-green);
+  --danger: var(--color-error);
   --danger-light: #fef2f2;
   --warning: #d97706;
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px rgba(15, 23, 42, 0.04);
-  --shadow-focus: 0 0 0 3px rgba(79, 70, 229, 0.15);
-  --radius: 12px;
-  --radius-sm: 8px;
-  --radius-xs: 6px;
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-card: none;
+  --shadow-lg: none;
+  --shadow-focus: 0 0 0 2px var(--color-focus-blue);
+  --radius: var(--radius-md);
+  --radius-sm: var(--radius-sm);
+  --radius-xs: var(--radius-xs);
   --transition: 0.15s ease;
-  /* Police UI unique (Stable + Beta + topbar) */
   --app-font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 

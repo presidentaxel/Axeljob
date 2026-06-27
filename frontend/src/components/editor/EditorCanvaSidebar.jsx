@@ -165,11 +165,10 @@ export default function EditorCanvaSidebar({
       </nav>
       {openSection && (
         <div
-          className={
-            openSection === 'position'
-              ? 'editor-canva-drawer editor-canva-drawer--position'
-              : 'editor-canva-drawer'
-          }
+          className={[
+            'editor-canva-drawer',
+            openSection === 'text' || openSection === 'fonts' ? 'editor-canva-drawer--fill' : '',
+          ].filter(Boolean).join(' ')}
           role="tabpanel"
         >
           {openSection === 'models' && (
@@ -258,7 +257,7 @@ export default function EditorCanvaSidebar({
                       title={item.label}
                     >
                       <span className="editor-canva-drawer__shape-preview">
-                        <CanvasShapeSvg type={item.type} style={preset?.style} />
+                        <CanvasShapeSvg type={item.type} style={preset?.style} preview />
                       </span>
                       <span className="editor-canva-drawer__shape-label">{item.label}</span>
                     </PlacementTile>

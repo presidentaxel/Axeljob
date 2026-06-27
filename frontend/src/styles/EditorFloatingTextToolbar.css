@@ -1,15 +1,22 @@
 .editor-format-bar {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-start;
   gap: 4px;
-  width: 100%;
+  width: auto;
+  max-width: 100%;
   box-sizing: border-box;
-  padding: 8px 12px;
+  padding: 8px 14px;
   margin: 0;
   background: var(--color-canvas, #ffffff);
+  border: 1px solid var(--color-hairline, #d9d9dd);
+  border-radius: 12px;
   font-family: var(--editor-font-family, var(--app-font-family));
   font-size: 0.8rem;
+  /* Effet « détaché » sans box-shadow (Cohere) : carte blanche sur fond stone */
+  outline: 1px solid var(--color-card-border, #f2f2f2);
+  outline-offset: 0;
 }
 
 .editor-format-bar button {
@@ -90,33 +97,59 @@
 
 .editor-format-bar__case-btn {
   display: inline-flex !important;
-  align-items: baseline !important;
-  gap: 1px;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0;
+  line-height: 1;
+  padding: 0 4px !important;
+}
+
+.editor-format-bar__case-a {
+  display: inline-block;
+  font-size: 0.82rem;
+  font-weight: 600;
   line-height: 1;
 }
 
-.editor-format-bar__case-btn span:first-child { font-size: 0.95rem; font-weight: 500; }
-.editor-format-bar__case-btn span:last-child { font-size: 0.65rem; }
+.editor-format-bar__case-a--small {
+  font-size: 0.62rem;
+  font-weight: 500;
+  margin-left: -1px;
+  align-self: flex-end;
+  margin-bottom: 1px;
+}
 
-.editor-format-bar__align-group {
+.editor-format-bar__opacity-wrap {
+  position: relative;
   display: inline-flex;
-  gap: 1px;
-  padding: 2px;
-  border: 1px solid var(--color-hairline, #d9d9dd);
-  border-radius: 8px;
+}
+
+.editor-format-bar__opacity-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 200px;
+  padding: 10px 12px;
   background: var(--color-canvas, #fff);
+  border: 1px solid var(--color-hairline, #d9d9dd);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(23, 23, 28, 0.08);
 }
 
-.editor-format-bar__opacity {
-  display: inline-flex;
-  align-items: center;
-  width: 72px;
-  margin: 0 2px;
+.editor-format-bar__opacity-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--color-body-muted, #616161);
 }
 
-.editor-format-bar__opacity input {
-  width: 100%;
-  margin: 0;
+.editor-format-bar__opacity-suffix {
+  font-size: 0.78rem;
+  color: var(--color-muted, #93939f);
 }
 
 .editor-format-bar__sep {
@@ -128,8 +161,13 @@
 }
 
 @media (max-width: 900px) {
+  .cv-editor-beta-format-dock {
+    padding: 8px 10px 4px;
+  }
+
   .editor-format-bar {
     gap: 3px;
-    padding: 6px 8px;
+    padding: 6px 10px;
+    border-radius: 10px;
   }
 }

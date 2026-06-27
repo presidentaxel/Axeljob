@@ -121,7 +121,8 @@ function CvEditorBeta({
   /** Échec GET /api/cv au montage : bloque l’éditeur (pas d’auto-save sur profil vide). */
   const [profileLoadError, setProfileLoadError] = useState(null);
   const [loadError, setLoadError] = useState(null);
-  const [selectedBlockId, setSelectedBlockId] = useState(null);
+  const [selectedBlockIds, setSelectedBlockIds] = useState([]);
+  const selectedBlockId = selectedBlockIds.length ? selectedBlockIds[selectedBlockIds.length - 1] : null;
   const [editingBlockId, setEditingBlockId] = useState(null);
   const [selectedBlockRect, setSelectedBlockRect] = useState(null);
   const [canvasBusy, setCanvasBusy] = useState(false);
@@ -237,7 +238,7 @@ function CvEditorBeta({
   const openCanvasContext = useCallback((contextKey, nextLayout) => {
     const hydrated = migrateLayoutToV3(nextLayout || createCanvasLayoutBlank());
     resetLayout(hydrated);
-    setSelectedBlockId(null);
+    setSelectedBlockIds([]);
     setEditingBlockId(null);
     setImageEditBlockId(null);
     setPlacementPreset(null);
@@ -369,7 +370,7 @@ function CvEditorBeta({
     setImportError('');
     resetLayout(finalLayout);
     layoutRef.current = finalLayout;
-    setSelectedBlockId(null);
+    setSelectedBlockIds([]);
     setEditingBlockId(null);
     setImageEditBlockId(null);
     setPlacementPreset(null);
@@ -487,7 +488,7 @@ function CvEditorBeta({
     if (!layout || !canAppendBlankPage(layout)) return;
     const next = appendBlankPage(layout);
     commitLayout(next, { groupKey: 'page:add' });
-    setSelectedBlockId(null);
+    setSelectedBlockIds([]);
     setEditingBlockId(null);
     if (cv) autoSave.schedule(cv);
   }, [layout, commitLayout, cv, autoSave]);
@@ -495,17 +496,16 @@ function CvEditorBeta({
   const handleRemoveCanvasPage = useCallback((pageIndex) => {
     if (!layout || !Array.isArray(layout.pages) || layout.pages.length <= 1) return;
     const removedPage = layout.pages[pageIndex];
-    const selectedWasOnRemovedPage = Boolean(
-      selectedBlockId
-      && removedPage?.blocks?.some((block) => block?.id === selectedBlockId),
+    const selectedWasOnRemovedPage = selectedBlockIds.some(
+      (id) => removedPage?.blocks?.some((block) => block?.id === id),
     );
     const next = removePage(layout, pageIndex);
     commitLayout(next, { groupKey: `page:remove:${pageIndex}` });
-    if (selectedWasOnRemovedPage) setSelectedBlockId(null);
+    if (selectedWasOnRemovedPage) setSelectedBlockIds([]);
     setEditingBlockId(null);
     setImageEditBlockId(null);
     if (cv) autoSave.schedule(cv);
-  }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
+  }, [layout, selectedBlockIds, commitLayout, cv, autoSave]);
 
   const selectedBlock = useMemo(() => {
     if (!selectedBlockId) return null;
@@ -513,12 +513,32 @@ function CvEditorBeta({
     return found?.block ?? null;
   }, [layout, selectedBlockId]);
 
-  const handleSelectBlock = useCallback((blockId) => {
-    setSelectedBlockId(blockId);
-    if (!blockId || isCanvasEditHintDismissed()) return;
-    const found = findBlock(layoutRef.current, blockId);
-    if (blockSupportsEditHint(found?.block)) {
-      setEditHintOpen(true);
+  const handleSelectBlock = useCallback((blockId, options = {}) => {
+    const { additive = false, replaceIds = null } = options;
+    if (replaceIds != null) {
+      const ids = [...new Set(replaceIds.filter(Boolean))];
+      setSelectedBlockIds(ids);
+      const primary = ids.at(-1);
+      if (primary && !isCanvasEditHintDismissed()) {
+        const found = findBlock(layoutRef.current, primary);
+        if (blockSupportsEditHint(found?.block)) setEditHintOpen(true);
+      }
+      return;
+    }
+    if (!blockId) {
+      setSelectedBlockIds([]);
+      return;
+    }
+    if (additive) {
+      setSelectedBlockIds((prev) => (
+        prev.includes(blockId) ? prev.filter((id) => id !== blockId) : [...prev, blockId]
+      ));
+    } else {
+      setSelectedBlockIds([blockId]);
+    }
+    if (!isCanvasEditHintDismissed()) {
+      const found = findBlock(layoutRef.current, blockId);
+      if (blockSupportsEditHint(found?.block)) setEditHintOpen(true);
     }
   }, []);
 
@@ -637,7 +657,7 @@ function CvEditorBeta({
     const next = addBlockToPage(layout, pageIndex, partial);
     commitLayout(next);
     const newId = getLastBlockIdOnPage(next, pageIndex);
-    if (newId) setSelectedBlockId(newId);
+    if (newId) setSelectedBlockIds([newId]);
     setPlacementPreset(null);
     if (cv) autoSave.schedule(cv);
   }, [placementPreset, layout, commitLayout, cv, autoSave]);
@@ -657,7 +677,7 @@ function CvEditorBeta({
     commitLayout(next);
     const newId = getLastBlockIdOnPage(next, pageIndex);
     if (newId) {
-      setSelectedBlockId(newId);
+      setSelectedBlockIds([newId]);
       if (enterEdit) setEditingBlockId(newId);
     }
     setPlacementPreset(null);
@@ -685,7 +705,7 @@ function CvEditorBeta({
   }, []);
 
   const handleImageEdit = useCallback((blockId) => {
-    setSelectedBlockId(blockId);
+    setSelectedBlockIds([blockId]);
     setImageEditBlockId(blockId);
     setEditingBlockId(null);
     closeEditHintIfOpen();
@@ -701,6 +721,13 @@ function CvEditorBeta({
   }, [requestCanvasContextSwitch, buildTemplateCanvasLayout]);
 
   const handleBlockPatch = useCallback((patch) => {
+    if (!selectedBlockId) return;
+    const next = updateBlock(layout, selectedBlockId, patch);
+    commitLayout(next);
+    if (cv) autoSave.schedule(cv);
+  }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
+
+  const handleBlockContentPatch = useCallback((patch) => {
     if (!selectedBlockId) return;
     const next = updateBlock(layout, selectedBlockId, patch);
     commitLayout(next);
@@ -757,7 +784,7 @@ function CvEditorBeta({
     if (!selectedBlockId) return;
     const next = removeBlock(layout, selectedBlockId);
     commitLayout(next);
-    setSelectedBlockId(null);
+    setSelectedBlockIds([]);
     setEditingBlockId(null);
     if (cv) autoSave.schedule(cv);
   }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
@@ -781,7 +808,7 @@ function CvEditorBeta({
     const found = findBlock(next, selectedBlockId);
     const blocks = next?.pages?.[found?.pageIndex]?.blocks || [];
     const duplicated = blocks[blocks.length - 1];
-    if (duplicated?.id) setSelectedBlockId(duplicated.id);
+    if (duplicated?.id) setSelectedBlockIds([duplicated.id]);
     if (cv) autoSave.schedule(cv);
   }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
 
@@ -793,7 +820,7 @@ function CvEditorBeta({
   }, [layout, selectedBlockId, selectedBlock, commitLayout, cv, autoSave]);
 
   const handleStartBlockEdit = useCallback((blockId) => {
-    setSelectedBlockId(blockId);
+    setSelectedBlockIds([blockId]);
     setEditingBlockId(blockId);
     closeEditHintIfOpen();
   }, [closeEditHintIfOpen]);
@@ -875,7 +902,7 @@ function CvEditorBeta({
     if (!proposalLayout) return;
     const next = migrateLayoutToV3(proposalLayout);
     resetLayout(next);
-    setSelectedBlockId(null);
+    setSelectedBlockIds([]);
     if (cv) autoSave.schedule(cv);
   }, [resetLayout, cv, autoSave]);
 
@@ -942,6 +969,16 @@ function CvEditorBeta({
       const tag = document.activeElement?.tagName?.toLowerCase();
       if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
       if (document.activeElement?.isContentEditable) return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+        const pages = layoutRef.current?.pages;
+        if (!Array.isArray(pages) || !pages.length) return;
+        e.preventDefault();
+        const allIds = pages.flatMap((p) => (
+          Array.isArray(p?.blocks) ? p.blocks.map((b) => b?.id).filter(Boolean) : []
+        ));
+        setSelectedBlockIds(allIds);
+        return;
+      }
       // Toutes les actions clavier ci-dessous opèrent sur le bloc sélectionné,
       // hors mode édition de texte inline.
       if (!selectedBlockId || editingBlockId) return;
@@ -952,7 +989,7 @@ function CvEditorBeta({
       }
       if (e.key === 'Escape') {
         e.preventDefault();
-        setSelectedBlockId(null);
+        setSelectedBlockIds([]);
         return;
       }
       const step = e.shiftKey ? 5 : 1;
@@ -968,7 +1005,7 @@ function CvEditorBeta({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedBlockId, editingBlockId, handleDeleteSelectedBlock, handleNudgeSelectedBlock]);
+  }, [selectedBlockId, editingBlockId, handleDeleteSelectedBlock, handleNudgeSelectedBlock, layout]);
 
   if (loading) {
     return (
@@ -1120,20 +1157,6 @@ function CvEditorBeta({
             </button>
           </div>
         )}
-        {selectedBlock && blockSupportsStyleToolbar(selectedBlock.type) && (
-          <div className="cv-editor-beta-format-slot">
-            <EditorFloatingTextToolbar
-              block={selectedBlock}
-              isEditing={editingBlockId === selectedBlock.id}
-              onBlockStylePatch={handleBlockStylePatch}
-              onOpenFontPanel={handleOpenFontPanel}
-              onOpenColorPanel={handleOpenColorPanel}
-              onOpenEffectsPanel={handleOpenEffectsPanel}
-              onOpenShapePanel={handleOpenShapePanel}
-              onOpenPositionPanel={handleOpenPositionPanel}
-            />
-          </div>
-        )}
       </div>
 
       <div className="cv-editor-beta-workspace cv-editor-beta-workspace--canva">
@@ -1166,11 +1189,29 @@ function CvEditorBeta({
           onOpenTransferFromDraft={handleOpenTransferFromDraft}
         />
         <div className="cv-editor-beta-canva-column">
+          <div className="cv-editor-beta-format-dock" role="presentation">
+            <div className="cv-editor-beta-format-slot">
+              {selectedBlock && blockSupportsStyleToolbar(selectedBlock.type) && (
+                <EditorFloatingTextToolbar
+                  block={selectedBlock}
+                  isEditing={editingBlockId === selectedBlock.id}
+                  onBlockStylePatch={handleBlockStylePatch}
+                  onBlockContentPatch={handleBlockContentPatch}
+                  onOpenFontPanel={handleOpenFontPanel}
+                  onOpenColorPanel={handleOpenColorPanel}
+                  onOpenEffectsPanel={handleOpenEffectsPanel}
+                  onOpenShapePanel={handleOpenShapePanel}
+                  onOpenPositionPanel={handleOpenPositionPanel}
+                />
+              )}
+            </div>
+          </div>
           <main className="cv-editor-beta-canvas">
             <FreeCanvas
               layout={layout}
               cv={cv}
               selectedBlockId={selectedBlockId}
+              selectedBlockIds={selectedBlockIds}
               editingBlockId={editingBlockId}
               showGrid={showCanvasGrid}
               snapEnabled={canvasSnapEnabled}
@@ -1274,7 +1315,7 @@ function CvEditorBeta({
       </div>
 
       <footer className="cv-editor-beta-statusbar">
-        <span>Canvas libre · double-clic pour éditer un bloc · flèches pour déplacer · Ctrl+Z</span>
+        <span>Canvas libre · double-clic pour éditer · glisser pour sélectionner · Ctrl+A tout sélectionner</span>
       </footer>
 
       <EditorCvImportModal

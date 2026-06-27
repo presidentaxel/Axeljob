@@ -19,6 +19,7 @@ import {
 } from '../../lib/freeCanvasResize.js';
 import { computePageScale, scaledPageHeightPx } from '../../lib/freeCanvasScale.js';
 import { nextOverlappingBlockId } from '../../lib/freeCanvasSelection.js';
+import { blockIdsInMarquee, normalizeMarqueeRect } from '../../lib/canvasMarqueeUtils.js';
 import { snapBlockGeometry, snapBlockPosition } from '../../lib/freeCanvasSnap.js';
 import '../../styles/FreeCanvas.css';
 import '../../styles/CanvasTemplateFidelity.css';
@@ -91,6 +92,7 @@ export default function FreeCanvas({
   layout,
   cv,
   selectedBlockId = null,
+  selectedBlockIds = [],
   editingBlockId = null,
   onSelectBlock,
   onBlockPositionChange,
@@ -130,6 +132,8 @@ export default function FreeCanvas({
   const drawRectMode = placing && placementPreset?.placementMode === 'draw-rect';
   const [drawRect, setDrawRect] = useState(null);
   const drawSessionRef = useRef(null);
+  const marqueeSessionRef = useRef(null);
+  const [marqueeRect, setMarqueeRect] = useState(null);
 
   useLayoutEffect(() => {
     const el = viewportRef.current;
@@ -235,12 +239,16 @@ export default function FreeCanvas({
       commitEditingBlock();
     }
     if (editingBlockId === block?.id) return;
-    if (block?.locked) return;
     if (!interactable || !block?.id || resizeSessionRef.current) return;
-    if (typeof onBlockPositionChange !== 'function') return;
+
     event.preventDefault();
     event.stopPropagation();
-    if (typeof onSelectBlock === 'function') onSelectBlock(block.id);
+    const additive = event.shiftKey;
+    if (typeof onSelectBlock === 'function') onSelectBlock(block.id, { additive });
+
+    if (block?.locked) return;
+
+    if (typeof onBlockPositionChange !== 'function') return;
     const found = findBlock(layout, block.id);
     const pageEl = event.currentTarget?.closest?.('.free-canvas-page');
     const pageIndex = found?.pageIndex ?? pageIndexFromElement(pageEl);
@@ -448,8 +456,17 @@ export default function FreeCanvas({
       return;
     }
     commitEditingBlock();
-    if (typeof onSelectBlock === 'function') onSelectBlock(null);
-  }, [onSelectBlock, placing, drawRectMode, onPlaceBlockAt, onPlaceBlockRect, commitEditingBlock]);
+    event.preventDefault();
+    const pt = clientPointToPageMm(event.clientX, event.clientY, event.currentTarget);
+    marqueeSessionRef.current = {
+      pageIndex,
+      startX: pt.x,
+      startY: pt.y,
+      pageEl: event.currentTarget,
+    };
+    setMarqueeRect({ x: pt.x, y: pt.y, w: 0, h: 0 });
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }, [placing, drawRectMode, onPlaceBlockAt, onPlaceBlockRect, commitEditingBlock]);
 
   const handlePageDrawPointerMove = useCallback((event) => {
     const session = drawSessionRef.current;
@@ -477,6 +494,40 @@ export default function FreeCanvas({
       onPlaceBlockRect(session.pageIndex, { x, y, w, h });
     }
   }, [onPlaceBlockRect]);
+
+  const handlePagePointerMove = useCallback((event) => {
+    if (drawRectMode && drawSessionRef.current) {
+      handlePageDrawPointerMove(event);
+      return;
+    }
+    const session = marqueeSessionRef.current;
+    if (!session?.pageEl) return;
+    const pt = clientPointToPageMm(event.clientX, event.clientY, session.pageEl);
+    setMarqueeRect(normalizeMarqueeRect(session.startX, session.startY, pt.x, pt.y));
+  }, [drawRectMode, handlePageDrawPointerMove]);
+
+  const handlePagePointerUp = useCallback((event) => {
+    if (drawRectMode && drawSessionRef.current) {
+      handlePageDrawPointerUp(event);
+      return;
+    }
+    const session = marqueeSessionRef.current;
+    if (!session) return;
+    marqueeSessionRef.current = null;
+    try { session.pageEl?.releasePointerCapture?.(event.pointerId); } catch (_) { /* ignore */ }
+    const pt = clientPointToPageMm(event.clientX, event.clientY, session.pageEl);
+    const rect = normalizeMarqueeRect(session.startX, session.startY, pt.x, pt.y);
+    setMarqueeRect(null);
+    if (rect.w < 2 && rect.h < 2) {
+      if (typeof onSelectBlock === 'function') onSelectBlock(null);
+      return;
+    }
+    const blocks = layout?.pages?.[session.pageIndex]?.blocks || [];
+    const ids = blockIdsInMarquee(blocks, rect);
+    if (typeof onSelectBlock === 'function') {
+      onSelectBlock(null, { replaceIds: ids });
+    }
+  }, [drawRectMode, handlePageDrawPointerUp, onSelectBlock, layout]);
 
   const handleCanvasBackgroundPointerDown = useCallback((event) => {
     if (placing) return;
@@ -574,10 +625,22 @@ export default function FreeCanvas({
                 }}
                 data-page-index={pageIndex}
                 onPointerDown={interactable ? handlePageBackgroundPointerDown : undefined}
-                onPointerMove={interactable && drawRectMode ? handlePageDrawPointerMove : undefined}
-                onPointerUp={interactable && drawRectMode ? handlePageDrawPointerUp : undefined}
-                onPointerCancel={interactable && drawRectMode ? handlePageDrawPointerUp : undefined}
+                onPointerMove={interactable ? handlePagePointerMove : undefined}
+                onPointerUp={interactable ? handlePagePointerUp : undefined}
+                onPointerCancel={interactable ? handlePagePointerUp : undefined}
               >
+                {marqueeRect && !drawRectMode && (
+                  <div
+                    className="free-canvas-marquee"
+                    style={{
+                      left: `${marqueeRect.x}mm`,
+                      top: `${marqueeRect.y}mm`,
+                      width: `${marqueeRect.w}mm`,
+                      height: `${marqueeRect.h}mm`,
+                    }}
+                    aria-hidden
+                  />
+                )}
                 {drawRect && drawRectMode && (
                   <div
                     className="free-canvas-draw-rect-preview"
@@ -602,7 +665,7 @@ export default function FreeCanvas({
                     key={block.id}
                     block={renderBlock}
                     cv={cv}
-                    selected={selectedBlockId === block.id}
+                    selected={selectedBlockIds.includes(block.id)}
                     editing={editingBlockId === block.id}
                     dragging={draggingBlockId === block.id}
                     resizing={resizingBlockId === block.id}

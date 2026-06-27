@@ -222,6 +222,22 @@ function flipCase(text) {
   return text.toLowerCase();
 }
 
+/** Transforme le texte d’un bloc texte/title (hors mode édition). */
+export function toggleTextCaseOnBlockContent(content) {
+  const raw = String(content ?? '');
+  if (!raw.trim()) return raw;
+  if (!raw.includes('<')) return flipCase(raw);
+  if (typeof document === 'undefined') return flipCase(raw.replace(/<[^>]+>/g, ''));
+  const doc = new DOMParser().parseFromString(raw, 'text/html');
+  const walker = document.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  let node = walker.nextNode();
+  while (node) {
+    node.textContent = flipCase(node.textContent || '');
+    node = walker.nextNode();
+  }
+  return doc.body.innerHTML;
+}
+
 export function getEditingBlockInnerRoot() {
   if (typeof document === 'undefined') return null;
   return document.querySelector('.free-canvas-block--editing .free-canvas-block__inner');

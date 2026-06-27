@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 // useRef also used by EditableRichText
-import { HiEnvelope, HiLink, HiPhone } from 'react-icons/hi2';
+import { HiEnvelope, HiLink, HiPhone, HiLockClosed } from 'react-icons/hi2';
 import { apiUrl } from '../../api';
 import {
   findCvArrayIndex,
@@ -875,7 +875,7 @@ export default function FreeCanvasBlock({
   const canEdit = isCanvasInlineEditableType(type);
 
   const handlePointerDown = (e) => {
-    if (editing || locked) return;
+    if (editing) return;
     if (interactable && onPointerDown) onPointerDown(e, block);
   };
 
@@ -960,8 +960,8 @@ export default function FreeCanvasBlock({
           : <SemanticBlockBody block={block} cv={cv} editing={editing} />}
       </div>
       {locked && (
-        <span className="free-canvas-block__lock-badge" title="Position verrouillée" aria-hidden>
-          🔒
+        <span className="free-canvas-block__lock-badge" title="Position verrouillée — utilisez la barre d’actions pour déverrouiller" aria-hidden>
+          <HiLockClosed size={12} />
         </span>
       )}
       {selected && interactable && !editing && !locked && onResizePointerDown && (

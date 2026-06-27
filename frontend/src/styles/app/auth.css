@@ -96,3 +96,39 @@
   color: var(--muted);
   line-height: 1.5;
 }
+
+/* Login reassurance */
+.login-reassurance {
+  display: flex;
+  gap: 1.25rem;
+  justify-content: center;
+  margin-top: 1.25rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.login-reassurance span {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.login-reassurance-icon {
+  color: var(--success);
+  flex-shrink: 0;
+}
+
+.auth-toggle {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: color 0.15s;
+  font-family: inherit;
+}
+
+.auth-toggle:hover {
+  color: var(--color-action-blue);
+}
+

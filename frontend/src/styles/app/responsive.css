@@ -1,0 +1,242 @@
+/**
+ * Responsive shell /app (tablet + mobile).
+ */
+/* ============================================
+   MOBILE / SMALL SCREEN RESPONSIVE
+   ============================================ */
+
+/* -- Tablet: reduce CV layout -- */
+@media (max-width: 1100px) {
+  .app-page main.app-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* -- Mobile: full overhaul -- */
+@media (max-width: 767px) {
+
+  /* Page header */
+  .page-header,
+  .app-page .page-header {
+    padding: 0.65rem 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .page-header h1,
+  .app-page .page-title {
+    font-size: 1rem;
+  }
+
+  .page-header-actions,
+  .dashboard-header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .page-header-actions .btn,
+  .dashboard-header-actions .btn {
+    font-size: 0.78rem;
+    padding: 0.38rem 0.6rem;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .page-header-dashboard {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  /* Page content */
+  .app-page .page-content {
+    padding: 0.75rem;
+  }
+
+  /* CV Chat : chat + aperçu empilés (l’aperçu ne doit pas disparaître sur téléphone) */
+  .cv-chat-page .cv-chat-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(240px, 52vh) auto;
+  }
+
+  .cv-chat-panel {
+    padding: 0.5rem;
+  }
+
+  .cv-chat-messages {
+    padding: 0.75rem 1rem;
+  }
+
+  .cv-chat-placeholder {
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+  }
+
+  .cv-chat-msg {
+    max-width: 96%;
+  }
+
+  .cv-chat-msg-content {
+    font-size: 0.875rem;
+  }
+
+  .cv-chat-input-bar {
+    align-items: flex-end;
+    padding: 0.5rem 0.75rem;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+    gap: 0.5rem;
+  }
+
+  .cv-chat-input {
+    /* 16px évite le zoom automatique iOS au focus */
+    font-size: 1rem;
+    line-height: 1.45;
+    padding: 0.65rem 0.75rem;
+    min-height: 44px;
+  }
+
+  .cv-chat-input-send {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+  }
+
+  .cv-chat-page .page-title-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .cv-chat-page .page-title-row-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: stretch;
+  }
+
+  .cv-chat-page .btn-new-adapt-session {
+    width: 100%;
+    white-space: normal;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .cv-chat-page .page-subtitle {
+    line-height: 1.5;
+  }
+
+  .cv-chat-error {
+    margin-left: 1rem;
+    margin-right: 1rem;
+  }
+
+  /* Kanban / Candidatures */
+  .kanban-board {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+  }
+
+  .kanban-column {
+    max-height: none;
+  }
+
+  .kanban-column-header {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.6rem;
+  }
+
+  .application-card {
+    padding: 0.65rem 0.75rem;
+    font-size: 0.78rem;
+  }
+
+  .applications-stats {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.4rem;
+  }
+
+  /* Onboarding banner */
+  .onboarding-banner {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .onboarding-banner-inner {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+  }
+
+  .onboarding-banner-text {
+    font-size: 0.85rem;
+    min-width: 0;
+  }
+
+  /* Modals */
+  .setup-modal,
+  .linkedin-sync-modal,
+  .upgrade-modal {
+    margin: 0.5rem;
+    max-width: calc(100vw - 1rem);
+    padding: 1rem;
+  }
+
+  .application-detail-overlay .application-detail-modal,
+  .modal-overlay .modal-content,
+  .detail-modal-content {
+    margin: 0.5rem;
+    max-width: calc(100vw - 1rem);
+    max-height: 90vh;
+    border-radius: 12px;
+    padding: 1rem;
+  }
+
+  /* Login screen */
+  .login-screen {
+    padding: 1rem;
+  }
+
+  .login-screen-card {
+    padding: 1.5rem 1.25rem;
+  }
+
+  .login-screen-card h1 {
+    font-size: 1.25rem;
+  }
+
+  .login-reassurance {
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  /* ATS score bar */
+  .ats-score-bar {
+    padding: 0.35rem 0.65rem;
+  }
+
+  /* Template picker */
+  .template-picker-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  /* Support / chat views */
+  .support-conv-input-bar {
+    flex-wrap: wrap;
+  }
+
+  /* General buttons tighter on mobile */
+  .btn {
+    font-size: 0.82rem;
+    padding: 0.45rem 0.75rem;
+  }
+
+  .btn-lg {
+    padding: 0.55rem 1rem;
+    font-size: 0.88rem;
+  }
+
+  /* Empty states */
+  .applications-empty-state h2 {
+    font-size: 1.1rem;
+  }
+}

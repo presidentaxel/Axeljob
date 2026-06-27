@@ -1,0 +1,298 @@
+/**
+ * Monitoring admin /app/monitoring.
+ */
+/* ----- Monitoring (admin) ----- */
+.view-monitoring {
+  background: var(--bg-page);
+}
+
+.monitoring-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.monitoring-hero .support-hero-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.monitoring-hero-icon {
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.monitoring-content {
+  max-width: 960px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.monitoring-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.monitoring-days-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.monitoring-days-select {
+  max-width: 200px;
+}
+
+.monitoring-refresh {
+  align-self: flex-end;
+}
+
+.monitoring-error {
+  color: var(--error, #dc2626);
+  font-size: 0.9rem;
+}
+
+.monitoring-section {
+  margin-bottom: 2rem;
+}
+
+.monitoring-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.monitoring-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1rem 1.15rem;
+}
+
+.monitoring-card--wide {
+  grid-column: 1 / -1;
+}
+
+.monitoring-card h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.monitoring-card-metric {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.monitoring-muted {
+  margin: 0.35rem 0 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.monitoring-pre {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.72rem;
+  max-height: 120px;
+  overflow: auto;
+  background: var(--bg-page);
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border);
+}
+
+.monitoring-hint {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.monitoring-code {
+  font-size: 0.8em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--bg-page);
+  border: 1px solid var(--border);
+}
+
+.monitoring-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .monitoring-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.monitoring-subhead {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.monitoring-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.45rem;
+  border-radius: 6px;
+  background: var(--accent-light, #eef2ff);
+  color: var(--accent, #4f46e5);
+}
+
+.monitoring-bar-list {
+  list-style: none;
+  margin: 0.75rem 0 0 0;
+  padding: 0;
+}
+
+.monitoring-bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(80px, 2fr) auto;
+  gap: 0.5rem 0.65rem;
+  align-items: center;
+  margin-bottom: 0.45rem;
+  font-size: 0.8rem;
+}
+
+.monitoring-bar-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.monitoring-bar-track {
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.monitoring-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent, #6366f1), #818cf8);
+  border-radius: 4px;
+  min-width: 2px;
+}
+
+.monitoring-bar-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+.monitoring-news-list {
+  list-style: none;
+  margin: 0.75rem 0 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.monitoring-news-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1rem 1.15rem;
+}
+
+.monitoring-news-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.monitoring-news-date {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.monitoring-news-link {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent, #4f46e5);
+}
+
+.monitoring-news-title {
+  margin: 0 0 0.35rem 0;
+  font-size: 1.05rem;
+}
+
+.monitoring-news-summary {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.monitoring-table-wrap {
+  overflow-x: auto;
+  margin-top: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+
+.monitoring-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.monitoring-table th,
+.monitoring-table td {
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.monitoring-table th {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.monitoring-table-route {
+  font-family: ui-monospace, monospace;
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+

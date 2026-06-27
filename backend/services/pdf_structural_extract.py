@@ -68,10 +68,10 @@ def _float_rgb_to_hex(value: Any) -> str | None:
     """Convertit un fill PyMuPDF (tuple flottants 0..1, gris ou rgb) en hex."""
     if value is None:
         return None
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         v = max(0, min(255, round(float(value) * 255)))
         return f"#{v:02x}{v:02x}{v:02x}"
-    if isinstance(value, (tuple, list)):
+    if isinstance(value, tuple | list):
         if len(value) == 1:
             v = max(0, min(255, round(float(value[0]) * 255)))
             return f"#{v:02x}{v:02x}{v:02x}"

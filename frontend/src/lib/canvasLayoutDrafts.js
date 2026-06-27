@@ -30,7 +30,43 @@ function readJson(key, fallback) {
 }
 
 function writeJson(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    // QuotaExceededError ou localStorage indisponible (mode privé) : on ne
+    // doit JAMAIS laisser remonter l'exception (les drafts sont un cache
+    // best-effort, la source de vérité est le backend).
+    return false;
+  }
+}
+
+/**
+ * Les polices embarquées d'un PDF importé sont des data-URLs base64 lourdes
+ * (souvent plusieurs centaines de Ko). On ne les persiste PAS dans les drafts
+ * localStorage (quota ~5 Mo vite atteint) : le layout actif est rechargé
+ * depuis le backend avec ses polices, le draft local n'est qu'un cache de
+ * repositionnement.
+ */
+function stripHeavyFieldsForLocal(layout) {
+  if (!layout || typeof layout !== 'object' || !Array.isArray(layout.fonts) || !layout.fonts.length) {
+    return layout;
+  }
+  const { fonts: _fonts, ...rest } = layout;
+  return rest;
+}
+
+/** Conserve le contexte courant + les N drafts les plus récents (purge le reste). */
+function pruneDrafts(drafts, keepKey, keepRecent = 2) {
+  const entries = Object.values(drafts).filter((e) => e?.contextKey);
+  const sorted = entries.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  const kept = {};
+  if (drafts[keepKey]) kept[keepKey] = drafts[keepKey];
+  for (const entry of sorted) {
+    if (Object.keys(kept).length >= keepRecent + 1) break;
+    kept[entry.contextKey] = entry;
+  }
+  return kept;
 }
 
 export function loadCanvasDraft(contextKey) {
@@ -51,12 +87,16 @@ export function saveCanvasDraft(contextKey, layout, meta = {}) {
   const drafts = readJson(DRAFTS_STORAGE_KEY, {});
   const entry = {
     contextKey: key,
-    layout,
+    layout: stripHeavyFieldsForLocal(layout),
     label: meta.label || drafts[key]?.label || key,
     updatedAt: Date.now(),
   };
   drafts[key] = entry;
-  writeJson(DRAFTS_STORAGE_KEY, drafts);
+  if (!writeJson(DRAFTS_STORAGE_KEY, drafts)) {
+    // Quota dépassé : on purge les drafts les plus anciens et on retente une
+    // fois avec uniquement le contexte courant + les plus récents.
+    writeJson(DRAFTS_STORAGE_KEY, pruneDrafts(drafts, key));
+  }
   return entry;
 }
 

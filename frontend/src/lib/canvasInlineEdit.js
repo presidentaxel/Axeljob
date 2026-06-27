@@ -2,7 +2,29 @@
  * Edition inline canvas libre (P4.1) : sync champs data-cv-field et block.content.
  */
 
+import DOMPurify from 'dompurify';
 import { getByPath } from './freeCanvasContent.js';
+
+/**
+ * Whitelist stricte pour le texte riche du canvas. Seules les balises de
+ * formatage inline produites par la toolbar (gras / italique / souligné /
+ * couleur) sont autorisées : tout le reste (script, img, on*, iframe…) est
+ * retiré. Appliqué A LA CAPTURE et AU RENDU (defense in depth) car le HTML
+ * est aussi renvoyé au backend (rendu PDF / serveur).
+ */
+const RICH_TEXT_SANITIZE_CONFIG = Object.freeze({
+  ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'u', 's', 'strike', 'span', 'font', 'br'],
+  ALLOWED_ATTR: ['style', 'color', 'face'],
+  ALLOW_DATA_ATTR: false,
+  FORBID_TAGS: ['script', 'style', 'img', 'iframe', 'object', 'embed', 'svg', 'a'],
+  FORBID_ATTR: ['onerror', 'onload', 'onclick', 'href', 'src'],
+});
+
+/** Nettoie un fragment de texte riche selon la whitelist canvas. */
+export function sanitizeRichTextHtml(html) {
+  if (typeof html !== 'string' || html === '') return '';
+  return DOMPurify.sanitize(html, RICH_TEXT_SANITIZE_CONFIG);
+}
 
 export function setByPath(obj, path, value) {
   const parts = path.split('.');
@@ -76,7 +98,7 @@ export function fieldValueFromEditableEl(el) {
   const html = normalizeRichTextHtml(el.innerHTML || '');
   if (!html || html === '<br>') return '';
   if (/<(?:b|strong|i|em|u|s|strike|span|font)\b/i.test(html)) {
-    return html;
+    return sanitizeRichTextHtml(html);
   }
   return (el.textContent || '').trim();
 }
@@ -107,7 +129,7 @@ export function readBlockContentFromRoot(rootEl, blockType) {
   if (!el) return '';
   const html = normalizeRichTextHtml(el.innerHTML || '');
   if (!html || html === '<br>') return '';
-  return html;
+  return sanitizeRichTextHtml(html);
 }
 
 export function getFieldDisplayValue(cv, path) {

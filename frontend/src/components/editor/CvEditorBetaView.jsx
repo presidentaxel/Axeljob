@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { apiGet, apiPost, apiPostBlob, apiPostFile, apiPut } from '../../api';
+import {
+  apiGet,
+  apiPost,
+  apiPostBlob,
+  apiPostFile,
+  apiPut,
+  getDownloadPermissionHint,
+  prepareAppleDownloadWindow,
+  saveBlobWithPreferredMethod,
+} from '../../api';
 import CvImportLoadingOverlay from '../CvImportLoadingOverlay.jsx';
 import {
   cvFromImportPayload,
@@ -750,21 +759,22 @@ function CvEditorBeta({
     if (!cv || !layout || pdfExporting) return;
     setPdfExporting(true);
     setPdfExportError('');
+    const preopenedWindow = prepareAppleDownloadWindow();
     try {
-      const { blob } = await apiPostBlob('/api/pdf', {
+      const { blob, filename } = await apiPostBlob('/api/pdf', {
         cv,
         template_id: templateId,
         layout,
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = buildCanvasPdfFilename(cv);
-      a.click();
-      URL.revokeObjectURL(url);
+      await saveBlobWithPreferredMethod(
+        blob,
+        filename || buildCanvasPdfFilename(cv),
+        { preopenedWindow },
+      );
     } catch (err) {
+      if (preopenedWindow && !preopenedWindow.closed) preopenedWindow.close();
       console.error('[cv-editor-beta] export PDF layout', err);
-      setPdfExportError(err?.message || 'Impossible de telecharger le PDF.');
+      setPdfExportError(`${err?.message || 'Impossible de telecharger le PDF.'}${getDownloadPermissionHint()}`);
     } finally {
       setPdfExporting(false);
     }

@@ -23,18 +23,39 @@ import { snapBlockGeometry, snapBlockPosition } from '../../lib/freeCanvasSnap.j
 import '../../styles/FreeCanvas.css';
 import '../../styles/CanvasTemplateFidelity.css';
 
+/** Échappe une valeur destinée à une chaîne CSS (font-family, format…). */
+function cssEscapeString(value) {
+  return String(value || '')
+    .replace(/[\\"']/g, '\\$&')
+    .replace(/[\n\r<>]/g, '');
+}
+
+/** Autorise uniquement les sources de police sûres (data: ou http(s)). */
+function safeFontSrc(src) {
+  const s = String(src || '').trim();
+  if (!/^(data:[a-z/+.-]+;base64,[a-z0-9+/=]+|https?:\/\/[^\s'")]+)$/i.test(s)) return null;
+  return s;
+}
+
 /** Règles @font-face pour les polices embarquées d'un PDF importé. */
 function EmbeddedFontFaces({ fonts }) {
   if (!Array.isArray(fonts) || fonts.length === 0) return null;
   const css = fonts
-    .filter((f) => f && f.family && f.src)
-    .map((f) => (
-      `@font-face{font-family:'${f.family}';`
-      + `font-weight:${f.weight === 700 ? 700 : 400};`
-      + `font-style:${f.style === 'italic' ? 'italic' : 'normal'};`
-      + 'font-display:swap;'
-      + `src:url(${f.src}) format('${f.format || 'truetype'}');}`
-    ))
+    .map((f) => {
+      if (!f || !f.family || !f.src) return null;
+      const src = safeFontSrc(f.src);
+      if (!src) return null;
+      const family = cssEscapeString(f.family);
+      const format = cssEscapeString(f.format || 'truetype');
+      return (
+        `@font-face{font-family:'${family}';`
+        + `font-weight:${f.weight === 700 ? 700 : 400};`
+        + `font-style:${f.style === 'italic' ? 'italic' : 'normal'};`
+        + 'font-display:swap;'
+        + `src:url("${src}") format('${format}');}`
+      );
+    })
+    .filter(Boolean)
     .join('\n');
   if (!css) return null;
   return <style dangerouslySetInnerHTML={{ __html: css }} />;

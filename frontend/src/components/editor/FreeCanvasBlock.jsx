@@ -7,6 +7,7 @@ import {
   getFieldDisplayValue,
   isCanvasInlineEditableType,
   normalizeRichTextHtml,
+  sanitizeRichTextHtml,
 } from '../../lib/canvasInlineEdit.js';
 import {
   attachEditableFieldBehavior,
@@ -53,7 +54,7 @@ function BlockText({ children, className = '' }) {
   const richText = normalizeRichTextHtml(text);
   if (!text) return <span className={`free-canvas-block__empty ${className}`}> </span>;
   if (fieldValueLooksLikeHtml(richText)) {
-    return <span className={className} dangerouslySetInnerHTML={{ __html: richText }} />;
+    return <span className={className} dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(richText) }} />;
   }
   return <span className={className}>{text}</span>;
 }
@@ -574,7 +575,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
 function EditableRichText({ tag, className, style, editing, html, onAutoHeight }) {
   const Tag = tag;
   const ref = useRef(null);
-  const richHtml = normalizeRichTextHtml(html || '');
+  const richHtml = sanitizeRichTextHtml(normalizeRichTextHtml(html || ''));
   useEffect(() => {
     if (editing && ref.current) {
       ref.current.innerHTML = richHtml;

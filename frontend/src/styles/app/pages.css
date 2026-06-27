@@ -1,0 +1,275 @@
+/**
+ * Pages internes /app — en-têtes, structure, bandeaux.
+ */
+.app-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+}
+
+.app-page .page-header {
+  flex-shrink: 0;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--color-hairline);
+  background: var(--color-canvas);
+}
+
+.page-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.page-title-row-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.page-title-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.btn-new-adapt-session {
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.app-page .page-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--color-ink);
+  letter-spacing: -0.02em;
+}
+
+.page-tour-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-hairline);
+  background: var(--color-canvas);
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.page-tour-help:hover {
+  color: var(--color-primary);
+  border-color: var(--color-slate);
+  background: var(--color-soft-stone);
+}
+
+.page-tour-help:focus-visible {
+  outline: 2px solid var(--color-focus-blue);
+  outline-offset: 2px;
+}
+
+.app-page .page-subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.875rem;
+  color: var(--color-body-muted);
+}
+
+.page-header-dashboard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dashboard-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.btn-new-candidature {
+  flex-shrink: 0;
+}
+
+.app-page .page-content {
+  flex: 1;
+  padding: 1.5rem;
+  min-height: 0;
+  overflow: auto;
+}
+
+.app-page main.app-content {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(560px, 1fr) 380px;
+  gap: 0;
+  min-height: 0;
+  padding: 0;
+}
+
+.view-profil .page-content {
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 900px) {
+  .view-profil .page-content {
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+.view-profil .profile-view-with-preview {
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.view-settings .page-content {
+  max-width: 920px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Bandeaux plan gratuit / onboarding */
+.free-plan-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: var(--color-pale-blue);
+  border-bottom: 1px solid var(--color-hairline);
+  font-size: 0.82rem;
+  color: var(--text);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.free-plan-banner .btn {
+  font-size: 0.78rem;
+  padding: 0.3rem 0.75rem;
+}
+
+.zero-adapt-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.45rem 1rem;
+  background: var(--color-pale-green);
+  border-bottom: 1px solid var(--color-hairline);
+  font-size: 0.8rem;
+  color: var(--color-body-muted);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.zero-adapt-banner--compact {
+  justify-content: flex-start;
+  text-align: left;
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-hairline);
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.view-profil .page-header .zero-adapt-banner--compact {
+  width: 100%;
+  max-width: 42rem;
+}
+
+.zero-adapt-banner-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 500;
+  color: var(--color-action-blue);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.zero-adapt-banner-link:hover {
+  opacity: 0.85;
+}
+
+.onboarding-banner {
+  flex-shrink: 0;
+  background: var(--color-pale-blue);
+  border-bottom: 1px solid var(--color-hairline);
+  padding: 0.75rem 1.25rem;
+}
+
+.onboarding-banner-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.onboarding-banner-text {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--text);
+  flex: 1;
+  min-width: 200px;
+}
+
+.onboarding-banner-dismiss {
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.onboarding-banner-dismiss:hover {
+  background: var(--color-soft-stone);
+  color: var(--text);
+}
+
+@media (max-width: 767px) {
+  main.app-content {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1200px) {
+  main.app-content {
+    grid-template-columns: minmax(480px, 1fr) 360px;
+  }
+}

@@ -271,20 +271,86 @@ export function readRichHtmlFromRoot(rootEl, blockType) {
   return el.innerHTML || '';
 }
 
-/** Cycle liste : aucune → puces → numéros → aucune. */
-export function cycleListMode() {
-  const root = getActiveEditableRoot();
+/** Retourne la zone éditable active (sélection ou bloc en cours d’édition). */
+export function getListEditableRoot() {
+  const fromSelection = getActiveEditableRoot();
+  if (fromSelection) return fromSelection;
+  const inner = getEditingBlockInnerRoot();
+  if (!inner) return null;
+  return inner.querySelector(
+    '.free-canvas-block__text--editing, .free-canvas-block__title--editing, .canvas-editable-field[contenteditable="true"]',
+  );
+}
+
+function focusEditableForCommand(root) {
   if (!root) return false;
   root.focus();
+  const sel = window.getSelection();
+  if (!sel) return false;
+  if (!sel.rangeCount || sel.getRangeAt(0).collapsed) {
+    const range = document.createRange();
+    range.selectNodeContents(root);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+  return true;
+}
+
+/** Cycle liste sur le HTML d’un bloc texte/title (hors mode édition). */
+export function cycleListModeOnBlockContent(content) {
+  const raw = String(content ?? '').trim();
+  if (typeof document === 'undefined') return raw;
+  const wrapHtml = (inner) => `<div data-list-wrap>${inner}</div>`;
+  const doc = new DOMParser().parseFromString(wrapHtml(raw || '&nbsp;'), 'text/html');
+  const wrap = doc.body.firstElementChild;
+  if (!wrap) return raw;
+
+  const ul = wrap.querySelector(':scope > ul');
+  const ol = wrap.querySelector(':scope > ol');
+
+  if (!ul && !ol) {
+    const list = doc.createElement('ul');
+    const li = doc.createElement('li');
+    li.innerHTML = raw || '&nbsp;';
+    list.appendChild(li);
+    wrap.innerHTML = '';
+    wrap.appendChild(list);
+    return wrap.innerHTML;
+  }
+
+  if (ul) {
+    const list = doc.createElement('ol');
+    [...ul.children].forEach((child) => list.appendChild(child.cloneNode(true)));
+    ul.replaceWith(list);
+    return wrap.innerHTML;
+  }
+
+  const items = [...ol.querySelectorAll(':scope > li')];
+  const plain = items.map((li) => li.innerHTML.trim()).filter(Boolean).join('<br>') || '';
+  ol.remove();
+  wrap.innerHTML = plain;
+  return wrap.innerHTML;
+}
+
+/** Cycle liste : aucune → puces → numéros → aucune. */
+export function cycleListMode() {
+  const root = getListEditableRoot();
+  if (!root) return false;
+  focusEditableForCommand(root);
+  try {
+    document.execCommand('styleWithCSS', false, true);
+  } catch {
+    /* ignore */
+  }
   const inUL = document.queryCommandState('insertUnorderedList');
   const inOL = document.queryCommandState('insertOrderedList');
   if (!inUL && !inOL) {
-    return applyRichTextCommandWithFallback('insertUnorderedList');
+    return document.execCommand('insertUnorderedList');
   }
   if (inUL) {
-    applyRichTextCommand('insertUnorderedList');
-    return applyRichTextCommandWithFallback('insertOrderedList');
+    document.execCommand('insertUnorderedList');
+    return document.execCommand('insertOrderedList');
   }
-  applyRichTextCommand('insertOrderedList');
+  document.execCommand('insertOrderedList');
   return true;
 }

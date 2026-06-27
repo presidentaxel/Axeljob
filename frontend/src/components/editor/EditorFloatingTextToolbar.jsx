@@ -15,6 +15,7 @@ import {
   bumpFontSizesBy,
   applyRichTextCommandWithFallback,
   cycleListMode,
+  cycleListModeOnBlockContent,
   getEditingBlockInnerRoot,
   hasTextSelection,
   queryCommandState,
@@ -190,6 +191,18 @@ export default function EditorFloatingTextToolbar({
     });
   };
 
+  const handleListToggle = (e) => {
+    formatAction(e, () => {
+      if (isEditing && showText) {
+        cycleListMode();
+        return;
+      }
+      if (typeof onBlockContentPatch !== 'function') return;
+      const next = cycleListModeOnBlockContent(block.content);
+      onBlockContentPatch({ content: next });
+    });
+  };
+
   if (isImage) {
     return (
       <div className="editor-format-bar" role="toolbar" aria-label="Image">
@@ -298,7 +311,7 @@ export default function EditorFloatingTextToolbar({
           <button
             type="button"
             title="Liste (puces / numéros)"
-            onMouseDown={(e) => formatAction(e, () => cycleListMode())}
+            onMouseDown={handleListToggle}
           >
             <HiListBullet size={17} aria-hidden />
           </button>

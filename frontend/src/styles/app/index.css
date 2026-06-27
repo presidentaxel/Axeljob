@@ -1,0 +1,9 @@
+/**
+ * Styles shell applicatif /app — point d’entrée.
+ * Importé depuis App.css ; le reste d’App.css couvre landing, chat, etc.
+ */
+@import './base.css';
+@import './shell.css';
+@import './topbar.css';
+@import './pages.css';
+@import './buttons.css';

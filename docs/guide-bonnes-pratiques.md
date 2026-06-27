@@ -144,7 +144,9 @@ Avant de modifier du code : identifier **ou** vit la regle (UI, API, SQL, templa
 
 ## 8. Git, PR et revue
 
-- **Branches** : courtes, scope clair, une intention principale par PR.
+- **`main`** : prod — merge via PR uniquement, pas de `git push origin main`.
+- **`wip/innovation`** : chantier long (éditeur Beta, import PDF, ATS) — PR Draft [#33](https://github.com/presidentaxel/Axeljob/pull/33), push quotidien sur la branche, **ne pas merger** avant validation. Voir `docs/git-workflow.md`.
+- **Branches courtes** (`feat/*`, `fix/*`) : scope clair, une intention principale par PR, depuis `main`.
 - **Commits** : utiliser Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
 - **Description PR** : expliquer le pourquoi, l'impact utilisateur, les risques et le plan de test.
 - **Avant merge** : CI verte, checks securite verts, documentation mise a jour si comportement modifie.

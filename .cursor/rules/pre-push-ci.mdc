@@ -11,7 +11,7 @@ alwaysApply: true
 
 Branches de travail typiques :
 - **`main`** — prod (merge via PR uniquement)
-- **`wip/innovation`** — dev éditeur Beta / canvas
+- **`wip/innovation`** — dev éditeur Beta / canvas (PR Draft #33, voir `docs/git-workflow.md`)
 
 ## Avant push ou création de PR
 

@@ -330,6 +330,7 @@ En mode development, la doc interactive est accessible sur :
 Le projet inclut des standards de contribution et des quality gates :
 
 - Guide contribution : `docs/contributing.md`
+- **Workflow Git (branches, PR Draft innovation)** : `docs/git-workflow.md`
 - Guide bonnes pratiques : `docs/guide-bonnes-pratiques.md`
 - Audit conformité guide : `docs/conformity-audit.md`
 - Politique securite : `docs/security.md`

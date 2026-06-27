@@ -161,28 +161,52 @@ docker compose restart frontend
 
 ## 7) Git (workflow PR)
 
-### Bash (Linux / macOS)
+> Guide complet : **`docs/git-workflow.md`** (branches, PR Draft #33, FAQ).
+
+### Branches
+
+| Branche | Usage |
+| --- | --- |
+| `main` | Prod — merge **via PR uniquement** |
+| `wip/innovation` | Dev actif (éditeur Beta, import PDF, ATS) — PR **Draft** [#33](https://github.com/presidentaxel/Axeljob/pull/33), **ne pas merger** pour l'instant |
+| `feat/*`, `fix/*` | Petites évolutions mergeables indépendamment |
+
+### Bash (Linux / macOS) — quotidien sur `wip/innovation`
 
 ```bash
-git checkout -b feat/ma-feature    # ou wip/innovation
-git status
-git add .
+git checkout wip/innovation
 git commit -m "feat: description du changement"
 bash scripts/pre-push.sh --skip-extras --skip-gitleaks
-git push -u origin HEAD            # branche feature uniquement — jamais main
-gh pr create --base main --title "…" --body "…"
+git push origin wip/innovation    # met à jour la PR Draft #33
+```
+
+### Bash — petite feature / fix depuis `main`
+
+```bash
+git checkout main && git pull origin main
+git checkout -b fix/mon-sujet
+git commit -m "fix: description"
+bash scripts/pre-push.sh --skip-extras --skip-gitleaks
+git push -u origin HEAD
+gh pr create --base main --title "fix: …" --body "…"
 ```
 
 ### PowerShell (Windows)
 
 ```powershell
-git checkout -b feat/ma-feature
-git status
-git add .
+git checkout wip/innovation
 git commit -m "feat: description du changement"
 powershell -ExecutionPolicy Bypass -File .\scripts\pre-push.ps1 -SkipExtras -SkipGitleaks
+git push origin wip/innovation
+```
+
+```powershell
+git checkout main; git pull origin main
+git checkout -b fix/mon-sujet
+git commit -m "fix: description"
+powershell -ExecutionPolicy Bypass -File .\scripts\pre-push.ps1 -SkipExtras -SkipGitleaks
 git push -u origin HEAD
-gh pr create --base main --title "…" --body "…"
+gh pr create --base main --title "fix: …" --body "…"
 ```
 
 > [!WARNING]
@@ -201,7 +225,7 @@ bash scripts/setup-dev.sh
 # ou : make setup
 ```
 
-Branches : **`main`** = prod ; **`wip/innovation`** = dev éditeur Beta / canvas (une seule branche de travail).
+Branches : **`main`** = prod ; **`wip/innovation`** = dev éditeur Beta / canvas (PR Draft [#33](https://github.com/presidentaxel/Axeljob/pull/33), ne pas merger). Voir **`docs/git-workflow.md`**.
 
 Configure `.venv` (Black **24.10.0** comme GitHub), active le hook **pre-push** Git (`.githooks/`), et rappelle les hooks **Cursor** (`.cursor/hooks.json`).
 

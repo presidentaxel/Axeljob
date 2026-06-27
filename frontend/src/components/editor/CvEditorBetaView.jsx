@@ -97,6 +97,7 @@ import '../../styles/EditorCvImportModal.css';
 
 function CvEditorBeta({
   session: _session,
+  refreshKey = 0,
   templateId,
   templateOptions,
   templatesList,
@@ -105,6 +106,8 @@ function CvEditorBeta({
 }) {
   const [cv, setCv] = useState(null);
   const [loading, setLoading] = useState(true);
+  /** Échec GET /api/cv au montage : bloque l’éditeur (pas d’auto-save sur profil vide). */
+  const [profileLoadError, setProfileLoadError] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [selectedBlockId, setSelectedBlockId] = useState(null);
   const [editingBlockId, setEditingBlockId] = useState(null);
@@ -134,10 +137,14 @@ function CvEditorBeta({
   const [importError, setImportError] = useState('');
   const [importToast, setImportToast] = useState('');
   const importCleanupRef = useRef(null);
+  const [profileLoadAttempt, setProfileLoadAttempt] = useState(0);
+  const templatesListRef = useRef(templatesList);
+  templatesListRef.current = templatesList;
 
   const handleLayoutHistoryChange = useCallback(() => {
-    if (cv) autoSaveRef.current?.schedule(cv);
-  }, [cv]);
+    if (!cv || profileLoadError) return;
+    autoSaveRef.current?.schedule(cv);
+  }, [cv, profileLoadError]);
 
   const layoutHistory = useLayoutHistory(() => createBlankLayoutV3(), {
     keyboardShortcuts: true,
@@ -156,6 +163,9 @@ function CvEditorBeta({
   layoutRef.current = layout;
 
   const saveFn = useCallback(async (payload) => {
+    if (!payload || profileLoadError) {
+      throw new Error('Profil non chargé — réessayez.');
+    }
     const body = {
       ...payload,
       template_id: payload.template_id ?? templateId,
@@ -166,7 +176,7 @@ function CvEditorBeta({
       body.layout = layoutToSave && !isEmptyLayoutV3(layoutToSave) ? layoutToSave : null;
     }
     return apiPut('/api/cv', body);
-  }, [templateId, templateOptions]);
+  }, [templateId, templateOptions, profileLoadError]);
 
   const autoSave = useAutoSave({
     saveFn,
@@ -200,7 +210,7 @@ function CvEditorBeta({
   }, [activeLayoutContextKey, templatesList, refreshCanvasDrafts]);
 
   useEffect(() => {
-    if (!layout) return undefined;
+    if (!layout || !cv || profileLoadError) return undefined;
     const id = setTimeout(() => {
       saveCanvasDraft(activeLayoutContextKey, layout, {
         label: canvasContextLabel(activeLayoutContextKey, templatesList),
@@ -208,7 +218,7 @@ function CvEditorBeta({
       refreshCanvasDrafts();
     }, 250);
     return () => clearTimeout(id);
-  }, [layout, activeLayoutContextKey, templatesList, refreshCanvasDrafts]);
+  }, [layout, activeLayoutContextKey, templatesList, refreshCanvasDrafts, cv, profileLoadError]);
 
   const openCanvasContext = useCallback((contextKey, nextLayout) => {
     const hydrated = migrateLayoutToV3(nextLayout || createCanvasLayoutBlank());
@@ -228,7 +238,7 @@ function CvEditorBeta({
   useEffect(() => {
     let aborted = false;
     setLoading(true);
-    setLoadError(null);
+    setProfileLoadError(null);
     apiGet('/api/cv?profile=1')
       .then((data) => {
         if (aborted) return;
@@ -241,13 +251,14 @@ function CvEditorBeta({
           ? migrateLayoutToV3(rawLayout)
           : createBlankLayoutV3();
         const contextKey = getActiveCanvasContext();
+        const templates = templatesListRef.current;
         setActiveLayoutContextKey(contextKey);
         setActiveCanvasContext(contextKey);
         if (rawLayout) {
           saveCanvasDraft(contextKey, hydratedLayout, {
-            label: canvasContextLabel(contextKey, templatesList),
+            label: canvasContextLabel(contextKey, templates),
           });
-          refreshCanvasDrafts();
+          setCanvasDrafts(listCanvasDrafts(templates));
         }
         resetLayout(hydratedLayout);
         setStartupPromptOpen(!rawLayout);
@@ -255,22 +266,25 @@ function CvEditorBeta({
       })
       .catch((err) => {
         if (aborted) return;
-        setLoadError(err?.message || 'Impossible de charger le CV');
-        const baseCv = typeof defaultCv === 'function' ? defaultCv() : defaultCv;
-        setCv({ ...baseCv });
-        setActiveLayoutContextKey(BLANK_CANVAS_CONTEXT_KEY);
-        setActiveCanvasContext(BLANK_CANVAS_CONTEXT_KEY);
-        resetLayout(createBlankLayoutV3());
-        setStartupPromptOpen(false);
+        setProfileLoadError(err?.message || 'Impossible de charger le CV. Vérifie ta connexion puis réessaie.');
+        setCv(null);
         setLoading(false);
       });
     return () => { aborted = true; };
-  }, [resetLayout, templatesList, refreshCanvasDrafts]);
+  }, [resetLayout, refreshKey, profileLoadAttempt]);
+
+  // Libellés des brouillons locaux quand la liste templates arrive (async) —
+  // sans re-fetch ni reset du layout en cours (fix B).
+  useEffect(() => {
+    if (loading || profileLoadError || !cv) return;
+    setCanvasDrafts(listCanvasDrafts(templatesList));
+  }, [templatesList, loading, profileLoadError, cv]);
 
   const handleCvChange = useCallback((nextCv) => {
+    if (profileLoadError || !nextCv) return;
     setCv(nextCv);
     autoSave.schedule(nextCv);
-  }, [autoSave]);
+  }, [autoSave, profileLoadError]);
 
   const handleRetry = useCallback(() => {
     autoSave.flush();
@@ -877,6 +891,32 @@ function CvEditorBeta({
   }, [selectedBlockId, editingBlockId, handleDeleteSelectedBlock, handleNudgeSelectedBlock]);
 
   if (loading) {
+    return (
+      <div className="cv-editor-beta cv-editor-beta--loading">
+        <p>Chargement du CV…</p>
+      </div>
+    );
+  }
+
+  if (profileLoadError) {
+    return (
+      <div className="cv-editor-beta cv-editor-beta--load-error" role="alertdialog" aria-modal="true" aria-labelledby="cv-beta-load-err-title">
+        <div className="cv-editor-beta-load-error-card">
+          <h2 id="cv-beta-load-err-title">Profil inaccessible</h2>
+          <p>{profileLoadError}</p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setProfileLoadAttempt((k) => k + 1)}
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!cv) {
     return (
       <div className="cv-editor-beta cv-editor-beta--loading">
         <p>Chargement du CV…</p>

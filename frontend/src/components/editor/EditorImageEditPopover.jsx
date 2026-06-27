@@ -21,6 +21,61 @@ function resolveImageSource(block, cv) {
 const PREVIEW_W = 360;
 const PREVIEW_H = 280;
 const RADIUS_HANDLES = ['nw', 'ne', 'se', 'sw'];
+const HANDLE_SIZE = 14;
+const HANDLE_HALF = HANDLE_SIZE / 2;
+
+function radiusPxFromMm(radiusMm, frameW, frameH, blockRatioW, blockRatioH) {
+  const scaleX = frameW / blockRatioW;
+  const scaleY = frameH / blockRatioH;
+  return Math.min(radiusMm * scaleX, radiusMm * scaleY);
+}
+
+function radiusMmFromPx(radiusPx, frameW, frameH, blockRatioW, blockRatioH, maxRadiusMm) {
+  const scaleX = frameW / blockRatioW;
+  const scaleY = frameH / blockRatioH;
+  const scale = Math.min(scaleX, scaleY) || 1;
+  return clampRadius(radiusPx / scale, maxRadiusMm);
+}
+
+function radiusPxFromPointer(handle, clientX, clientY, rect) {
+  const localX = clientX - rect.left;
+  const localY = clientY - rect.top;
+  const w = rect.width;
+  const h = rect.height;
+  switch (handle) {
+    case 'nw':
+      return Math.min(localX, localY);
+    case 'ne':
+      return Math.min(w - localX, localY);
+    case 'se':
+      return Math.min(w - localX, h - localY);
+    case 'sw':
+      return Math.min(localX, h - localY);
+    default:
+      return 0;
+  }
+}
+
+function handleCornerStyle(handle, radiusPx) {
+  const inset = Math.max(0, radiusPx - HANDLE_HALF);
+  switch (handle) {
+    case 'nw':
+      return { left: `${inset}px`, top: `${inset}px` };
+    case 'ne':
+      return { right: `${inset}px`, top: `${inset}px` };
+    case 'se':
+      return { right: `${inset}px`, bottom: `${inset}px` };
+    case 'sw':
+      return { left: `${inset}px`, bottom: `${inset}px` };
+    default:
+      return {};
+  }
+}
+
+function handleCursor(handle) {
+  if (handle === 'ne' || handle === 'sw') return 'nesw-resize';
+  return 'nwse-resize';
+}
 
 export default function EditorImageEditPopover({
   block,
@@ -76,9 +131,8 @@ export default function EditorImageEditPopover({
   const frameW = ratio >= PREVIEW_W / PREVIEW_H ? PREVIEW_W : PREVIEW_H * ratio;
   const frameH = ratio >= PREVIEW_W / PREVIEW_H ? PREVIEW_W / ratio : PREVIEW_H;
   const maxRadiusMm = Math.min(blockRatioW, blockRatioH) / 2;
-  const radiusCss = draftRadius > 0
-    ? `${(draftRadius / blockRatioW) * frameW}px`
-    : '0';
+  const radiusPx = radiusPxFromMm(draftRadius, frameW, frameH, blockRatioW, blockRatioH);
+  const radiusCss = radiusPx > 0 ? `${radiusPx}px` : '0';
   const zoomPercent = Math.round((draftZoom - 1) / 2 * 100);
   const radiusPercent = maxRadiusMm > 0 ? Math.round((draftRadius / maxRadiusMm) * 100) : 0;
 
@@ -121,14 +175,8 @@ export default function EditorImageEditPopover({
       const frame = frameRef.current;
       if (!frame) return;
       const rect = frame.getBoundingClientRect();
-      const dx = event.clientX - radiusDrag.startClientX;
-      const dy = event.clientY - radiusDrag.startClientY;
-      const outward = (
-        (radiusDrag.handle.includes('e') ? dx : -dx)
-        + (radiusDrag.handle.includes('s') ? dy : -dy)
-      ) / 2;
-      const pxPerMm = Math.min(rect.width, rect.height) / Math.max(maxRadiusMm, 0.1);
-      const nextMm = clampRadius(radiusDrag.startMm + outward / pxPerMm, maxRadiusMm);
+      const rPx = radiusPxFromPointer(radiusDrag.handle, event.clientX, event.clientY, rect);
+      const nextMm = radiusMmFromPx(rPx, frameW, frameH, blockRatioW, blockRatioH, maxRadiusMm);
       radiusDrag.currentMm = nextMm;
       setDraftRadius(nextMm);
       return;
@@ -192,7 +240,7 @@ export default function EditorImageEditPopover({
         onPointerDown={(e) => e.stopPropagation()}
       >
         <p className="editor-image-edit-modal__hint">
-          Glissez l&apos;image pour recadrer · molette pour zoomer · poignées aux coins pour arrondir
+          Glissez l&apos;image pour recadrer · molette pour zoomer · tirez les poignées vers l&apos;intérieur pour arrondir
         </p>
         <div
           className="editor-image-edit-modal__frame-outer"
@@ -228,7 +276,11 @@ export default function EditorImageEditPopover({
             <button
               key={handle}
               type="button"
-              className={`editor-image-edit-modal__radius-handle editor-image-edit-modal__radius-handle--${handle}`}
+              className="editor-image-edit-modal__radius-handle"
+              style={{
+                ...handleCornerStyle(handle, radiusPx),
+                cursor: handleCursor(handle),
+              }}
               aria-label="Ajuster les coins arrondis"
               onPointerDown={(e) => startRadiusDrag(e, handle)}
               onPointerMove={moveImageDrag}

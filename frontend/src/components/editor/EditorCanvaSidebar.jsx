@@ -132,6 +132,7 @@ export default function EditorCanvaSidebar({
   onBlockBringToFront,
   onBlockSendToBack,
   onBlockZStep,
+  onReorderLayers,
   onPickBlank,
   onApplyCanvasTemplate,
   onLoadProposal,
@@ -427,6 +428,7 @@ export default function EditorCanvaSidebar({
               onBlockBringToFront={onBlockBringToFront}
               onBlockSendToBack={onBlockSendToBack}
               onBlockZStep={onBlockZStep}
+              onReorderLayers={onReorderLayers}
             />
           )}
           {openSection === 'tools' && (

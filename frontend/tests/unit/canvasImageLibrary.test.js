@@ -6,6 +6,7 @@ import {
   collectImageUrlsFromLayout,
   listUserCanvasImages,
   removeUserCanvasImage,
+  syncUserCanvasImagesFromLayout,
 } from '../../src/lib/canvasImageLibrary.js';
 
 const memory = new Map();
@@ -26,6 +27,10 @@ test('canvasImageLibrary — add, list, dedupe, remove', () => {
     const id = listUserCanvasImages()[0].id;
     removeUserCanvasImage(id);
     assert.equal(listUserCanvasImages().length, 0);
+    syncUserCanvasImagesFromLayout({
+      pages: [{ blocks: [{ type: 'image', image_src: url }] }],
+    });
+    assert.equal(listUserCanvasImages().length, 0, 'sync ne réimporte pas une image supprimée');
   } finally {
     globalThis.localStorage = original;
     memory.clear();

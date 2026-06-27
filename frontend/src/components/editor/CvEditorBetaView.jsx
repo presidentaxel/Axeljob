@@ -65,8 +65,10 @@ import {
   migrateLayoutToV3,
   removeBlock,
   removePage,
+  reorderBlocksZOrder,
   sendToBack,
   setBlockPosition,
+  swapBlockZWithAdjacent,
   updateBlock,
   updateBlockStyle,
   isAutoHeightBlockType,
@@ -784,11 +786,15 @@ function CvEditorBeta({
   }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
 
   const handleBlockZStep = useCallback((blockId, delta) => {
-    if (!blockId) return;
-    const found = findBlock(layout, blockId);
-    if (!found?.block) return;
-    const z = Math.max(0, (found.block.z ?? 0) + delta);
-    const next = updateBlock(layout, blockId, { z });
+    if (!blockId || !delta) return;
+    const next = swapBlockZWithAdjacent(layout, blockId, delta > 0 ? 1 : -1);
+    commitLayout(next);
+    if (cv) autoSave.schedule(cv);
+  }, [layout, commitLayout, cv, autoSave]);
+
+  const handleReorderLayers = useCallback((orderedIds) => {
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0) return;
+    const next = reorderBlocksZOrder(layout, orderedIds);
     commitLayout(next);
     if (cv) autoSave.schedule(cv);
   }, [layout, commitLayout, cv, autoSave]);
@@ -1195,6 +1201,7 @@ function CvEditorBeta({
           onBlockBringToFront={handleBlockBringToFront}
           onBlockSendToBack={handleBlockSendToBack}
           onBlockZStep={handleBlockZStep}
+          onReorderLayers={handleReorderLayers}
           onPickBlank={handlePickBlankCanvas}
           onApplyCanvasTemplate={handleApplyCanvasTemplate}
           onLoadProposal={handleLoadLayoutProposal}

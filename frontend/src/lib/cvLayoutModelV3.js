@@ -557,6 +557,37 @@ export function sendToBack(layout, blockId) {
   return updateBlock(layout, blockId, { z: next });
 }
 
+/**
+ * Echange le z-index d'un bloc avec son voisin (tri par z croissant).
+ * @param {number} direction 1 = vers l'avant (z+), -1 = vers l'arrière
+ */
+export function swapBlockZWithAdjacent(layout, blockId, direction) {
+  const blocks = listAllBlocks(layout).slice().sort((a, b) => (a.z || 0) - (b.z || 0));
+  const idx = blocks.findIndex((b) => b.id === blockId);
+  if (idx < 0) return layout;
+  const swapIdx = idx + direction;
+  if (swapIdx < 0 || swapIdx >= blocks.length) return layout;
+  const a = blocks[idx];
+  const b = blocks[swapIdx];
+  let next = updateBlock(layout, a.id, { z: b.z ?? 0 });
+  next = updateBlock(next, b.id, { z: a.z ?? 0 });
+  return next;
+}
+
+/**
+ * Réordonne les z-index selon l'ordre fourni (premier = premier plan).
+ */
+export function reorderBlocksZOrder(layout, blockIdsFrontToBack) {
+  if (!Array.isArray(blockIdsFrontToBack) || blockIdsFrontToBack.length === 0) return layout;
+  let next = layout;
+  const n = blockIdsFrontToBack.length;
+  blockIdsFrontToBack.forEach((id, index) => {
+    if (!id) return;
+    next = updateBlock(next, id, { z: n - 1 - index });
+  });
+  return next;
+}
+
 /** Met a jour le style d un bloc (merge profond niveau 1). */
 export function updateBlockStyle(layout, blockId, stylePatch) {
   if (!stylePatch || typeof stylePatch !== 'object') return layout;

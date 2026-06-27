@@ -4001,11 +4001,16 @@ export default function App() {
 
         <div id="viewSettings" className={`view-panel app-page view-settings ${view === 'settings' ? 'active' : ''}`} style={{ display: view === 'settings' ? 'flex' : 'none' }} data-analytics-section="settings_page">
           <header className="page-header">
-            <h1 className="page-title">Settings</h1>
-            <p className="page-subtitle">Compte, sécurité et options d&apos;export du CV adapté.</p>
+            <h1 className="page-title">Paramètres</h1>
+            <p className="page-subtitle">Compte, export PDF, éditeur et confidentialité.</p>
           </header>
           <div className="page-content">
-            <SettingsView session={session} />
+            <SettingsView
+              session={session}
+              onCookieSettingsClick={() => {
+                if (typeof window.axelOpenCookieSettings === 'function') window.axelOpenCookieSettings();
+              }}
+            />
           </div>
         </div>
 

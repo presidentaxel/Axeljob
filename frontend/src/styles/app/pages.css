@@ -148,9 +148,10 @@
 }
 
 .view-settings .page-content {
-  max-width: 920px;
+  max-width: none;
   width: 100%;
-  margin: 0 auto;
+  margin: 0;
+  padding: 0;
 }
 
 /* Bandeaux plan gratuit / onboarding */

@@ -60,7 +60,7 @@ export default function AppTopbar({
         </NavLink>
         <NavLink to="/app/settings" className={({ isActive }) => `topbar-link ${isActive ? 'active' : ''}`}>
           <HiCog6Tooth size={18} />
-          <span>Settings</span>
+          <span>Paramètres</span>
         </NavLink>
         <NavLink to="/app/support" className={({ isActive }) => `topbar-link ${isActive ? 'active' : ''}`}>
           <HiChatBubbleLeftRight size={18} />

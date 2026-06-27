@@ -720,13 +720,6 @@ function CvEditorBeta({
     });
   }, [requestCanvasContextSwitch, buildTemplateCanvasLayout]);
 
-  const handleBlockPatch = useCallback((patch) => {
-    if (!selectedBlockId) return;
-    const next = updateBlock(layout, selectedBlockId, patch);
-    commitLayout(next);
-    if (cv) autoSave.schedule(cv);
-  }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
-
   const handleBlockContentPatch = useCallback((patch) => {
     if (!selectedBlockId) return;
     const next = updateBlock(layout, selectedBlockId, patch);

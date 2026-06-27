@@ -1,12 +1,19 @@
 import { CV_IMPORT_STEPS } from '../lib/cvImportUtils.js';
 import '../styles/ProfileView.css';
 
-export default function CvImportLoadingOverlay({ stepIndex = 0, title = 'Analyse de ton CV en cours' }) {
+export default function CvImportLoadingOverlay({
+  stepIndex = 0,
+  title = 'Analyse de ton CV en cours',
+  subtitle = '',
+}) {
   return (
     <div className="import-cv-loading-overlay" role="status" aria-live="polite">
       <div className="import-cv-loading-card">
         <div className="import-cv-loading-spinner" aria-hidden="true" />
         <p className="import-cv-loading-title">{title}</p>
+        {subtitle ? (
+          <p className="import-cv-loading-desc import-cv-loading-subtitle">{subtitle}</p>
+        ) : null}
         <ul className="import-cv-loading-steps" aria-live="polite">
           {CV_IMPORT_STEPS.map((label, i) => (
             <li

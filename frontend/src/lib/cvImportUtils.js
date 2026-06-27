@@ -33,7 +33,8 @@ export const CV_IMPORT_STEPS = [
 ];
 
 export const CV_IMPORT_STEP_DURATION_MS = 1600;
-export const CV_IMPORT_PHASE_DURATION_MS = 14000;
+/** Dernière étape animée avant confirmation API (reste sur « Placement… »). */
+export const CV_IMPORT_ANIMATION_HOLD_STEP = CV_IMPORT_STEPS.length - 2;
 
 export function formatScalarPreviewForPrivacy(fieldKey, value, maxLen) {
   if (fieldKey === 'photo_url') {
@@ -184,24 +185,18 @@ export function cvFromImportPayload(parsed) {
   };
 }
 
-export function startImportLoadingAnimation(setImportStepIndex) {
+export function startImportLoadingAnimation(setImportStepIndex, options = {}) {
+  const holdStep = typeof options.holdStep === 'number'
+    ? options.holdStep
+    : CV_IMPORT_ANIMATION_HOLD_STEP;
+  setImportStepIndex(0);
   const stepTimer = setInterval(() => {
-    setImportStepIndex((i) => {
-      if (i >= 4) {
-        clearInterval(stepTimer);
-        return 5;
-      }
-      return i + 1;
-    });
+    setImportStepIndex((i) => (i >= holdStep ? i : i + 1));
   }, CV_IMPORT_STEP_DURATION_MS);
+  return () => clearInterval(stepTimer);
+}
 
-  const finalTimer = setTimeout(() => {
-    setImportStepIndex(5);
-    clearInterval(stepTimer);
-  }, CV_IMPORT_PHASE_DURATION_MS);
-
-  return () => {
-    clearInterval(stepTimer);
-    clearTimeout(finalTimer);
-  };
+/** Passe à l'étape « Finalisation » une fois l'import API terminé. */
+export function finishImportLoadingAnimation(setImportStepIndex) {
+  setImportStepIndex(CV_IMPORT_STEPS.length - 1);
 }

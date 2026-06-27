@@ -1128,6 +1128,11 @@
   margin: 0;
 }
 
+.import-cv-loading-subtitle {
+  margin: -0.35rem 0 1rem;
+  line-height: 1.45;
+}
+
 /* Change email modal */
 .profile-change-email-overlay {
   position: fixed;

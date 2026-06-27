@@ -121,11 +121,14 @@ export default function EditorImageEditPopover({
       const frame = frameRef.current;
       if (!frame) return;
       const rect = frame.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      const dist = Math.hypot(event.clientX - cx, event.clientY - cy);
-      const maxDist = Math.min(rect.width, rect.height) / 2;
-      const nextMm = clampRadius((dist / maxDist) * maxRadiusMm, maxRadiusMm);
+      const dx = event.clientX - radiusDrag.startClientX;
+      const dy = event.clientY - radiusDrag.startClientY;
+      const outward = (
+        (radiusDrag.handle.includes('e') ? dx : -dx)
+        + (radiusDrag.handle.includes('s') ? dy : -dy)
+      ) / 2;
+      const pxPerMm = Math.min(rect.width, rect.height) / Math.max(maxRadiusMm, 0.1);
+      const nextMm = clampRadius(radiusDrag.startMm + outward / pxPerMm, maxRadiusMm);
       radiusDrag.currentMm = nextMm;
       setDraftRadius(nextMm);
       return;
@@ -149,7 +152,7 @@ export default function EditorImageEditPopover({
     if (radiusDrag) {
       radiusDragRef.current = null;
       patchStyle({ border_radius_mm: radiusDrag.currentMm ?? draftRadius, shape: 'rect' });
-      try { frameRef.current?.releasePointerCapture?.(event.pointerId); } catch (_) { /* ignore */ }
+      try { event.currentTarget?.releasePointerCapture?.(event.pointerId); } catch (_) { /* ignore */ }
       return;
     }
     const drag = dragRef.current;
@@ -162,8 +165,14 @@ export default function EditorImageEditPopover({
   const startRadiusDrag = (event, handle) => {
     event.preventDefault();
     event.stopPropagation();
-    radiusDragRef.current = { handle, currentMm: draftRadius };
-    frameRef.current?.setPointerCapture?.(event.pointerId);
+    radiusDragRef.current = {
+      handle,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startMm: draftRadius,
+      currentMm: draftRadius,
+    };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
   };
 
   const handleWheel = (event) => {

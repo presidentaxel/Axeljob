@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   HiArrowUpTray,
   HiArrowsPointingOut,
@@ -6,9 +6,17 @@ import {
   HiSparkles,
   HiSquares2X2,
   HiSwatch,
+  HiTrash,
   HiWrench,
 } from 'react-icons/hi2';
 import { compressImageFile } from '../../lib/compressImageForCanvas.js';
+import {
+  addUserCanvasImage,
+  CANVAS_IMAGE_DROP_MIME,
+  listUserCanvasImages,
+  removeUserCanvasImage,
+  syncUserCanvasImagesFromLayout,
+} from '../../lib/canvasImageLibrary.js';
 import { CANVAS_ICON_ENTRIES, createIconBlockPreset } from '../../lib/canvasIconLibrary.js';
 import { ELEMENT_SHAPE_ITEMS, createShapeBlockPreset } from '../../lib/canvasShapePresets.js';
 import { TEXT_PRESET_ITEMS, createTextBlockPreset } from '../../lib/canvasTextPresets.js';
@@ -42,11 +50,45 @@ const TEXT_PRESETS = TEXT_PRESET_ITEMS;
 
 const STYLE_PANEL_SECTIONS = new Set(['fonts', 'colors', 'effects', 'shape-style']);
 
-const IMAGE_SHAPES = [
-  { value: 'rect', label: 'Rectangle' },
-  { value: 'rounded', label: 'Arrondi' },
-  { value: 'circle', label: 'Cercle' },
-];
+function ImageHistoryTile({ entry, disabled, onBeginPlacement, onRemove }) {
+  const preset = createImageBlockPreset(entry.dataUrl);
+  const onPointerDown = (e) => {
+    if (disabled || !preset) return;
+    e.preventDefault();
+    onBeginPlacement?.(preset);
+  };
+  const onDragStart = (e) => {
+    if (disabled || !entry.dataUrl) return;
+    e.dataTransfer.setData(CANVAS_IMAGE_DROP_MIME, entry.dataUrl);
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+  return (
+    <div className="editor-canva-image-history__item">
+      <button
+        type="button"
+        className="editor-canva-image-history__thumb"
+        disabled={disabled}
+        draggable={!disabled}
+        title={entry.label || 'Glisser sur le canevas ou cliquer pour placer'}
+        onPointerDown={onPointerDown}
+        onClick={(e) => e.preventDefault()}
+        onDragStart={onDragStart}
+      >
+        <img src={entry.dataUrl} alt="" draggable={false} />
+      </button>
+      <button
+        type="button"
+        className="editor-canva-image-history__remove"
+        disabled={disabled}
+        title="Retirer de l’historique"
+        aria-label="Retirer de l’historique"
+        onClick={() => onRemove?.(entry.id)}
+      >
+        <HiTrash size={14} aria-hidden />
+      </button>
+    </div>
+  );
+}
 
 function PlacementTile({ disabled, preset, onBeginPlacement, className, title, children }) {
   const onPointerDown = (e) => {
@@ -98,16 +140,23 @@ export default function EditorCanvaSidebar({
 }) {
   const [proposalName, setProposalName] = useState('');
   const [proposals, setProposals] = useState(() => listLayoutProposals());
-  const [imageShape, setImageShape] = useState('rect');
+  const [imageHistory, setImageHistory] = useState(() => listUserCanvasImages());
   const [iconColor, setIconColor] = useState('#1e293b');
   const [importing, setImporting] = useState(false);
   const [transferSourceKey, setTransferSourceKey] = useState('');
   const fileInputRef = useRef(null);
 
   const refreshProposals = () => setProposals(listLayoutProposals());
+  const refreshImageHistory = () => setImageHistory(listUserCanvasImages());
   const transferDraftOptions = (canvasDrafts || []).filter(
     (draft) => draft?.contextKey && draft.contextKey !== activeCanvasDraftKey,
   );
+
+  useEffect(() => {
+    if (openSection !== 'import') return;
+    syncUserCanvasImagesFromLayout(layout);
+    refreshImageHistory();
+  }, [openSection, layout]);
 
   const handleSaveProposal = () => {
     if (typeof onSaveProposal !== 'function') return;
@@ -122,7 +171,9 @@ export default function EditorCanvaSidebar({
     setImporting(true);
     try {
       const dataUrl = await compressImageFile(file);
-      const preset = createImageBlockPreset(dataUrl, { shape: imageShape });
+      addUserCanvasImage(dataUrl, { label: file.name || '' });
+      refreshImageHistory();
+      const preset = createImageBlockPreset(dataUrl);
       if (preset) onBeginPlacement?.(preset);
     } catch (err) {
       console.error('[canvas] import image', err);
@@ -334,14 +385,9 @@ export default function EditorCanvaSidebar({
           {openSection === 'import' && (
             <>
               <h3 className="editor-canva-drawer__title">Image</h3>
-              <label className="editor-canva-drawer__field">
-                Forme du cadre
-                <select value={imageShape} onChange={(e) => setImageShape(e.target.value)}>
-                  {IMAGE_SHAPES.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </label>
+              <p className="editor-canva-drawer__hint editor-canva-drawer__hint--subtle">
+                Importez une image, puis placez-la sur le canevas par glisser-déposer ou en cliquant sur une vignette.
+              </p>
               <button
                 type="button"
                 className="editor-canva-drawer__btn editor-canva-drawer__btn--primary editor-canva-drawer__btn--full"
@@ -351,6 +397,25 @@ export default function EditorCanvaSidebar({
                 {importing ? 'Compression…' : 'Choisir une image…'}
               </button>
               <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleImageFile} />
+              {imageHistory.length > 0 && (
+                <>
+                  <h4 className="editor-canva-drawer__subtitle">Mes images</h4>
+                  <div className="editor-canva-image-history">
+                    {imageHistory.map((entry) => (
+                      <ImageHistoryTile
+                        key={entry.id}
+                        entry={entry}
+                        disabled={disabled}
+                        onBeginPlacement={onBeginPlacement}
+                        onRemove={(id) => {
+                          removeUserCanvasImage(id);
+                          refreshImageHistory();
+                        }}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
             </>
           )}
           {openSection === 'position' && (

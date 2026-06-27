@@ -20,6 +20,7 @@ import {
 import { computePageScale, scaledPageHeightPx } from '../../lib/freeCanvasScale.js';
 import { nextOverlappingBlockId } from '../../lib/freeCanvasSelection.js';
 import { blockIdsInMarquee, normalizeMarqueeRect } from '../../lib/canvasMarqueeUtils.js';
+import { CANVAS_IMAGE_DROP_MIME } from '../../lib/canvasImageLibrary.js';
 import { snapBlockGeometry, snapBlockPosition } from '../../lib/freeCanvasSnap.js';
 import '../../styles/FreeCanvas.css';
 import '../../styles/CanvasTemplateFidelity.css';
@@ -115,6 +116,7 @@ export default function FreeCanvas({
   onPlaceBlockAt,
   onPlaceBlockRect,
   onCancelPlacement,
+  onDropImage,
   onAddPage,
   onRemovePage,
 }) {
@@ -128,6 +130,7 @@ export default function FreeCanvas({
   const [activeGuides, setActiveGuides] = useState([]);
   const dragSessionRef = useRef(null);
   const resizeSessionRef = useRef(null);
+  const resizeWindowCleanupRef = useRef(null);
   const placing = Boolean(placementPreset);
   const drawRectMode = placing && placementPreset?.placementMode === 'draw-rect';
   const [drawRect, setDrawRect] = useState(null);
@@ -164,6 +167,10 @@ export default function FreeCanvas({
   }, [clearGuides, setCanvasBusy]);
 
   const endResize = useCallback(() => {
+    if (resizeWindowCleanupRef.current) {
+      resizeWindowCleanupRef.current();
+      resizeWindowCleanupRef.current = null;
+    }
     resizeSessionRef.current = null;
     setResizingBlockId(null);
     clearGuides();
@@ -239,6 +246,7 @@ export default function FreeCanvas({
       commitEditingBlock();
     }
     if (editingBlockId === block?.id) return;
+    if (event.target?.closest?.('[data-resize-handle]')) return;
     if (!interactable || !block?.id || resizeSessionRef.current) return;
 
     event.preventDefault();
@@ -347,30 +355,6 @@ export default function FreeCanvas({
     if (wasDragging && !cycledSelection && typeof onDragEnd === 'function') onDragEnd();
   }, [endDrag, onDragEnd, onSelectBlock, layout]);
 
-  const handleResizePointerDown = useCallback((event, block, handle) => {
-    if (block?.locked) return;
-    if (!interactable || !block?.id || typeof onBlockResizeChange !== 'function') return;
-    event.preventDefault();
-    event.stopPropagation();
-    endDrag();
-    if (typeof onSelectBlock === 'function') onSelectBlock(block.id);
-    resizeSessionRef.current = {
-      blockId: block.id,
-      handle,
-      startBlock: { x: block.x, y: block.y, w: block.w, h: block.h },
-      startClientX: event.clientX,
-      startClientY: event.clientY,
-    };
-    setResizingBlockId(block.id);
-    setResizePreview(null);
-    resizePreviewRef.current = null;
-    setCanvasBusy(true);
-    if (typeof onResizeStart === 'function') onResizeStart();
-    if (typeof event.currentTarget?.setPointerCapture === 'function') {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    }
-  }, [interactable, onSelectBlock, onBlockResizeChange, endDrag, setCanvasBusy, onResizeStart]);
-
   const handleResizePointerMove = useCallback((event) => {
     const session = resizeSessionRef.current;
     if (!session || typeof onBlockResizeChange !== 'function') return;
@@ -417,6 +401,56 @@ export default function FreeCanvas({
     if (wasResizing && typeof onResizeEnd === 'function') onResizeEnd(blockId);
     if (wasResizing && typeof onDragEnd === 'function') onDragEnd();
   }, [endResize, onDragEnd, onResizeEnd, onBlockResizeChange]);
+
+  const handleResizePointerDown = useCallback((event, block, handle) => {
+    if (block?.locked) return;
+    if (!interactable || !block?.id || typeof onBlockResizeChange !== 'function') return;
+    event.preventDefault();
+    event.stopPropagation();
+    endDrag();
+    if (typeof onSelectBlock === 'function') onSelectBlock(block.id);
+    resizeSessionRef.current = {
+      blockId: block.id,
+      handle,
+      startBlock: { x: block.x, y: block.y, w: block.w, h: block.h },
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+    };
+    setResizingBlockId(block.id);
+    setResizePreview(null);
+    resizePreviewRef.current = null;
+    setCanvasBusy(true);
+    if (typeof onResizeStart === 'function') onResizeStart();
+    if (typeof event.currentTarget?.setPointerCapture === 'function') {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    const onWinMove = (e) => handleResizePointerMove(e);
+    const onWinUp = (e) => handleResizePointerUp(e);
+    window.addEventListener('pointermove', onWinMove);
+    window.addEventListener('pointerup', onWinUp);
+    window.addEventListener('pointercancel', onWinUp);
+    resizeWindowCleanupRef.current = () => {
+      window.removeEventListener('pointermove', onWinMove);
+      window.removeEventListener('pointerup', onWinUp);
+      window.removeEventListener('pointercancel', onWinUp);
+    };
+  }, [interactable, onSelectBlock, onBlockResizeChange, endDrag, setCanvasBusy, onResizeStart, handleResizePointerMove, handleResizePointerUp]);
+
+  const handlePageDragOver = useCallback((event) => {
+    if (!event.dataTransfer?.types?.includes(CANVAS_IMAGE_DROP_MIME)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  }, []);
+
+  const handlePageDrop = useCallback((event) => {
+    const dataUrl = event.dataTransfer?.getData(CANVAS_IMAGE_DROP_MIME);
+    if (!dataUrl || typeof onDropImage !== 'function') return;
+    event.preventDefault();
+    event.stopPropagation();
+    const pageIndex = pageIndexFromElement(event.currentTarget);
+    const pt = clientPointToPageMm(event.clientX, event.clientY, event.currentTarget);
+    onDropImage(pageIndex, pt.x, pt.y, dataUrl);
+  }, [onDropImage]);
 
   const [placeCursor, setPlaceCursor] = useState(null);
 
@@ -628,6 +662,8 @@ export default function FreeCanvas({
                 onPointerMove={interactable ? handlePagePointerMove : undefined}
                 onPointerUp={interactable ? handlePagePointerUp : undefined}
                 onPointerCancel={interactable ? handlePagePointerUp : undefined}
+                onDragOver={interactable ? handlePageDragOver : undefined}
+                onDrop={interactable ? handlePageDrop : undefined}
               >
                 {marqueeRect && !drawRectMode && (
                   <div

@@ -46,7 +46,8 @@ import {
 } from '../../lib/canvasLayoutTransfer.js';
 import { defaultCv } from '../../data/cvDefault';
 import { blockSupportsStyleToolbar } from '../../lib/canvasBlockToolbar.js';
-import { getLastBlockIdOnPage } from '../../lib/freeCanvasBlockPresets.js';
+import { getLastBlockIdOnPage, createImageBlockPreset } from '../../lib/freeCanvasBlockPresets.js';
+import { addUserCanvasImage } from '../../lib/canvasImageLibrary.js';
 import {
   createCanvasLayoutBlank,
   createCanvasLayoutForTemplate,
@@ -684,6 +685,25 @@ function CvEditorBeta({
     if (cv) autoSave.schedule(cv);
   }, [placementPreset, layout, commitLayout, cv, autoSave]);
 
+  const handleDropImage = useCallback((pageIndex, xMm, yMm, dataUrl) => {
+    if (!dataUrl) return;
+    addUserCanvasImage(dataUrl);
+    const preset = createImageBlockPreset(dataUrl);
+    if (!preset) return;
+    const w = preset.w ?? 40;
+    const h = preset.h ?? 40;
+    const partial = {
+      ...preset,
+      x: Math.max(0, xMm - w / 2),
+      y: Math.max(0, yMm - h / 2),
+    };
+    const next = addBlockToPage(layout, pageIndex, partial);
+    commitLayout(next);
+    const newId = getLastBlockIdOnPage(next, pageIndex);
+    if (newId) setSelectedBlockIds([newId]);
+    if (cv) autoSave.schedule(cv);
+  }, [layout, commitLayout, cv, autoSave]);
+
   const handleOpenPositionPanel = useCallback(() => {
     setSidebarSection('position');
   }, []);
@@ -1211,6 +1231,7 @@ function CvEditorBeta({
               placementPreset={placementPreset}
               onPlaceBlockAt={handlePlaceBlockAt}
               onPlaceBlockRect={handlePlaceBlockRect}
+              onDropImage={handleDropImage}
               onCancelPlacement={handleCancelPlacement}
               onSelectBlock={handleSelectBlock}
               onBlockPositionChange={handleBlockPositionChange}

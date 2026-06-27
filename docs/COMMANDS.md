@@ -159,28 +159,36 @@ docker compose restart backend
 docker compose restart frontend
 ```
 
-## 7) Git (workflow standard)
+## 7) Git (workflow PR)
 
 ### Bash (Linux / macOS)
 
 ```bash
+git checkout -b feat/ma-feature    # ou wip/innovation
 git status
 git add .
 git commit -m "feat: description du changement"
-git push
+bash scripts/pre-push.sh --skip-extras --skip-gitleaks
+git push -u origin HEAD            # branche feature uniquement — jamais main
+gh pr create --base main --title "…" --body "…"
 ```
 
 ### PowerShell (Windows)
 
 ```powershell
+git checkout -b feat/ma-feature
 git status
 git add .
 git commit -m "feat: description du changement"
-git push
+powershell -ExecutionPolicy Bypass -File .\scripts\pre-push.ps1 -SkipExtras -SkipGitleaks
+git push -u origin HEAD
+gh pr create --base main --title "…" --body "…"
 ```
 
 > [!WARNING]
 > Ne pas committer de secrets (`.env`, cles API, tokens).
+>
+> **Ne jamais** `git push origin main` — toute intégration passe par PR.
 
 ## 8) Pre-push (CI + security locale)
 
@@ -199,8 +207,9 @@ Configure `.venv` (Black **24.10.0** comme GitHub), active le hook **pre-push** 
 
 ### Cursor (tous les chats / agent)
 
-- **Règle** : `.cursor/rules/pre-push-ci.mdc` - l'agent doit lancer `bash scripts/pre-push.sh --skip-extras --skip-gitleaks` avant tout `git push`.
-- **Hook** : `.cursor/hooks.json` - bloque `git push` dans le terminal de l'agent si la CI locale échoue (timeout 15 min).
+- **Règle** : `.cursor/rules/pre-push-ci.mdc` — CI locale avant push/PR ; **pas de push direct sur `main`**.
+- **Hook** : `.cursor/hooks.json` — bloque `git push` vers `main`/`master` et si la CI locale échoue (timeout 15 min).
+- Flux recommandé : branche feature → CI locale → `git push -u origin HEAD` → `gh pr create --base main`.
 - Contournement urgence : `SKIP_PREPUSH=1 git push`.
 - Après modification de `hooks.json`, redémarrer Cursor si le hook ne se déclenche pas (onglet **Hooks** / canal **Hooks**).
 

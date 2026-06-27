@@ -1,11 +1,19 @@
 ---
-description: Lancer la CI locale avant tout git push
+description: CI locale + workflow PR (pas de push direct sur main)
 alwaysApply: true
 ---
 
-# Pre-push : CI locale obligatoire
+# Workflow PR + CI locale
 
-Avant **tout** `git push` (toute branche, tout remote) :
+## Règle principale
+
+**Ne jamais pousser directement sur `main` ou `master`.** Toute intégration passe par une branche de feature et une **Pull Request** (`gh pr create`).
+
+Branches de travail typiques :
+- **`main`** — prod (merge via PR uniquement)
+- **`wip/innovation`** — dev éditeur Beta / canvas
+
+## Avant push ou création de PR
 
 1. Exécuter depuis la racine du dépôt :
    ```bash
@@ -13,9 +21,19 @@ Avant **tout** `git push` (toute branche, tout remote) :
    ```
    (équivalent CI GitHub : ruff, **black 24.10.0**, mypy, pytest+couverture, `npm ci`, lint, build, `test:unit`)
 
-2. Corriger **toutes** les erreurs avant de pousser.
+2. Corriger **toutes** les erreurs avant de continuer.
 
-3. Ne pousser que si la commande se termine par `OK - pre-push terminé sans erreur.`
+3. Ne pousser / ouvrir une PR que si la commande se termine par `OK - pre-push terminé sans erreur.`
+
+## Flux agent (recommandé)
+
+1. Travailler sur une branche de feature (ex. `wip/innovation`, `feat/…`, `fix/…`).
+2. Commits locaux.
+3. CI locale (`pre-push.sh --skip-extras --skip-gitleaks`).
+4. Push de la branche de feature vers `origin` (autorisé).
+5. **`gh pr create`** vers `main` — ne pas merger sans validation explicite de l'utilisateur.
+
+Ne pas utiliser `git push origin main` ni merger localement dans `main` puis pousser.
 
 ## Outils (alignés CI)
 
@@ -35,6 +53,8 @@ bash scripts/setup-dev.sh
 # ou seulement : bash scripts/install-git-hooks.sh
 ```
 
+Les hooks bloquent aussi les push directs vers `main`/`master`.
+
 ## Contournement (urgence uniquement)
 
-`SKIP_PREPUSH=1 git push` - à éviter sauf urgence explicite demandée par l'utilisateur.
+`SKIP_PREPUSH=1 git push` — à éviter sauf urgence explicite demandée par l'utilisateur.

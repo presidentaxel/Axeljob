@@ -8,6 +8,7 @@ import { isCanvasInlineEditableType } from './canvasInlineEdit.js';
 const INVALID_FILENAME_CHARS = /[<>:"/\\|?*]/g;
 
 export const CANVAS_EDIT_HINT_DISMISSED_KEY = 'cv_beta_canvas_edit_hint_dismissed';
+export const SEMANTIC_EDIT_NOTE_DISMISSED_KEY = 'cv_beta_semantic_edit_note_dismissed';
 
 /** Bloc pour lequel on affiche l’astuce « double-clic pour éditer ». */
 export function blockSupportsEditHint(block) {
@@ -28,6 +29,22 @@ export function isCanvasEditHintDismissed() {
 export function dismissCanvasEditHint() {
   try {
     localStorage.setItem(CANVAS_EDIT_HINT_DISMISSED_KEY, '1');
+  } catch {
+    /* ignore quota / mode privé */
+  }
+}
+
+export function isSemanticEditNoteDismissed() {
+  try {
+    return localStorage.getItem(SEMANTIC_EDIT_NOTE_DISMISSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function dismissSemanticEditNote() {
+  try {
+    localStorage.setItem(SEMANTIC_EDIT_NOTE_DISMISSED_KEY, '1');
   } catch {
     /* ignore quota / mode privé */
   }

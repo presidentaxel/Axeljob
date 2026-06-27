@@ -14,6 +14,7 @@ import CvImportLoadingOverlay from '../CvImportLoadingOverlay.jsx';
 import {
   cvFromImportPayload,
   extractImportApiResponse,
+  finishImportLoadingAnimation,
   startImportLoadingAnimation,
 } from '../../lib/cvImportUtils.js';
 import {
@@ -68,6 +69,7 @@ import {
   updateBlock,
   updateBlockStyle,
   isAutoHeightBlockType,
+  isSemanticBlockType,
 } from '../../lib/cvLayoutModelV3.js';
 import { resetTemplateOptionsToDefaults } from '../../lib/templateOptionsSchema.js';
 import { reflowColumnBlocksOnPage } from '../../lib/layoutReflow.js';
@@ -79,12 +81,22 @@ import FreeCanvas from './FreeCanvas.jsx';
 import AutoSaveIndicator from './AutoSaveIndicator.jsx';
 import EditorAtsScoreBadge from './EditorAtsScoreBadge.jsx';
 import EditorCanvaSidebar from './EditorCanvaSidebar.jsx';
+import EditorBlockChromeToolbar from './EditorBlockChromeToolbar.jsx';
 import EditorFloatingTextToolbar from './EditorFloatingTextToolbar.jsx';
 import EditorImageEditPopover from './EditorImageEditPopover.jsx';
 import EditorCanvaTransferModal from './EditorCanvaTransferModal.jsx';
 import EditorCvImportModal from './EditorCvImportModal.jsx';
 
-import { buildCanvasPdfFilename, sameLayout, blockSupportsEditHint, dismissCanvasEditHint, editHintMessageForBlock, isCanvasEditHintDismissed } from '../../lib/canvasEditorUtils.js';
+import {
+  buildCanvasPdfFilename,
+  sameLayout,
+  blockSupportsEditHint,
+  dismissCanvasEditHint,
+  dismissSemanticEditNote,
+  editHintMessageForBlock,
+  isCanvasEditHintDismissed,
+  isSemanticEditNoteDismissed,
+} from '../../lib/canvasEditorUtils.js';
 
 import '../../styles/CvEditorBeta.css';
 import '../../styles/EditorCanvaSidebar.css';
@@ -137,6 +149,7 @@ function CvEditorBeta({
   const [importError, setImportError] = useState('');
   const [importToast, setImportToast] = useState('');
   const [editHintOpen, setEditHintOpen] = useState(false);
+  const [semanticEditNoteOpen, setSemanticEditNoteOpen] = useState(false);
   const importCleanupRef = useRef(null);
   const [profileLoadAttempt, setProfileLoadAttempt] = useState(0);
   const templatesListRef = useRef(templatesList);
@@ -413,6 +426,7 @@ function CvEditorBeta({
     importCleanupRef.current = startImportLoadingAnimation(setImportStepIndex);
     try {
       const result = await importFn();
+      finishImportLoadingAnimation(setImportStepIndex);
       const {
         cv: rawCv,
         layoutHints,
@@ -511,6 +525,11 @@ function CvEditorBeta({
   const handleDismissEditHint = useCallback(() => {
     dismissCanvasEditHint();
     setEditHintOpen(false);
+  }, []);
+
+  const handleDismissSemanticEditNote = useCallback(() => {
+    dismissSemanticEditNote();
+    setSemanticEditNoteOpen(false);
   }, []);
 
   const closeEditHintIfOpen = useCallback(() => {
@@ -758,6 +777,9 @@ function CvEditorBeta({
     } else if (cv && rootEl) {
       const nextCv = applyCvFieldsFromRoot(cv, rootEl);
       handleCvChange(nextCv);
+      if (isSemanticBlockType(block.type) && !isSemanticEditNoteDismissed()) {
+        setSemanticEditNoteOpen(true);
+      }
     }
     setEditingBlockId(null);
   }, [layout, cv, commitLayout, handleCvChange]);
@@ -1043,6 +1065,20 @@ function CvEditorBeta({
           </button>
         </div>
       )}
+      {semanticEditNoteOpen && (
+        <div className="cv-editor-beta-semantic-note" role="status" aria-live="polite">
+          <span className="cv-editor-beta-semantic-note__text">
+            Les modifications sur ce bloc mettent à jour ton CV de base (partagé avec le mode Stable).
+          </span>
+          <button
+            type="button"
+            className="cv-editor-beta-semantic-note__dismiss"
+            onClick={handleDismissSemanticEditNote}
+          >
+            Compris
+          </button>
+        </div>
+      )}
 
       <div className="cv-editor-beta-workspace cv-editor-beta-workspace--canva">
         <EditorCanvaSidebar
@@ -1164,6 +1200,19 @@ function CvEditorBeta({
                 onDeleteBlock={handleDeleteSelectedBlock}
               />
             )}
+            {selectedBlock
+              && selectedBlockRect
+              && !editingBlockId
+              && !blockSupportsStyleToolbar(selectedBlock.type) && (
+              <EditorBlockChromeToolbar
+                block={selectedBlock}
+                anchorRect={selectedBlockRect}
+                locked={Boolean(selectedBlock.locked)}
+                onDelete={handleDeleteSelectedBlock}
+                onDuplicate={handleDuplicateSelectedBlock}
+                onToggleLock={handleToggleSelectedBlockLock}
+              />
+            )}
             {imageEditBlockId && (selectedBlock?.type === 'image' || selectedBlock?.type === 'photo') && selectedBlockRect && (
               <EditorImageEditPopover
                 block={selectedBlock}
@@ -1198,6 +1247,7 @@ function CvEditorBeta({
         <CvImportLoadingOverlay
           stepIndex={importStepIndex}
           title="Import & adaptation Canva en cours"
+          subtitle="Analyse en cours — cela peut prendre jusqu'à une minute pour un PDF complexe."
         />
       )}
 

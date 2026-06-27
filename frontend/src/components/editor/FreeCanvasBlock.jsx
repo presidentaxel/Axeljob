@@ -952,6 +952,9 @@ export default function FreeCanvasBlock({
               key={handle}
               className={`free-canvas-resize-handle free-canvas-resize-handle--${handle}`}
               data-resize-handle={handle}
+              title={autoHeight
+                ? 'Hauteur automatique selon le contenu — redimensionnez en largeur uniquement'
+                : undefined}
               onPointerDown={(e) => onResizePointerDown(e, block, handle)}
               onPointerMove={onResizePointerMove || undefined}
               onPointerUp={onResizePointerUp || undefined}

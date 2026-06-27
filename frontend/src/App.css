@@ -1,3 +1,2 @@
-@import './styles/design-tokens.css';
+/* Point d’entrée styles globaux : tokens + shell /app (+ pages métier via leurs CSS composants). */
 @import './styles/app/index.css';
-

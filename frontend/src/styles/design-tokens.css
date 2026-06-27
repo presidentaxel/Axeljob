@@ -28,7 +28,9 @@
   --radius-sm: 8px;
   --radius-md: 16px;
   --radius-lg: 22px;
+  --radius-xl: 30px;
   --radius-pill: 32px;
+  --radius-full: 9999px;
 
   --editor-drawer-width: 300px;
   --editor-format-dock-height: 56px;

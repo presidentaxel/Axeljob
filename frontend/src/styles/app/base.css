@@ -26,9 +26,8 @@
   --shadow-card: none;
   --shadow-lg: none;
   --shadow-focus: 0 0 0 2px var(--color-focus-blue);
+  /* Alias legacy : --radius-sm/xs/lg/pill sont définis dans design-tokens.css */
   --radius: var(--radius-md);
-  --radius-sm: var(--radius-sm);
-  --radius-xs: var(--radius-xs);
   --transition: 0.15s ease;
   --app-font-family: 'Plus Jakarta Sans', Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --app-topbar-height: 52px;

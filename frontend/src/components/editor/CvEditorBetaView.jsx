@@ -84,6 +84,8 @@ import EditorImageEditPopover from './EditorImageEditPopover.jsx';
 import EditorCanvaTransferModal from './EditorCanvaTransferModal.jsx';
 import EditorCvImportModal from './EditorCvImportModal.jsx';
 
+import { buildCanvasPdfFilename, sameLayout } from '../../lib/canvasEditorUtils.js';
+
 import '../../styles/CvEditorBeta.css';
 import '../../styles/EditorCanvaSidebar.css';
 import '../../styles/EditorInspector.css';
@@ -92,31 +94,6 @@ import '../../styles/EditorCvImportModal.css';
 /**
  * Editeur de CV Beta - canvas libre uniquement (L3).
  */
-
-function sameLayout(a, b) {
-  if (a === b) return true;
-  try {
-    return JSON.stringify(a) === JSON.stringify(b);
-  } catch {
-    return false;
-  }
-}
-
-const INVALID_FILENAME_CHARS = /[<>:"/\\|?*]/g;
-
-function cleanFilenamePart(value) {
-  return String(value || '')
-    .replace(INVALID_FILENAME_CHARS, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function buildCanvasPdfFilename(cv) {
-  const identity = [cv?.prenom, cv?.nom].map(cleanFilenamePart).filter(Boolean).join(' ');
-  const title = cleanFilenamePart(cv?.titre_professionnel);
-  const parts = ['CV', identity, title].filter(Boolean);
-  return `${parts.join(' - ') || 'CV'}.pdf`;
-}
 
 function CvEditorBeta({
   session: _session,
@@ -547,8 +524,11 @@ function CvEditorBeta({
     for (let pi = 0; pi < (next.pages?.length || 0); pi += 1) {
       next = reflowColumnBlocksOnPage(next, pi);
     }
-    commitLayout(next, { groupKey: 'autoheight' });
-  }, [commitLayout]);
+    // `replace` : recalcul de hauteur automatique -> pas une action undo-able
+    // distincte (sinon Ctrl+Z annulerait un ajustement, pas un geste user).
+    commitLayout(next, { replace: true });
+    if (cv) autoSave.schedule(cv);
+  }, [commitLayout, cv, autoSave]);
 
   const handleBlockAutoHeight = useCallback((blockId, newHmm) => {
     if (Date.now() < suppressAutoHeightUntilRef.current) return;
@@ -691,6 +671,18 @@ function CvEditorBeta({
     setEditingBlockId(null);
     if (cv) autoSave.schedule(cv);
   }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
+
+  const handleNudgeSelectedBlock = useCallback((dx, dy) => {
+    if (!selectedBlockId) return;
+    const found = findBlock(layout, selectedBlockId);
+    if (!found?.block || found.block.locked) return;
+    const next = setBlockPosition(layout, selectedBlockId, {
+      x: (found.block.x || 0) + dx,
+      y: (found.block.y || 0) + dy,
+    });
+    commitLayout(next, { groupKey: `nudge:${selectedBlockId}` });
+    if (cv) autoSave.schedule(cv);
+  }, [selectedBlockId, layout, commitLayout, cv, autoSave]);
 
   const handleDuplicateSelectedBlock = useCallback(() => {
     if (!selectedBlockId) return;
@@ -853,17 +845,36 @@ function CvEditorBeta({
 
   useEffect(() => {
     const onKeyDown = (e) => {
-      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
       const tag = document.activeElement?.tagName?.toLowerCase();
       if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
-      if (document.activeElement?.isContentEditable && editingBlockId) return;
-      if (!selectedBlockId) return;
+      if (document.activeElement?.isContentEditable) return;
+      // Toutes les actions clavier ci-dessous opèrent sur le bloc sélectionné,
+      // hors mode édition de texte inline.
+      if (!selectedBlockId || editingBlockId) return;
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        handleDeleteSelectedBlock();
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setSelectedBlockId(null);
+        return;
+      }
+      const step = e.shiftKey ? 5 : 1;
+      let dx = 0;
+      let dy = 0;
+      if (e.key === 'ArrowLeft') dx = -step;
+      else if (e.key === 'ArrowRight') dx = step;
+      else if (e.key === 'ArrowUp') dy = -step;
+      else if (e.key === 'ArrowDown') dy = step;
+      else return;
       e.preventDefault();
-      handleDeleteSelectedBlock();
+      handleNudgeSelectedBlock(dx, dy);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedBlockId, editingBlockId, handleDeleteSelectedBlock]);
+  }, [selectedBlockId, editingBlockId, handleDeleteSelectedBlock, handleNudgeSelectedBlock]);
 
   if (loading) {
     return (

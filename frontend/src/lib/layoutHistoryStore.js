@@ -89,6 +89,13 @@ export function commit(store, newLayout, options = {}) {
   if (!store) return createHistoryStore(newLayout);
   if (newLayout === store.present) return store;
 
+  // `replace` : met à jour le présent SANS créer d'entrée d'historique. Utile
+  // pour les changements dérivés / automatiques (recalcul de hauteur auto)
+  // qui ne doivent pas être annulables séparément par l'utilisateur.
+  if (options.replace === true) {
+    return { ...store, present: newLayout };
+  }
+
   const now = typeof options.now === 'number' ? options.now : Date.now();
   const groupKey = options.groupKey || null;
   const window = typeof options.coalesceWindowMs === 'number'

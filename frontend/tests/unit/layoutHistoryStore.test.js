@@ -249,3 +249,27 @@ test('getHistoryDepth : reporte past et future', () => {
   s = undo(s);
   assert.deepEqual(getHistoryDepth(s), { past: 1, future: 1 });
 });
+
+// ---------------------------------------------------------------------------
+// commit { replace: true } : maj du present SANS entree d historique
+// ---------------------------------------------------------------------------
+
+test('commit replace : met a jour le present sans pousser dans past', () => {
+  let s = createHistoryStore(L0);
+  s = commit(s, L1, { now: 1000 }); // past=[L0], present=L1
+  assert.deepEqual(getHistoryDepth(s), { past: 1, future: 0 });
+  s = commit(s, L2, { replace: true }); // present=L2, past inchange
+  assert.equal(getPresent(s), L2);
+  assert.deepEqual(getHistoryDepth(s), { past: 1, future: 0 });
+  // un undo doit revenir a L0 (l etat replace L2 n est pas une entree)
+  s = undo(s);
+  assert.equal(getPresent(s), L0);
+});
+
+test('commit replace : no-op si meme reference que present', () => {
+  let s = createHistoryStore(L0);
+  s = commit(s, L1, { now: 1000 });
+  const before = s;
+  s = commit(s, L1, { replace: true });
+  assert.equal(s, before);
+});

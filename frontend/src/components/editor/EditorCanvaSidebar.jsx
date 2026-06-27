@@ -190,6 +190,11 @@ export default function EditorCanvaSidebar({
                 onChange={(ev) => setProposalName(ev.target.value)}
               />
               <h4 className="editor-canva-drawer__subtitle">Modèles CV</h4>
+              <p className="editor-canva-drawer__hint editor-canva-drawer__hint--subtle">
+                Le CV affiché est enregistré sur ton compte. Chaque autre modèle
+                garde un brouillon local sur ce navigateur (non synchronisé entre
+                appareils).
+              </p>
               <div className="editor-canva-template-grid">
                 {(templatesList || []).map((t) => {
                   if (!t?.id) return null;

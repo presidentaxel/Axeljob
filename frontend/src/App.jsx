@@ -3575,7 +3575,7 @@ export default function App() {
               <p className="page-subtitle">Suis toutes tes candidatures ici. Glisse les cartes pour changer le statut.</p>
             </div>
             <div className="dashboard-header-actions">
-              <button type="button" className="btn btn-secondary" onClick={() => setAddManualModalOpen(true)}>
+              <button type="button" className="btn btn-tertiary btn-add-manual" onClick={() => setAddManualModalOpen(true)}>
                 Ajouter une candidature (hors app)
               </button>
               <button type="button" className="btn btn-primary btn-new-candidature" onClick={() => setSetupModalOpen(true)}>
@@ -3590,49 +3590,59 @@ export default function App() {
               <span>.</span>
             </div>
           )}
-          <div className="page-content applications-full" data-analytics-section="candidatures_board">
-            <div className="applications-stats" data-analytics-section="candidatures_stats">
-              <div className="stat-card">
-                <span className="stat-value">{applicationStats.countToday}</span>
-                <span className="stat-label">Aujourd'hui</span>
-                {applicationStats.countToday > 0 && (
-                  <span className="stat-delta stat-delta-up">↑ +{applicationStats.todayPct}%</span>
-                )}
+          <div className="page-content applications-full candidatures-page" data-analytics-section="candidatures_board">
+            <div className="candidatures-page-inner">
+              <dl className="candidatures-metrics" data-analytics-section="candidatures_stats">
+                <div className="candidatures-metric">
+                  <dt className="candidatures-metric-label">Aujourd&apos;hui</dt>
+                  <dd className="candidatures-metric-body">
+                    <span className="candidatures-metric-value">{applicationStats.countToday}</span>
+                    {applicationStats.countToday > 0 && (
+                      <span className="candidatures-metric-delta candidatures-metric-delta--up">↑ +{applicationStats.todayPct}%</span>
+                    )}
+                  </dd>
+                </div>
+                <div className="candidatures-metric">
+                  <dt className="candidatures-metric-label">Ce mois</dt>
+                  <dd className="candidatures-metric-body">
+                    <span className="candidatures-metric-value">{applicationStats.countMonth}</span>
+                    {applicationStats.countMonth > 0 && (
+                      <span className={`candidatures-metric-delta ${applicationStats.monthPct >= 0 ? 'candidatures-metric-delta--up' : 'candidatures-metric-delta--down'}`}>
+                        {applicationStats.monthPct >= 0 ? '↑' : '↓'} {applicationStats.monthPct >= 0 ? '+' : ''}{applicationStats.monthPct}%
+                      </span>
+                    )}
+                  </dd>
+                </div>
+                <div className="candidatures-metric">
+                  <dt className="candidatures-metric-label">Total</dt>
+                  <dd className="candidatures-metric-body">
+                    <span className="candidatures-metric-value">{applicationStats.total}</span>
+                  </dd>
+                </div>
+              </dl>
+              <div className="candidatures-controls">
+                <label className="applications-toggle">
+                  <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+                  Afficher les archivées
+                </label>
+                <div className="applications-search-wrap">
+                  <input
+                    type="search"
+                    className="applications-search"
+                    placeholder="Rechercher par poste, entreprise, source, date…"
+                    value={applicationSearchQuery}
+                    onChange={(e) => setApplicationSearchQuery(e.target.value)}
+                    aria-label="Filtrer les candidatures"
+                  />
+                  {applicationSearchDebounced && (
+                    <span className="applications-search-count">
+                      {filteredNonArchivedCount} résultat{filteredNonArchivedCount !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="stat-card">
-                <span className="stat-value">{applicationStats.countMonth}</span>
-                <span className="stat-label">Ce mois</span>
-                {applicationStats.countMonth > 0 && (
-                  <span className={`stat-delta ${applicationStats.monthPct >= 0 ? 'stat-delta-up' : 'stat-delta-down'}`}>
-                    {applicationStats.monthPct >= 0 ? '↑' : '↓'} {applicationStats.monthPct >= 0 ? '+' : ''}{applicationStats.monthPct}%
-                  </span>
-                )}
-              </div>
-              <div className="stat-card">
-                <span className="stat-value">{applicationStats.total}</span>
-                <span className="stat-label">Total</span>
-              </div>
-            </div>
-            <label className="applications-toggle">
-              <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
-              Afficher les archivées
-            </label>
-            <div className="applications-search-wrap">
-              <input
-                type="search"
-                className="applications-search"
-                placeholder="Rechercher par poste, entreprise, source, date…"
-                value={applicationSearchQuery}
-                onChange={(e) => setApplicationSearchQuery(e.target.value)}
-                aria-label="Filtrer les candidatures"
-              />
-              {applicationSearchDebounced && (
-                <span className="applications-search-count">
-                  {filteredNonArchivedCount} résultat{filteredNonArchivedCount !== 1 ? 's' : ''}
-                </span>
-              )}
-            </div>
-            <div className="kanban-board">
+              <div className="candidatures-board">
+                <div className="kanban-board">
               {KANBAN_COLUMNS.map((col) => {
                 const columnApps = filteredApplications.filter((app) => {
                   if (app.archived) return false;
@@ -3642,7 +3652,7 @@ export default function App() {
                 return (
                   <div
                     key={col.id}
-                    className={`kanban-column ${kanbanDragOverColumn === col.id ? 'drag-over' : ''}`}
+                    className={`kanban-column kanban-column--${col.id} ${kanbanDragOverColumn === col.id ? 'drag-over' : ''}`}
                     onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setKanbanDragOverColumn(col.id); }}
                     onDragLeave={() => setKanbanDragOverColumn(null)}
                     onDrop={(e) => {
@@ -3704,7 +3714,8 @@ export default function App() {
                   </div>
                 );
               })}
-            </div>
+                </div>
+              </div>
             {applications.filter((a) => !a.archived).length === 0 && !showArchived && (
               <div className="applications-empty-state">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5" style={{ marginBottom: '1rem' }}>
@@ -3752,6 +3763,7 @@ export default function App() {
                 </div>
               </div>
             )}
+            </div>
           </div>
         </div>
 

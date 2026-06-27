@@ -84,7 +84,7 @@ import EditorImageEditPopover from './EditorImageEditPopover.jsx';
 import EditorCanvaTransferModal from './EditorCanvaTransferModal.jsx';
 import EditorCvImportModal from './EditorCvImportModal.jsx';
 
-import { buildCanvasPdfFilename, sameLayout } from '../../lib/canvasEditorUtils.js';
+import { buildCanvasPdfFilename, sameLayout, blockSupportsEditHint, dismissCanvasEditHint, editHintMessageForBlock, isCanvasEditHintDismissed } from '../../lib/canvasEditorUtils.js';
 
 import '../../styles/CvEditorBeta.css';
 import '../../styles/EditorCanvaSidebar.css';
@@ -136,6 +136,7 @@ function CvEditorBeta({
   const [importStepIndex, setImportStepIndex] = useState(0);
   const [importError, setImportError] = useState('');
   const [importToast, setImportToast] = useState('');
+  const [editHintOpen, setEditHintOpen] = useState(false);
   const importCleanupRef = useRef(null);
   const [profileLoadAttempt, setProfileLoadAttempt] = useState(0);
   const templatesListRef = useRef(templatesList);
@@ -500,7 +501,23 @@ function CvEditorBeta({
 
   const handleSelectBlock = useCallback((blockId) => {
     setSelectedBlockId(blockId);
+    if (!blockId || isCanvasEditHintDismissed()) return;
+    const found = findBlock(layoutRef.current, blockId);
+    if (blockSupportsEditHint(found?.block)) {
+      setEditHintOpen(true);
+    }
   }, []);
+
+  const handleDismissEditHint = useCallback(() => {
+    dismissCanvasEditHint();
+    setEditHintOpen(false);
+  }, []);
+
+  const closeEditHintIfOpen = useCallback(() => {
+    if (!editHintOpen) return;
+    dismissCanvasEditHint();
+    setEditHintOpen(false);
+  }, [editHintOpen]);
 
   const handleBlockPositionChange = useCallback((blockId, pos, commitOptions) => {
     const next = setBlockPosition(layout, blockId, pos);
@@ -613,7 +630,8 @@ function CvEditorBeta({
     setSelectedBlockId(blockId);
     setImageEditBlockId(blockId);
     setEditingBlockId(null);
-  }, []);
+    closeEditHintIfOpen();
+  }, [closeEditHintIfOpen]);
 
   const handleApplyCanvasTemplate = useCallback((template) => {
     if (!template) return;
@@ -719,7 +737,8 @@ function CvEditorBeta({
   const handleStartBlockEdit = useCallback((blockId) => {
     setSelectedBlockId(blockId);
     setEditingBlockId(blockId);
-  }, []);
+    closeEditHintIfOpen();
+  }, [closeEditHintIfOpen]);
 
   const handleCommitBlockEdit = useCallback((blockId, rootEl) => {
     if (!blockId || !layout) {
@@ -1010,6 +1029,20 @@ function CvEditorBeta({
           {atsOptimizeMessage}
         </div>
       )}
+      {editHintOpen && selectedBlock && blockSupportsEditHint(selectedBlock) && (
+        <div className="cv-editor-beta-edit-hint" role="status" aria-live="polite">
+          <span className="cv-editor-beta-edit-hint__text">
+            {editHintMessageForBlock(selectedBlock)}
+          </span>
+          <button
+            type="button"
+            className="cv-editor-beta-edit-hint__dismiss"
+            onClick={handleDismissEditHint}
+          >
+            Compris
+          </button>
+        </div>
+      )}
 
       <div className="cv-editor-beta-workspace cv-editor-beta-workspace--canva">
         <EditorCanvaSidebar
@@ -1147,7 +1180,7 @@ function CvEditorBeta({
       </div>
 
       <footer className="cv-editor-beta-statusbar">
-        <span>Canvas libre · double-clic pour éditer · import CV → canvas auto · Ctrl+Z</span>
+        <span>Canvas libre · double-clic pour éditer un bloc · flèches pour déplacer · Ctrl+Z</span>
       </footer>
 
       <EditorCvImportModal

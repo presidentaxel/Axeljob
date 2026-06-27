@@ -362,6 +362,47 @@
   flex-shrink: 0;
 }
 
+.cv-editor-beta-edit-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 0 1rem;
+  padding: 0.55rem 0.85rem;
+  background: linear-gradient(90deg, #eef2ff 0%, #f8fafc 100%);
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: #3730a3;
+  flex-shrink: 0;
+}
+
+.cv-editor-beta-edit-hint__text {
+  flex: 1;
+  min-width: 12rem;
+  line-height: 1.45;
+}
+
+.cv-editor-beta-edit-hint__dismiss {
+  flex-shrink: 0;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #4338ca;
+  background: #fff;
+  border: 1px solid #a5b4fc;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.cv-editor-beta-edit-hint__dismiss:hover {
+  background: #eef2ff;
+  border-color: #6366f1;
+}
+
 /* Auto-save indicator pill - voir components/editor/AutoSaveIndicator.jsx.
  * Toutes les variantes partagent la meme base ; la couleur signale l etat.
  */

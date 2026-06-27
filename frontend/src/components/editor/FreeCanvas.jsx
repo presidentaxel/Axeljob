@@ -571,7 +571,7 @@ export default function FreeCanvas({
                 })}
                 {blocks.length === 0 && (
                   <p className="free-canvas-page-empty">
-                    Page {pageIndex + 1} vide - glissez un élément depuis la barre latérale
+                    Page {pageIndex + 1} vide — choisissez un élément dans la barre latérale, puis cliquez ici pour le placer
                   </p>
                 )}
               </div>

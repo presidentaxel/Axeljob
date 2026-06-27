@@ -3,7 +3,46 @@
  * le composant et permettre des tests unitaires isolés.
  */
 
+import { isCanvasInlineEditableType } from './canvasInlineEdit.js';
+
 const INVALID_FILENAME_CHARS = /[<>:"/\\|?*]/g;
+
+export const CANVAS_EDIT_HINT_DISMISSED_KEY = 'cv_beta_canvas_edit_hint_dismissed';
+
+/** Bloc pour lequel on affiche l’astuce « double-clic pour éditer ». */
+export function blockSupportsEditHint(block) {
+  if (!block || typeof block !== 'object') return false;
+  const { type } = block;
+  if (type === 'image' || type === 'photo') return true;
+  return isCanvasInlineEditableType(type);
+}
+
+export function isCanvasEditHintDismissed() {
+  try {
+    return localStorage.getItem(CANVAS_EDIT_HINT_DISMISSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function dismissCanvasEditHint() {
+  try {
+    localStorage.setItem(CANVAS_EDIT_HINT_DISMISSED_KEY, '1');
+  } catch {
+    /* ignore quota / mode privé */
+  }
+}
+
+/** Message contextuel de l’astuce première sélection. */
+export function editHintMessageForBlock(block) {
+  if (!block) {
+    return 'Double-cliquez sur un bloc pour l’éditer.';
+  }
+  if (block.type === 'image' || block.type === 'photo') {
+    return 'Double-cliquez pour ajuster la photo ou l’image (cadrage, zoom, forme).';
+  }
+  return 'Double-cliquez sur le bloc sélectionné pour modifier le texte directement sur le canvas.';
+}
 
 /** Nettoie un fragment de nom de fichier (retire les caractères interdits). */
 export function cleanFilenamePart(value) {

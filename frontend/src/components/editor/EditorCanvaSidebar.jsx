@@ -10,11 +10,18 @@ import {
 } from 'react-icons/hi2';
 import { compressImageFile } from '../../lib/compressImageForCanvas.js';
 import { CANVAS_ICON_ENTRIES, createIconBlockPreset } from '../../lib/canvasIconLibrary.js';
+import { ELEMENT_SHAPE_ITEMS, createShapeBlockPreset } from '../../lib/canvasShapePresets.js';
+import { TEXT_PRESET_ITEMS, createTextBlockPreset } from '../../lib/canvasTextPresets.js';
 import {
-  INSERT_TOOLBAR_ITEMS,
   createImageBlockPreset,
-  createInsertBlockPreset,
 } from '../../lib/freeCanvasBlockPresets.js';
+import CanvasShapeSvg from './CanvasShapeSvg.jsx';
+import {
+  EditorCanvaColorPanel,
+  EditorCanvaEffectsPanel,
+  EditorCanvaFontPanel,
+  EditorCanvaShapePanel,
+} from './EditorCanvaStylePanels.jsx';
 import { deleteLayoutProposal, listLayoutProposals } from '../../lib/layoutProposalsStorage.js';
 import CanvasIconGlyph from './CanvasIconGlyph.jsx';
 import EditorCanvaPositionDrawer from './EditorCanvaPositionDrawer.jsx';
@@ -31,10 +38,9 @@ const SECTIONS = [
   { id: 'tools', label: 'Outils', icon: HiWrench },
 ];
 
-const TEXT_PRESETS = [
-  { type: 'title', label: 'Titre de section' },
-  { type: 'text', label: 'Paragraphe' },
-];
+const TEXT_PRESETS = TEXT_PRESET_ITEMS;
+
+const STYLE_PANEL_SECTIONS = new Set(['fonts', 'colors', 'effects', 'shape-style']);
 
 const IMAGE_SHAPES = [
   { value: 'rect', label: 'Rectangle' },
@@ -72,6 +78,8 @@ export default function EditorCanvaSidebar({
   activeCanvasDraftKey = null,
   layout = null,
   selectedBlockId = null,
+  selectedBlock = null,
+  onBlockStylePatch,
   showGrid = false,
   snapEnabled = true,
   onShowGridChange,
@@ -235,21 +243,24 @@ export default function EditorCanvaSidebar({
             <>
               <h3 className="editor-canva-drawer__title">Éléments</h3>
               <p className="editor-canva-drawer__hint editor-canva-drawer__hint--subtle">
-                Cliquez un élément, puis cliquez sur le canevas pour le placer.
+                Formes vectorielles — cliquez puis placez sur le canevas.
               </p>
-              <div className="editor-canva-drawer__grid">
-                {INSERT_TOOLBAR_ITEMS.map((item) => {
-                  const preset = createInsertBlockPreset(item.type);
+              <div className="editor-canva-drawer__shape-grid">
+                {ELEMENT_SHAPE_ITEMS.map((item) => {
+                  const preset = createShapeBlockPreset(item.type);
                   return (
                     <PlacementTile
                       key={item.type}
                       disabled={disabled}
                       preset={preset}
                       onBeginPlacement={onBeginPlacement}
-                      className="editor-canva-drawer__tile"
-                      title={item.description}
+                      className="editor-canva-drawer__shape-tile"
+                      title={item.label}
                     >
-                      {item.label}
+                      <span className="editor-canva-drawer__shape-preview">
+                        <CanvasShapeSvg type={item.type} style={preset?.style} />
+                      </span>
+                      <span className="editor-canva-drawer__shape-label">{item.label}</span>
                     </PlacementTile>
                   );
                 })}
@@ -261,7 +272,7 @@ export default function EditorCanvaSidebar({
               <h3 className="editor-canva-drawer__title">Texte</h3>
               <div className="editor-canva-drawer__grid">
                 {TEXT_PRESETS.map((item) => {
-                  const preset = createInsertBlockPreset(item.type);
+                  const preset = createTextBlockPreset(item.type);
                   return (
                     <PlacementTile
                       key={item.type}
@@ -275,7 +286,28 @@ export default function EditorCanvaSidebar({
                   );
                 })}
               </div>
+              {selectedBlock && onBlockStylePatch && (
+                <>
+                  <h4 className="editor-canva-drawer__subtitle">Police</h4>
+                  <EditorCanvaFontPanel block={selectedBlock} onBlockStylePatch={onBlockStylePatch} />
+                </>
+              )}
             </>
+          )}
+          {openSection === 'fonts' && selectedBlock && (
+            <EditorCanvaFontPanel block={selectedBlock} onBlockStylePatch={onBlockStylePatch} />
+          )}
+          {openSection === 'colors' && selectedBlock && (
+            <EditorCanvaColorPanel block={selectedBlock} onBlockStylePatch={onBlockStylePatch} />
+          )}
+          {openSection === 'effects' && selectedBlock && (
+            <EditorCanvaEffectsPanel block={selectedBlock} onBlockStylePatch={onBlockStylePatch} />
+          )}
+          {openSection === 'shape-style' && selectedBlock && (
+            <EditorCanvaShapePanel block={selectedBlock} onBlockStylePatch={onBlockStylePatch} />
+          )}
+          {STYLE_PANEL_SECTIONS.has(openSection) && !selectedBlock && (
+            <p className="editor-canva-drawer__hint">Sélectionnez un bloc pour modifier son style.</p>
           )}
           {openSection === 'icons' && (
             <>

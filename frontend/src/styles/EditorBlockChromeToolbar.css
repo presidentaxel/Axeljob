@@ -4,39 +4,43 @@
   display: flex;
   gap: 4px;
   padding: 4px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--color-canvas, #ffffff);
+  border: 1px solid var(--color-hairline, #d9d9dd);
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
   pointer-events: auto;
+}
+
+.editor-block-chrome-toolbar--compact {
+  padding: 3px;
+  gap: 2px;
 }
 
 .editor-block-chrome-toolbar__btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: #334155;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--color-ink, #212121);
+  background: var(--color-canvas, #fff);
+  border: 1px solid var(--color-hairline, #d9d9dd);
   border-radius: 6px;
   cursor: pointer;
 }
 
 .editor-block-chrome-toolbar__btn:hover {
-  background: #f1f5f9;
+  background: var(--color-soft-stone, #eeece7);
 }
 
 .editor-block-chrome-toolbar__btn--active {
-  background: #eef2ff;
-  border-color: #a5b4fc;
-  color: #3730a3;
+  background: var(--color-pale-blue, #f1f5ff);
+  border-color: var(--color-focus-blue, #4c6ee6);
+  color: var(--color-primary, #17171c);
 }
 
 .editor-block-chrome-toolbar__btn--danger {
-  color: #b91c1c;
+  color: var(--color-error, #b30000);
   border-color: #fecaca;
   background: #fef2f2;
 }

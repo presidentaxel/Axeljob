@@ -633,6 +633,7 @@ function CvEditorBeta({
       x: Math.max(0, xMm - w / 2),
       y: Math.max(0, yMm - h / 2),
     };
+    delete partial.placementMode;
     const next = addBlockToPage(layout, pageIndex, partial);
     commitLayout(next);
     const newId = getLastBlockIdOnPage(next, pageIndex);
@@ -641,8 +642,46 @@ function CvEditorBeta({
     if (cv) autoSave.schedule(cv);
   }, [placementPreset, layout, commitLayout, cv, autoSave]);
 
+  const handlePlaceBlockRect = useCallback((pageIndex, rect) => {
+    if (!placementPreset) return;
+    const partial = {
+      ...placementPreset,
+      x: rect.x,
+      y: rect.y,
+      w: Math.max(rect.w, 12),
+      h: Math.max(rect.h, 8),
+    };
+    const enterEdit = partial.type === 'text';
+    delete partial.placementMode;
+    const next = addBlockToPage(layout, pageIndex, partial);
+    commitLayout(next);
+    const newId = getLastBlockIdOnPage(next, pageIndex);
+    if (newId) {
+      setSelectedBlockId(newId);
+      if (enterEdit) setEditingBlockId(newId);
+    }
+    setPlacementPreset(null);
+    if (cv) autoSave.schedule(cv);
+  }, [placementPreset, layout, commitLayout, cv, autoSave]);
+
   const handleOpenPositionPanel = useCallback(() => {
     setSidebarSection('position');
+  }, []);
+
+  const handleOpenFontPanel = useCallback(() => {
+    setSidebarSection('fonts');
+  }, []);
+
+  const handleOpenColorPanel = useCallback(() => {
+    setSidebarSection('colors');
+  }, []);
+
+  const handleOpenEffectsPanel = useCallback(() => {
+    setSidebarSection('effects');
+  }, []);
+
+  const handleOpenShapePanel = useCallback(() => {
+    setSidebarSection('shape-style');
   }, []);
 
   const handleImageEdit = useCallback((blockId) => {
@@ -1080,6 +1119,19 @@ function CvEditorBeta({
         </div>
       )}
 
+      {selectedBlock && blockSupportsStyleToolbar(selectedBlock.type) && (
+        <EditorFloatingTextToolbar
+          block={selectedBlock}
+          isEditing={editingBlockId === selectedBlock.id}
+          onBlockStylePatch={handleBlockStylePatch}
+          onOpenFontPanel={handleOpenFontPanel}
+          onOpenColorPanel={handleOpenColorPanel}
+          onOpenEffectsPanel={handleOpenEffectsPanel}
+          onOpenShapePanel={handleOpenShapePanel}
+          onOpenPositionPanel={handleOpenPositionPanel}
+        />
+      )}
+
       <div className="cv-editor-beta-workspace cv-editor-beta-workspace--canva">
         <EditorCanvaSidebar
           disabled={loading || !layout}
@@ -1088,6 +1140,8 @@ function CvEditorBeta({
           placementActive={Boolean(placementPreset)}
           layout={layout}
           selectedBlockId={selectedBlockId}
+          selectedBlock={selectedBlock}
+          onBlockStylePatch={handleBlockStylePatch}
           templatesList={templatesList}
           canvasDrafts={canvasDrafts}
           activeCanvasDraftKey={activeLayoutContextKey}
@@ -1118,6 +1172,7 @@ function CvEditorBeta({
               snapEnabled={canvasSnapEnabled}
               placementPreset={placementPreset}
               onPlaceBlockAt={handlePlaceBlockAt}
+              onPlaceBlockRect={handlePlaceBlockRect}
               onCancelPlacement={handleCancelPlacement}
               onSelectBlock={handleSelectBlock}
               onBlockPositionChange={handleBlockPositionChange}
@@ -1189,21 +1244,9 @@ function CvEditorBeta({
                 onCancel={handleCancelTransfer}
               />
             )}
-            {selectedBlock && blockSupportsStyleToolbar(selectedBlock.type) && (
-              <EditorFloatingTextToolbar
-                block={selectedBlock}
-                isEditing={editingBlockId === selectedBlock.id}
-                onBlockStylePatch={handleBlockStylePatch}
-                onOpenPositionPanel={handleOpenPositionPanel}
-                onDuplicateBlock={handleDuplicateSelectedBlock}
-                onToggleLockBlock={handleToggleSelectedBlockLock}
-                onDeleteBlock={handleDeleteSelectedBlock}
-              />
-            )}
             {selectedBlock
               && selectedBlockRect
-              && !editingBlockId
-              && !blockSupportsStyleToolbar(selectedBlock.type) && (
+              && !editingBlockId && (
               <EditorBlockChromeToolbar
                 block={selectedBlock}
                 anchorRect={selectedBlockRect}
@@ -1211,15 +1254,13 @@ function CvEditorBeta({
                 onDelete={handleDeleteSelectedBlock}
                 onDuplicate={handleDuplicateSelectedBlock}
                 onToggleLock={handleToggleSelectedBlockLock}
+                onMoreMenu={() => {}}
               />
             )}
-            {imageEditBlockId && (selectedBlock?.type === 'image' || selectedBlock?.type === 'photo') && selectedBlockRect && (
+            {imageEditBlockId && (selectedBlock?.type === 'image' || selectedBlock?.type === 'photo') && (
               <EditorImageEditPopover
                 block={selectedBlock}
                 cv={cv}
-                theme={layout?.theme}
-                anchorRect={selectedBlockRect}
-                onBlockPatch={handleBlockPatch}
                 onBlockStylePatch={handleBlockStylePatch}
                 onClose={() => setImageEditBlockId(null)}
               />

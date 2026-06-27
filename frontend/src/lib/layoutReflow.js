@@ -11,6 +11,8 @@ import {
 
 const REFLOW_GAP_MM = 2;
 
+import { isVectorShapeType } from './canvasShapePresets.js';
+
 const REFLOW_SKIP_TYPES = new Set([
   'shape:rect',
   'shape:line',
@@ -21,7 +23,7 @@ const REFLOW_SKIP_TYPES = new Set([
 ]);
 
 function laneKey(block) {
-  if (!block || REFLOW_SKIP_TYPES.has(block.type)) return null;
+  if (!block || REFLOW_SKIP_TYPES.has(block.type) || isVectorShapeType(block.type)) return null;
   if (block.style?.zone === 'header') return null;
   if (block.style?.zone) return block.style.zone;
   const x = Number(block.x) || 0;

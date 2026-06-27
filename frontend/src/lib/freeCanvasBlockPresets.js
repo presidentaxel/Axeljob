@@ -16,10 +16,8 @@ import {
   listAllBlocks,
 } from './cvLayoutModelV3.js';
 
-/** Entrees de la barre d outils Insertion (ordre UI). */
+/** @deprecated Utiliser ELEMENT_SHAPE_ITEMS (canvasShapePresets). */
 export const INSERT_TOOLBAR_ITEMS = Object.freeze([
-  { type: 'text', label: 'Texte', description: 'Paragraphe libre' },
-  { type: 'title', label: 'Titre', description: 'Titre de section' },
   { type: 'shape:line', label: 'Trait', description: 'Ligne horizontale' },
   { type: 'shape:rect', label: 'Bandeau', description: 'Rectangle de fond' },
 ]);

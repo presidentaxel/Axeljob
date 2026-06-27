@@ -254,3 +254,21 @@ export function readRichHtmlFromRoot(rootEl, blockType) {
   if (!el) return '';
   return el.innerHTML || '';
 }
+
+/** Cycle liste : aucune → puces → numéros → aucune. */
+export function cycleListMode() {
+  const root = getActiveEditableRoot();
+  if (!root) return false;
+  root.focus();
+  const inUL = document.queryCommandState('insertUnorderedList');
+  const inOL = document.queryCommandState('insertOrderedList');
+  if (!inUL && !inOL) {
+    return applyRichTextCommandWithFallback('insertUnorderedList');
+  }
+  if (inUL) {
+    applyRichTextCommand('insertUnorderedList');
+    return applyRichTextCommandWithFallback('insertOrderedList');
+  }
+  applyRichTextCommand('insertOrderedList');
+  return true;
+}

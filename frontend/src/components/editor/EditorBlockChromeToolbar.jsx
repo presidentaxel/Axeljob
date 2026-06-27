@@ -1,8 +1,20 @@
-import { HiDocumentDuplicate, HiLockClosed, HiLockOpen, HiTrash } from 'react-icons/hi2';
+import {
+  HiBars3BottomLeft,
+  HiBars3,
+  HiBars3BottomRight,
+  HiBars4,
+  HiListBullet,
+  HiEllipsisHorizontal,
+  HiDocumentDuplicate,
+  HiLockClosed,
+  HiLockOpen,
+  HiTrash,
+} from 'react-icons/hi2';
 import '../../styles/EditorBlockChromeToolbar.css';
 
 /**
- * Barre d actions au-dessus du bloc sélectionné (supprimer, verrouiller).
+ * Barre d’actions compacte au-dessus du bloc sélectionné.
+ * Ordre : verrouiller, dupliquer, supprimer, menu (…).
  */
 export default function EditorBlockChromeToolbar({
   block,
@@ -11,15 +23,16 @@ export default function EditorBlockChromeToolbar({
   onDelete,
   onDuplicate,
   onToggleLock,
+  onMoreMenu,
 }) {
   if (!block || !anchorRect) return null;
 
-  const top = anchorRect.top - 40;
+  const top = anchorRect.top - 36;
   const left = anchorRect.left + anchorRect.width / 2;
 
   return (
     <div
-      className="editor-block-chrome-toolbar"
+      className="editor-block-chrome-toolbar editor-block-chrome-toolbar--compact"
       role="toolbar"
       aria-label="Actions sur le bloc"
       style={{
@@ -31,34 +44,39 @@ export default function EditorBlockChromeToolbar({
     >
       <button
         type="button"
+        className={locked ? 'editor-block-chrome-toolbar__btn editor-block-chrome-toolbar__btn--active' : 'editor-block-chrome-toolbar__btn'}
+        title={locked ? 'Déverrouiller' : 'Verrouiller'}
+        aria-label={locked ? 'Déverrouiller' : 'Verrouiller'}
+        onClick={onToggleLock}
+      >
+        {locked ? <HiLockClosed size={16} aria-hidden /> : <HiLockOpen size={16} aria-hidden />}
+      </button>
+      <button
+        type="button"
         className="editor-block-chrome-toolbar__btn"
-        title="Dupliquer le bloc"
+        title="Dupliquer"
+        aria-label="Dupliquer"
         onClick={onDuplicate}
       >
         <HiDocumentDuplicate size={16} aria-hidden />
-        <span>Dupliquer</span>
       </button>
       <button
         type="button"
         className="editor-block-chrome-toolbar__btn editor-block-chrome-toolbar__btn--danger"
-        title="Supprimer le bloc (Suppr)"
+        title="Supprimer"
+        aria-label="Supprimer"
         onClick={onDelete}
       >
         <HiTrash size={16} aria-hidden />
-        <span>Supprimer</span>
       </button>
       <button
         type="button"
-        className={
-          locked
-            ? 'editor-block-chrome-toolbar__btn editor-block-chrome-toolbar__btn--active'
-            : 'editor-block-chrome-toolbar__btn'
-        }
-        title={locked ? 'Déverrouiller la position' : 'Verrouiller la position'}
-        onClick={onToggleLock}
+        className="editor-block-chrome-toolbar__btn"
+        title="Plus d’options"
+        aria-label="Plus d’options"
+        onClick={onMoreMenu}
       >
-        {locked ? <HiLockClosed size={16} aria-hidden /> : <HiLockOpen size={16} aria-hidden />}
-        <span>{locked ? 'Verrouillé' : 'Verrouiller'}</span>
+        <HiEllipsisHorizontal size={16} aria-hidden />
       </button>
     </div>
   );

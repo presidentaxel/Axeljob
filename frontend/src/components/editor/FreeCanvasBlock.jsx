@@ -31,7 +31,9 @@ import { useCanvasBlockAutoHeight } from '../../lib/useCanvasBlockAutoHeight.js'
 import { isFloatingToolbarTarget, placeCaretAtPoint } from '../../lib/canvasCaret.js';
 import { RESIZE_HANDLES } from '../../lib/freeCanvasResize.js';
 import CanvasEditableField from './CanvasEditableField.jsx';
-import CanvasIconGlyph from './CanvasIconGlyph.jsx';
+import { isVectorShapeType } from '../../lib/canvasShapePresets.js';
+import { blockEffectToCss } from '../../lib/canvasBlockEffects.js';
+import CanvasShapeSvg from './CanvasShapeSvg.jsx';
 
 const SECTION_LABELS = {
   experiences: 'Expérience professionnelle',
@@ -729,6 +731,7 @@ function NonSemanticBlockBody({ block, editing = false, onAutoHeight }) {
             backgroundColor: style.color || '#1e293b',
             height: `${stroke}mm`,
             marginTop: `${Math.max(0, ((block.h || stroke) - stroke) / 2)}mm`,
+            opacity: style.opacity ?? 1,
           }}
           role="presentation"
         />
@@ -738,7 +741,11 @@ function NonSemanticBlockBody({ block, editing = false, onAutoHeight }) {
       return (
         <div
           className="free-canvas-block__shape-rect"
-          style={{ backgroundColor: style.color || style.bg || '#e2e8f0' }}
+          style={{
+            backgroundColor: style.color || style.bg || '#e2e8f0',
+            opacity: style.opacity ?? 1,
+            ...blockEffectToCss(style.effect, style),
+          }}
           role="presentation"
         />
       );
@@ -766,6 +773,17 @@ function NonSemanticBlockBody({ block, editing = false, onAutoHeight }) {
         </div>
       );
     default:
+      if (isVectorShapeType(type)) {
+        return (
+          <div
+            className="free-canvas-block__shape-vector"
+            style={blockEffectToCss(style.effect, style)}
+            role="presentation"
+          >
+            <CanvasShapeSvg type={type} style={style} />
+          </div>
+        );
+      }
       return null;
   }
 }

@@ -9,9 +9,9 @@ import {
   suggestNewBlockPlacement,
 } from '../../src/lib/freeCanvasBlockPresets.js';
 
-test('INSERT_TOOLBAR_ITEMS : 4 types', () => {
-  assert.equal(INSERT_TOOLBAR_ITEMS.length, 4);
-  assert.ok(INSERT_TOOLBAR_ITEMS.some((i) => i.type === 'text'));
+test('INSERT_TOOLBAR_ITEMS : formes de base', () => {
+  assert.equal(INSERT_TOOLBAR_ITEMS.length, 2);
+  assert.ok(INSERT_TOOLBAR_ITEMS.some((i) => i.type === 'shape:line'));
 });
 
 test('createInsertBlockPreset : texte et trait', () => {

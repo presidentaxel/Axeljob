@@ -3,6 +3,7 @@
  */
 
 import { listAllBlocks } from './cvLayoutModelV3.js';
+import { isVectorShapeType } from './canvasShapePresets.js';
 
 /** Ordre de lecture sémantique recommandé (haut → bas, même page). */
 const SEMANTIC_READ_ORDER = [
@@ -24,7 +25,7 @@ function semanticRank(type) {
 }
 
 function visualLayerRank(type) {
-  if (type === 'shape:rect') return 0;
+  if (type === 'shape:rect' || isVectorShapeType(type)) return 0;
   if (type === 'shape:line') return 1;
   return 2;
 }

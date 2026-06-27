@@ -14,98 +14,55 @@ import {
   applyStyleToEditableRoot,
   bumpFontSizesBy,
   applyRichTextCommandWithFallback,
+  cycleListMode,
   getEditingBlockInnerRoot,
   hasTextSelection,
   queryCommandState,
   toggleTextCase,
 } from '../../lib/canvasRichTextFormat.js';
 import { CANVAS_FONT_FAMILIES } from '../../lib/canvasFontOptions.js';
-import { blockSupportsStyleToolbar, blockSupportsTextToolbar } from '../../lib/canvasBlockToolbar.js';
+import {
+  blockSupportsStyleToolbar,
+  blockSupportsTextToolbar,
+  blockSupportsShapeToolbar,
+} from '../../lib/canvasBlockToolbar.js';
+import { DEFAULT_TEXT_COLOR } from '../../lib/canvasColorPalette.js';
 import '../../styles/EditorFloatingTextToolbar.css';
 
-const ALIGN_CYCLE = ['left', 'center', 'right', 'justify'];
-const ALIGN_CMD = {
-  left: 'justifyLeft',
-  center: 'justifyCenter',
-  right: 'justifyRight',
-  justify: 'justifyFull',
-};
+const ALIGN_OPTIONS = [
+  { value: 'left', cmd: 'justifyLeft', Icon: HiBars3BottomLeft },
+  { value: 'center', cmd: 'justifyCenter', Icon: HiBars3 },
+  { value: 'right', cmd: 'justifyRight', Icon: HiBars3BottomRight },
+  { value: 'justify', cmd: 'justifyFull', Icon: HiBars4 },
+];
 
-const DEFAULT_COLOR = '#1e293b';
-
-function cssColorToHex(value, fallback = DEFAULT_COLOR) {
+function cssColorToHex(value, fallback = DEFAULT_TEXT_COLOR) {
   if (typeof value !== 'string') return fallback;
   const trimmed = value.trim();
   if (/^#[0-9a-f]{6}$/i.test(trimmed)) return trimmed;
-  const short = trimmed.match(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i);
-  if (short) return `#${short[1]}${short[1]}${short[2]}${short[2]}${short[3]}${short[3]}`;
-  const rgb = trimmed.match(/^rgba?\(([^)]+)\)$/i);
-  if (rgb) {
-    const parts = rgb[1].split(',').slice(0, 3).map((part) => Number.parseFloat(part.trim()));
-    if (parts.every((n) => Number.isFinite(n))) {
-      return `#${parts
-        .map((n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0'))
-        .join('')}`;
-    }
-  }
   return fallback;
 }
 
-function AlignIcon({ align }) {
-  if (align === 'center') return <HiBars3 size={18} aria-hidden />;
-  if (align === 'right') return <HiBars3BottomRight size={18} aria-hidden />;
-  if (align === 'justify') return <HiBars4 size={18} aria-hidden />;
-  return <HiBars3BottomLeft size={18} aria-hidden />;
-}
-
-function ColorPickerControl({
-  title,
-  inputRef,
-  value,
-  onOpen,
-  onChange,
-  children,
-}) {
-  return (
-    <span className="editor-floating-toolbar__color-control">
-      <button type="button" className="editor-floating-toolbar__color-btn" title={title} onMouseDown={onOpen}>
-        {children}
-      </button>
-      <input
-        ref={inputRef}
-        type="color"
-        className="editor-floating-toolbar__color-input-hidden"
-        value={value}
-        onChange={onChange}
-        tabIndex={-1}
-        aria-hidden
-      />
-    </span>
-  );
-}
-
-/** Empêche la perte de focus/selection sur contentEditable au clic toolbar. */
 function formatAction(event, fn) {
   event.preventDefault();
   event.stopPropagation();
   fn();
 }
 
+function fontLabel(value) {
+  return CANVAS_FONT_FAMILIES.find((f) => f.value === value)?.label || 'Police';
+}
+
 export default function EditorFloatingTextToolbar({
   block,
   isEditing = false,
   onBlockStylePatch,
+  onOpenFontPanel,
+  onOpenColorPanel,
+  onOpenEffectsPanel,
+  onOpenShapePanel,
   onOpenPositionPanel,
-  onDuplicateBlock,
-  onToggleLockBlock,
-  onDeleteBlock,
 }) {
-  const toolbarRef = useRef(null);
-  const dragSessionRef = useRef(null);
-  const colorInputRef = useRef(null);
-  const [effectsOpen, setEffectsOpen] = useState(false);
-  const [toolbarPos, setToolbarPos] = useState(null);
-  const [draggingToolbar, setDraggingToolbar] = useState(false);
   const [, tick] = useState(0);
 
   useEffect(() => {
@@ -118,70 +75,14 @@ export default function EditorFloatingTextToolbar({
   if (!block || !blockSupportsStyleToolbar(block.type)) return null;
 
   const style = block.style || {};
+  const showText = blockSupportsTextToolbar(block.type);
+  const showShape = blockSupportsShapeToolbar(block.type);
   const isLine = block.type === 'shape:line';
   const isIcon = block.type === 'icon';
-  const showText = blockSupportsTextToolbar(block.type);
+  const isImage = block.type === 'image' || block.type === 'photo';
   const fontSize = style.font_size || 12;
   const align = style.align || 'left';
-  const colorPickerValue = cssColorToHex(style.color || DEFAULT_COLOR);
-  const toolbarStyle = toolbarPos
-    ? { top: `${toolbarPos.top}px`, left: `${toolbarPos.left}px`, transform: 'none' }
-    : undefined;
-
-  const startToolbarDrag = (event) => {
-    const el = toolbarRef.current;
-    if (!el) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const rect = el.getBoundingClientRect();
-    const parent = el.offsetParent;
-    const parentRect = parent?.getBoundingClientRect?.() || { left: 0, top: 0 };
-    const startLeft = rect.left - parentRect.left + (parent?.scrollLeft || 0);
-    const startTop = rect.top - parentRect.top + (parent?.scrollTop || 0);
-    dragSessionRef.current = {
-      startClientX: event.clientX,
-      startClientY: event.clientY,
-      startLeft,
-      startTop,
-      width: rect.width,
-      height: rect.height,
-      maxLeft: Math.max(8, (parent?.clientWidth || window.innerWidth) - rect.width - 8),
-      maxTop: Math.max(8, (parent?.clientHeight || window.innerHeight) - rect.height - 8),
-    };
-    setToolbarPos({ left: startLeft, top: startTop });
-    setDraggingToolbar(true);
-    if (typeof event.currentTarget?.setPointerCapture === 'function') {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    }
-  };
-
-  const moveToolbarDrag = (event) => {
-    const session = dragSessionRef.current;
-    if (!session) return;
-    event.preventDefault();
-    const margin = 8;
-    const nextLeft = session.startLeft + event.clientX - session.startClientX;
-    const nextTop = session.startTop + event.clientY - session.startClientY;
-    setToolbarPos({
-      left: Math.min(session.maxLeft, Math.max(margin, nextLeft)),
-      top: Math.min(session.maxTop, Math.max(margin, nextTop)),
-    });
-  };
-
-  const endToolbarDrag = (event) => {
-    if (!dragSessionRef.current) return;
-    dragSessionRef.current = null;
-    setDraggingToolbar(false);
-    if (typeof event.currentTarget?.releasePointerCapture === 'function') {
-      try {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      } catch (_) { /* ignore */ }
-    }
-  };
-
-  const openColorPicker = (e) => {
-    formatAction(e, () => colorInputRef.current?.click());
-  };
+  const colorPickerValue = cssColorToHex(style.color || DEFAULT_TEXT_COLOR);
 
   const patchStyle = (key, value) => {
     if (isEditing && showText && hasTextSelection()) {
@@ -215,10 +116,7 @@ export default function EditorFloatingTextToolbar({
           return;
         }
         const next = Math.min(48, Math.max(6, fontSize + delta));
-        const map = { fontSize: `${next}pt` };
-        applyStyleToEditableRoot(map);
-        applyStyleToBlockEditables(getEditingBlockInnerRoot(), map);
-        if (typeof onBlockStylePatch === 'function') onBlockStylePatch({ font_size: next });
+        patchStyle('font_size', next);
         return;
       }
       patchStyle('font_size', Math.min(48, Math.max(6, fontSize + delta)));
@@ -240,100 +138,82 @@ export default function EditorFloatingTextToolbar({
     if (map[cmd]) onBlockStylePatch(map[cmd]);
   };
 
-  const cycleAlign = () => {
-    const idx = ALIGN_CYCLE.indexOf(align);
-    const next = ALIGN_CYCLE[(idx + 1) % ALIGN_CYCLE.length];
-    if (isEditing && showText) {
-      applyRichTextCommandWithFallback(ALIGN_CMD[next]);
-      if (!hasTextSelection() && typeof onBlockStylePatch === 'function') {
-        onBlockStylePatch({ align: next });
+  const setAlign = (e, value, cmd) => {
+    formatAction(e, () => {
+      if (isEditing && showText) {
+        applyRichTextCommandWithFallback(cmd);
+        if (!hasTextSelection()) patchStyle('align', value);
+        return;
       }
-      return;
-    }
-    patchStyle('align', next);
+      patchStyle('align', value);
+    });
   };
+
+  if (isImage) {
+    return (
+      <div className="editor-format-bar" role="toolbar" aria-label="Image">
+        <button type="button" className="editor-format-bar__pill" onClick={() => onOpenPositionPanel?.()}>
+          Position
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
-      ref={toolbarRef}
-      className={`editor-floating-toolbar${draggingToolbar ? ' editor-floating-toolbar--dragging' : ''}`}
-      style={toolbarStyle}
+      className="editor-format-bar"
       role="toolbar"
       aria-label="Formatage du bloc"
       onPointerDown={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <button
-        type="button"
-        className="editor-floating-toolbar__handle"
-        title="Deplacer la barre d'outils"
-        aria-label="Deplacer la barre d'outils"
-        onPointerDown={startToolbarDrag}
-        onPointerMove={moveToolbarDrag}
-        onPointerUp={endToolbarDrag}
-        onPointerCancel={endToolbarDrag}
-      >
-        <span aria-hidden="true" />
-      </button>
-      {isLine && (
+      {showShape && (
         <>
-          <ColorPickerControl
-            title="Couleur"
-            inputRef={colorInputRef}
-            value={colorPickerValue}
-            onOpen={openColorPicker}
-            onChange={(e) => patchStyle('color', e.target.value)}
-          >
-            <span className="editor-floating-toolbar__color-a">A</span>
-          </ColorPickerControl>
-          <div className="editor-floating-toolbar__size-stepper">
-            <button type="button" onMouseDown={(e) => formatAction(e, () => patchStyle('stroke_width', Math.max(0.2, (style.stroke_width || 0.6) - 0.2)))}>−</button>
-            <span>{(style.stroke_width || 0.6).toFixed(1)} mm</span>
-            <button type="button" onMouseDown={(e) => formatAction(e, () => patchStyle('stroke_width', Math.min(8, (style.stroke_width || 0.6) + 0.2)))}>+</button>
-          </div>
+          <button type="button" className="editor-format-bar__pill" onClick={() => onOpenShapePanel?.()}>
+            Forme
+          </button>
+          {isLine && (
+            <div className="editor-format-bar__stepper">
+              <button type="button" onMouseDown={(e) => formatAction(e, () => patchStyle('stroke_width', Math.max(0.2, (style.stroke_width || 0.6) - 0.2)))}>−</button>
+              <span>{(style.stroke_width || 0.6).toFixed(1)}</span>
+              <button type="button" onMouseDown={(e) => formatAction(e, () => patchStyle('stroke_width', Math.min(8, (style.stroke_width || 0.6) + 0.2)))}>+</button>
+            </div>
+          )}
+          <span className="editor-format-bar__sep" aria-hidden />
         </>
       )}
 
       {isIcon && (
         <>
-          <ColorPickerControl
-            title="Couleur icône"
-            inputRef={colorInputRef}
-            value={colorPickerValue}
-            onOpen={openColorPicker}
-            onChange={(e) => patchStyle('color', e.target.value)}
-          >
-            <span className="editor-floating-toolbar__color-a">A</span>
-          </ColorPickerControl>
+          <button type="button" className="editor-format-bar__pill" onClick={() => onOpenColorPanel?.()}>
+            Couleur
+          </button>
+          <span className="editor-format-bar__sep" aria-hidden />
         </>
       )}
 
       {showText && (
         <>
-          <select
-            className="editor-floating-toolbar__font"
-            value={style.font_family || CANVAS_FONT_FAMILIES[0].value}
-            onMouseDown={(e) => e.stopPropagation()}
-            onChange={(e) => patchStyle('font_family', e.target.value)}
+          <button
+            type="button"
+            className="editor-format-bar__pill editor-format-bar__pill--wide"
+            onClick={() => onOpenFontPanel?.()}
           >
-            {CANVAS_FONT_FAMILIES.map((f) => (
-              <option key={f.value} value={f.value}>{f.label}</option>
-            ))}
-          </select>
-          <div className="editor-floating-toolbar__size-stepper">
+            {fontLabel(style.font_family || CANVAS_FONT_FAMILIES[0].value)}
+          </button>
+          <div className="editor-format-bar__stepper">
             <button type="button" onPointerDown={(e) => stepFontSize(e, -1)}>−</button>
             <span>{fontSize}</span>
             <button type="button" onPointerDown={(e) => stepFontSize(e, 1)}>+</button>
           </div>
-          <ColorPickerControl
+          <button
+            type="button"
+            className="editor-format-bar__color-swatch"
+            style={{ backgroundColor: colorPickerValue }}
             title="Couleur"
-            inputRef={colorInputRef}
-            value={colorPickerValue}
-            onOpen={openColorPicker}
-            onChange={(e) => patchStyle('color', e.target.value)}
-          >
-            <span className="editor-floating-toolbar__color-a editor-floating-toolbar__color-a--rainbow">A</span>
-          </ColorPickerControl>
+            aria-label="Couleur"
+            onClick={() => onOpenColorPanel?.()}
+          />
           <button
             type="button"
             className={isEditing && hasTextSelection() ? (queryCommandState('bold') ? 'is-active' : '') : (style.bold ? 'is-active' : '')}
@@ -348,84 +228,58 @@ export default function EditorFloatingTextToolbar({
             type="button"
             className={isEditing && hasTextSelection() ? (queryCommandState('underline') ? 'is-active' : '') : (style.underline ? 'is-active' : '')}
             onMouseDown={(e) => formatAction(e, () => runCmd('underline'))}
-          ><span className="editor-floating-toolbar__u">U</span></button>
+          ><span className="editor-format-bar__u">U</span></button>
           <button
             type="button"
             className={isEditing && hasTextSelection() ? (queryCommandState('strikeThrough') ? 'is-active' : '') : (style.strikethrough ? 'is-active' : '')}
             onMouseDown={(e) => formatAction(e, () => runCmd('strikeThrough'))}
-          ><span className="editor-floating-toolbar__s">S</span></button>
+          ><span className="editor-format-bar__s">S</span></button>
           <button
             type="button"
-            className="editor-floating-toolbar__case-btn"
+            className="editor-format-bar__case-btn"
             title="Majuscules / minuscules"
             onMouseDown={(e) => formatAction(e, () => toggleTextCase())}
           >
-            <span className="editor-floating-toolbar__case-big">A</span>
-            <span className="editor-floating-toolbar__case-small">a</span>
+            <span>A</span><span>a</span>
           </button>
+          <div className="editor-format-bar__align-group">
+            {ALIGN_OPTIONS.map(({ value, cmd, Icon }) => (
+              <button
+                key={value}
+                type="button"
+                className={align === value ? 'is-active' : ''}
+                title={value}
+                onMouseDown={(e) => setAlign(e, value, cmd)}
+              >
+                <Icon size={17} aria-hidden />
+              </button>
+            ))}
+          </div>
           <button
             type="button"
-            className="is-active"
-            title="Alignement (cliquer pour changer)"
-            onMouseDown={(e) => formatAction(e, cycleAlign)}
+            title="Liste (puces / numéros)"
+            onMouseDown={(e) => formatAction(e, () => cycleListMode())}
           >
-            <AlignIcon align={align} />
+            <HiListBullet size={17} aria-hidden />
           </button>
-          <button
-            type="button"
-            title="Liste"
-            onMouseDown={(e) => formatAction(e, () => applyRichTextCommandWithFallback('insertUnorderedList'))}
-          >
-            <HiListBullet size={18} aria-hidden />
+          <label className="editor-format-bar__opacity" title="Transparence">
+            <input
+              type="range"
+              min="0.1"
+              max="1"
+              step="0.05"
+              value={style.opacity ?? 1}
+              onChange={(e) => patchStyle('opacity', parseFloat(e.target.value))}
+            />
+          </label>
+          <button type="button" className="editor-format-bar__pill" onClick={() => onOpenEffectsPanel?.()}>
+            Effets
           </button>
-          <button type="button" className={effectsOpen ? 'is-active' : ''} onClick={() => setEffectsOpen((v) => !v)}>Effets</button>
-          {effectsOpen && (
-            <div className="editor-floating-toolbar__popover">
-              <label>
-                Transparence
-                <input type="range" min="0.2" max="1" step="0.05" value={style.opacity ?? 1} onChange={(e) => patchStyle('opacity', parseFloat(e.target.value))} />
-              </label>
-            </div>
-          )}
         </>
       )}
 
-      <button
-        type="button"
-        className="editor-floating-toolbar__position-btn"
-        onClick={() => {
-          setEffectsOpen(false);
-          onOpenPositionPanel?.();
-        }}
-      >
+      <button type="button" className="editor-format-bar__pill" onClick={() => onOpenPositionPanel?.()}>
         Position
-      </button>
-      <span className="editor-floating-toolbar__divider" aria-hidden="true" />
-      <button
-        type="button"
-        title="Dupliquer le bloc"
-        aria-label="Dupliquer le bloc selectionne"
-        onMouseDown={(e) => formatAction(e, () => onDuplicateBlock?.())}
-      >
-        Dupliquer
-      </button>
-      <button
-        type="button"
-        title={block.locked ? 'Deverrouiller le bloc' : 'Verrouiller le bloc'}
-        aria-label={block.locked ? 'Deverrouiller le bloc selectionne' : 'Verrouiller le bloc selectionne'}
-        className={block.locked ? 'is-active' : ''}
-        onMouseDown={(e) => formatAction(e, () => onToggleLockBlock?.())}
-      >
-        {block.locked ? 'Deverr.' : 'Verrou'}
-      </button>
-      <button
-        type="button"
-        className="editor-floating-toolbar__danger-btn"
-        title="Supprimer le bloc"
-        aria-label="Supprimer le bloc selectionne"
-        onMouseDown={(e) => formatAction(e, () => onDeleteBlock?.())}
-      >
-        Suppr.
       </button>
     </div>
   );

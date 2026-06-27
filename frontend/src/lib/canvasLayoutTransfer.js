@@ -4,6 +4,7 @@ import {
   sanitizeBlock,
   sanitizeLayoutV3,
 } from './cvLayoutModelV3.js';
+import { isVectorShapeType } from './canvasShapePresets.js';
 
 const TRANSFERABLE_MANUAL_TYPES = new Set([
   'text',
@@ -70,7 +71,7 @@ export function detectTransferCandidates(sourceLayout, targetTemplateLayout) {
   sourcePages.forEach((page, pageIndex) => {
     (page?.blocks || []).forEach((block) => {
       if (!block?.id) return;
-      const isManual = TRANSFERABLE_MANUAL_TYPES.has(block.type);
+      const isManual = TRANSFERABLE_MANUAL_TYPES.has(block.type) || isVectorShapeType(block.type);
       const signature = semanticSignature(block);
       const isExtraSemantic = signature && !targetSemantic.has(signature);
       if (!isManual && !isExtraSemantic) return;

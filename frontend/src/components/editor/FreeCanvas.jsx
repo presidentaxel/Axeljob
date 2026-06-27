@@ -111,6 +111,7 @@ export default function FreeCanvas({
   interactable = true,
   placementPreset = null,
   onPlaceBlockAt,
+  onPlaceBlockRect,
   onCancelPlacement,
   onAddPage,
   onRemovePage,
@@ -126,6 +127,9 @@ export default function FreeCanvas({
   const dragSessionRef = useRef(null);
   const resizeSessionRef = useRef(null);
   const placing = Boolean(placementPreset);
+  const drawRectMode = placing && placementPreset?.placementMode === 'draw-rect';
+  const [drawRect, setDrawRect] = useState(null);
+  const drawSessionRef = useRef(null);
 
   useLayoutEffect(() => {
     const el = viewportRef.current;
@@ -411,6 +415,8 @@ export default function FreeCanvas({
   useEffect(() => {
     if (!placing) {
       setPlaceCursor(null);
+      setDrawRect(null);
+      drawSessionRef.current = null;
       return undefined;
     }
     const onMove = (e) => setPlaceCursor({ x: e.clientX, y: e.clientY });
@@ -427,15 +433,50 @@ export default function FreeCanvas({
 
   const handlePageBackgroundPointerDown = useCallback((event) => {
     if (event.target !== event.currentTarget) return;
+    const pageIndex = parseInt(event.currentTarget.getAttribute('data-page-index') || '0', 10);
+    if (drawRectMode && typeof onPlaceBlockRect === 'function') {
+      event.preventDefault();
+      const pt = clientPointToPageMm(event.clientX, event.clientY, event.currentTarget);
+      drawSessionRef.current = { pageIndex, startX: pt.x, startY: pt.y, pageEl: event.currentTarget };
+      setDrawRect({ x: pt.x, y: pt.y, w: 0, h: 0 });
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      return;
+    }
     if (placing && typeof onPlaceBlockAt === 'function') {
-      const pageIndex = parseInt(event.currentTarget.getAttribute('data-page-index') || '0', 10);
       const pt = clientPointToPageMm(event.clientX, event.clientY, event.currentTarget);
       onPlaceBlockAt(pageIndex, pt.x, pt.y);
       return;
     }
     commitEditingBlock();
     if (typeof onSelectBlock === 'function') onSelectBlock(null);
-  }, [onSelectBlock, placing, onPlaceBlockAt, commitEditingBlock]);
+  }, [onSelectBlock, placing, drawRectMode, onPlaceBlockAt, onPlaceBlockRect, commitEditingBlock]);
+
+  const handlePageDrawPointerMove = useCallback((event) => {
+    const session = drawSessionRef.current;
+    if (!session?.pageEl) return;
+    const pt = clientPointToPageMm(event.clientX, event.clientY, session.pageEl);
+    const x = Math.min(session.startX, pt.x);
+    const y = Math.min(session.startY, pt.y);
+    const w = Math.abs(pt.x - session.startX);
+    const h = Math.abs(pt.y - session.startY);
+    setDrawRect({ x, y, w, h });
+  }, []);
+
+  const handlePageDrawPointerUp = useCallback((event) => {
+    const session = drawSessionRef.current;
+    if (!session) return;
+    drawSessionRef.current = null;
+    try { session.pageEl?.releasePointerCapture?.(event.pointerId); } catch (_) { /* ignore */ }
+    const pt = clientPointToPageMm(event.clientX, event.clientY, session.pageEl);
+    const x = Math.min(session.startX, pt.x);
+    const y = Math.min(session.startY, pt.y);
+    const w = Math.abs(pt.x - session.startX);
+    const h = Math.abs(pt.y - session.startY);
+    setDrawRect(null);
+    if (w >= 4 && h >= 4 && typeof onPlaceBlockRect === 'function') {
+      onPlaceBlockRect(session.pageIndex, { x, y, w, h });
+    }
+  }, [onPlaceBlockRect]);
 
   const handleCanvasBackgroundPointerDown = useCallback((event) => {
     if (placing) return;
@@ -462,11 +503,13 @@ export default function FreeCanvas({
     && typeof onRemovePage === 'function'
     && pages.length > 1;
 
-  const placeLabel = placementPreset?.type === 'icon'
-    ? 'Icône'
-    : placementPreset?.type === 'image'
-      ? 'Image'
-      : placementPreset?.type || 'Élément';
+  const placeLabel = placementPreset?.placementMode === 'draw-rect'
+    ? 'Dessinez la zone'
+    : placementPreset?.type === 'icon'
+      ? 'Icône'
+      : placementPreset?.type === 'image'
+        ? 'Image'
+        : placementPreset?.type || 'Élément';
 
   return (
     <div
@@ -531,7 +574,22 @@ export default function FreeCanvas({
                 }}
                 data-page-index={pageIndex}
                 onPointerDown={interactable ? handlePageBackgroundPointerDown : undefined}
+                onPointerMove={interactable && drawRectMode ? handlePageDrawPointerMove : undefined}
+                onPointerUp={interactable && drawRectMode ? handlePageDrawPointerUp : undefined}
+                onPointerCancel={interactable && drawRectMode ? handlePageDrawPointerUp : undefined}
               >
+                {drawRect && drawRectMode && (
+                  <div
+                    className="free-canvas-draw-rect-preview"
+                    style={{
+                      left: `${drawRect.x}mm`,
+                      top: `${drawRect.y}mm`,
+                      width: `${drawRect.w}mm`,
+                      height: `${drawRect.h}mm`,
+                    }}
+                    aria-hidden
+                  />
+                )}
                 {interactable && <SnapGuides guides={activeGuides} />}
                 {blocks.map((block) => {
                   const preview =

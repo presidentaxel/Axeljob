@@ -1,275 +1,131 @@
-.editor-floating-toolbar {
-  position: absolute;
-  z-index: 30;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
+.editor-format-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 2px;
-  padding: 6px 8px;
-  max-width: min(96vw, 720px);
-  background: #ffffff;
-  color: #0f172a;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.12);
+  gap: 4px;
+  padding: 8px 12px;
+  margin: 0;
+  background: var(--color-canvas, #ffffff);
+  border-bottom: 1px solid var(--color-hairline, #d9d9dd);
   font-family: var(--app-font-family);
   font-size: 0.8rem;
+  flex-shrink: 0;
+  z-index: 20;
 }
 
-.editor-floating-toolbar--dragging {
-  cursor: grabbing;
-  user-select: none;
-}
-
-.editor-floating-toolbar__handle {
-  display: inline-flex !important;
+.editor-format-bar button {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px !important;
-  min-width: 26px !important;
-  height: 32px !important;
-  padding: 0 !important;
-  margin-right: 4px;
-  cursor: grab;
-  border-radius: 8px !important;
-  border-right: 1px solid #f1f5f9 !important;
-  background: transparent !important;
-}
-
-.editor-floating-toolbar__handle span {
-  width: 12px;
-  height: 18px;
-  opacity: 0.7;
-  background-image: radial-gradient(circle, #94a3b8 1.6px, transparent 1.8px);
-  background-size: 6px 6px;
-  background-position: center;
-}
-
-.editor-floating-toolbar__handle:hover {
-  background: #f8fafc !important;
-}
-
-.editor-floating-toolbar__handle:hover span {
-  opacity: 1;
-}
-
-.editor-floating-toolbar__font {
-  min-width: 108px;
-  height: 32px;
-  padding: 0 8px;
-  border: none;
-  border-radius: 8px;
-  background: #f8fafc;
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: #0f172a;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-ink, #212121);
+  font-size: 0.82rem;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
-.editor-floating-toolbar__size-stepper {
+.editor-format-bar button:hover {
+  background: var(--color-soft-stone, #eeece7);
+}
+
+.editor-format-bar button.is-active {
+  background: var(--color-pale-blue, #f1f5ff);
+  border-color: var(--color-hairline, #d9d9dd);
+  color: var(--color-primary, #17171c);
+}
+
+.editor-format-bar__pill {
+  padding: 0 10px !important;
+  font-weight: 500;
+  border: 1px solid var(--color-hairline, #d9d9dd) !important;
+  border-radius: 8px !important;
+  background: var(--color-canvas, #fff) !important;
+  white-space: nowrap;
+}
+
+.editor-format-bar__pill--wide {
+  min-width: 7rem;
+  max-width: 10rem;
+  justify-content: flex-start;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.editor-format-bar__stepper {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  padding: 2px 4px;
-  background: #f8fafc;
+  padding: 2px;
+  border: 1px solid var(--color-hairline, #d9d9dd);
   border-radius: 8px;
+  background: var(--color-canvas, #fff);
 }
 
-.editor-floating-toolbar__size-stepper button {
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: #334155;
-  font-size: 1rem;
-  cursor: pointer;
-}
-
-.editor-floating-toolbar__size-stepper button:hover {
-  background: #e2e8f0;
-}
-
-.editor-floating-toolbar__size-stepper span {
-  min-width: 28px;
+.editor-format-bar__stepper span {
+  min-width: 1.5rem;
   text-align: center;
-  font-weight: 600;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
-.editor-floating-toolbar button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 32px;
-  height: 32px;
-  padding: 0 6px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: #0f172a;
-  font-size: 0.85rem;
-  cursor: pointer;
-  position: relative;
-  z-index: 2;
-  flex-shrink: 0;
-}
-
-.editor-floating-toolbar button:hover {
-  background: #f1f5f9;
-}
-
-.editor-floating-toolbar button.is-active {
-  background: #e0e7ff;
-  color: #3730a3;
-}
-
-.editor-floating-toolbar__color-control {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  flex-shrink: 0;
-}
-
-.editor-floating-toolbar__color-btn {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  padding: 0;
-  border-radius: 8px;
-  cursor: pointer;
-  z-index: 2;
-}
-
-.editor-floating-toolbar__color-btn:hover {
-  background: #f1f5f9;
-}
-
-.editor-floating-toolbar__color-input-hidden {
-  position: absolute;
-  inset: 0;
-  width: 32px;
-  height: 32px;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.editor-floating-toolbar__color-a {
-  font-weight: 800;
-  font-size: 1rem;
-  line-height: 1;
-  border-bottom: 3px solid #6366f1;
-}
-
-.editor-floating-toolbar__color-a--rainbow {
-  border-image: linear-gradient(90deg, #ef4444, #eab308, #22c55e, #3b82f6) 1;
-  border-bottom: 3px solid transparent;
-}
-
-.editor-floating-toolbar__u {
-  text-decoration: underline;
-}
-
-.editor-floating-toolbar__s {
-  text-decoration: line-through;
-}
-
-.editor-floating-toolbar__align-group {
-  display: inline-flex;
-  gap: 1px;
-  padding: 2px;
-  background: #f8fafc;
-  border-radius: 8px;
-}
-
-.editor-floating-toolbar__position-btn {
-  margin-left: 4px;
-  padding: 0 12px !important;
-  font-weight: 600;
-  background: #f1f5f9 !important;
+.editor-format-bar__color-swatch {
+  width: 30px !important;
+  min-width: 30px !important;
+  padding: 0 !important;
+  border: 1px solid var(--color-hairline, #d9d9dd) !important;
   border-radius: 8px !important;
 }
 
-.editor-floating-toolbar__position-btn.is-active {
-  background: #e0e7ff !important;
-}
+.editor-format-bar__u { text-decoration: underline; }
+.editor-format-bar__s { text-decoration: line-through; }
 
-.editor-floating-toolbar__divider {
-  width: 1px;
-  height: 24px;
-  margin: 0 3px;
-  background: #e2e8f0;
-  flex-shrink: 0;
-}
-
-.editor-floating-toolbar__danger-btn {
-  color: #b91c1c !important;
-  background: #fef2f2 !important;
-}
-
-.editor-floating-toolbar__danger-btn:hover {
-  background: #fee2e2 !important;
-}
-
-.editor-floating-toolbar__popover {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  min-width: 180px;
-  padding: 10px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
-  z-index: 2;
-}
-
-.editor-floating-toolbar__popover label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: #64748b;
-}
-
-.editor-floating-toolbar__popover--position {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-
-.editor-floating-toolbar__popover input {
-  padding: 4px 6px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-}
-
-.editor-floating-toolbar__case-btn {
-  display: inline-flex;
-  align-items: baseline;
+.editor-format-bar__case-btn {
+  display: inline-flex !important;
+  align-items: baseline !important;
   gap: 1px;
   line-height: 1;
 }
 
-.editor-floating-toolbar__case-big {
-  font-size: 1rem;
-  font-weight: 700;
+.editor-format-bar__case-btn span:first-child { font-size: 0.95rem; font-weight: 600; }
+.editor-format-bar__case-btn span:last-child { font-size: 0.65rem; }
+
+.editor-format-bar__align-group {
+  display: inline-flex;
+  gap: 1px;
+  padding: 2px;
+  border: 1px solid var(--color-hairline, #d9d9dd);
+  border-radius: 8px;
+  background: var(--color-canvas, #fff);
 }
 
-.editor-floating-toolbar__case-small {
-  font-size: 0.65rem;
-  font-weight: 600;
-  opacity: 0.85;
+.editor-format-bar__opacity {
+  display: inline-flex;
+  align-items: center;
+  width: 72px;
+  margin: 0 2px;
+}
+
+.editor-format-bar__opacity input {
+  width: 100%;
+  margin: 0;
+}
+
+.editor-format-bar__sep {
+  width: 1px;
+  height: 22px;
+  margin: 0 2px;
+  background: var(--color-hairline, #d9d9dd);
+  flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+  .editor-format-bar {
+    gap: 3px;
+    padding: 6px 8px;
+  }
 }

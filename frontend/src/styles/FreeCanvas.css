@@ -779,13 +779,20 @@
   transform: translate(-50%, -50%);
   padding: 4px 10px;
   font-size: 0.72rem;
-  font-weight: 600;
-  color: #4338ca;
-  background: rgba(238, 242, 255, 0.95);
-  border: 1px dashed #818cf8;
+  font-weight: 500;
+  color: var(--color-primary, #17171c);
+  background: var(--color-canvas, #fff);
+  border: 1px dashed var(--color-hairline, #d9d9dd);
   border-radius: 8px;
   pointer-events: none;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+.free-canvas-draw-rect-preview {
+  position: absolute;
+  border: 2px dashed var(--color-focus-blue, #4c6ee6);
+  background: rgba(76, 110, 230, 0.08);
+  pointer-events: none;
+  z-index: 9990;
 }
 
 /* Choix de demarrage (page blanche vs starter) - CvEditorBeta */
@@ -840,4 +847,9 @@
 .free-canvas-starter-picker__btn--secondary:hover {
   background: #e2e8f0;
   filter: none;
+}
+
+.free-canvas-block__shape-vector {
+  width: 100%;
+  height: 100%;
 }

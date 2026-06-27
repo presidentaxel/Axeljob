@@ -1,0 +1,98 @@
+/**
+ * Auth / connexion (écran login, LinkedIn).
+ */
+/* Écran de connexion pleine page (quand Supabase activé et non connecté) */
+.login-screen {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+  background: var(--bg);
+  padding: 1.5rem;
+}
+.login-screen-back {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  background: none;
+  border: none;
+  font-size: 0.9rem;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.4rem 0;
+  font-family: inherit;
+  transition: color 0.15s;
+}
+.login-screen-back:hover {
+  color: var(--text);
+}
+.login-screen-card {
+  background: var(--bg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  padding: 2.5rem 2rem;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+}
+.login-screen-card h1 {
+  font-size: 1.5rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.25rem;
+}
+.login-screen-logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  margin-bottom: 1rem;
+}
+.login-screen-intro {
+  color: var(--muted);
+  margin: 0 0 1.75rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* Page Connexion LinkedIn (onglet dédié) : contenu centré verticalement et horizontalement */
+.view-linkedin .page-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  padding: 2rem 1.5rem;
+}
+
+.linkedin-connection-page {
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+}
+
+.linkedin-connection-illustration {
+  width: 100%;
+  max-width: 240px;
+  height: auto;
+  margin: 0 auto 1.5rem;
+  display: block;
+}
+
+.linkedin-connection-page .linkedin-connection-intro {
+  margin: 0 0 1.5rem;
+}
+
+.linkedin-connection-intro {
+  color: var(--muted);
+  margin: 0 0 1.5rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.linkedin-connection-reassurance {
+  margin-top: 1rem;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  line-height: 1.5;
+}

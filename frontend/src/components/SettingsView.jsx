@@ -1,21 +1,56 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { apiGet, apiPost } from '../api';
+import { apiGet } from '../api';
 import { supabase } from '../lib/supabase';
-import { STORAGE_PDF_EXPORT_FILENAME_PATTERN } from '../constants';
+import {
+  STORAGE_EXPORT_DIR,
+  STORAGE_PDF_EXPORT_FILENAME_PATTERN,
+  STORAGE_PRE_EXPORT_TEMPLATE_OPTIONS_DONE,
+  STORAGE_PDF_EXPORT_START_DIR_LABEL,
+} from '../constants';
 import {
   buildAdaptedPdfFilename,
   DEFAULT_PDF_EXPORT_FILENAME_PATTERN,
 } from '../lib/pdfExportFilename';
+import {
+  clearCanvasLayoutDrafts,
+  clearLayoutProposals,
+  clearUserCanvasImageLibrary,
+  getLocalDataSummary,
+  resetEditorHints,
+  resetGuidedTours,
+} from '../lib/settingsLocalData.js';
 import BetaModeToggle from './BetaModeToggle.jsx';
 import '../styles/app/settings.css';
 
 const PDF_VARIABLES = ['{prenom}', '{nom}', '{poste}', '{entreprise}'];
 
+function SettingsClearRow({ label, detail, onClear, disabled }) {
+  return (
+    <div className="settings-clear-row">
+      <div className="settings-clear-row__text">
+        <strong>{label}</strong>
+        {detail && <span>{detail}</span>}
+      </div>
+      <button type="button" className="btn btn-tertiary btn-sm" onClick={onClear} disabled={disabled}>
+        Effacer
+      </button>
+    </div>
+  );
+}
+
 /**
- * Page Paramètres : compte, export PDF, éditeur Beta, confidentialité.
+ * Page Paramètres : compte, abonnement, export, éditeur, données locales.
  */
-export default function SettingsView({ session, onCookieSettingsClick }) {
+export default function SettingsView({
+  session,
+  usage,
+  templateId,
+  templatesList = [],
+  onUpgradeClick,
+  onBillingPortalClick,
+  onCookieSettingsClick,
+}) {
   const [profileBasics, setProfileBasics] = useState({ prenom: '', nom: '', titre_professionnel: '' });
   const [profileLoading, setProfileLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -30,18 +65,36 @@ export default function SettingsView({ session, onCookieSettingsClick }) {
     }
   });
 
+  const [exportDossier, setExportDossier] = useState(() => {
+    try {
+      return localStorage.getItem(STORAGE_EXPORT_DIR) || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const exportDirLabel = useMemo(() => {
+    try {
+      return localStorage.getItem(STORAGE_PDF_EXPORT_START_DIR_LABEL) || '';
+    } catch {
+      return '';
+    }
+  }, []);
+
+  const [localSummary, setLocalSummary] = useState(() => getLocalDataSummary());
+
   const [setPasswordOpen, setSetPasswordOpen] = useState(false);
   const [setPasswordNew, setSetPasswordNew] = useState('');
   const [setPasswordConfirm, setSetPasswordConfirm] = useState('');
   const [setPasswordLoading, setSetPasswordLoading] = useState(false);
   const [setPasswordError, setSetPasswordError] = useState('');
 
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteLoading, setInviteLoading] = useState(false);
-  const [inviteError, setInviteError] = useState('');
-
   const pdfPatternInputRef = useRef(null);
   const messageTimerRef = useRef(null);
+
+  const refreshLocalSummary = useCallback(() => {
+    setLocalSummary(getLocalDataSummary());
+  }, []);
 
   useEffect(() => {
     if (!session) return;
@@ -76,6 +129,11 @@ export default function SettingsView({ session, onCookieSettingsClick }) {
     messageTimerRef.current = setTimeout(() => setMessage(''), 5000);
   };
 
+  const templateName = useMemo(() => {
+    const t = templatesList.find((x) => x.id === templateId);
+    return t?.name || templateId || '—';
+  }, [templatesList, templateId]);
+
   const pdfExportFilenameExample = useMemo(
     () => buildAdaptedPdfFilename(pdfPattern, {
       prenom: profileBasics.prenom,
@@ -97,6 +155,17 @@ export default function SettingsView({ session, onCookieSettingsClick }) {
     }
   }, [pdfPattern]);
 
+  const saveExportDossier = useCallback(() => {
+    try {
+      const trimmed = exportDossier.trim();
+      if (trimmed) localStorage.setItem(STORAGE_EXPORT_DIR, trimmed);
+      else localStorage.removeItem(STORAGE_EXPORT_DIR);
+      showSuccess('Préférence de dossier enregistrée.');
+    } catch {
+      setError('Impossible d’enregistrer le dossier.');
+    }
+  }, [exportDossier]);
+
   const insertPdfVariable = useCallback((token) => {
     const input = pdfPatternInputRef.current;
     if (!input) {
@@ -114,7 +183,18 @@ export default function SettingsView({ session, onCookieSettingsClick }) {
     });
   }, [pdfPattern]);
 
+  const runLocalClear = useCallback((label, fn) => {
+    if (!window.confirm(`Effacer ${label} sur cet appareil ? Cette action est irréversible.`)) return;
+    if (fn()) {
+      refreshLocalSummary();
+      showSuccess(`${label} effacé.`);
+    } else {
+      setError(`Impossible d’effacer ${label}.`);
+    }
+  }, [refreshLocalSummary]);
+
   const accountEmail = session?.user?.email || '—';
+  const isPro = usage?.plan === 'pro' || usage?.paywall_disabled;
 
   return (
     <div className="settings-page">
@@ -128,10 +208,6 @@ export default function SettingsView({ session, onCookieSettingsClick }) {
           <dt>Email</dt>
           <dd>{accountEmail}</dd>
         </dl>
-        <hr className="settings-divider" />
-        <p className="settings-card__lead">
-          Définis un mot de passe pour te connecter par email en plus du lien magique ou de Google / LinkedIn.
-        </p>
         <div className="settings-actions">
           <button
             type="button"
@@ -143,93 +219,138 @@ export default function SettingsView({ session, onCookieSettingsClick }) {
               setSetPasswordError('');
             }}
           >
-            Définir ou modifier mon mot de passe
+            Mot de passe
           </button>
         </div>
-        <hr className="settings-divider" />
-        <p className="settings-card__lead">
-          Invite quelqu&apos;un qui n&apos;a pas encore de compte — un email d&apos;inscription lui sera envoyé.
-        </p>
-        <form
-          className="settings-actions settings-actions--inline-form"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setInviteError('');
-            setError('');
-            if (!inviteEmail.trim()) return;
-            setInviteLoading(true);
-            try {
-              await apiPost('/api/invite', { email: inviteEmail.trim() });
-              showSuccess(`Invitation envoyée à ${inviteEmail.trim()}`);
-              setInviteEmail('');
-            } catch (err) {
-              setInviteError(err?.message || err?.detail || 'Impossible d\'envoyer l\'invitation.');
-            } finally {
-              setInviteLoading(false);
-            }
-          }}
-        >
-          <label className="settings-field">
-            <span className="settings-field-hint">Email de l&apos;invité</span>
-            <input
-              type="email"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="email@exemple.fr"
-              autoComplete="email"
-            />
-          </label>
-          <button type="submit" className="btn btn-secondary btn-sm" disabled={inviteLoading}>
-            {inviteLoading ? 'Envoi…' : 'Inviter'}
-          </button>
-        </form>
-        {inviteError && <p className="settings-error">{inviteError}</p>}
       </section>
 
-      <section className="settings-card" aria-labelledby="settings-export-title">
+      {usage && (
+        <section className="settings-card" aria-labelledby="settings-plan-title">
+          <h2 id="settings-plan-title" className="settings-card__title">Abonnement</h2>
+          <dl className="settings-meta">
+            <dt>Plan</dt>
+            <dd>
+              <span className={`settings-plan-badge ${isPro ? 'settings-plan-badge--pro' : ''}`}>
+                {isPro ? 'Pro' : 'Gratuit'}
+              </span>
+            </dd>
+            {usage.adaptations_used != null && (
+              <>
+                <dt>Adaptations</dt>
+                <dd>{usage.adaptations_used}{usage.adaptations_limit ? ` / ${usage.adaptations_limit}` : ''}</dd>
+              </>
+            )}
+          </dl>
+          <div className="settings-actions">
+            {!isPro && typeof onUpgradeClick === 'function' && (
+              <button type="button" className="btn btn-primary btn-sm" onClick={onUpgradeClick}>
+                Passer Pro
+              </button>
+            )}
+            {isPro && usage.stripe_subscription && typeof onBillingPortalClick === 'function' && (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={onBillingPortalClick}>
+                Gérer l&apos;abonnement
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+
+      <section className="settings-card settings-card--wide" aria-labelledby="settings-export-title">
         <h2 id="settings-export-title" className="settings-card__title">Export PDF</h2>
         <p className="settings-card__lead">
-          Lors de l&apos;enregistrement d&apos;un CV adapté, le navigateur propose un nom de fichier basé sur ce modèle.
-          Tu peux toujours le modifier dans la fenêtre d&apos;enregistrement.
+          Personnalise le nom de fichier et le dossier suggéré lors de l&apos;enregistrement d&apos;un CV adapté.
         </p>
-        <label className="settings-field">
-          Modèle du nom de fichier
-          <input
-            ref={pdfPatternInputRef}
-            type="text"
-            value={pdfPattern}
-            onChange={(e) => setPdfPattern(e.target.value)}
-            spellCheck={false}
-            aria-describedby="settings-pdf-preview"
-          />
-        </label>
-        <div className="settings-chips" aria-label="Variables disponibles">
-          {PDF_VARIABLES.map((token) => (
+        <div className="settings-split">
+          <div className="settings-split__col">
+            <label className="settings-field">
+              Modèle du nom de fichier
+              <input
+                ref={pdfPatternInputRef}
+                type="text"
+                value={pdfPattern}
+                onChange={(e) => setPdfPattern(e.target.value)}
+                spellCheck={false}
+              />
+            </label>
+            <div className="settings-chips" aria-label="Variables">
+              {PDF_VARIABLES.map((token) => (
+                <button key={token} type="button" className="settings-chip" onClick={() => insertPdfVariable(token)}>
+                  {token}
+                </button>
+              ))}
+            </div>
+            <p className="settings-preview">
+              Aperçu
+              <code>{profileLoading ? '…' : pdfExportFilenameExample}</code>
+            </p>
+            <div className="settings-actions">
+              <button type="button" className="btn btn-primary btn-sm" onClick={savePdfPattern}>
+                Enregistrer
+              </button>
+              <button
+                type="button"
+                className="btn btn-tertiary btn-sm"
+                onClick={() => setPdfPattern(DEFAULT_PDF_EXPORT_FILENAME_PATTERN)}
+              >
+                Réinitialiser
+              </button>
+            </div>
+          </div>
+          <div className="settings-split__col">
+            <label className="settings-field">
+              Dossier d&apos;export (suggestion)
+              <input
+                type="text"
+                value={exportDossier}
+                onChange={(e) => setExportDossier(e.target.value)}
+                placeholder="Ex. Entreprise - Poste"
+                spellCheck={false}
+              />
+            </label>
+            <p className="settings-field-hint">
+              Utilisé comme base pour organiser tes exports (mémorisé sur cet appareil).
+            </p>
+            {exportDirLabel && (
+              <p className="settings-field-hint">
+                Dernier dossier navigateur&nbsp;: <strong>{exportDirLabel}</strong>
+              </p>
+            )}
+            <div className="settings-actions">
+              <button type="button" className="btn btn-secondary btn-sm" onClick={saveExportDossier}>
+                Enregistrer le dossier
+              </button>
+            </div>
+            <hr className="settings-divider" />
             <button
-              key={token}
               type="button"
-              className="settings-chip"
-              onClick={() => insertPdfVariable(token)}
+              className="btn btn-tertiary btn-sm"
+              onClick={() => {
+                try {
+                  localStorage.removeItem(STORAGE_PRE_EXPORT_TEMPLATE_OPTIONS_DONE);
+                  showSuccess('Le panneau de personnalisation réapparaîtra avant le prochain export.');
+                } catch {
+                  setError('Impossible de réinitialiser cette préférence.');
+                }
+              }}
             >
-              {token}
+              Réafficher la personnalisation avant export
             </button>
-          ))}
+          </div>
         </div>
-        <p id="settings-pdf-preview" className="settings-preview">
-          Aperçu avec ton profil
-          <code>{profileLoading ? '…' : pdfExportFilenameExample}</code>
+      </section>
+
+      <section className="settings-card" aria-labelledby="settings-cv-title">
+        <h2 id="settings-cv-title" className="settings-card__title">CV & modèle</h2>
+        <dl className="settings-meta">
+          <dt>Modèle actif</dt>
+          <dd>{templateName}</dd>
+        </dl>
+        <p className="settings-card__lead">
+          Couleurs, polices et sections se gèrent dans le profil CV.
         </p>
         <div className="settings-actions">
-          <button type="button" className="btn btn-primary btn-sm" onClick={savePdfPattern}>
-            Enregistrer le modèle
-          </button>
-          <button
-            type="button"
-            className="btn btn-tertiary btn-sm"
-            onClick={() => setPdfPattern(DEFAULT_PDF_EXPORT_FILENAME_PATTERN)}
-          >
-            Réinitialiser
-          </button>
+          <Link to="/app/profil" className="btn btn-secondary btn-sm">Ouvrir le profil CV</Link>
         </div>
       </section>
 
@@ -238,32 +359,81 @@ export default function SettingsView({ session, onCookieSettingsClick }) {
         <div className="settings-row">
           <div className="settings-row__text">
             <strong>Mode Beta</strong>
-            <p>
-              Éditeur canvas libre, score ATS et nouvelle barre d&apos;outils. Réversible à tout moment
-              (identique au switch dans la barre du haut).
-            </p>
+            <p>Canvas libre, score ATS et barre d&apos;outils avancée.</p>
           </div>
           <BetaModeToggle />
         </div>
       </section>
 
-      <section className="settings-card" aria-labelledby="settings-privacy-title">
-        <h2 id="settings-privacy-title" className="settings-card__title">Confidentialité</h2>
+      <section className="settings-card" aria-labelledby="settings-local-title">
+        <h2 id="settings-local-title" className="settings-card__title">Données sur cet appareil</h2>
         <p className="settings-card__lead">
-          Gère tes préférences cookies et consulte les documents légaux.
+          Brouillons et caches locaux (non synchronisés entre appareils).
         </p>
-        <div className="settings-actions">
-          {typeof onCookieSettingsClick === 'function' && (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={onCookieSettingsClick}>
-              Paramètres cookies
-            </button>
-          )}
-        </div>
-        <nav className="settings-links" aria-label="Documents légaux">
-          <Link to="/confidentialite">Politique de confidentialité</Link>
-          <Link to="/cgu">Conditions d&apos;utilisation</Link>
-          <Link to="/mentions-legales">Mentions légales</Link>
+        <SettingsClearRow
+          label="Brouillons canvas"
+          detail={localSummary.draftCount ? `${localSummary.draftCount} brouillon(s)` : 'Vide'}
+          disabled={!localSummary.draftCount}
+          onClear={() => runLocalClear('les brouillons canvas', clearCanvasLayoutDrafts)}
+        />
+        <SettingsClearRow
+          label="Modèles canvas enregistrés"
+          detail={localSummary.proposalCount ? `${localSummary.proposalCount} modèle(s)` : 'Vide'}
+          disabled={!localSummary.proposalCount}
+          onClear={() => runLocalClear('les modèles canvas', clearLayoutProposals)}
+        />
+        <SettingsClearRow
+          label="Bibliothèque d'images"
+          detail={localSummary.imageCount ? `${localSummary.imageCount} image(s)` : 'Vide'}
+          disabled={!localSummary.imageCount}
+          onClear={() => runLocalClear('la bibliothèque d\'images', clearUserCanvasImageLibrary)}
+        />
+        <hr className="settings-divider" />
+        <SettingsClearRow
+          label="Visite guidée"
+          detail="Réafficher les astuces au prochain passage"
+          onClear={() => {
+            if (resetGuidedTours(session?.user?.id)) showSuccess('Visite guidée réinitialisée.');
+          }}
+        />
+        <SettingsClearRow
+          label="Astuces éditeur"
+          detail="Bandeaux d'aide dans l'éditeur Beta"
+          onClear={() => {
+            if (resetEditorHints()) showSuccess('Astuces éditeur réinitialisées.');
+          }}
+        />
+      </section>
+
+      <section className="settings-card" aria-labelledby="settings-nav-title">
+        <h2 id="settings-nav-title" className="settings-card__title">Raccourcis</h2>
+        <nav className="settings-shortcuts" aria-label="Pages de l'application">
+          <Link to="/app/cv" className="settings-shortcut">Adapter un CV</Link>
+          <Link to="/app/postule" className="settings-shortcut">Mes candidatures</Link>
+          <Link to="/app/profil" className="settings-shortcut">Profil CV</Link>
+          <Link to="/app/support" className="settings-shortcut">Support</Link>
         </nav>
+      </section>
+
+      <section className="settings-card settings-card--wide" aria-labelledby="settings-privacy-title">
+        <h2 id="settings-privacy-title" className="settings-card__title">Confidentialité</h2>
+        <div className="settings-split settings-split--balanced">
+          <div className="settings-split__col">
+            <p className="settings-card__lead">Préférences cookies et traceurs.</p>
+            {typeof onCookieSettingsClick === 'function' && (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={onCookieSettingsClick}>
+                Paramètres cookies
+              </button>
+            )}
+          </div>
+          <div className="settings-split__col">
+            <nav className="settings-links" aria-label="Documents légaux">
+              <Link to="/confidentialite">Politique de confidentialité</Link>
+              <Link to="/cgu">Conditions d&apos;utilisation</Link>
+              <Link to="/mentions-legales">Mentions légales</Link>
+            </nav>
+          </div>
+        </div>
       </section>
 
       {setPasswordOpen && (
@@ -277,18 +447,18 @@ export default function SettingsView({ session, onCookieSettingsClick }) {
           <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
             <h3 id="settings-password-title">Définir un mot de passe</h3>
             <p className="settings-card__lead">
-              Tu pourras te connecter avec ton email et ce mot de passe, en plus des autres méthodes.
+              Connexion par email + mot de passe, en plus des autres méthodes.
             </p>
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
                 setSetPasswordError('');
                 if (setPasswordNew.length < 6) {
-                  setSetPasswordError('Le mot de passe doit faire au moins 6 caractères.');
+                  setSetPasswordError('Au moins 6 caractères.');
                   return;
                 }
                 if (setPasswordNew !== setPasswordConfirm) {
-                  setSetPasswordError('Les deux mots de passe ne correspondent pas.');
+                  setSetPasswordError('Les mots de passe ne correspondent pas.');
                   return;
                 }
                 setSetPasswordLoading(true);

@@ -11,17 +11,22 @@
 }
 
 .view-settings .page-content {
-  max-width: 40rem;
+  max-width: 72rem;
   width: 100%;
   margin: 0 auto;
-  padding: 1.5rem 1.5rem 2.5rem;
+  padding: 1.5rem clamp(1rem, 3vw, 2.5rem) 2.5rem;
   background: var(--color-soft-stone);
 }
 
 .settings-page {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
+  align-items: start;
+}
+
+.settings-card--wide {
+  grid-column: 1 / -1;
 }
 
 .settings-toast {
@@ -250,6 +255,88 @@
   opacity: 0.85;
 }
 
+.settings-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem 1.5rem;
+}
+
+.settings-split--balanced .settings-split__col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.settings-plan-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: var(--radius-xs);
+  background: var(--color-soft-stone);
+  color: var(--color-ink);
+}
+
+.settings-plan-badge--pro {
+  background: var(--color-pale-green);
+  color: var(--color-deep-green);
+}
+
+.settings-clear-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.settings-clear-row:last-of-type {
+  border-bottom: none;
+}
+
+.settings-clear-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.settings-clear-row__text strong {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-ink);
+}
+
+.settings-clear-row__text span {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+.settings-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.settings-shortcut {
+  display: block;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-ink);
+  text-decoration: none;
+  background: var(--color-soft-stone);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-xs);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.settings-shortcut:hover {
+  background: var(--color-pale-green);
+  border-color: var(--color-slate);
+}
+
 /* Modal mot de passe */
 .settings-modal-overlay {
   position: fixed;
@@ -283,6 +370,20 @@
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 1rem;
+}
+
+@media (max-width: 900px) {
+  .settings-page {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-card--wide {
+    grid-column: auto;
+  }
+
+  .settings-split {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {

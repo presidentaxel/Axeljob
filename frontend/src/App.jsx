@@ -4007,6 +4007,11 @@ export default function App() {
           <div className="page-content">
             <SettingsView
               session={session}
+              usage={usage}
+              templateId={templateId}
+              templatesList={templatesList}
+              onUpgradeClick={handleUpgradeClick}
+              onBillingPortalClick={() => setManageSubscriptionModalOpen(true)}
               onCookieSettingsClick={() => {
                 if (typeof window.axelOpenCookieSettings === 'function') window.axelOpenCookieSettings();
               }}

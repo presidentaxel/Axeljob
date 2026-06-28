@@ -710,3 +710,8 @@
   color: #94a3b8;
   text-align: right;
 }
+
+/* Overlay chargement import : au-dessus de toute modale éditeur */
+.cv-editor-beta .import-cv-loading-overlay {
+  z-index: 1300;
+}

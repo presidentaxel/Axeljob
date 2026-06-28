@@ -63,7 +63,7 @@ import {
   findBlock,
   isEmptyLayoutV3,
   migrateLayoutToV3,
-  removeBlock,
+  removeBlocks,
   removePage,
   reorderBlocksZOrder,
   sendToBack,
@@ -423,6 +423,7 @@ function CvEditorBeta({
   ]);
 
   const runCvImport = useCallback(async (importFn) => {
+    setImportModalOpen(false);
     setImportLoading(true);
     setImportStepIndex(0);
     setImportError('');
@@ -441,6 +442,7 @@ function CvEditorBeta({
       await applyImportedCvToCanvas(nextCv, { layoutHints, visionLayout, visionMeta });
     } catch (err) {
       setImportError(err?.message || 'Erreur lors de l\'import.');
+      setImportModalOpen(true);
     } finally {
       setImportLoading(false);
       if (importCleanupRef.current) {
@@ -800,13 +802,13 @@ function CvEditorBeta({
   }, [layout, commitLayout, cv, autoSave]);
 
   const handleDeleteSelectedBlock = useCallback(() => {
-    if (!selectedBlockId) return;
-    const next = removeBlock(layout, selectedBlockId);
+    if (!selectedBlockIds.length) return;
+    const next = removeBlocks(layout, selectedBlockIds);
     commitLayout(next);
     setSelectedBlockIds([]);
     setEditingBlockId(null);
     if (cv) autoSave.schedule(cv);
-  }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
+  }, [layout, selectedBlockIds, commitLayout, cv, autoSave]);
 
   const handleNudgeSelectedBlock = useCallback((dx, dy) => {
     if (!selectedBlockId) return;
@@ -1000,7 +1002,7 @@ function CvEditorBeta({
       }
       // Toutes les actions clavier ci-dessous opèrent sur le bloc sélectionné,
       // hors mode édition de texte inline.
-      if (!selectedBlockId || editingBlockId) return;
+      if (!selectedBlockIds.length || editingBlockId) return;
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
         handleDeleteSelectedBlock();
@@ -1024,7 +1026,7 @@ function CvEditorBeta({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedBlockId, editingBlockId, handleDeleteSelectedBlock, handleNudgeSelectedBlock, layout]);
+  }, [selectedBlockIds, editingBlockId, handleDeleteSelectedBlock, handleNudgeSelectedBlock, layout]);
 
   if (loading) {
     return (
@@ -1336,11 +1338,11 @@ function CvEditorBeta({
       </div>
 
       <footer className="cv-editor-beta-statusbar">
-        <span>Canvas libre · double-clic pour éditer · glisser pour sélectionner · Ctrl+A tout sélectionner</span>
+        <span>Canvas libre · double-clic pour éditer · glisser pour sélectionner · Ctrl+clic multi-sélection · Ctrl+A tout sélectionner</span>
       </footer>
 
       <EditorCvImportModal
-        open={importModalOpen}
+        open={importModalOpen && !importLoading}
         onClose={() => {
           if (!importLoading) setImportModalOpen(false);
         }}

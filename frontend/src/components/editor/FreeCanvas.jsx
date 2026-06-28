@@ -251,7 +251,7 @@ export default function FreeCanvas({
 
     event.preventDefault();
     event.stopPropagation();
-    const additive = event.shiftKey;
+    const additive = event.shiftKey || event.ctrlKey || event.metaKey;
     if (typeof onSelectBlock === 'function') onSelectBlock(block.id, { additive });
 
     if (block?.locked) return;

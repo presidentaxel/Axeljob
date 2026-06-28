@@ -725,6 +725,22 @@ function NonSemanticBlockBody({ block, editing = false, onAutoHeight }) {
     }
     case 'shape:line': {
       const stroke = style.stroke_width ?? block.h ?? 0.6;
+      const vertical = style.orientation === 'vertical' || ((block.w ?? 0) < (block.h ?? 0) && (block.w ?? 0) <= 2.5);
+      if (vertical) {
+        return (
+          <div
+            className="free-canvas-block__shape-line free-canvas-block__shape-line--vertical"
+            style={{
+              backgroundColor: style.color || '#1e293b',
+              width: `${stroke}mm`,
+              height: '100%',
+              marginLeft: `${Math.max(0, ((block.w || stroke) - stroke) / 2)}mm`,
+              opacity: style.opacity ?? 1,
+            }}
+            role="presentation"
+          />
+        );
+      }
       return (
         <div
           className="free-canvas-block__shape-line"
@@ -745,7 +761,6 @@ function NonSemanticBlockBody({ block, editing = false, onAutoHeight }) {
           style={{
             backgroundColor: style.color || style.bg || '#e2e8f0',
             opacity: style.opacity ?? 1,
-            ...blockEffectToCss(style.effect, style),
           }}
           role="presentation"
         />
@@ -778,7 +793,6 @@ function NonSemanticBlockBody({ block, editing = false, onAutoHeight }) {
         return (
           <div
             className="free-canvas-block__shape-vector"
-            style={blockEffectToCss(style.effect, style)}
             role="presentation"
           >
             <CanvasShapeSvg type={type} style={style} />
@@ -873,6 +887,15 @@ export default function FreeCanvasBlock({
   const zone = blockStyle?.zone;
   const isNonSemantic = isNonSemanticBlockType(type);
   const canEdit = isCanvasInlineEditableType(type);
+  const supportsBlockEffects = isNonSemantic && (
+    type === 'shape:rect'
+    || type === 'shape:line'
+    || type === 'icon'
+    || isVectorShapeType(type)
+  );
+  const blockEffectStyle = supportsBlockEffects
+    ? blockEffectToCss(blockStyle?.effect, blockStyle)
+    : {};
 
   const handlePointerDown = (e) => {
     if (editing) return;
@@ -922,6 +945,7 @@ export default function FreeCanvasBlock({
         width: `${w}mm`,
         height: `${h}mm`,
         zIndex: dragging || resizing || editing ? 9999 : z,
+        ...blockEffectStyle,
       }}
       title={
         editing
@@ -944,6 +968,7 @@ export default function FreeCanvasBlock({
           typographyOverride ? 'free-canvas-block__inner--typography' : '',
           editing ? 'free-canvas-block__inner--editing' : '',
           autoHeight ? 'free-canvas-block__inner--content-fit' : '',
+          supportsBlockEffects ? 'free-canvas-block__inner--shape-effects' : '',
         ].filter(Boolean).join(' ')}
         style={innerTypography}
         onPointerDown={editing ? handleInnerPointerDown : undefined}

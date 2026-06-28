@@ -477,6 +477,19 @@ export function removeBlock(layout, blockId) {
   }));
 }
 
+/** Retire plusieurs blocs par id (toutes pages). */
+export function removeBlocks(layout, blockIds) {
+  const ids = new Set((blockIds || []).filter(Boolean));
+  if (!ids.size || !layout?.pages) return layout;
+  return {
+    ...layout,
+    pages: layout.pages.map((page) => ({
+      ...page,
+      blocks: (page.blocks || []).filter((b) => !ids.has(b.id)),
+    })),
+  };
+}
+
 /** Duplique un bloc sur la même page (décalage léger, nouvel id). */
 export function duplicateBlock(layout, blockId, options = {}) {
   const found = findBlock(layout, blockId);

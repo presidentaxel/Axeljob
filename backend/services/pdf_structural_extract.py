@@ -32,6 +32,9 @@ MM_PER_PT = 25.4 / 72.0
 # Garde-fous (évite de polluer le canvas avec des micro-artefacts vectoriels).
 MIN_SHAPE_AREA_MM2 = 12.0
 LINE_MAX_THICKNESS_MM = 1.6
+MAX_BULLET_MM = 6.5
+MAX_ICON_MM = 16.0
+MIN_ICON_MM = 3.0
 # Surface mini d'un rectangle plein pour être considéré comme bandeau/fond
 # structurel (sidebar, header). En dessous = petit encart/icône → ignoré
 # (évite de polluer le canvas avec des micro-rectangles).
@@ -251,7 +254,7 @@ def _shape_block_from_box(
     x_mm = max(0.0, x_lo * scale)
     y_mm = max(0.0, y_lo * scale)
 
-    # Trait fin horizontal → shape:line (barre fine), sinon rectangle.
+    # Trait fin horizontal → shape:line (barre fine), vertical → shape:line orienté.
     if thin and horizontal:
         return {
             "type": "shape:line",
@@ -261,6 +264,20 @@ def _shape_block_from_box(
             "h": round(max(h_mm, 0.3), 2),
             "z": 1,
             "style": {"color": color, "stroke_width": round(max(h_mm, 0.3), 2)},
+        }
+    if thin and not horizontal:
+        return {
+            "type": "shape:line",
+            "x": round(x_mm, 2),
+            "y": round(y_mm, 2),
+            "w": round(max(w_mm, 0.3), 2),
+            "h": round(min(h_mm, PAGE_H_MM), 2),
+            "z": 1,
+            "style": {
+                "color": color,
+                "stroke_width": round(max(w_mm, 0.3), 2),
+                "orientation": "vertical",
+            },
         }
     return {
         "type": "shape:rect",
@@ -359,10 +376,9 @@ def _extract_shape_blocks(page, scale: float) -> list[dict]:
             if not is_frame:
                 for item in line_items:
                     p1, p2 = item[1], item[2]
-                    # Filets de séparation horizontaux assez longs seulement.
                     dx = abs(float(p2.x) - float(p1.x))
                     dy = abs(float(p2.y) - float(p1.y))
-                    if dy > dx or dx * scale < MIN_SEPARATOR_LEN_MM:
+                    if dx * scale < MIN_SEPARATOR_LEN_MM and dy * scale < MIN_SEPARATOR_LEN_MM:
                         continue
                     blk = _line_block_from_segment(p1, p2, stroke_w_pt, scale, stroke_hex)
                     if blk:
@@ -532,6 +548,112 @@ def _cluster_drawings(drawings: list, gap_pt: float) -> list[list]:
     return list(groups.values())
 
 
+def _cluster_union_rect(cluster: list):
+    import fitz
+
+    clip = fitz.Rect(cluster[0]["rect"])
+    for d in cluster[1:]:
+        r = d.get("rect")
+        if r is not None:
+            clip |= fitz.Rect(r)
+    return clip
+
+
+def _dominant_cluster_color(cluster: list) -> str:
+    for d in cluster:
+        fill_hex = _float_rgb_to_hex(d.get("fill")) if d.get("fill") is not None else None
+        if fill_hex and not _is_near_white(fill_hex):
+            return fill_hex
+        stroke_hex = _float_rgb_to_hex(d.get("color")) if d.get("color") is not None else None
+        if stroke_hex and not _is_near_white(stroke_hex):
+            return stroke_hex
+    return "#333333"
+
+
+def _guess_icon_name(w_mm: float, h_mm: float, cluster: list) -> str:
+    """Heuristique géométrique → nom d'icône canvas (react-icons/hi2)."""
+    aspect = w_mm / h_mm if h_mm > 0 else 1.0
+    n_items = sum(len(d.get("items") or []) for d in cluster)
+    if 0.85 <= aspect <= 1.35 and n_items >= 4:
+        return "HiMapPin"
+    if h_mm > w_mm * 1.12 and h_mm <= 12:
+        return "HiPhone"
+    if w_mm > h_mm * 1.15:
+        return "HiEnvelope"
+    if max(w_mm, h_mm) <= 8:
+        return "HiLink"
+    return "HiSparkles"
+
+
+def _classify_graphic_cluster(cluster: list, scale: float) -> dict | None:
+    """Convertit un cluster vectoriel en bloc forme/icône natif quand c'est possible."""
+    if not cluster:
+        return None
+    clip = _cluster_union_rect(cluster)
+    w_mm = (clip.x1 - clip.x0) * scale
+    h_mm = (clip.y1 - clip.y0) * scale
+    if w_mm <= 0.15 or h_mm <= 0.15:
+        return None
+
+    color = _dominant_cluster_color(cluster)
+    long_side = max(w_mm, h_mm)
+    short_side = min(w_mm, h_mm)
+    aspect = w_mm / h_mm if h_mm > 0 else 1.0
+    x_mm = max(0.0, clip.x0 * scale)
+    y_mm = max(0.0, clip.y0 * scale)
+
+    # Filet horizontal ou vertical
+    if long_side >= MIN_SEPARATOR_LEN_MM and short_side <= LINE_MAX_THICKNESS_MM:
+        stroke = round(max(short_side, 0.3), 2)
+        if w_mm >= h_mm:
+            return {
+                "type": "shape:line",
+                "x": round(x_mm, 2),
+                "y": round(y_mm, 2),
+                "w": round(w_mm, 2),
+                "h": round(stroke, 2),
+                "z": 1,
+                "style": {"color": color, "stroke_width": stroke},
+            }
+        return {
+            "type": "shape:line",
+            "x": round(x_mm, 2),
+            "y": round(y_mm, 2),
+            "w": round(stroke, 2),
+            "h": round(h_mm, 2),
+            "z": 1,
+            "style": {"color": color, "stroke_width": stroke, "orientation": "vertical"},
+        }
+
+    # Puce / bullet rond
+    if long_side <= MAX_BULLET_MM and 0.55 <= aspect <= 1.85:
+        d = round(max(long_side, 1.0), 2)
+        return {
+            "type": "shape:circle",
+            "x": round(x_mm, 2),
+            "y": round(y_mm, 2),
+            "w": d,
+            "h": d,
+            "z": 2,
+            "style": {"color": color, "stroke_color": color, "stroke_width": 0},
+        }
+
+    # Pictogramme (téléphone, email, …)
+    if MIN_ICON_MM <= long_side <= MAX_ICON_MM and short_side >= MIN_ICON_MM:
+        return {
+            "type": "icon",
+            "icon_name": _guess_icon_name(w_mm, h_mm, cluster),
+            "x": round(x_mm, 2),
+            "y": round(y_mm, 2),
+            "w": round(w_mm, 2),
+            "h": round(h_mm, 2),
+            "z": 2,
+            "style": {"color": color},
+        }
+
+    return None
+
+
 def _cutout_block(page, clip, scale: float) -> tuple[dict | None, int]:
     """Rasterise une région de la page (texte déjà retiré) en vignette image.
 
@@ -678,6 +800,10 @@ def _extract_graphic_blocks(page, doc, scale: float, image_budget: list) -> list
 
         total = 0
         for cluster in clusters:
+            classified = _classify_graphic_cluster(cluster, scale)
+            if classified:
+                blocks.append(classified)
+                continue
             clip = fitz.Rect(cluster[0]["rect"])
             for d in cluster[1:]:
                 clip |= fitz.Rect(d["rect"])

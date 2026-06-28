@@ -82,9 +82,8 @@ class ExtractLayoutTest(unittest.TestCase):
         # Le bandeau latéral plein est un rectangle indépendant (recolorable).
         self.assertIn("shape:rect", types)
 
-    def test_complex_vector_becomes_movable_cutout(self):
-        # Un pictogramme/puce vectoriel (cercle plein) ne sait pas se rendre en
-        # forme simple → vignette image décorative, déplaçable indépendamment.
+    def test_complex_vector_becomes_shape_circle(self):
+        # Une puce vectorielle (cercle plein) → forme circle native, pas une image.
         import fitz
 
         doc = fitz.open()
@@ -100,12 +99,12 @@ class ExtractLayoutTest(unittest.TestCase):
         layout = extract_layout_from_pdf(data)
         self.assertIsNotNone(layout)
         blocks = layout["pages"][0]["blocks"]
-        cutouts = [b for b in blocks if b["type"] == "image" and b["style"].get("decorative")]
-        self.assertGreaterEqual(len(cutouts), 1)
-        cut = cutouts[0]
-        self.assertGreater(cut["w"], 0)
-        self.assertGreater(cut["h"], 0)
-        self.assertTrue(cut["image_src"].startswith("data:image/"))
+        bullets = [b for b in blocks if b["type"] == "shape:circle"]
+        self.assertGreaterEqual(len(bullets), 1)
+        bullet = bullets[0]
+        self.assertGreater(bullet["w"], 0)
+        self.assertGreater(bullet["h"], 0)
+        self.assertIn("color", bullet["style"])
 
     def test_text_block_has_content_and_position(self):
         layout = extract_layout_from_pdf(self.pdf)
@@ -151,6 +150,26 @@ class ExtractLayoutTest(unittest.TestCase):
             self.assertGreater(line["w"], 100)  # s'étend sur la largeur
         big = [b for b in blocks if b["type"] == "shape:rect" and b["h"] > 50 and b["w"] > 100]
         self.assertEqual(big, [])
+
+    def test_vertical_separator_line(self):
+        import fitz
+
+        doc = fitz.open()
+        page = doc.new_page(width=595, height=842)
+        page.draw_line(fitz.Point(80, 40), fitz.Point(80, 400), color=(0.4, 0.4, 0.4), width=0.8)
+        try:
+            blocks = _extract_shape_blocks(page, MM_PER_PT)
+        finally:
+            doc.close()
+
+        vlines = [
+            b for b in blocks
+            if b["type"] == "shape:line" and b["style"].get("orientation") == "vertical"
+        ]
+        self.assertGreaterEqual(len(vlines), 1)
+        line = vlines[0]
+        self.assertLessEqual(line["w"], 2.0)
+        self.assertGreater(line["h"], 50)
 
     def test_even_odd_nested_rects_become_thin_underline(self):
         # Régression : deux rectangles imbriqués (remplissage even-odd) =

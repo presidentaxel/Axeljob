@@ -20,7 +20,6 @@ import {
   hasTextSelection,
   queryCommandState,
   toggleTextCase,
-  toggleTextCaseOnBlockContent,
 } from '../../lib/canvasRichTextFormat.js';
 import { buildCanvasFontFamilies, fontLabelFromFamilies } from '../../lib/canvasFontOptions.js';
 import {
@@ -191,8 +190,7 @@ export default function EditorFloatingTextToolbar({
         return;
       }
       if (typeof onBlockContentPatch !== 'function') return;
-      const next = toggleTextCaseOnBlockContent(block.content);
-      onBlockContentPatch({ content: next });
+      onBlockContentPatch({ toggleCase: true });
     });
   };
 

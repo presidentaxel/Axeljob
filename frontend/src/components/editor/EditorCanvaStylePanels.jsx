@@ -1,4 +1,4 @@
-import { buildCanvasFontFamilies } from '../../lib/canvasFontOptions.js';
+import { buildCanvasFontFamilies, fontPickerPreviewFamily } from '../../lib/canvasFontOptions.js';
 import { CANVAS_COLOR_SWATCHES } from '../../lib/canvasColorPalette.js';
 import { CANVAS_BLOCK_EFFECTS } from '../../lib/canvasBlockEffects.js';
 import '../../styles/EditorCanvaStylePanels.css';
@@ -36,7 +36,7 @@ export function EditorCanvaFontPanel({ block, onBlockStylePatch, fontFamilies })
             <button
               type="button"
               className={`editor-style-panel__font-item${current === font.value ? ' is-active' : ''}`}
-              style={{ fontFamily: font.value }}
+              style={{ fontFamily: fontPickerPreviewFamily(font) }}
               onClick={() => onBlockStylePatch?.({ font_family: font.value })}
             >
               {font.label}

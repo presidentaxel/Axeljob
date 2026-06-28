@@ -44,9 +44,15 @@ export function buildCanvasFontFamilies(layout) {
     const label = family.startsWith('PDFEmbed-')
       ? `${family.replace('PDFEmbed-', '')} (import PDF)`
       : `${family} (import)`;
-    out.unshift({ value, label });
+    out.unshift({ value, label, previewFont: false });
   }
   return out;
+}
+
+/** Police à utiliser pour prévisualiser un libellé dans le sélecteur (évite les sous-ensembles PDF). */
+export function fontPickerPreviewFamily(font) {
+  if (!font || font.previewFont === false) return undefined;
+  return font.value;
 }
 
 export function fontLabelFromFamilies(families, value) {

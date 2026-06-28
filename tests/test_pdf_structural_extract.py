@@ -210,6 +210,26 @@ class ExtractLayoutTest(unittest.TestCase):
         self.assertLessEqual(strip["h"], 1.0)  # fin, pas un gros bloc
         self.assertGreater(strip["w"], 40)  # s'étend sur la largeur
 
+    def test_extract_layout_includes_separator_line(self):
+        """Régression : filet horizontal importé en bloc shape:line (chemin graphique)."""
+        import fitz
+
+        doc = fitz.open()
+        page = doc.new_page(width=595, height=842)
+        page.insert_text((40, 60), "Titre de section avec assez de texte natif.", fontsize=14)
+        page.insert_text((40, 100), "Contenu supplementaire pour le seuil de caracteres.", fontsize=11)
+        page.draw_line(fitz.Point(40, 130), fitz.Point(540, 130), color=(0.3, 0.3, 0.3), width=0.8)
+        data = doc.tobytes()
+        doc.close()
+
+        layout = extract_layout_from_pdf(data)
+        self.assertIsNotNone(layout)
+        lines = [
+            b for b in layout["pages"][0]["blocks"]
+            if b["type"] == "shape:line"
+        ]
+        self.assertGreaterEqual(len(lines), 1)
+
     def test_empty_bytes_returns_none(self):
         self.assertIsNone(extract_layout_from_pdf(b""))
 

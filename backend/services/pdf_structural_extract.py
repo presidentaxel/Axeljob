@@ -795,6 +795,14 @@ def _extract_graphic_blocks(page, doc, scale: float, image_budget: list) -> list
         if (
             fill_hex
             and not _is_near_white(fill_hex)
+            and len(re_items) == 2
+        ):
+            for strip in _frame_strips_from_rects(re_items[0], re_items[1], scale, fill_hex):
+                _push(strip)
+            handled = True
+        elif (
+            fill_hex
+            and not _is_near_white(fill_hex)
             and len(re_items) == 1
             and ((not thin and area >= BACKGROUND_MIN_AREA_MM2) or (thin and longish))
         ):
@@ -812,6 +820,26 @@ def _extract_graphic_blocks(page, doc, scale: float, image_budget: list) -> list
 
         if not handled:
             misc.append(d)
+
+    # Filets isolés dans le reste vectoriel (évite de les fusionner en vignettes).
+    remaining_misc: list = []
+    for d in misc:
+        rect = d.get("rect")
+        if rect is None:
+            remaining_misc.append(d)
+            continue
+        w_mm = (rect.x1 - rect.x0) * scale
+        h_mm = (rect.y1 - rect.y0) * scale
+        thin = min(w_mm, h_mm) <= LINE_MAX_THICKNESS_MM
+        long_side = max(w_mm, h_mm)
+        if thin and long_side >= MIN_SEPARATOR_LEN_MM:
+            color = _dominant_cluster_color([d])
+            blk = _shape_block_from_box(rect.x0, rect.y0, rect.x1, rect.y1, scale, color)
+            if blk and blk.get("type") == "shape:line":
+                _push(blk)
+                continue
+        remaining_misc.append(d)
+    misc = remaining_misc
 
     clusters = _cluster_drawings(misc, CLUSTER_GAP_PT) if misc else []
     if len(clusters) > MAX_CUTOUTS:  # trop fragmenté → repli sur fond plat

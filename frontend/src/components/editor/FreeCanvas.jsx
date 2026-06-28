@@ -3,6 +3,7 @@ import FreeCanvasBlock from './FreeCanvasBlock.jsx';
 import {
   clientPointToPageMm,
   findPageElementAtPoint,
+  findPageForMarquee,
   pageIndexFromElement,
 } from '../../lib/canvasPlacement.js';
 import { clampBlockPositionOnPage } from '../../lib/canvasPageTransfer.js';
@@ -20,6 +21,7 @@ import {
 import { computePageScale, scaledPageHeightPx } from '../../lib/freeCanvasScale.js';
 import { nextOverlappingBlockId } from '../../lib/freeCanvasSelection.js';
 import { blockIdsInMarquee, normalizeMarqueeRect } from '../../lib/canvasMarqueeUtils.js';
+import { clearDocumentTextSelection } from '../../lib/canvasRichTextFormat.js';
 import { CANVAS_IMAGE_DROP_MIME } from '../../lib/canvasImageLibrary.js';
 import { snapBlockGeometry, snapBlockPosition } from '../../lib/freeCanvasSnap.js';
 import '../../styles/FreeCanvas.css';
@@ -136,7 +138,15 @@ export default function FreeCanvas({
   const [drawRect, setDrawRect] = useState(null);
   const drawSessionRef = useRef(null);
   const marqueeSessionRef = useRef(null);
+  const marqueeWindowCleanupRef = useRef(null);
   const [marqueeRect, setMarqueeRect] = useState(null);
+
+  useEffect(() => () => {
+    if (marqueeWindowCleanupRef.current) {
+      marqueeWindowCleanupRef.current();
+      marqueeWindowCleanupRef.current = null;
+    }
+  }, []);
 
   useLayoutEffect(() => {
     const el = viewportRef.current;
@@ -228,8 +238,64 @@ export default function FreeCanvas({
     if (!editingBlockId || typeof onCommitBlockEdit !== 'function') return;
     const wrap = blockElementsRef.current[editingBlockId];
     const inner = wrap?.querySelector?.('.free-canvas-block__inner') ?? null;
+    clearDocumentTextSelection();
     onCommitBlockEdit(editingBlockId, inner);
   }, [editingBlockId, onCommitBlockEdit]);
+
+  const finishMarquee = useCallback((event) => {
+    const session = marqueeSessionRef.current;
+    if (!session) return;
+    marqueeSessionRef.current = null;
+    if (marqueeWindowCleanupRef.current) {
+      marqueeWindowCleanupRef.current();
+      marqueeWindowCleanupRef.current = null;
+    }
+    try { session.pageEl?.releasePointerCapture?.(event.pointerId); } catch (_) { /* ignore */ }
+    const pt = clientPointToPageMm(event.clientX, event.clientY, session.pageEl);
+    const rect = normalizeMarqueeRect(session.startX, session.startY, pt.x, pt.y);
+    setMarqueeRect(null);
+    if (rect.w < 2 && rect.h < 2) {
+      clearDocumentTextSelection();
+      if (typeof onSelectBlock === 'function') onSelectBlock(null);
+      return;
+    }
+    const blocks = layout?.pages?.[session.pageIndex]?.blocks || [];
+    const ids = blockIdsInMarquee(blocks, rect);
+    if (typeof onSelectBlock === 'function') {
+      onSelectBlock(null, { replaceIds: ids });
+    }
+  }, [onSelectBlock, layout]);
+
+  const beginMarquee = useCallback((pageEl, pageIndex, pt, event) => {
+    commitEditingBlock();
+    clearDocumentTextSelection();
+    event.preventDefault();
+    marqueeSessionRef.current = {
+      pageIndex,
+      startX: pt.x,
+      startY: pt.y,
+      pageEl,
+    };
+    setMarqueeRect({ x: pt.x, y: pt.y, w: 0, h: 0 });
+    pageEl.setPointerCapture?.(event.pointerId);
+
+    const onWinMove = (e) => {
+      const session = marqueeSessionRef.current;
+      if (!session?.pageEl) return;
+      const point = clientPointToPageMm(e.clientX, e.clientY, session.pageEl);
+      setMarqueeRect(normalizeMarqueeRect(session.startX, session.startY, point.x, point.y));
+    };
+    const onWinUp = (e) => finishMarquee(e);
+
+    window.addEventListener('pointermove', onWinMove);
+    window.addEventListener('pointerup', onWinUp);
+    window.addEventListener('pointercancel', onWinUp);
+    marqueeWindowCleanupRef.current = () => {
+      window.removeEventListener('pointermove', onWinMove);
+      window.removeEventListener('pointerup', onWinUp);
+      window.removeEventListener('pointercancel', onWinUp);
+    };
+  }, [commitEditingBlock, finishMarquee]);
 
   const handleBlockPointerDown = useCallback((event, block) => {
     if (placing && typeof onPlaceBlockAt === 'function') {
@@ -510,15 +576,8 @@ export default function FreeCanvas({
     commitEditingBlock();
     event.preventDefault();
     const pt = clientPointToPageMm(event.clientX, event.clientY, event.currentTarget);
-    marqueeSessionRef.current = {
-      pageIndex,
-      startX: pt.x,
-      startY: pt.y,
-      pageEl: event.currentTarget,
-    };
-    setMarqueeRect({ x: pt.x, y: pt.y, w: 0, h: 0 });
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-  }, [placing, drawRectMode, onPlaceBlockAt, onPlaceBlockRect, commitEditingBlock]);
+    beginMarquee(event.currentTarget, pageIndex, pt, event);
+  }, [placing, drawRectMode, onPlaceBlockAt, onPlaceBlockRect, commitEditingBlock, beginMarquee]);
 
   const handlePageDrawPointerMove = useCallback((event) => {
     const session = drawSessionRef.current;
@@ -550,12 +609,7 @@ export default function FreeCanvas({
   const handlePagePointerMove = useCallback((event) => {
     if (drawRectMode && drawSessionRef.current) {
       handlePageDrawPointerMove(event);
-      return;
     }
-    const session = marqueeSessionRef.current;
-    if (!session?.pageEl) return;
-    const pt = clientPointToPageMm(event.clientX, event.clientY, session.pageEl);
-    setMarqueeRect(normalizeMarqueeRect(session.startX, session.startY, pt.x, pt.y));
   }, [drawRectMode, handlePageDrawPointerMove]);
 
   const handlePagePointerUp = useCallback((event) => {
@@ -563,47 +617,26 @@ export default function FreeCanvas({
       handlePageDrawPointerUp(event);
       return;
     }
-    const session = marqueeSessionRef.current;
-    if (!session) return;
-    marqueeSessionRef.current = null;
-    try { session.pageEl?.releasePointerCapture?.(event.pointerId); } catch (_) { /* ignore */ }
-    const pt = clientPointToPageMm(event.clientX, event.clientY, session.pageEl);
-    const rect = normalizeMarqueeRect(session.startX, session.startY, pt.x, pt.y);
-    setMarqueeRect(null);
-    if (rect.w < 2 && rect.h < 2) {
-      if (typeof onSelectBlock === 'function') onSelectBlock(null);
-      return;
+    if (marqueeSessionRef.current) {
+      finishMarquee(event);
     }
-    const blocks = layout?.pages?.[session.pageIndex]?.blocks || [];
-    const ids = blockIdsInMarquee(blocks, rect);
-    if (typeof onSelectBlock === 'function') {
-      onSelectBlock(null, { replaceIds: ids });
-    }
-  }, [drawRectMode, handlePageDrawPointerUp, onSelectBlock, layout]);
+  }, [drawRectMode, handlePageDrawPointerUp, finishMarquee]);
 
   const handleCanvasBackgroundPointerDown = useCallback((event) => {
     if (placing) return;
+    if (event.target?.closest?.('.free-canvas-block')) return;
     if (event.target?.closest?.('.free-canvas-page')) return;
     if (event.target?.closest?.('.free-canvas-add-page-row')) return;
-    const pageEl = findPageElementAtPoint(event.clientX, event.clientY);
-    if (!pageEl) {
+    const match = findPageForMarquee(event.clientX, event.clientY);
+    if (!match) {
       commitEditingBlock();
+      clearDocumentTextSelection();
       if (typeof onSelectBlock === 'function') onSelectBlock(null);
       return;
     }
-    commitEditingBlock();
-    event.preventDefault();
-    const pageIndex = pageIndexFromElement(pageEl);
-    const pt = clientPointToPageMm(event.clientX, event.clientY, pageEl);
-    marqueeSessionRef.current = {
-      pageIndex,
-      startX: pt.x,
-      startY: pt.y,
-      pageEl,
-    };
-    setMarqueeRect({ x: pt.x, y: pt.y, w: 0, h: 0 });
-    pageEl.setPointerCapture?.(event.pointerId);
-  }, [placing, commitEditingBlock, onSelectBlock]);
+    const pageIndex = pageIndexFromElement(match.pageEl);
+    beginMarquee(match.pageEl, pageIndex, match.point, event);
+  }, [placing, commitEditingBlock, onSelectBlock, beginMarquee]);
 
   const pages = Array.isArray(layout?.pages) ? layout.pages : [];
   const theme = layout?.theme || {};

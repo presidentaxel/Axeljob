@@ -47,7 +47,7 @@ import {
 import { defaultCv } from '../../data/cvDefault';
 import { blockSupportsStyleToolbar } from '../../lib/canvasBlockToolbar.js';
 import { buildCanvasFontFamilies } from '../../lib/canvasFontOptions.js';
-import { selectAllInEditableRoot } from '../../lib/canvasRichTextFormat.js';
+import { selectAllInEditableRoot, clearDocumentTextSelection, toggleTextCaseOnBlockContent } from '../../lib/canvasRichTextFormat.js';
 import { getLastBlockIdOnPage, createImageBlockPreset } from '../../lib/freeCanvasBlockPresets.js';
 import { addUserCanvasImage } from '../../lib/canvasImageLibrary.js';
 import {
@@ -556,6 +556,7 @@ function CvEditorBeta({
       return;
     }
     if (!blockId) {
+      clearDocumentTextSelection();
       setSelectedBlockIds([]);
       return;
     }
@@ -784,11 +785,37 @@ function CvEditorBeta({
   }, [requestCanvasContextSwitch, buildTemplateCanvasLayout]);
 
   const handleBlockContentPatch = useCallback((patch) => {
-    if (!selectedBlockId) return;
-    const next = updateBlock(layout, selectedBlockId, patch);
-    commitLayout(next);
+    if (!patch) return;
+    const targetIds = selectedBlockIds.length > 1
+      ? selectedBlockIds
+      : (selectedBlockId ? [selectedBlockId] : []);
+    if (!targetIds.length) return;
+
+    if (patch.toggleCase) {
+      let nextLayout = layout;
+      for (const id of targetIds) {
+        const found = findBlock(nextLayout, id);
+        if (!found?.block) continue;
+        if (found.block.type !== 'text' && found.block.type !== 'title') continue;
+        const content = toggleTextCaseOnBlockContent(found.block.content);
+        nextLayout = updateBlock(nextLayout, id, { content });
+      }
+      commitLayout(nextLayout);
+      if (cv) autoSave.schedule(cv);
+      return;
+    }
+
+    if (patch.content === undefined) return;
+    let nextLayout = layout;
+    for (const id of targetIds) {
+      const found = findBlock(nextLayout, id);
+      if (!found?.block) continue;
+      if (found.block.type !== 'text' && found.block.type !== 'title') continue;
+      nextLayout = updateBlock(nextLayout, id, patch);
+    }
+    commitLayout(nextLayout);
     if (cv) autoSave.schedule(cv);
-  }, [layout, selectedBlockId, commitLayout, cv, autoSave]);
+  }, [layout, selectedBlockIds, selectedBlockId, commitLayout, cv, autoSave]);
 
   const handleBlockPatchById = useCallback((blockId, patch) => {
     if (!blockId) return;
@@ -936,6 +963,7 @@ function CvEditorBeta({
       }
     }
     setEditingBlockId(null);
+    clearDocumentTextSelection();
   }, [layout, cv, commitLayout, handleCvChange]);
 
   const handleOptimizeAtsLayout = useCallback(() => {

@@ -3,6 +3,8 @@
 .free-canvas {
   width: 100%;
   max-width: 100%;
+  flex: 1;
+  align-self: stretch;
   min-height: 0;
   display: flex;
   flex-direction: column;

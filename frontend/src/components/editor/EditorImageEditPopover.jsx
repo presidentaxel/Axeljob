@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiUrl } from '../../api';
 import { resolvePhotoUrl } from '../../lib/freeCanvasContent.js';
 import { CANVAS_COLOR_SWATCHES, DEFAULT_SHAPE_COLOR } from '../../lib/canvasColorPalette.js';
+import { isCircleImageShape } from '../../lib/canvasImageFrameStyle.js';
 import '../../styles/EditorImageEditPopover.css';
 
 function clampPercent(value) {
@@ -97,6 +98,7 @@ export default function EditorImageEditPopover({
   const [draftRadius, setDraftRadius] = useState(style.border_radius_mm ?? 0);
   const [draftBorderWidth, setDraftBorderWidth] = useState(style.image_border_width_mm ?? 0);
   const [draftBorderColor, setDraftBorderColor] = useState(style.image_border_color || DEFAULT_SHAPE_COLOR);
+  const [draftShape, setDraftShape] = useState(style.shape || 'rect');
 
   useEffect(() => {
     const onDoc = (e) => {
@@ -121,7 +123,8 @@ export default function EditorImageEditPopover({
     setDraftRadius(style.border_radius_mm ?? 0);
     setDraftBorderWidth(style.image_border_width_mm ?? 0);
     setDraftBorderColor(style.image_border_color || DEFAULT_SHAPE_COLOR);
-  }, [style.focal_x, style.focal_y, style.image_zoom, style.border_radius_mm, style.image_border_width_mm, style.image_border_color, block?.id]);
+    setDraftShape(style.shape || 'rect');
+  }, [style.focal_x, style.focal_y, style.image_zoom, style.border_radius_mm, style.image_border_width_mm, style.image_border_color, style.shape, block?.id]);
 
   const patchStyle = useCallback((patch) => {
     onBlockStylePatch?.(patch);
@@ -136,8 +139,30 @@ export default function EditorImageEditPopover({
   const frameW = ratio >= PREVIEW_W / PREVIEW_H ? PREVIEW_W : PREVIEW_H * ratio;
   const frameH = ratio >= PREVIEW_W / PREVIEW_H ? PREVIEW_W / ratio : PREVIEW_H;
   const maxRadiusMm = Math.min(blockRatioW, blockRatioH) / 2;
-  const radiusPx = radiusPxFromMm(draftRadius, frameW, frameH, blockRatioW, blockRatioH);
+  const isCircle = isCircleImageShape({ shape: draftShape });
+  const radiusPx = isCircle ? 0 : radiusPxFromMm(draftRadius, frameW, frameH, blockRatioW, blockRatioH);
   const radiusCss = radiusPx > 0 ? `${radiusPx}px` : '0';
+  const circleSidePx = Math.min(frameW, frameH);
+  const circleFrameStyle = isCircle
+    ? {
+      position: 'absolute',
+      left: `${(frameW - circleSidePx) / 2}px`,
+      top: `${(frameH - circleSidePx) / 2}px`,
+      width: `${circleSidePx}px`,
+      height: `${circleSidePx}px`,
+      borderRadius: '50%',
+      overflow: 'hidden',
+      boxSizing: 'border-box',
+      ...(draftBorderWidth > 0
+        ? { border: `${draftBorderWidth}mm solid ${draftBorderColor}`, boxSizing: 'border-box' }
+        : {}),
+    }
+    : {
+      borderRadius: radiusCss,
+      ...(draftBorderWidth > 0
+        ? { border: `${draftBorderWidth}mm solid ${draftBorderColor}`, boxSizing: 'border-box' }
+        : {}),
+    };
   const zoomPercent = Math.round((draftZoom - 1) / 2 * 100);
   const radiusPercent = maxRadiusMm > 0 ? Math.round((draftRadius / maxRadiusMm) * 100) : 0;
   const borderWidthPercent = Math.round((draftBorderWidth / 3) * 100);
@@ -154,6 +179,17 @@ export default function EditorImageEditPopover({
     const nextMm = clampRadius((clamped / 100) * maxRadiusMm, maxRadiusMm);
     setDraftRadius(nextMm);
     patchStyle({ border_radius_mm: nextMm, shape: 'rect' });
+  };
+
+  const setRectShape = () => {
+    setDraftShape('rect');
+    patchStyle({ shape: 'rect' });
+  };
+
+  const setCircleShape = () => {
+    setDraftShape('circle');
+    setDraftRadius(0);
+    patchStyle({ shape: 'circle', border_radius_mm: 0 });
   };
 
   const setBorderWidthFromPercent = (percent) => {
@@ -175,6 +211,7 @@ export default function EditorImageEditPopover({
   const startImageDrag = (event) => {
     if (radiusDragRef.current) return;
     if (event.target?.closest?.('.editor-image-edit-modal__radius-handle')) return;
+    if (event.target?.closest?.('.editor-image-edit-modal__shape-btn')) return;
     event.preventDefault();
     event.stopPropagation();
     dragRef.current = {
@@ -270,36 +307,36 @@ export default function EditorImageEditPopover({
         >
           <div
             ref={frameRef}
-            className="editor-image-edit-modal__frame"
-            style={{
-              borderRadius: radiusCss,
-              ...(draftBorderWidth > 0
-                ? { border: `${draftBorderWidth}mm solid ${draftBorderColor}`, boxSizing: 'border-box' }
-                : {}),
-            }}
+            className={`editor-image-edit-modal__frame${isCircle ? ' editor-image-edit-modal__frame--circle-host' : ''}`}
+            style={isCircle ? { position: 'relative', width: '100%', height: '100%' } : circleFrameStyle}
             onPointerDown={startImageDrag}
             onPointerMove={moveImageDrag}
             onPointerUp={endImageDrag}
             onPointerCancel={endImageDrag}
             onWheel={handleWheel}
           >
-            {imageSrc ? (
-              <img
-                src={imageSrc}
-                alt=""
-                draggable="false"
-                style={{
-                  objectPosition: `${draftFocal.x}% ${draftFocal.y}%`,
-                  transform: `scale(${draftZoom})`,
-                  transformOrigin: `${draftFocal.x}% ${draftFocal.y}%`,
-                }}
-              />
-            ) : (
-              <span className="editor-image-edit-modal__empty" aria-hidden />
-            )}
-            <div className="editor-image-edit-modal__mask" aria-hidden />
+            <div
+              className="editor-image-edit-modal__frame-inner"
+              style={isCircle ? circleFrameStyle : { width: '100%', height: '100%' }}
+            >
+              {imageSrc ? (
+                <img
+                  src={imageSrc}
+                  alt=""
+                  draggable="false"
+                  style={{
+                    objectPosition: `${draftFocal.x}% ${draftFocal.y}%`,
+                    transform: `scale(${draftZoom})`,
+                    transformOrigin: `${draftFocal.x}% ${draftFocal.y}%`,
+                  }}
+                />
+              ) : (
+                <span className="editor-image-edit-modal__empty" aria-hidden />
+              )}
+              <div className="editor-image-edit-modal__mask" aria-hidden />
+            </div>
           </div>
-          {RADIUS_HANDLES.map((handle) => (
+          {!isCircle && RADIUS_HANDLES.map((handle) => (
             <button
               key={handle}
               type="button"
@@ -315,6 +352,25 @@ export default function EditorImageEditPopover({
               onPointerCancel={endImageDrag}
             />
           ))}
+        </div>
+        <div className="editor-image-edit-modal__shape-row">
+          <span className="editor-image-edit-modal__shape-label">Forme</span>
+          <div className="editor-image-edit-modal__shape-btns">
+            <button
+              type="button"
+              className={`editor-image-edit-modal__shape-btn${!isCircle ? ' is-active' : ''}`}
+              onClick={setRectShape}
+            >
+              Rectangle
+            </button>
+            <button
+              type="button"
+              className={`editor-image-edit-modal__shape-btn${isCircle ? ' is-active' : ''}`}
+              onClick={setCircleShape}
+            >
+              Cercle
+            </button>
+          </div>
         </div>
         <div className="editor-image-edit-modal__controls">
           <label className="editor-image-edit-modal__control">
@@ -347,7 +403,7 @@ export default function EditorImageEditPopover({
               <span className="editor-image-edit-modal__suffix">%</span>
             </div>
           </label>
-          <label className="editor-image-edit-modal__control">
+          <label className={`editor-image-edit-modal__control${isCircle ? ' is-disabled' : ''}`}>
             <span>Coins arrondis</span>
             <div className="ds-range-row">
               <input
@@ -357,6 +413,7 @@ export default function EditorImageEditPopover({
                 max="100"
                 step="1"
                 value={radiusPercent}
+                disabled={isCircle}
                 onChange={(e) => setRadiusFromPercent(parseInt(e.target.value, 10))}
               />
               <input
@@ -364,6 +421,7 @@ export default function EditorImageEditPopover({
                 className="ds-range-input"
                 inputMode="numeric"
                 value={radiusPercent}
+                disabled={isCircle}
                 onChange={(e) => {
                   const n = parseInt(e.target.value.replace(/\D/g, ''), 10);
                   if (!Number.isNaN(n)) setRadiusFromPercent(n);

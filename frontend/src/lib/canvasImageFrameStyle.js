@@ -1,5 +1,9 @@
 /** Styles partagés pour les cadres image / photo du canvas. */
 
+export function isCircleImageShape(style = {}) {
+  return (style.shape || 'rect') === 'circle';
+}
+
 export function imageBorderRadiusCss(style = {}) {
   const radiusMm = style.border_radius_mm;
   if (radiusMm > 0) return `${radiusMm}mm`;
@@ -25,4 +29,53 @@ export function photoPresetBorderClass(style = {}) {
     return 'free-canvas-block__photo--border-accent';
   }
   return '';
+}
+
+/**
+ * Cadre image : en mode cercle, inscrit un carré centré (côté = min(w, h))
+ * pour obtenir un cercle parfait même si le bloc n'est pas carré.
+ */
+export function imageFrameLayout(blockWMm, blockHMm, style = {}) {
+  const w = Math.max(0, Number(blockWMm) || 0);
+  const h = Math.max(0, Number(blockHMm) || 0);
+  const border = imageFrameBorderStyle(style);
+  const opacity = style.opacity ?? 1;
+
+  if (isCircleImageShape(style) && w > 0 && h > 0) {
+    const side = Math.min(w, h);
+    return {
+      mode: 'circle',
+      outerStyle: {
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+      },
+      frameStyle: {
+        position: 'absolute',
+        left: `${(w - side) / 2}mm`,
+        top: `${(h - side) / 2}mm`,
+        width: `${side}mm`,
+        height: `${side}mm`,
+        borderRadius: '50%',
+        overflow: 'hidden',
+        boxSizing: 'border-box',
+        opacity,
+        ...border,
+      },
+    };
+  }
+
+  return {
+    mode: 'rect',
+    outerStyle: {
+      width: '100%',
+      height: '100%',
+      borderRadius: imageBorderRadiusCss(style),
+      overflow: 'hidden',
+      boxSizing: 'border-box',
+      opacity,
+      ...border,
+    },
+    frameStyle: null,
+  };
 }

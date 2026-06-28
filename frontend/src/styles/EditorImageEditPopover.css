@@ -34,6 +34,57 @@
   overflow: visible;
 }
 
+.editor-image-edit-modal__frame--circle-host {
+  border: 1px dashed var(--color-hairline, #d9d9dd);
+  background: var(--color-soft-stone, #eeece7);
+  cursor: grab;
+}
+
+.editor-image-edit-modal__frame-inner {
+  position: relative;
+}
+
+.editor-image-edit-modal__shape-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.editor-image-edit-modal__shape-label {
+  font-size: 0.78rem;
+  color: var(--color-body-muted, #616161);
+  flex-shrink: 0;
+}
+
+.editor-image-edit-modal__shape-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.editor-image-edit-modal__shape-btn {
+  border: 1px solid var(--color-hairline, #d9d9dd);
+  background: var(--color-canvas, #ffffff);
+  color: var(--color-ink, #212121);
+  border-radius: 30px;
+  padding: 6px 12px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.editor-image-edit-modal__shape-btn.is-active {
+  border-color: var(--color-primary, #17171c);
+  background: var(--color-primary, #17171c);
+  color: var(--color-on-dark, #ffffff);
+}
+
+.editor-image-edit-modal__control.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 .editor-image-edit-modal__frame {
   position: relative;
   width: 100%;

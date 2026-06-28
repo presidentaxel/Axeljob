@@ -6,6 +6,7 @@ import {
   analyzeCvProfile,
   applyThemeColorsToDecorativeBlocks,
   applyImportedRoundImageShapes,
+  cleanupImportedImageOverlays,
   applyVisionSectionPlacement,
   buildFullCanvasImportLayout,
   buildLayoutFromVisionDetection,
@@ -172,6 +173,23 @@ test('applyImportedRoundImageShapes : anneau vectoriel → image en cercle', () 
   const out = applyImportedRoundImageShapes(layout);
   const image = out.pages[0].blocks.find((b) => b.id === 'img');
   assert.equal(image.style.shape, 'circle');
+  assert.equal(out.pages[0].blocks.some((b) => b.id === 'ring'), false);
+});
+
+test('cleanupImportedImageOverlays : supprime icône parasite sur photo', () => {
+  const layout = {
+    pages: [{
+      id: 'p1',
+      blocks: [
+        { id: 'img', type: 'image', x: 20, y: 20, w: 30, h: 30, z: 1, style: {}, image_src: 'data:' },
+        { id: 'pin', type: 'icon', x: 22, y: 22, w: 26, h: 26, z: 2, style: { icon_name: 'HiMapPin' } },
+      ],
+    }],
+  };
+  const out = cleanupImportedImageOverlays(layout);
+  assert.equal(out.pages[0].blocks.length, 1);
+  assert.equal(out.pages[0].blocks[0].id, 'img');
+  assert.equal(out.pages[0].blocks[0].style.shape, 'circle');
 });
 
 test('sanitizeLayoutV3 : préserve le flag freeform', () => {

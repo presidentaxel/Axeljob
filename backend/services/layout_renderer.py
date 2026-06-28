@@ -110,6 +110,9 @@ body.cv-layout-body {
 .cv-layout-photo--round { border-radius: 50%; }
 .cv-layout-photo-ph { width: 100%; height: 100%; background: #e2e8f0; }
 .cv-layout-image-frame { width: 100%; height: 100%; overflow: hidden; }
+.cv-layout-image-circle { width: 100%; height: 100%; }
+.cv-layout-image-circle .cv-layout-photo,
+.cv-layout-image-circle .cv-layout-image { width: 100%; height: 100%; object-fit: cover; display: block; }
 .cv-layout-image { width: 100%; height: 100%; object-fit: cover; display: block; }
 .cv-layout-icon { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
 .cv-layout-icon svg { width: 100%; height: 100%; display: block; }
@@ -227,8 +230,9 @@ def _render_semantic(cv: dict, block: dict) -> str:
         url = (cv.get("photo_url") or "").strip() if isinstance(cv, dict) else ""
         if not url:
             return '<div class="cv-layout-photo-ph" aria-hidden="true"></div>'
-        round_cls = " cv-layout-photo--round" if style.get("shape") == "circle" else ""
-        return f'<img class="cv-layout-photo{round_cls}" src="{_esc(url)}" alt=""/>'
+        w = _num(block.get("w"))
+        h = _num(block.get("h"))
+        return _image_frame_html(url, style, w, h, "cv-layout-photo")
 
     if btype == "contact":
         lines = []
@@ -408,22 +412,9 @@ def _render_non_semantic(block: dict) -> str:
         src = block.get("image_src") if isinstance(block.get("image_src"), str) else ""
         if not src.strip():
             return '<div class="cv-layout-photo-ph" aria-hidden="true"></div>'
-        radius = _image_radius(style)
-        focal_x = _num(style.get("focal_x"), 50)
-        focal_y = _num(style.get("focal_y"), 50)
-        zoom = max(1.0, _num(style.get("image_zoom"), 1))
-        opacity = _num(style.get("opacity"), 1)
-        frame_style = f"border-radius:{radius};opacity:{opacity};"
-        image_style = (
-            f"object-position:{focal_x}% {focal_y}%;"
-            f"transform:scale({zoom});"
-            f"transform-origin:{focal_x}% {focal_y}%;"
-        )
-        return (
-            f'<div class="cv-layout-image-frame" style="{frame_style}">'
-            f'<img class="cv-layout-image" src="{_esc(src)}" alt="" style="{image_style}"/>'
-            f"</div>"
-        )
+        w = _num(block.get("w"))
+        h = _num(block.get("h"))
+        return _image_frame_html(src, style, w, h, "cv-layout-image")
 
     if btype == "icon":
         icon_name = (block.get("icon_name") or "").strip()
@@ -483,12 +474,56 @@ def _style_attr(declarations: list[str]) -> str:
 
 
 def _image_radius(style: dict[str, Any]) -> str:
+    radius_mm = style.get("border_radius_mm")
+    if radius_mm is not None and _num(radius_mm) > 0:
+        return f"{_num(radius_mm)}mm"
     shape = str(style.get("shape") or "rect")
     if shape == "circle":
         return "50%"
     if shape == "rounded":
         return "12%"
     return "0"
+
+
+def _image_frame_html(
+    src: str,
+    style: dict[str, Any],
+    block_w: float,
+    block_h: float,
+    img_class: str,
+) -> str:
+    focal_x = _num(style.get("focal_x"), 50)
+    focal_y = _num(style.get("focal_y"), 50)
+    zoom = max(1.0, _num(style.get("image_zoom"), 1))
+    opacity = _num(style.get("opacity"), 1)
+    image_style = (
+        f"object-position:{focal_x}% {focal_y}%;"
+        f"transform:scale({zoom});"
+        f"transform-origin:{focal_x}% {focal_y}%;"
+    )
+    esc_src = _esc(src)
+    shape = str(style.get("shape") or "rect")
+    if shape == "circle" and block_w > 0 and block_h > 0:
+        side = min(block_w, block_h)
+        left = (block_w - side) / 2
+        top = (block_h - side) / 2
+        frame_style = (
+            f"position:absolute;left:{left}mm;top:{top}mm;width:{side}mm;height:{side}mm;"
+            f"border-radius:50%;overflow:hidden;opacity:{opacity};"
+        )
+        return (
+            f'<div class="cv-layout-image-frame" style="position:relative;width:100%;height:100%;">'
+            f'<div class="cv-layout-image-circle" style="{frame_style}">'
+            f'<img class="{img_class}" src="{esc_src}" alt="" style="{image_style}"/>'
+            f"</div></div>"
+        )
+    radius = _image_radius(style)
+    frame_style = f"border-radius:{radius};opacity:{opacity};"
+    return (
+        f'<div class="cv-layout-image-frame" style="{frame_style}">'
+        f'<img class="{img_class}" src="{esc_src}" alt="" style="{image_style}"/>'
+        f"</div>"
+    )
 
 
 def _icon_svg(name: str) -> str:

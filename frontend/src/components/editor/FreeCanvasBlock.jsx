@@ -34,11 +34,7 @@ import CanvasEditableField from './CanvasEditableField.jsx';
 import CanvasIconGlyph from './CanvasIconGlyph.jsx';
 import { isVectorShapeType } from '../../lib/canvasShapePresets.js';
 import { blockEffectToCss } from '../../lib/canvasBlockEffects.js';
-import {
-  imageBorderRadiusCss,
-  imageFrameBorderStyle,
-  photoPresetBorderClass,
-} from '../../lib/canvasImageFrameStyle.js';
+import CanvasImageFrame from './CanvasImageFrame.jsx';
 import CanvasShapeSvg from './CanvasShapeSvg.jsx';
 
 const SECTION_LABELS = {
@@ -163,39 +159,14 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       if (!src) {
         return <div className="free-canvas-block__photo-placeholder" aria-hidden="true" />;
       }
-      const round = style.shape === 'circle';
-      const radius = imageBorderRadiusCss(style);
-      const focalX = style.focal_x ?? 50;
-      const focalY = style.focal_y ?? 50;
-      const zoom = style.image_zoom ?? 1;
-      const borderCls = photoPresetBorderClass(style);
       return (
-        <div
-          className={[
-            'free-canvas-block__image-frame',
-            borderCls,
-          ].filter(Boolean).join(' ')}
-          style={{
-            borderRadius: radius,
-            opacity: style.opacity ?? 1,
-            ...imageFrameBorderStyle(style),
-          }}
-        >
-          <img
-            className={[
-              'free-canvas-block__photo',
-              round ? 'free-canvas-block__photo--round' : '',
-            ].filter(Boolean).join(' ')}
-            src={src}
-            alt=""
-            style={{
-              objectFit: 'cover',
-              objectPosition: `${focalX}% ${focalY}%`,
-              transform: `scale(${zoom})`,
-              transformOrigin: `${focalX}% ${focalY}%`,
-            }}
-          />
-        </div>
+        <CanvasImageFrame
+          blockW={block.w}
+          blockH={block.h}
+          style={style}
+          src={src}
+          imgClassName="free-canvas-block__photo"
+        />
       );
     }
     case 'contact': {
@@ -688,31 +659,14 @@ function NonSemanticBlockBody({ block, editing = false, onAutoHeight }) {
       if (!src) {
         return <div className="free-canvas-block__image-placeholder">Image</div>;
       }
-      const radius = imageBorderRadiusCss(style);
-      const focalX = style.focal_x ?? 50;
-      const focalY = style.focal_y ?? 50;
-      const zoom = style.image_zoom ?? 1;
       return (
-        <div
-          className="free-canvas-block__image-frame"
-          style={{
-            borderRadius: radius,
-            opacity: style.opacity ?? 1,
-            ...imageFrameBorderStyle(style),
-          }}
-        >
-          <img
-            className="free-canvas-block__image"
-            src={src}
-            alt=""
-            style={{
-              objectFit: 'cover',
-              objectPosition: `${focalX}% ${focalY}%`,
-              transform: `scale(${zoom})`,
-              transformOrigin: `${focalX}% ${focalY}%`,
-            }}
-          />
-        </div>
+        <CanvasImageFrame
+          blockW={block.w}
+          blockH={block.h}
+          style={style}
+          src={src}
+          imgClassName="free-canvas-block__image"
+        />
       );
     }
     case 'shape:line': {

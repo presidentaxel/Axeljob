@@ -4,7 +4,7 @@ const PREVIEW_INK = '#17171c';
 
 /**
  * Rendu SVG vectoriel d'une forme canvas (mise à l'échelle libre).
- * @param {boolean} [preview] — aperçu sidebar : noir uniforme, proportions conservées
+ * @param {boolean} [preview] - aperçu sidebar : noir uniforme, proportions conservées
  */
 export default function CanvasShapeSvg({ type, style = {}, className = '', preview = false }) {
   const path = SHAPE_SVG_PATHS[type];
@@ -30,7 +30,7 @@ export default function CanvasShapeSvg({ type, style = {}, className = '', previ
       viewBox="0 0 100 100"
       preserveAspectRatio={preview ? 'xMidYMid meet' : 'none'}
       aria-hidden="true"
-      style={{ width: '100%', height: '100%', opacity }}
+      style={preview ? { opacity } : { width: '100%', height: '100%', opacity }}
     >
       <path
         d={path}

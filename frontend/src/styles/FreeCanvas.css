@@ -249,6 +249,17 @@
   box-sizing: border-box;
 }
 
+.free-canvas-block__image-frame-inner {
+  width: 100%;
+  height: 100%;
+}
+
+.free-canvas-block__image-frame-inner .free-canvas-block__image,
+.free-canvas-block__image-frame-inner .free-canvas-block__photo {
+  width: 100%;
+  height: 100%;
+}
+
 .free-canvas-block__image {
   display: block;
   width: 100%;

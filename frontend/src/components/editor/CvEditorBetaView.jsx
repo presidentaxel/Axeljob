@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   apiGet,
-  apiPost,
   apiPostBlob,
   apiPostFile,
   apiPut,
@@ -207,7 +206,7 @@ function CvEditorBeta({
 
   const saveFn = useCallback(async (payload) => {
     if (!payload || profileLoadError) {
-      throw new Error('Profil non chargé — réessayez.');
+      throw new Error('Profil non chargé - réessayez.');
     }
     const body = {
       ...payload,
@@ -316,7 +315,7 @@ function CvEditorBeta({
     return () => { aborted = true; };
   }, [resetLayout, refreshKey, profileLoadAttempt]);
 
-  // Libellés des brouillons locaux quand la liste templates arrive (async) —
+  // Libellés des brouillons locaux quand la liste templates arrive (async) -
   // sans re-fetch ni reset du layout en cours (fix B).
   useEffect(() => {
     if (loading || profileLoadError || !cv) return;
@@ -480,11 +479,6 @@ function CvEditorBeta({
   const handleImportFile = useCallback((file) => {
     if (!file) return;
     runCvImport(() => apiPostFile('/api/cv/import', file));
-  }, [runCvImport]);
-
-  const handleImportText = useCallback((text) => {
-    if (!text?.trim()) return;
-    runCvImport(() => apiPost('/api/cv/import-text', { text: text.trim() }));
   }, [runCvImport]);
 
   useEffect(() => {
@@ -1468,7 +1462,6 @@ function CvEditorBeta({
           if (!importLoading) setImportModalOpen(false);
         }}
         onImportFile={handleImportFile}
-        onImportText={handleImportText}
         loading={importLoading}
         error={importError}
       />
@@ -1477,7 +1470,7 @@ function CvEditorBeta({
         <CvImportLoadingOverlay
           stepIndex={importStepIndex}
           title="Import & adaptation Canva en cours"
-          subtitle="Analyse en cours — cela peut prendre jusqu'à une minute pour un PDF complexe."
+          subtitle="Analyse en cours - cela peut prendre jusqu'à une minute pour un PDF complexe."
         />
       )}
 

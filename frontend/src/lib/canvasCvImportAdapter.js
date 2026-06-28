@@ -430,17 +430,70 @@ function blockCenter(block) {
   };
 }
 
+function blockOverlapRatio(a, b, minRatio = 0.25) {
+  const ax = Number(a.x) || 0;
+  const ay = Number(a.y) || 0;
+  const aw = Number(a.w) || 0;
+  const ah = Number(a.h) || 0;
+  const bx = Number(b.x) || 0;
+  const by = Number(b.y) || 0;
+  const bw = Number(b.w) || 0;
+  const bh = Number(b.h) || 0;
+  if (aw <= 0 || ah <= 0 || bw <= 0 || bh <= 0) return 0;
+  const x0 = Math.max(ax, bx);
+  const y0 = Math.max(ay, by);
+  const x1 = Math.min(ax + aw, bx + bw);
+  const y1 = Math.min(ay + ah, by + bh);
+  if (x1 <= x0 || y1 <= y0) return 0;
+  const inter = (x1 - x0) * (y1 - y0);
+  const smaller = Math.min(aw * ah, bw * bh);
+  return smaller > 0 ? inter / smaller : 0;
+}
+
+/** Retire icônes / cercles vectoriels superposés aux photos importées. */
+export function cleanupImportedImageOverlays(layout) {
+  if (!layout?.pages?.length) return layout;
+  const pages = layout.pages.map((page) => {
+    const blocks = [...(page.blocks || [])];
+    const images = blocks.filter((b) => b.type === 'image' || b.type === 'photo');
+    const photoTargets = images.filter((b) => isSquarePhotoSized(Number(b.w) || 0, Number(b.h) || 0));
+    const targets = photoTargets.length ? photoTargets : images;
+    if (!targets.length) return page;
+
+    for (const img of images) {
+      for (const other of blocks) {
+        if (other.type !== 'icon' && other.type !== 'shape:circle') continue;
+        const side = Math.max(Number(other.w) || 0, Number(other.h) || 0);
+        if (other.type === 'shape:circle' && side < 12) continue;
+        if (blockOverlapRatio(other, img, 0.18) >= 0.18) {
+          img.style = { ...(img.style || {}), shape: 'circle' };
+        }
+      }
+    }
+
+    const filtered = blocks.filter((block) => {
+      if (block.type === 'icon' && targets.some((img) => blockOverlapRatio(block, img, 0.22) >= 0.22)) {
+        return false;
+      }
+      if (block.type === 'shape:circle') {
+        const side = Math.max(Number(block.w) || 0, Number(block.h) || 0);
+        if (side >= 12 && targets.some((img) => blockOverlapRatio(block, img, 0.18) >= 0.18)) {
+          return false;
+        }
+      }
+      return true;
+    });
+    return { ...page, blocks: filtered };
+  });
+  return { ...layout, pages };
+}
+
 /** Renforce shape:circle sur les photos importées (anneau vectoriel ou format carré photo). */
 export function applyImportedRoundImageShapes(layout) {
-  if (!layout?.pages?.length) return layout;
-  const allBlocks = layout.pages.flatMap((p) => p.blocks || []);
-  const ringCandidates = allBlocks.filter((b) => {
-    if (b.type !== 'shape:circle') return false;
-    const side = Math.max(Number(b.w) || 0, Number(b.h) || 0);
-    return side >= 12 && side <= 95;
-  });
+  const cleaned = cleanupImportedImageOverlays(layout);
+  if (!cleaned?.pages?.length) return cleaned;
 
-  const pages = layout.pages.map((page) => ({
+  const pages = cleaned.pages.map((page) => ({
     ...page,
     blocks: (page.blocks || []).map((block) => {
       if (block.type !== 'image' && block.type !== 'photo') return block;
@@ -448,20 +501,10 @@ export function applyImportedRoundImageShapes(layout) {
       const w = Number(block.w) || 0;
       const h = Number(block.h) || 0;
       if (!isSquarePhotoSized(w, h)) return block;
-
-      const ic = blockCenter(block);
-      const hasRing = ringCandidates.some((circle) => {
-        const cc = blockCenter(circle);
-        const dist = Math.hypot(ic.x - cc.x, ic.y - cc.y);
-        const sizeDelta = Math.abs(Math.max(w, h) - Math.max(Number(circle.w) || 0, Number(circle.h) || 0));
-        return dist < Math.min(w, h) * 0.22 && sizeDelta < Math.max(w, h) * 0.4;
-      });
-
-      if (!hasRing) return block;
       return { ...block, style: { ...(block.style || {}), shape: 'circle' } };
     }),
   }));
-  return { ...layout, pages };
+  return { ...cleaned, pages };
 }
 
 /** Recolore bandeaux / sidebar du preset selon le thème vision. */

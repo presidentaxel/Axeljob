@@ -35,6 +35,8 @@ LINE_MAX_THICKNESS_MM = 1.6
 MAX_BULLET_MM = 6.5
 MAX_ICON_MM = 16.0
 MIN_ICON_MM = 3.0
+# Au-delà, un pictogramme carré n'est plus une icône contact mais un masque photo.
+MAX_CONTACT_ICON_MM = 10.0
 # Surface mini d'un rectangle plein pour être considéré comme bandeau/fond
 # structurel (sidebar, header). En dessous = petit encart/icône → ignoré
 # (évite de polluer le canvas avec des micro-rectangles).
@@ -310,7 +312,14 @@ def _extract_text_blocks(
             w_mm = max(4.0, (x1 - x0) * pos_scale + 5.0)
             line_h_mm = max((y1 - y0) * pos_scale, size_pt * MM_PER_PT * 1.05)
             x_mm = max(0.0, x0 * pos_scale)
-            y_mm = max(0.0, y0 * pos_scale)
+            # Le CSS applique `padding: 1mm 1.5mm` sur les blocs texte (FreeCanvas.css).
+            # Sans compensation, le texte s'affiche 1 mm PLUS BAS que sa position PDF,
+            # ce qui fait paraître les shape:line 1 mm trop hauts par rapport au texte.
+            # On décale le bloc vers le haut de 1 mm : après le padding CSS, le rendu
+            # s'aligne exactement sur les coordonnées du PDF.
+            _CSS_TEXT_PAD_TOP = 1.0  # mm — doit correspondre au padding-top CSS
+            y_mm = max(0.0, y0 * pos_scale - _CSS_TEXT_PAD_TOP)
+            line_h_mm += _CSS_TEXT_PAD_TOP  # restaure l'espace en bas du bloc
             blocks.append(
                 {
                     "type": "text",
@@ -824,7 +833,9 @@ def _guess_icon_name(w_mm: float, h_mm: float, cluster: list) -> str:
     """Heuristique géométrique → nom d'icône canvas (react-icons/hi2)."""
     aspect = w_mm / h_mm if h_mm > 0 else 1.0
     n_items = sum(len(d.get("items") or []) for d in cluster)
-    if 0.85 <= aspect <= 1.35 and n_items >= 4:
+    long_side = max(w_mm, h_mm)
+    # Masque circulaire photo (plusieurs segments) ≠ icône lieu.
+    if 0.85 <= aspect <= 1.35 and n_items >= 4 and long_side <= 8:
         return "HiMapPin"
     if h_mm > w_mm * 1.12 and h_mm <= 12:
         return "HiPhone"
@@ -833,6 +844,59 @@ def _guess_icon_name(w_mm: float, h_mm: float, cluster: list) -> str:
     if max(w_mm, h_mm) <= 8:
         return "HiLink"
     return "HiSparkles"
+
+
+def _blocks_overlap_ratio(a: dict, b: dict, min_ratio: float = 0.25) -> bool:
+    """True si l'intersection couvre au moins ``min_ratio`` du plus petit bloc."""
+    ax, ay, aw, ah = float(a.get("x", 0)), float(a.get("y", 0)), float(a.get("w", 0)), float(a.get("h", 0))
+    bx, by, bw, bh = float(b.get("x", 0)), float(b.get("y", 0)), float(b.get("w", 0)), float(b.get("h", 0))
+    if aw <= 0 or ah <= 0 or bw <= 0 or bh <= 0:
+        return False
+    x0, y0 = max(ax, bx), max(ay, by)
+    x1, y1 = min(ax + aw, bx + bw), min(ay + ah, by + bh)
+    if x1 <= x0 or y1 <= y0:
+        return False
+    inter = (x1 - x0) * (y1 - y0)
+    smaller = min(aw * ah, bw * bh)
+    return smaller > 0 and (inter / smaller) >= min_ratio
+
+
+def _cleanup_image_overlay_blocks(blocks: list[dict]) -> list[dict]:
+    """Retire icônes / anneaux vectoriels parasites au-dessus des photos importées."""
+    images = [b for b in blocks if b.get("type") == "image"]
+    if not images:
+        return blocks
+    photo_images = [
+        b for b in images if _is_photo_sized(float(b.get("w", 0)), float(b.get("h", 0)))
+    ]
+    targets = photo_images if photo_images else images
+
+    for img in images:
+        for other in blocks:
+            if other.get("type") not in ("icon", "shape:circle"):
+                continue
+            side = max(float(other.get("w", 0)), float(other.get("h", 0)))
+            if other["type"] == "shape:circle" and side < MIN_PHOTO_MM:
+                continue
+            if _blocks_overlap_ratio(other, img, 0.2):
+                style = img.setdefault("style", {})
+                if style.get("shape") != "circle":
+                    style["shape"] = "circle"
+
+    kept: list[dict] = []
+    for block in blocks:
+        if block.get("type") == "icon" and any(
+            _blocks_overlap_ratio(block, img, 0.22) for img in targets
+        ):
+            continue
+        if block.get("type") == "shape:circle":
+            side = max(float(block.get("w", 0)), float(block.get("h", 0)))
+            if side >= MIN_PHOTO_MM and any(
+                _blocks_overlap_ratio(block, img, 0.18) for img in targets
+            ):
+                continue
+        kept.append(block)
+    return kept
 
 
 def _classify_graphic_cluster(cluster: list, scale: float) -> dict | None:
@@ -852,9 +916,13 @@ def _classify_graphic_cluster(cluster: list, scale: float) -> dict | None:
     x_mm = max(0.0, clip.x0 * scale)
     y_mm = max(0.0, clip.y0 * scale)
 
+    # Masque / cadre de photo (cercle vectoriel) → ne pas créer d'icône parasite.
+    if _is_photo_sized(w_mm, h_mm) and 0.82 <= aspect <= 1.22:
+        return None
+
     # Filet horizontal ou vertical
     if long_side >= MIN_SEPARATOR_LEN_MM and short_side <= LINE_MAX_THICKNESS_MM:
-        stroke = round(max(short_side, 0.3), 2)
+        stroke = round(max(short_side, 0.05), 2)
         if w_mm >= h_mm:
             return {
                 "type": "shape:line",
@@ -888,8 +956,12 @@ def _classify_graphic_cluster(cluster: list, scale: float) -> dict | None:
             "style": {"color": color, "stroke_color": color, "stroke_width": 0},
         }
 
-    # Pictogramme (téléphone, email, …)
-    if MIN_ICON_MM <= long_side <= MAX_ICON_MM and short_side >= MIN_ICON_MM:
+    # Pictogramme contact (téléphone, email, …) — taille modeste uniquement.
+    if (
+        MIN_ICON_MM <= long_side <= MAX_CONTACT_ICON_MM
+        and short_side >= MIN_ICON_MM
+        and not _is_photo_sized(w_mm, h_mm)
+    ):
         return {
             "type": "icon",
             "icon_name": _guess_icon_name(w_mm, h_mm, cluster),
@@ -1111,7 +1183,7 @@ def _extract_graphic_blocks(page, doc, scale: float, image_budget: list) -> list
                 if total > MAX_CUTOUT_TOTAL_BYTES:
                     break
 
-    return blocks
+    return _cleanup_image_overlay_blocks(blocks)
 
 
 def extract_layout_from_pdf(file_bytes: bytes, max_pages: int = MAX_PAGES) -> dict | None:
@@ -1182,6 +1254,7 @@ def extract_layout_from_pdf(file_bytes: bytes, max_pages: int = MAX_PAGES) -> di
                     blocks = [*shape_blocks, *image_blocks, *text_blocks]
             if not blocks:
                 continue
+            blocks = _cleanup_image_overlay_blocks(blocks)
             pages_out.append({"id": f"page_{page_index + 1}", "blocks": blocks})
 
         if not pages_out or total_chars < MIN_TEXT_CHARS_FOR_NATIVE:

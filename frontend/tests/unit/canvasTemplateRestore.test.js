@@ -5,16 +5,22 @@ import { createCanvasLayoutForTemplate } from '../../src/lib/layoutTemplatePrese
 import {
   mergeTemplateBaseWithDraft,
   resolveTemplateContextLayout,
-  templateStructuralBlockKey,
+  templateGeometryBlockKey,
 } from '../../src/lib/canvasTemplateRestore.js';
 import { removeBlock } from '../../src/lib/cvLayoutModelV3.js';
 
 const template = { id: 'modern', name: 'Moderne' };
 
-test('templateStructuralBlockKey distingue deux bandeaux', () => {
+test('templateGeometryBlockKey distingue deux bandeaux', () => {
   const a = { type: 'shape:rect', x: 0, y: 0, w: 50, h: 297, style: { color: '#111' } };
   const b = { type: 'shape:rect', x: 50, y: 0, w: 160, h: 40, style: { color: '#222' } };
-  assert.notEqual(templateStructuralBlockKey(a), templateStructuralBlockKey(b));
+  assert.notEqual(templateGeometryBlockKey(a), templateGeometryBlockKey(b));
+});
+
+test('templateGeometryBlockKey ignore la couleur pour une même sidebar', () => {
+  const a = { type: 'shape:rect', x: 0, y: 0, w: 50, h: 280, style: { color: '#111' } };
+  const b = { type: 'shape:rect', x: 0, y: 0, w: 50, h: 280, style: { color: '#222' } };
+  assert.equal(templateGeometryBlockKey(a), templateGeometryBlockKey(b));
 });
 
 test('mergeTemplateBaseWithDraft réinjecte un bandeau supprimé', () => {
@@ -31,6 +37,23 @@ test('mergeTemplateBaseWithDraft réinjecte un bandeau supprimé', () => {
     merged.pages[0].blocks.filter((b) => b.type === 'shape:rect').length,
     baseRects,
   );
+});
+
+test('mergeTemplateBaseWithDraft ne duplique pas les blocs sémantiques', () => {
+  const base = createCanvasLayoutForTemplate(template);
+  const draft = {
+    ...base,
+    pages: [{
+      ...base.pages[0],
+      blocks: [
+        ...(base.pages[0].blocks || []).filter((b) => b.type === 'shape:rect').slice(0, 1),
+        { id: 'exp1', type: 'experiences', bind: 'experiences', x: 60, y: 40, w: 120, h: 80, z: 2, style: { zone: 'main' } },
+      ],
+    }],
+  };
+  const merged = mergeTemplateBaseWithDraft(base, draft);
+  const experiences = merged.pages[0].blocks.filter((b) => b.type === 'experiences');
+  assert.equal(experiences.length, 1);
 });
 
 test('resolveTemplateContextLayout fusionne pour template:* seulement', () => {

@@ -1,18 +1,5 @@
 import { isVectorShapeType } from './canvasShapePresets.js';
-import { sanitizeLayoutV3 } from './cvLayoutModelV3.js';
-
-const SEMANTIC_TEMPLATE_TYPES = new Set([
-  'identity',
-  'photo',
-  'contact',
-  'resume',
-  'experiences',
-  'formations',
-  'certifications',
-  'projets',
-  'skills',
-  'languages',
-]);
+import { PAGE_HEIGHT_MM, PAGE_WIDTH_MM, sanitizeLayoutV3 } from './cvLayoutModelV3.js';
 
 const GEOMETRY_TYPES = new Set(['shape:rect', 'shape:line', 'shape:frame']);
 
@@ -26,35 +13,34 @@ function isGeometryBlock(block) {
   return isVectorShapeType(block.type);
 }
 
-function isSemanticTemplateSlot(block) {
-  return SEMANTIC_TEMPLATE_TYPES.has(block?.type);
+/** Clé géométrique sans couleur (évite les doublons import / modèle). */
+export function templateGeometryBlockKey(block) {
+  if (!isGeometryBlock(block)) return '';
+  const x = Math.round((Number(block.x) || 0) * 2) / 2;
+  const y = Math.round((Number(block.y) || 0) * 2) / 2;
+  const w = Math.round((Number(block.w) || 0) * 2) / 2;
+  const h = Math.round((Number(block.h) || 0) * 2) / 2;
+  const zone = block.style?.zone || '';
+  const side = x + w / 2 < PAGE_WIDTH_MM / 2 ? 'L' : 'R';
+  if (block.type === 'shape:rect' && h > PAGE_HEIGHT_MM * 0.45 && w < PAGE_WIDTH_MM * 0.5) {
+    return `role:sidebar:${side}`;
+  }
+  if (block.type === 'shape:rect' && y < 18 && h < 90 && w > PAGE_WIDTH_MM * 0.35) {
+    return `role:header:${zone}`;
+  }
+  return `geo:${block.type}:${x}:${y}:${w}:${h}:${zone}`;
 }
 
-/** Clé stable pour détecter si un bloc structurel du modèle est déjà présent. */
+/** @deprecated Utiliser templateGeometryBlockKey. */
 export function templateStructuralBlockKey(block) {
-  if (!block?.type) return '';
-  if (isGeometryBlock(block)) {
-    const x = Math.round((Number(block.x) || 0) * 2) / 2;
-    const y = Math.round((Number(block.y) || 0) * 2) / 2;
-    const w = Math.round((Number(block.w) || 0) * 2) / 2;
-    const h = Math.round((Number(block.h) || 0) * 2) / 2;
-    const zone = block.style?.zone || '';
-    const color = block.style?.color || block.style?.bg || '';
-    return `geo:${block.type}:${x}:${y}:${w}:${h}:${zone}:${color}`;
-  }
-  if (isSemanticTemplateSlot(block)) {
-    const bind = block.bind != null ? JSON.stringify(block.bind) : '';
-    const zone = block.style?.zone || '';
-    return `sem:${block.type}:${bind}:${zone}`;
-  }
-  return '';
+  return templateGeometryBlockKey(block);
 }
 
-function collectStructuralKeys(layout) {
+function collectGeometryKeys(layout) {
   const keys = new Set();
   for (const page of layout?.pages || []) {
     for (const block of page?.blocks || []) {
-      const key = templateStructuralBlockKey(block);
+      const key = templateGeometryBlockKey(block);
       if (key) keys.add(key);
     }
   }
@@ -62,14 +48,14 @@ function collectStructuralKeys(layout) {
 }
 
 /**
- * Réinjecte les bandeaux / formes / emplacements sémantiques du modèle de base
- * manquants dans un brouillon (suppression manuelle ou écrasement par import).
+ * Réinjecte bandeaux / formes du modèle de base absents du brouillon.
+ * Ne touche pas aux blocs sémantiques (évite le texte en double).
  */
 export function mergeTemplateBaseWithDraft(baseLayout, draftLayout) {
   if (!baseLayout?.pages?.length) return sanitizeLayoutV3(draftLayout || baseLayout);
   if (!draftLayout?.pages?.length) return sanitizeLayoutV3(baseLayout);
 
-  const draftKeys = collectStructuralKeys(draftLayout);
+  const draftKeys = collectGeometryKeys(draftLayout);
   const pageCount = Math.max(baseLayout.pages.length, draftLayout.pages.length);
 
   const pages = Array.from({ length: pageCount }, (_, pageIndex) => {
@@ -77,9 +63,9 @@ export function mergeTemplateBaseWithDraft(baseLayout, draftLayout) {
     const basePage = baseLayout.pages[pageIndex] || baseLayout.pages[0];
     const draftBlocks = [...(draftPage?.blocks || [])];
     const missing = (basePage?.blocks || []).filter((block) => {
-      const key = templateStructuralBlockKey(block);
-      if (!key) return false;
-      return !draftKeys.has(key);
+      if (!isGeometryBlock(block)) return false;
+      const key = templateGeometryBlockKey(block);
+      return key && !draftKeys.has(key);
     }).map(cloneBlock).sort((a, b) => (Number(a.z) || 0) - (Number(b.z) || 0));
 
     return {

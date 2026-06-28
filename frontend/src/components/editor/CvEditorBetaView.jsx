@@ -18,6 +18,7 @@ import {
 } from '../../lib/cvImportUtils.js';
 import {
   buildFullCanvasImportLayout,
+  buildAdaptedCanvasLayoutForCv,
   recommendTemplateLabel,
   summarizeImportAdaptation,
 } from '../../lib/canvasCvImportAdapter.js';
@@ -773,12 +774,29 @@ function CvEditorBeta({
 
   const handleApplyCanvasTemplate = useCallback((template) => {
     if (!template) return;
-    requestCanvasContextSwitch({
-      contextKey: templateCanvasContextKey(template.id),
-      label: template.name || template.id,
-      baseLayout: buildTemplateCanvasLayout(template),
-    });
-  }, [requestCanvasContextSwitch, buildTemplateCanvasLayout]);
+    const contextKey = templateCanvasContextKey(template.id);
+    saveCurrentCanvasDraft();
+    const baseLayout = buildTemplateCanvasLayout(template);
+    let targetLayout = baseLayout;
+    if (cv) {
+      targetLayout = buildAdaptedCanvasLayoutForCv(cv, template, {
+        templatesList,
+        templateId: template.id,
+      }).layout;
+    } else {
+      const draft = loadCanvasDraft(contextKey);
+      targetLayout = resolveTemplateContextLayout(contextKey, baseLayout, draft?.layout);
+    }
+    if (onTemplateIdChange) onTemplateIdChange(template.id);
+    openCanvasContext(contextKey, targetLayout);
+  }, [
+    cv,
+    templatesList,
+    saveCurrentCanvasDraft,
+    buildTemplateCanvasLayout,
+    onTemplateIdChange,
+    openCanvasContext,
+  ]);
 
   const handleBlockContentPatch = useCallback((patch) => {
     if (!patch) return;

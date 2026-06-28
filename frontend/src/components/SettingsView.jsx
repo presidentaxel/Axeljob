@@ -25,15 +25,41 @@ import '../styles/app/settings.css';
 
 const PDF_VARIABLES = ['{prenom}', '{nom}', '{poste}', '{entreprise}'];
 
-function SettingsClearRow({ label, detail, onClear, disabled }) {
+const SETTINGS_NAV = [
+  { id: 'settings-account', label: 'Compte' },
+  { id: 'settings-plan', label: 'Abonnement', when: (usage) => Boolean(usage) },
+  { id: 'settings-export', label: 'Export PDF' },
+  { id: 'settings-cv', label: 'CV & modèle' },
+  { id: 'settings-editor', label: 'Éditeur' },
+  { id: 'settings-local', label: 'Données locales' },
+  { id: 'settings-nav', label: 'Raccourcis' },
+  { id: 'settings-privacy', label: 'Confidentialité' },
+];
+
+function SettingsSection({ id, title, lead, children, wide = false }) {
+  const sectionId = id.replace(/-title$/, '');
   return (
-    <div className="settings-clear-row">
-      <div className="settings-clear-row__text">
+    <section
+      id={sectionId}
+      className={`settings-section${wide ? ' settings-section--wide' : ''}`}
+      aria-labelledby={id}
+    >
+      <h2 id={id} className="settings-section__title">{title}</h2>
+      {lead && <p className="settings-section__lead">{lead}</p>}
+      {children}
+    </section>
+  );
+}
+
+function SettingsListRow({ label, detail, onClear, disabled, actionLabel = 'Effacer' }) {
+  return (
+    <div className="settings-list-row">
+      <div className="settings-list-row__text">
         <strong>{label}</strong>
         {detail && <span>{detail}</span>}
       </div>
       <button type="button" className="btn btn-tertiary btn-sm" onClick={onClear} disabled={disabled}>
-        Effacer
+        {actionLabel}
       </button>
     </div>
   );
@@ -201,9 +227,19 @@ export default function SettingsView({
       {message && <div className="settings-toast settings-toast--success" role="status">{message}</div>}
       {error && <div className="settings-toast settings-toast--error" role="alert">{error}</div>}
 
-      <section className="settings-card" aria-labelledby="settings-account-title">
-        <h2 id="settings-account-title" className="settings-card__title">Compte</h2>
-        <p className="settings-card__lead">Identité de connexion et accès sécurisé.</p>
+      <div className="settings-shell">
+        <aside className="settings-rail" aria-label="Sections des paramètres">
+          <nav className="settings-rail-nav">
+            {SETTINGS_NAV.filter((item) => !item.when || item.when(usage)).map((item) => (
+              <a key={item.id} href={`#${item.id}`} className="settings-rail-link">
+                {item.label}
+              </a>
+            ))}
+          </nav>
+        </aside>
+
+        <div className="settings-mosaic">
+      <SettingsSection id="settings-account-title" title="Compte" lead="Identité de connexion et accès sécurisé." wide={!usage}>
         <dl className="settings-meta">
           <dt>Email</dt>
           <dd>{accountEmail}</dd>
@@ -222,11 +258,10 @@ export default function SettingsView({
             Mot de passe
           </button>
         </div>
-      </section>
+      </SettingsSection>
 
       {usage && (
-        <section className="settings-card" aria-labelledby="settings-plan-title">
-          <h2 id="settings-plan-title" className="settings-card__title">Abonnement</h2>
+        <SettingsSection id="settings-plan-title" title="Abonnement">
           <dl className="settings-meta">
             <dt>Plan</dt>
             <dd>
@@ -253,14 +288,15 @@ export default function SettingsView({
               </button>
             )}
           </div>
-        </section>
+        </SettingsSection>
       )}
 
-      <section className="settings-card settings-card--wide" aria-labelledby="settings-export-title">
-        <h2 id="settings-export-title" className="settings-card__title">Export PDF</h2>
-        <p className="settings-card__lead">
-          Personnalise le nom de fichier et le dossier suggéré lors de l&apos;enregistrement d&apos;un CV adapté.
-        </p>
+      <SettingsSection
+        id="settings-export-title"
+        title="Export PDF"
+        lead="Personnalise le nom de fichier et le dossier suggéré lors de l'enregistrement d'un CV adapté."
+        wide
+      >
         <div className="settings-split">
           <div className="settings-split__col">
             <label className="settings-field">
@@ -338,24 +374,19 @@ export default function SettingsView({
             </button>
           </div>
         </div>
-      </section>
+      </SettingsSection>
 
-      <section className="settings-card" aria-labelledby="settings-cv-title">
-        <h2 id="settings-cv-title" className="settings-card__title">CV & modèle</h2>
+      <SettingsSection id="settings-cv-title" title="CV & modèle" lead="Couleurs, polices et sections se gèrent dans le profil CV.">
         <dl className="settings-meta">
           <dt>Modèle actif</dt>
           <dd>{templateName}</dd>
         </dl>
-        <p className="settings-card__lead">
-          Couleurs, polices et sections se gèrent dans le profil CV.
-        </p>
         <div className="settings-actions">
           <Link to="/app/profil" className="btn btn-secondary btn-sm">Ouvrir le profil CV</Link>
         </div>
-      </section>
+      </SettingsSection>
 
-      <section className="settings-card" aria-labelledby="settings-editor-title">
-        <h2 id="settings-editor-title" className="settings-card__title">Éditeur</h2>
+      <SettingsSection id="settings-editor-title" title="Éditeur">
         <div className="settings-row">
           <div className="settings-row__text">
             <strong>Mode Beta</strong>
@@ -363,78 +394,81 @@ export default function SettingsView({
           </div>
           <BetaModeToggle />
         </div>
-      </section>
+      </SettingsSection>
 
-      <section className="settings-card" aria-labelledby="settings-local-title">
-        <h2 id="settings-local-title" className="settings-card__title">Données sur cet appareil</h2>
-        <p className="settings-card__lead">
-          Brouillons et caches locaux (non synchronisés entre appareils).
-        </p>
-        <SettingsClearRow
-          label="Brouillons canvas"
-          detail={localSummary.draftCount ? `${localSummary.draftCount} brouillon(s)` : 'Vide'}
-          disabled={!localSummary.draftCount}
-          onClear={() => runLocalClear('les brouillons canvas', clearCanvasLayoutDrafts)}
-        />
-        <SettingsClearRow
-          label="Modèles canvas enregistrés"
-          detail={localSummary.proposalCount ? `${localSummary.proposalCount} modèle(s)` : 'Vide'}
-          disabled={!localSummary.proposalCount}
-          onClear={() => runLocalClear('les modèles canvas', clearLayoutProposals)}
-        />
-        <SettingsClearRow
-          label="Bibliothèque d'images"
-          detail={localSummary.imageCount ? `${localSummary.imageCount} image(s)` : 'Vide'}
-          disabled={!localSummary.imageCount}
-          onClear={() => runLocalClear('la bibliothèque d\'images', clearUserCanvasImageLibrary)}
-        />
-        <hr className="settings-divider" />
-        <SettingsClearRow
-          label="Visite guidée"
-          detail="Réafficher les astuces au prochain passage"
-          onClear={() => {
-            if (resetGuidedTours(session?.user?.id)) showSuccess('Visite guidée réinitialisée.');
-          }}
-        />
-        <SettingsClearRow
-          label="Astuces éditeur"
-          detail="Bandeaux d'aide dans l'éditeur Beta"
-          onClear={() => {
-            if (resetEditorHints()) showSuccess('Astuces éditeur réinitialisées.');
-          }}
-        />
-      </section>
-
-      <section className="settings-card" aria-labelledby="settings-nav-title">
-        <h2 id="settings-nav-title" className="settings-card__title">Raccourcis</h2>
-        <nav className="settings-shortcuts" aria-label="Pages de l'application">
-          <Link to="/app/cv" className="settings-shortcut">Adapter un CV</Link>
-          <Link to="/app/postule" className="settings-shortcut">Mes candidatures</Link>
-          <Link to="/app/profil" className="settings-shortcut">Profil CV</Link>
-          <Link to="/app/support" className="settings-shortcut">Support</Link>
-        </nav>
-      </section>
-
-      <section className="settings-card settings-card--wide" aria-labelledby="settings-privacy-title">
-        <h2 id="settings-privacy-title" className="settings-card__title">Confidentialité</h2>
-        <div className="settings-split settings-split--balanced">
-          <div className="settings-split__col">
-            <p className="settings-card__lead">Préférences cookies et traceurs.</p>
-            {typeof onCookieSettingsClick === 'function' && (
-              <button type="button" className="btn btn-secondary btn-sm" onClick={onCookieSettingsClick}>
-                Paramètres cookies
-              </button>
-            )}
+      <SettingsSection
+        id="settings-local-title"
+        title="Données sur cet appareil"
+        lead="Brouillons et caches locaux (non synchronisés entre appareils)."
+        wide
+      >
+        <div className="settings-list-grid">
+          <div className="settings-list-grid__col">
+            <SettingsListRow
+              label="Brouillons canvas"
+              detail={localSummary.draftCount ? `${localSummary.draftCount} brouillon(s)` : 'Vide'}
+              disabled={!localSummary.draftCount}
+              onClear={() => runLocalClear('les brouillons canvas', clearCanvasLayoutDrafts)}
+            />
+            <SettingsListRow
+              label="Modèles canvas enregistrés"
+              detail={localSummary.proposalCount ? `${localSummary.proposalCount} modèle(s)` : 'Vide'}
+              disabled={!localSummary.proposalCount}
+              onClear={() => runLocalClear('les modèles canvas', clearLayoutProposals)}
+            />
+            <SettingsListRow
+              label="Bibliothèque d'images"
+              detail={localSummary.imageCount ? `${localSummary.imageCount} image(s)` : 'Vide'}
+              disabled={!localSummary.imageCount}
+              onClear={() => runLocalClear('la bibliothèque d\'images', clearUserCanvasImageLibrary)}
+            />
           </div>
-          <div className="settings-split__col">
-            <nav className="settings-links" aria-label="Documents légaux">
-              <Link to="/confidentialite">Politique de confidentialité</Link>
-              <Link to="/cgu">Conditions d&apos;utilisation</Link>
-              <Link to="/mentions-legales">Mentions légales</Link>
-            </nav>
+          <div className="settings-list-grid__col">
+            <hr className="settings-divider settings-divider--mobile-only" />
+            <SettingsListRow
+              label="Visite guidée"
+              detail="Réafficher les astuces au prochain passage"
+              onClear={() => {
+                if (resetGuidedTours(session?.user?.id)) showSuccess('Visite guidée réinitialisée.');
+              }}
+            />
+            <SettingsListRow
+              label="Astuces éditeur"
+              detail="Bandeaux d'aide dans l'éditeur Beta"
+              onClear={() => {
+                if (resetEditorHints()) showSuccess('Astuces éditeur réinitialisées.');
+              }}
+            />
           </div>
         </div>
-      </section>
+      </SettingsSection>
+
+      <SettingsSection id="settings-nav-title" title="Raccourcis">
+        <nav className="settings-nav-list" aria-label="Pages de l'application">
+          <Link to="/app/cv" className="settings-nav-link">Adapter un CV</Link>
+          <Link to="/app/postule" className="settings-nav-link">Mes candidatures</Link>
+          <Link to="/app/profil" className="settings-nav-link">Profil CV</Link>
+          <Link to="/app/support" className="settings-nav-link">Support</Link>
+        </nav>
+      </SettingsSection>
+
+      <SettingsSection id="settings-privacy-title" title="Confidentialité" lead="Préférences cookies et documents légaux.">
+        {typeof onCookieSettingsClick === 'function' && (
+          <div className="settings-actions settings-actions--spaced">
+            <button type="button" className="btn btn-secondary btn-sm" onClick={onCookieSettingsClick}>
+              Paramètres cookies
+            </button>
+          </div>
+        )}
+        <nav className="settings-links" aria-label="Documents légaux">
+          <Link to="/confidentialite">Politique de confidentialité</Link>
+          <Link to="/cgu">Conditions d&apos;utilisation</Link>
+          <Link to="/mentions-legales">Mentions légales</Link>
+        </nav>
+      </SettingsSection>
+
+        </div>
+      </div>
 
       {setPasswordOpen && (
         <div
@@ -446,7 +480,7 @@ export default function SettingsView({
         >
           <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
             <h3 id="settings-password-title">Définir un mot de passe</h3>
-            <p className="settings-card__lead">
+            <p className="settings-section__lead">
               Connexion par email + mot de passe, en plus des autres méthodes.
             </p>
             <form

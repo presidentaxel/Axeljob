@@ -147,12 +147,7 @@
   align-items: stretch;
 }
 
-.view-settings .page-content {
-  max-width: none;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-}
+/* Paramètres : layout dans styles/app/settings.css */
 
 /* Bandeaux plan gratuit / onboarding */
 .free-plan-banner {

@@ -10,7 +10,7 @@ export default function CanvasZoomControls({
   onZoomReset,
 }) {
   return (
-    <div className="canvas-zoom-controls" role="toolbar" aria-label="Zoom du canevas">
+    <div className="canvas-zoom-controls" role="toolbar" aria-label="Zoom du canevas" onPointerDown={(e) => e.stopPropagation()}>
       <button
         type="button"
         className="canvas-zoom-controls__btn"

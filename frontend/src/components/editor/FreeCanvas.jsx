@@ -662,6 +662,7 @@ export default function FreeCanvas({
 
   const handleCanvasBackgroundPointerDown = useCallback((event) => {
     if (placing) return;
+    if (event.target?.closest?.('.free-canvas-zoom-bar, .canvas-zoom-controls')) return;
     if (event.target?.closest?.('.free-canvas-block')) return;
     if (event.target?.closest?.('.free-canvas-page')) return;
     if (event.target?.closest?.('.free-canvas-add-page-row')) return;

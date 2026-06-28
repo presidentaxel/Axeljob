@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   BLANK_CANVAS_CONTEXT_KEY,
+  IMPORTED_CANVAS_CONTEXT_KEY,
   canvasContextLabel,
   getActiveCanvasContext,
   getCanvasDraftPrefs,
@@ -67,6 +68,7 @@ test('preferences et contexte actif ont des valeurs par defaut', () => {
 
 test('canvasContextLabel utilise les noms de templates', () => {
   assert.equal(canvasContextLabel('blank'), 'Page blanche');
+  assert.equal(canvasContextLabel('imported'), 'CV importé');
   assert.equal(
     canvasContextLabel('template:modern', [{ id: 'modern', name: 'Moderne' }]),
     'Moderne',

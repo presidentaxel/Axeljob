@@ -29,6 +29,7 @@ import { applyAtsLayoutOptimizations } from '../../lib/atsLayoutOptimize.js';
 import { saveLayoutProposal } from '../../lib/layoutProposalsStorage.js';
 import {
   BLANK_CANVAS_CONTEXT_KEY,
+  IMPORTED_CANVAS_CONTEXT_KEY,
   canvasContextLabel,
   getActiveCanvasContext,
   getCanvasDraftPrefs,
@@ -39,6 +40,7 @@ import {
   setCanvasDraftPrefs,
   templateCanvasContextKey,
 } from '../../lib/canvasLayoutDrafts.js';
+import { resolveTemplateContextLayout } from '../../lib/canvasTemplateRestore.js';
 import {
   detectTransferCandidates,
   mergeTransferredBlocks,
@@ -337,7 +339,7 @@ function CvEditorBeta({
     const currentLayout = layoutRef.current;
     saveCurrentCanvasDraft();
     const draft = loadCanvasDraft(contextKey);
-    const targetLayout = draft?.layout || baseLayout;
+    const targetLayout = resolveTemplateContextLayout(contextKey, baseLayout, draft?.layout);
     const candidates = currentLayout && contextKey !== activeLayoutContextKey
       ? detectTransferCandidates(currentLayout, baseLayout)
       : [];
@@ -381,7 +383,7 @@ function CvEditorBeta({
       visionMeta,
     });
     const recTemplate = templates.find((t) => t?.id === recommendedTemplateId) || templates[0];
-    const contextKey = templateCanvasContextKey(recTemplate?.id || BLANK_CANVAS_CONTEXT_KEY);
+    const contextKey = IMPORTED_CANVAS_CONTEXT_KEY;
     const nextTemplateOptions = recTemplate
       ? resetTemplateOptionsToDefaults(recTemplate)
       : templateOptions;

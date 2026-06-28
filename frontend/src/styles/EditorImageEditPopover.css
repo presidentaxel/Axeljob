@@ -114,3 +114,23 @@
   color: var(--color-muted, #93939f);
   flex-shrink: 0;
 }
+
+.editor-image-edit-modal__swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.editor-image-edit-modal__swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--color-hairline, #d9d9dd);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.editor-image-edit-modal__swatch.is-active {
+  outline: 2px solid var(--color-focus-blue, #4c6ee6);
+  outline-offset: 1px;
+}

@@ -406,10 +406,60 @@ export function applyVisionPhotoShape(layout, visionMeta = {}) {
   const pages = layout.pages.map((page) => ({
     ...page,
     blocks: (page.blocks || []).map((block) => (
-      block.type === 'photo'
+      block.type === 'photo' || block.type === 'image'
         ? { ...block, style: { ...(block.style || {}), shape } }
         : block
     )),
+  }));
+  return { ...layout, pages };
+}
+
+function isSquarePhotoSized(w, h) {
+  if (w <= 0 || h <= 0) return false;
+  const ratio = w / h;
+  if (ratio < 0.85 || ratio > 1.18) return false;
+  const side = Math.max(w, h);
+  const short = Math.min(w, h);
+  return side >= 12 && side <= 90 && short >= 9;
+}
+
+function blockCenter(block) {
+  return {
+    x: (Number(block.x) || 0) + (Number(block.w) || 0) / 2,
+    y: (Number(block.y) || 0) + (Number(block.h) || 0) / 2,
+  };
+}
+
+/** Renforce shape:circle sur les photos importées (anneau vectoriel ou format carré photo). */
+export function applyImportedRoundImageShapes(layout) {
+  if (!layout?.pages?.length) return layout;
+  const allBlocks = layout.pages.flatMap((p) => p.blocks || []);
+  const ringCandidates = allBlocks.filter((b) => {
+    if (b.type !== 'shape:circle') return false;
+    const side = Math.max(Number(b.w) || 0, Number(b.h) || 0);
+    return side >= 12 && side <= 95;
+  });
+
+  const pages = layout.pages.map((page) => ({
+    ...page,
+    blocks: (page.blocks || []).map((block) => {
+      if (block.type !== 'image' && block.type !== 'photo') return block;
+      if (block.style?.shape === 'circle') return block;
+      const w = Number(block.w) || 0;
+      const h = Number(block.h) || 0;
+      if (!isSquarePhotoSized(w, h)) return block;
+
+      const ic = blockCenter(block);
+      const hasRing = ringCandidates.some((circle) => {
+        const cc = blockCenter(circle);
+        const dist = Math.hypot(ic.x - cc.x, ic.y - cc.y);
+        const sizeDelta = Math.abs(Math.max(w, h) - Math.max(Number(circle.w) || 0, Number(circle.h) || 0));
+        return dist < Math.min(w, h) * 0.22 && sizeDelta < Math.max(w, h) * 0.4;
+      });
+
+      if (!hasRing) return block;
+      return { ...block, style: { ...(block.style || {}), shape: 'circle' } };
+    }),
   }));
   return { ...layout, pages };
 }
@@ -814,6 +864,118 @@ export function isStructuralLayout(layout) {
   return blocks > 0;
 }
 
+function _isNearWhite(hex) {
+  if (!hex || hex.length !== 7) return true;
+  try {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return r > 235 && g > 235 && b > 235;
+  } catch { return true; }
+}
+
+function _isNearBodyBlack(hex) {
+  // Corps de texte courant : noir ou gris très sombre (#1a1a1a, #333…)
+  if (!hex || hex.length !== 7) return true;
+  try {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return r < 55 && g < 55 && b < 55;
+  } catch { return true; }
+}
+
+/**
+ * Infère color_accent, color_sidebar, color_header depuis tous les blocs
+ * d'un layout structurel importé (couleurs dans block.style.color, pas dans le theme).
+ *
+ * Passe 1 – formes géométriques : sidebar, bandeau header, filets horizontaux.
+ *   Pour l'accent on collecte TOUTES les couleurs de formes-ligne et on prend
+ *   la plus fréquente (évite de bloquer sur le premier filet trouvé, qui peut
+ *   être une décoration marginale).
+ *
+ * Passe 2 – blocs texte : fallback si aucune forme colorée trouvée (CVs
+ *   colonne unique sans sidebar ni filet coloré). Pondère par font_size.
+ */
+function inferThemeColorsFromStructuralBlocks(layout) {
+  if (!layout?.pages?.length) return {};
+  const blocks = layout.pages.flatMap((p) => p.blocks || []);
+  let colorSidebar = null;
+  let colorHeader = null;
+
+  // Fréquence des couleurs de filets/lignes (pour choisir la plus représentative)
+  const lineColorFreq = new Map();
+
+  for (const block of blocks) {
+    const color = block.style?.color;
+    if (!isValidHexColor(color) || _isNearWhite(color)) continue;
+
+    const w = Number(block.w) || 0;
+    const h = Number(block.h) || 0;
+    const x = Number(block.x) || 0;
+    const y = Number(block.y) || 0;
+
+    if (block.type === 'shape:rect') {
+      // Sidebar : grand rectangle vertical à gauche ou à droite
+      if (h > PAGE_HEIGHT_MM * 0.45 && w < PAGE_WIDTH_MM * 0.4 && !colorSidebar) {
+        colorSidebar = color;
+      } else if (h > PAGE_HEIGHT_MM * 0.45 && x > PAGE_WIDTH_MM * 0.62 && !colorSidebar) {
+        colorSidebar = color;
+      // Bandeau header : rectangle large et peu haut, en haut de page
+      } else if (y < 14 && h < 80 && w > PAGE_WIDTH_MM * 0.55 && !colorHeader) {
+        colorHeader = color;
+      // Filet / barre horizontale : très large par rapport à la hauteur
+      } else if (w > h * 5 && w > 20) {
+        lineColorFreq.set(color, (lineColorFreq.get(color) || 0) + w);
+      }
+    }
+
+    if (block.type === 'shape:line') {
+      // Filets explicites (type:line produit par pdf_structural_extract)
+      lineColorFreq.set(color, (lineColorFreq.get(color) || 0) + (w || 10));
+    }
+
+    if (block.type === 'shape:circle' && Math.max(w, h) < 8) {
+      // Puces colorées → potentiel accent
+      lineColorFreq.set(color, (lineColorFreq.get(color) || 0) + 5);
+    }
+  }
+
+  // Couleur d'accent = couleur de filet la plus fréquente (pondérée par largeur)
+  let colorAccent = null;
+  if (lineColorFreq.size > 0) {
+    colorAccent = [...lineColorFreq.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  }
+
+  // Fallback texte : si aucune forme colorée, chercher dans les gros titres
+  if (!colorAccent) {
+    const textColorFreq = new Map();
+    for (const block of blocks) {
+      if (block.type !== 'text') continue;
+      const color = block.style?.color;
+      if (!isValidHexColor(color) || _isNearWhite(color) || _isNearBodyBlack(color)) continue;
+      const weight = Number(block.style?.font_size) || 10;
+      textColorFreq.set(color, (textColorFreq.get(color) || 0) + weight);
+    }
+    if (textColorFreq.size > 0) {
+      colorAccent = [...textColorFreq.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    }
+  }
+
+  // Fallback accent depuis header/sidebar si toujours rien
+  if (!colorAccent && colorHeader) colorAccent = colorHeader;
+  if (!colorAccent && colorSidebar) colorAccent = colorSidebar;
+
+  const patch = {};
+  if (colorSidebar) patch.color_sidebar = colorSidebar;
+  if (colorHeader) patch.color_header = colorHeader;
+  if (colorAccent) {
+    patch.color_accent = colorAccent;
+    patch.color_section_title = colorAccent;
+  }
+  return patch;
+}
+
 /**
  * Import "copier-coller" : on utilise tel quel le layout reconstruit depuis le
  * PDF (texte, formes, images positionnés). Aucun preset, aucune IA - juste un
@@ -825,13 +987,36 @@ export function buildStructuralImportLayout(cv, structuralLayout, { templateId =
   // fidèle du PDF, jamais ré-empilée en colonnes par l'auto-height.
   const sanitized = sanitizeLayoutV3({ ...structuralLayout, freeform: true });
   const layout = applyLayoutPagination(sanitized);
+  // Python extrait les couleurs thème directement depuis page.get_drawings()
+  // (fiable quel que soit le chemin de rendu). Le JS n'intervient qu'en
+  // fallback pour les couleurs que Python n'a pas trouvées.
+  const existingTheme = layout.theme || {};
+  const DEFAULT_ACCENT = '#1e2a3a'; // valeur DEFAULT_THEME de cvLayoutModelV3
+  const needsAccent = !existingTheme.color_accent || existingTheme.color_accent === DEFAULT_ACCENT;
+  const needsSidebar = !existingTheme.color_sidebar;
+  const needsHeader = !existingTheme.color_header;
+
+  let finalLayout = applyImportedRoundImageShapes(layout);
+  if (needsAccent || needsSidebar || needsHeader) {
+    const inferredTheme = inferThemeColorsFromStructuralBlocks(layout);
+    const patch = {};
+    if (needsAccent && inferredTheme.color_accent) {
+      patch.color_accent = inferredTheme.color_accent;
+      patch.color_section_title = inferredTheme.color_section_title || inferredTheme.color_accent;
+    }
+    if (needsSidebar && inferredTheme.color_sidebar) patch.color_sidebar = inferredTheme.color_sidebar;
+    if (needsHeader && inferredTheme.color_header) patch.color_header = inferredTheme.color_header;
+    if (Object.keys(patch).length > 0) {
+      finalLayout = { ...finalLayout, theme: { ...existingTheme, ...patch } };
+    }
+  }
   return {
-    layout,
+    layout: finalLayout,
     analysis,
-    recommendedTemplateId: templateId || layout.theme?.template_id || 'imported',
+    recommendedTemplateId: templateId || finalLayout.theme?.template_id || 'imported',
     removedBlockCount: 0,
     resizedBlockCount: 0,
-    blockCount: countLayoutBlocks(layout),
+    blockCount: countLayoutBlocks(finalLayout),
     importSource: 'structural',
   };
 }

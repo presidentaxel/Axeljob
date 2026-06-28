@@ -5,7 +5,7 @@
  * Police : alias de --app-font-family (App.css) pour les composants editeur.
  */
 .cv-editor-beta {
-  /* Tokens Cohere 2026 — voir docs/DESIGN-cohere.md */
+  /* Tokens Cohere 2026 - voir docs/DESIGN-cohere.md */
   --color-primary: #17171c;
   --color-ink: #212121;
   --color-deep-green: #003c33;
@@ -202,7 +202,7 @@
   z-index: 25;
 }
 
-/* Dock flottant au-dessus du canevas — hors flux pour ne pas décaler le CV */
+/* Dock flottant au-dessus du canevas - hors flux pour ne pas décaler le CV */
 .cv-editor-beta-format-dock {
   position: absolute;
   top: 0;
@@ -306,7 +306,8 @@
   flex: 1;
   min-height: 0;
   min-width: 0;
-  padding: 0.75rem 2rem 2rem;
+  /* Réserve la hauteur du dock format (overlay) + marge pierre au-dessus de la page */
+  padding: calc(var(--editor-format-dock-height, 56px) + 0.75rem) 2rem 2rem;
   display: flex;
   flex-direction: column;
   align-items: stretch;

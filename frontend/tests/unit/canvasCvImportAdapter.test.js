@@ -5,6 +5,7 @@ import {
   adaptCanvasLayoutForCv,
   analyzeCvProfile,
   applyThemeColorsToDecorativeBlocks,
+  applyImportedRoundImageShapes,
   applyVisionSectionPlacement,
   buildFullCanvasImportLayout,
   buildLayoutFromVisionDetection,
@@ -156,6 +157,21 @@ test('buildStructuralImportLayout : copie fidèle, aucun preset', () => {
 test('buildStructuralImportLayout : marque le layout freeform (pas de reflow)', () => {
   const result = buildStructuralImportLayout(DENSE_CV, STRUCTURAL_LAYOUT, { templateId: '' });
   assert.equal(result.layout.freeform, true);
+});
+
+test('applyImportedRoundImageShapes : anneau vectoriel → image en cercle', () => {
+  const layout = {
+    pages: [{
+      id: 'p1',
+      blocks: [
+        { id: 'img', type: 'image', x: 20, y: 20, w: 30, h: 30, z: 2, style: { shape: 'rect' }, image_src: 'data:' },
+        { id: 'ring', type: 'shape:circle', x: 19, y: 19, w: 32, h: 32, z: 1, style: { color: '#000' } },
+      ],
+    }],
+  };
+  const out = applyImportedRoundImageShapes(layout);
+  const image = out.pages[0].blocks.find((b) => b.id === 'img');
+  assert.equal(image.style.shape, 'circle');
 });
 
 test('sanitizeLayoutV3 : préserve le flag freeform', () => {

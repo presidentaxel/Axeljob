@@ -55,6 +55,9 @@ CUTOUT_RENDER_SCALE = 3.0
 CLUSTER_GAP_PT = 7.0
 MAX_CUTOUTS = 90
 MAX_CUTOUT_TOTAL_BYTES = 480_000
+# Taille typique d'une photo de profil importée (mm).
+MIN_PHOTO_MM = 12.0
+MAX_PHOTO_MM = 90.0
 
 # Flags de span PyMuPDF (cf. doc fitz).
 _FLAG_ITALIC = 1 << 1
@@ -94,6 +97,107 @@ def _is_near_white(hex_color: str | None) -> bool:
     except ValueError:
         return False
     return r >= 248 and g >= 248 and b >= 248
+
+
+def _is_near_body_black(hex_color: str | None) -> bool:
+    """Noir pur ou gris très sombre (texte corps) : pas une couleur d'accent."""
+    if not hex_color or len(hex_color) != 7:
+        return True
+    try:
+        r = int(hex_color[1:3], 16)
+        g = int(hex_color[3:5], 16)
+        b = int(hex_color[5:7], 16)
+    except ValueError:
+        return True
+    return r < 50 and g < 50 and b < 50
+
+
+def _extract_theme_colors(page, scale: float) -> dict:
+    """Lit les couleurs de design (accent, sidebar, header) directement dans les
+    instructions vectorielles du PDF, AVANT toute rasterisation ou mutation de page.
+
+    Fonctionne quel que soit le chemin de rendu (graphic_blocks / bg_block / shape_blocks).
+    """
+    try:
+        drawings = page.get_drawings()
+    except Exception:
+        return {}
+
+    page_area = PAGE_W_MM * PAGE_H_MM
+    sidebar_color: str | None = None
+    header_color: str | None = None
+    # (couleur, poids) - poids = largeur ou longueur de la forme
+    accent_candidates: list[tuple[str, float]] = []
+
+    for d in drawings:
+        rect = d.get("rect")
+        if rect is None:
+            continue
+        w_mm = (rect.x1 - rect.x0) * scale
+        h_mm = (rect.y1 - rect.y0) * scale
+
+        items_raw = d.get("items", [])
+        is_pure_segment = (
+            any(it[0] == "l" for it in items_raw if it)
+            and not any(it[0] == "re" for it in items_raw if it)
+        )
+        if (w_mm <= 0 or h_mm <= 0) and not is_pure_segment:
+            continue
+        if w_mm > 0 and h_mm > 0 and w_mm * h_mm > page_area * PAGE_BG_AREA_RATIO:
+            continue  # fond de page entier → ignoré
+
+        fill_hex = _float_rgb_to_hex(d.get("fill")) if d.get("fill") is not None else None
+        stroke_hex = _float_rgb_to_hex(d.get("color")) if d.get("color") is not None else None
+
+        color: str | None = None
+        if fill_hex and not _is_near_white(fill_hex):
+            color = fill_hex
+        elif stroke_hex and not _is_near_white(stroke_hex):
+            color = stroke_hex
+        if not color:
+            continue
+
+        y_mm = rect.y0 * scale
+        thin = min(w_mm, h_mm) <= LINE_MAX_THICKNESS_MM
+
+        # Sidebar : grand rectangle vertical (gauche ou droite)
+        if h_mm > PAGE_H_MM * 0.45 and w_mm < PAGE_W_MM * 0.4:
+            if not sidebar_color:
+                sidebar_color = color
+        # Bandeau header : rectangle large et bas, en haut de page
+        elif y_mm < 14 and h_mm < 80 and w_mm > PAGE_W_MM * 0.55:
+            if not header_color:
+                header_color = color
+        # Filet de séparation explicite (type:line, mince et long)
+        elif thin and max(w_mm, h_mm) >= MIN_SEPARATOR_LEN_MM:
+            if not _is_near_body_black(color):
+                accent_candidates.append((color, max(w_mm, h_mm)))
+        # Barre horizontale épaisse (ratio w/h > 5 et ≥ 20mm)
+        elif w_mm > h_mm * 5 and w_mm >= 20:
+            if not _is_near_body_black(color):
+                accent_candidates.append((color, w_mm))
+
+    result: dict = {}
+    if sidebar_color:
+        result["color_sidebar"] = sidebar_color
+    if header_color:
+        result["color_header"] = header_color
+
+    if accent_candidates:
+        weights: dict[str, float] = {}
+        for c, w in accent_candidates:
+            weights[c] = weights.get(c, 0.0) + w
+        best = max(weights, key=lambda c: weights[c])
+        result["color_accent"] = best
+        result["color_section_title"] = best
+    elif header_color:
+        result["color_accent"] = header_color
+        result["color_section_title"] = header_color
+    elif sidebar_color:
+        result["color_accent"] = sidebar_color
+        result["color_section_title"] = sidebar_color
+
+    return result
 
 
 def _font_family_from_name(font_name: str) -> str | None:
@@ -255,27 +359,29 @@ def _shape_block_from_box(
     y_mm = max(0.0, y_lo * scale)
 
     # Trait fin horizontal → shape:line (barre fine), vertical → shape:line orienté.
+    # On stocke l'épaisseur réelle du PDF (min 0.05mm pour éviter zéro) ;
+    # le rendu CSS applique un min-height/min-width de 1px pour la visibilité écran.
     if thin and horizontal:
         return {
             "type": "shape:line",
             "x": round(x_mm, 2),
             "y": round(y_mm, 2),
             "w": round(min(w_mm, PAGE_W_MM), 2),
-            "h": round(max(h_mm, 0.3), 2),
+            "h": round(max(h_mm, 0.05), 2),
             "z": 1,
-            "style": {"color": color, "stroke_width": round(max(h_mm, 0.3), 2)},
+            "style": {"color": color, "stroke_width": round(max(h_mm, 0.05), 2)},
         }
     if thin and not horizontal:
         return {
             "type": "shape:line",
             "x": round(x_mm, 2),
             "y": round(y_mm, 2),
-            "w": round(max(w_mm, 0.3), 2),
+            "w": round(max(w_mm, 0.05), 2),
             "h": round(min(h_mm, PAGE_H_MM), 2),
             "z": 1,
             "style": {
                 "color": color,
-                "stroke_width": round(max(w_mm, 0.3), 2),
+                "stroke_width": round(max(w_mm, 0.05), 2),
                 "orientation": "vertical",
             },
         }
@@ -427,6 +533,110 @@ def _extract_shape_blocks(page, scale: float) -> list[dict]:
     return blocks
 
 
+def _pix_rgb_at(pix, x: int, y: int) -> tuple[int, int, int] | None:
+    """Échantillon RGB (ou niveau de gris) à un pixel du pixmap."""
+    if pix is None or pix.width <= 0 or pix.height <= 0:
+        return None
+    x = max(0, min(int(pix.width) - 1, int(x)))
+    y = max(0, min(int(pix.height) - 1, int(y)))
+    n = int(pix.n or 0)
+    if n < 1:
+        return None
+    idx = (y * int(pix.width) + x) * n
+    samples = pix.samples
+    if idx + n > len(samples):
+        return None
+    if n >= 3:
+        return int(samples[idx]), int(samples[idx + 1]), int(samples[idx + 2])
+    g = int(samples[idx])
+    return g, g, g
+
+
+def _pix_alpha_at(pix, x: int, y: int) -> int | None:
+    if pix is None or not getattr(pix, "alpha", False):
+        return None
+    x = max(0, min(int(pix.width) - 1, int(x)))
+    y = max(0, min(int(pix.height) - 1, int(y)))
+    n = int(pix.n or 0)
+    if n < 4:
+        return None
+    idx = (y * int(pix.width) + x) * n
+    samples = pix.samples
+    if idx + 3 >= len(samples):
+        return None
+    return int(samples[idx + 3])
+
+
+def _color_dist(c1: tuple[int, int, int], c2: tuple[int, int, int]) -> float:
+    return ((c1[0] - c2[0]) ** 2 + (c1[1] - c2[1]) ** 2 + (c1[2] - c2[2]) ** 2) ** 0.5
+
+
+def _pix_looks_round(pix) -> bool:
+    """Heuristique : photo affichée en cercle (coins vides / alpha faible / fond uniforme)."""
+    if pix is None:
+        return False
+    try:
+        w, h = int(pix.width), int(pix.height)
+    except Exception:
+        return False
+    if w < 12 or h < 12:
+        return False
+    ratio = w / h if h else 1.0
+    if not (0.85 <= ratio <= 1.18):
+        return False
+
+    inset_x = max(2, int(w * 0.08))
+    inset_y = max(2, int(h * 0.08))
+    cx, cy = w // 2, h // 2
+    corners = [
+        (inset_x, inset_y),
+        (w - 1 - inset_x, inset_y),
+        (w - 1 - inset_x, h - 1 - inset_y),
+        (inset_x, h - 1 - inset_y),
+    ]
+    center = _pix_rgb_at(pix, cx, cy)
+    if center is None:
+        return False
+
+    if getattr(pix, "alpha", False):
+        alphas = [_pix_alpha_at(pix, x, y) for x, y in corners]
+        if all(a is not None for a in alphas):
+            return sum(a < 40 for a in alphas) >= 3
+
+    corner_colors = [_pix_rgb_at(pix, x, y) for x, y in corners]
+    if any(c is None for c in corner_colors):
+        return False
+    corner_spread = max(
+        _color_dist(corner_colors[i], corner_colors[j]) for i in range(4) for j in range(i + 1, 4)
+    )
+    corner_avg = (
+        sum(c[0] for c in corner_colors) // 4,
+        sum(c[1] for c in corner_colors) // 4,
+        sum(c[2] for c in corner_colors) // 4,
+    )
+    center_corner_dist = _color_dist(center, corner_avg)
+    return corner_spread < 36.0 and center_corner_dist > 22.0
+
+
+def _is_photo_sized(w_mm: float, h_mm: float) -> bool:
+    side = max(w_mm, h_mm)
+    short = min(w_mm, h_mm)
+    return MIN_PHOTO_MM <= side <= MAX_PHOTO_MM and short >= MIN_PHOTO_MM * 0.75
+
+
+def _infer_image_shape(w_mm: float, h_mm: float, pix=None) -> str:
+    """Déduit ``circle`` ou ``rect`` pour un bloc image importé."""
+    ratio = w_mm / h_mm if h_mm else 1.0
+    squareish = 0.85 <= ratio <= 1.18
+    if not squareish:
+        return "rect"
+    if pix is not None and _pix_looks_round(pix):
+        return "circle"
+    if _is_photo_sized(w_mm, h_mm) and squareish:
+        return "circle"
+    return "rect"
+
+
 def _pixmap_to_data_url(pix) -> str | None:
     import fitz
 
@@ -474,16 +684,15 @@ def _extract_image_blocks(page, doc, scale: float, budget: list[int]) -> list[di
             pix = fitz.Pixmap(doc, xref)
         except Exception:
             continue
-        data_url = _pixmap_to_data_url(pix)
-        if not data_url:
-            continue
         rect = rects[0]
         w_mm = (rect.x1 - rect.x0) * scale
         h_mm = (rect.y1 - rect.y0) * scale
         if w_mm <= 2 or h_mm <= 2:
             continue
-        ratio = w_mm / h_mm if h_mm else 1
-        shape = "circle" if 0.85 <= ratio <= 1.18 else "rect"
+        shape = _infer_image_shape(w_mm, h_mm, pix)
+        data_url = _pixmap_to_data_url(pix)
+        if not data_url:
+            continue
         blocks.append(
             {
                 "type": "image",
@@ -709,12 +918,13 @@ def _cutout_block(page, clip, scale: float) -> tuple[dict | None, int]:
         )
     except Exception:  # pragma: no cover - dépend du PDF
         return None, 0
-    data_url = _pixmap_to_data_url(pix)
-    if not data_url:
-        return None, 0
     w_mm = (clip.x1 - clip.x0) * scale
     h_mm = (clip.y1 - clip.y0) * scale
     if w_mm <= 0.4 or h_mm <= 0.4:
+        return None, 0
+    shape = _infer_image_shape(w_mm, h_mm, pix)
+    data_url = _pixmap_to_data_url(pix)
+    if not data_url:
         return None, 0
     block = {
         "type": "image",
@@ -724,7 +934,7 @@ def _cutout_block(page, clip, scale: float) -> tuple[dict | None, int]:
         "w": round(min(w_mm, PAGE_W_MM), 2),
         "h": round(min(h_mm, PAGE_H_MM), 2),
         "z": 2,
-        "style": {"shape": "rect", "decorative": True},
+        "style": {"shape": shape, "decorative": shape != "circle"},
     }
     return block, len(data_url)
 
@@ -775,14 +985,20 @@ def _extract_graphic_blocks(page, doc, scale: float, image_budget: list) -> list
             continue
         w_mm = (rect.x1 - rect.x0) * scale
         h_mm = (rect.y1 - rect.y0) * scale
-        if w_mm <= 0 or h_mm <= 0:
-            continue
-        if w_mm * h_mm > page_area * PAGE_BG_AREA_RATIO:  # fond de page entier
-            continue
 
         items = [it for it in d.get("items", []) if it]
         re_items = [it[1] for it in items if it[0] == "re"]
         line_items = [it for it in items if it[0] == "l"]
+        is_pure_segment = bool(line_items) and not re_items
+
+        # Segments horizontaux/verticaux : bounding rect de hauteur ou largeur 0 →
+        # on conserve si c'est un segment pur (items=['l']). Tout autre dessin
+        # dégénéré est ignoré.
+        if (w_mm <= 0 or h_mm <= 0) and not is_pure_segment:
+            continue
+        if w_mm > 0 and h_mm > 0 and w_mm * h_mm > page_area * PAGE_BG_AREA_RATIO:
+            continue  # fond de page entier
+
         fill_hex = _float_rgb_to_hex(d.get("fill")) if d.get("fill") is not None else None
         stroke_hex = _float_rgb_to_hex(d.get("color")) if d.get("color") is not None else None
         thin = min(w_mm, h_mm) <= LINE_MAX_THICKNESS_MM
@@ -840,6 +1056,20 @@ def _extract_graphic_blocks(page, doc, scale: float, image_budget: list) -> list
                 continue
         remaining_misc.append(d)
     misc = remaining_misc
+
+    # Rectangles blancs purs (fond structurel de page, masques CSS) : inutile
+    # de les rasteriser — ils ne portent aucun dessin propre et, si on les
+    # inclut dans un cluster, l'image produite duplique les shapes déjà
+    # extraits (sidebar, filets) en les re-dessinant en pixels, puis les
+    # masque (z=2 > shape:line z=1).
+    misc = [
+        d for d in misc
+        if not (
+            _is_near_white(_float_rgb_to_hex(d.get("fill")) if d.get("fill") is not None else None)
+            and not d.get("color")  # pas de stroke
+            and all(it[0] == "re" for it in d.get("items", []) if it)  # que des rects
+        )
+    ]
 
     clusters = _cluster_drawings(misc, CLUSTER_GAP_PT) if misc else []
     if len(clusters) > MAX_CUTOUTS:  # trop fragmenté → repli sur fond plat
@@ -914,6 +1144,9 @@ def extract_layout_from_pdf(file_bytes: bytes, max_pages: int = MAX_PAGES) -> di
         total_chars = 0
         image_budget = [MAX_IMAGES_PER_DOC]
         n_pages = min(doc.page_count, max_pages)
+        # Couleurs de design extraites avant toute rasterisation/mutation de page.
+        # La première page prime (en-tête avec les couleurs dominantes du design).
+        merged_theme_colors: dict = {}
 
         # Polices embarquées → rendu fidèle (mêmes largeurs que le PDF).
         try:
@@ -926,6 +1159,11 @@ def extract_layout_from_pdf(file_bytes: bytes, max_pages: int = MAX_PAGES) -> di
             page = doc[page_index]
             fit = _fit_factor(page.rect.width, page.rect.height)
             pos_scale = MM_PER_PT * fit
+            # Couleurs thème : lu AVANT que _extract_graphic_blocks mute la page.
+            page_theme = _extract_theme_colors(page, pos_scale)
+            for k, v in page_theme.items():
+                if k not in merged_theme_colors:
+                    merged_theme_colors[k] = v
             # Le texte D'ABORD (la décomposition/rasterisation retire le texte).
             text_blocks, chars = _extract_text_blocks(page, pos_scale, fit, embedded_roots)
             total_chars += chars
@@ -965,6 +1203,7 @@ def extract_layout_from_pdf(file_bytes: bytes, max_pages: int = MAX_PAGES) -> di
                 "font_heading": "Inter, sans-serif",
                 "font_body": "Inter, sans-serif",
                 "color_body": "#1a1a1a",
+                **merged_theme_colors,
             },
             "source": "pdf_structural",
         }

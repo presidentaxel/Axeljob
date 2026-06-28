@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiUrl } from '../../api';
 import { resolvePhotoUrl } from '../../lib/freeCanvasContent.js';
+import { CANVAS_COLOR_SWATCHES, DEFAULT_SHAPE_COLOR } from '../../lib/canvasColorPalette.js';
 import '../../styles/EditorImageEditPopover.css';
 
 function clampPercent(value) {
@@ -94,6 +95,8 @@ export default function EditorImageEditPopover({
   });
   const [draftZoom, setDraftZoom] = useState(style.image_zoom ?? 1);
   const [draftRadius, setDraftRadius] = useState(style.border_radius_mm ?? 0);
+  const [draftBorderWidth, setDraftBorderWidth] = useState(style.image_border_width_mm ?? 0);
+  const [draftBorderColor, setDraftBorderColor] = useState(style.image_border_color || DEFAULT_SHAPE_COLOR);
 
   useEffect(() => {
     const onDoc = (e) => {
@@ -116,7 +119,9 @@ export default function EditorImageEditPopover({
     setDraftFocal({ x: style.focal_x ?? 50, y: style.focal_y ?? 50 });
     setDraftZoom(style.image_zoom ?? 1);
     setDraftRadius(style.border_radius_mm ?? 0);
-  }, [style.focal_x, style.focal_y, style.image_zoom, style.border_radius_mm, block?.id]);
+    setDraftBorderWidth(style.image_border_width_mm ?? 0);
+    setDraftBorderColor(style.image_border_color || DEFAULT_SHAPE_COLOR);
+  }, [style.focal_x, style.focal_y, style.image_zoom, style.border_radius_mm, style.image_border_width_mm, style.image_border_color, block?.id]);
 
   const patchStyle = useCallback((patch) => {
     onBlockStylePatch?.(patch);
@@ -135,6 +140,7 @@ export default function EditorImageEditPopover({
   const radiusCss = radiusPx > 0 ? `${radiusPx}px` : '0';
   const zoomPercent = Math.round((draftZoom - 1) / 2 * 100);
   const radiusPercent = maxRadiusMm > 0 ? Math.round((draftRadius / maxRadiusMm) * 100) : 0;
+  const borderWidthPercent = Math.round((draftBorderWidth / 3) * 100);
 
   const setZoomFromPercent = (percent) => {
     const clamped = Math.min(200, Math.max(0, percent));
@@ -148,6 +154,22 @@ export default function EditorImageEditPopover({
     const nextMm = clampRadius((clamped / 100) * maxRadiusMm, maxRadiusMm);
     setDraftRadius(nextMm);
     patchStyle({ border_radius_mm: nextMm, shape: 'rect' });
+  };
+
+  const setBorderWidthFromPercent = (percent) => {
+    const clamped = Math.min(100, Math.max(0, percent));
+    const nextMm = Math.round((clamped / 100) * 30) / 10;
+    setDraftBorderWidth(nextMm);
+    patchStyle({ image_border_width_mm: nextMm, image_border_color: draftBorderColor });
+  };
+
+  const setBorderColor = (color) => {
+    setDraftBorderColor(color);
+    patchStyle({
+      image_border_color: color,
+      image_border_width_mm: draftBorderWidth > 0 ? draftBorderWidth : 0.4,
+    });
+    if (draftBorderWidth <= 0) setDraftBorderWidth(0.4);
   };
 
   const startImageDrag = (event) => {
@@ -249,7 +271,12 @@ export default function EditorImageEditPopover({
           <div
             ref={frameRef}
             className="editor-image-edit-modal__frame"
-            style={{ borderRadius: radiusCss }}
+            style={{
+              borderRadius: radiusCss,
+              ...(draftBorderWidth > 0
+                ? { border: `${draftBorderWidth}mm solid ${draftBorderColor}`, boxSizing: 'border-box' }
+                : {}),
+            }}
             onPointerDown={startImageDrag}
             onPointerMove={moveImageDrag}
             onPointerUp={endImageDrag}
@@ -350,6 +377,52 @@ export default function EditorImageEditPopover({
               <span className="editor-image-edit-modal__suffix">%</span>
             </div>
           </label>
+          <label className="editor-image-edit-modal__control">
+            <span>Bordure</span>
+            <div className="ds-range-row">
+              <input
+                type="range"
+                className="ds-range"
+                min="0"
+                max="100"
+                step="5"
+                value={borderWidthPercent}
+                onChange={(e) => setBorderWidthFromPercent(parseInt(e.target.value, 10))}
+              />
+              <input
+                type="text"
+                className="ds-range-input"
+                inputMode="decimal"
+                value={draftBorderWidth.toFixed(1)}
+                onChange={(e) => {
+                  const n = parseFloat(e.target.value.replace(',', '.'));
+                  if (!Number.isNaN(n)) setBorderWidthFromPercent(Math.round((n / 3) * 100));
+                }}
+                onBlur={(e) => {
+                  const n = parseFloat(e.target.value.replace(',', '.'));
+                  setBorderWidthFromPercent(Number.isNaN(n) ? borderWidthPercent : Math.round((n / 3) * 100));
+                }}
+                aria-label="Épaisseur de bordure en millimètres"
+              />
+              <span className="editor-image-edit-modal__suffix">mm</span>
+            </div>
+          </label>
+          <div className="editor-image-edit-modal__control">
+            <span>Couleur bordure</span>
+            <div className="editor-image-edit-modal__swatches">
+              {CANVAS_COLOR_SWATCHES.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  className={`editor-image-edit-modal__swatch${draftBorderColor === color ? ' is-active' : ''}`}
+                  style={{ backgroundColor: color }}
+                  title={color}
+                  aria-label={color}
+                  onClick={() => setBorderColor(color)}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>

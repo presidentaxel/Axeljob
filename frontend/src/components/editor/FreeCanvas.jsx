@@ -18,7 +18,16 @@ import {
   computeResizedBlock,
   resizeGroupKey,
 } from '../../lib/freeCanvasResize.js';
-import { computePageScale, scaledPageHeightPx } from '../../lib/freeCanvasScale.js';
+import {
+  computePageScale,
+  scaledPageHeightPx,
+  CANVAS_ZOOM_MAX,
+  CANVAS_ZOOM_MIN,
+  canvasZoomPercent,
+  combinePageScales,
+  stepCanvasUserZoom,
+} from '../../lib/freeCanvasScale.js';
+import CanvasZoomControls from './CanvasZoomControls.jsx';
 import { nextOverlappingBlockId } from '../../lib/freeCanvasSelection.js';
 import { blockIdsInMarquee, normalizeMarqueeRect } from '../../lib/canvasMarqueeUtils.js';
 import { clearDocumentTextSelection } from '../../lib/canvasRichTextFormat.js';
@@ -124,7 +133,9 @@ export default function FreeCanvas({
 }) {
   const viewportRef = useRef(null);
   const blockElementsRef = useRef({});
-  const [scale, setScale] = useState(1);
+  const [fitScale, setFitScale] = useState(1);
+  const [userZoom, setUserZoom] = useState(1);
+  const scale = combinePageScales(fitScale, userZoom);
   const [draggingBlockId, setDraggingBlockId] = useState(null);
   const [resizingBlockId, setResizingBlockId] = useState(null);
   const [resizePreview, setResizePreview] = useState(null);
@@ -153,12 +164,39 @@ export default function FreeCanvas({
     if (!el || typeof ResizeObserver === 'undefined') return undefined;
     const update = () => {
       const w = el.clientWidth;
-      setScale(computePageScale(w, { paddingPx: 24, maxScale: 1 }));
+      setFitScale(computePageScale(w, { paddingPx: 24, maxScale: 1 }));
     };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!interactable) return undefined;
+    const el = viewportRef.current;
+    if (!el) return undefined;
+    const onWheel = (event) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      const direction = event.deltaY > 0 ? -1 : 1;
+      setUserZoom((current) => stepCanvasUserZoom(current, direction));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [interactable]);
+
+  const zoomPercent = canvasZoomPercent(fitScale, userZoom);
+  const canZoomOut = userZoom > CANVAS_ZOOM_MIN + 0.001;
+  const canZoomIn = userZoom < CANVAS_ZOOM_MAX - 0.001;
+  const handleZoomIn = useCallback(() => {
+    setUserZoom((current) => stepCanvasUserZoom(current, 1));
+  }, []);
+  const handleZoomOut = useCallback(() => {
+    setUserZoom((current) => stepCanvasUserZoom(current, -1));
+  }, []);
+  const handleZoomReset = useCallback(() => {
+    setUserZoom(1);
   }, []);
 
   const clearGuides = useCallback(() => setActiveGuides([]), []);
@@ -795,7 +833,7 @@ export default function FreeCanvas({
                 })}
                 {blocks.length === 0 && (
                   <p className="free-canvas-page-empty">
-                    Page {pageIndex + 1} vide — choisissez un élément dans la barre latérale, puis cliquez ici pour le placer
+                    Page {pageIndex + 1} vide - choisissez un élément dans la barre latérale, puis cliquez ici pour le placer
                   </p>
                 )}
               </div>
@@ -834,6 +872,18 @@ export default function FreeCanvas({
         </div>
       )}
       </div>
+      {interactable && (
+        <div className="free-canvas-zoom-bar">
+          <CanvasZoomControls
+            percent={zoomPercent}
+            canZoomOut={canZoomOut}
+            canZoomIn={canZoomIn}
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            onZoomReset={handleZoomReset}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -44,3 +44,29 @@ export function scaledPageHeightPx(scale) {
   const s = Number(scale) || 1;
   return PAGE_HEIGHT_PX * s;
 }
+
+/** Zoom utilisateur (multiplicateur par rapport au fit largeur). */
+export const CANVAS_ZOOM_MIN = 0.25;
+export const CANVAS_ZOOM_MAX = 3;
+export const CANVAS_ZOOM_STEP = 0.1;
+
+export function clampCanvasUserZoom(zoom) {
+  const z = Number(zoom);
+  if (!Number.isFinite(z)) return 1;
+  return Math.min(CANVAS_ZOOM_MAX, Math.max(CANVAS_ZOOM_MIN, z));
+}
+
+export function combinePageScales(fitScale, userZoom) {
+  const fit = typeof fitScale === 'number' && fitScale > 0 ? fitScale : 1;
+  return fit * clampCanvasUserZoom(userZoom);
+}
+
+/** Pourcentage affiché (100 % = taille réelle A4 à l'écran). */
+export function canvasZoomPercent(fitScale, userZoom) {
+  return Math.round(combinePageScales(fitScale, userZoom) * 100);
+}
+
+export function stepCanvasUserZoom(current, direction) {
+  const next = clampCanvasUserZoom((Number(current) || 1) + direction * CANVAS_ZOOM_STEP);
+  return Math.round(next * 100) / 100;
+}

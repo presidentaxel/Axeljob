@@ -42,7 +42,7 @@ BACKGROUND_MIN_AREA_MM2 = 500.0
 # Au-delà de cette fraction de la page, un rectangle est le fond de page → ignoré.
 PAGE_BG_AREA_RATIO = 0.82
 # Longueur mini (mm) d'un trait pour être gardé comme filet de séparation.
-MIN_SEPARATOR_LEN_MM = 25.0
+MIN_SEPARATOR_LEN_MM = 8.0
 MIN_TEXT_CHARS_FOR_NATIVE = 40
 MAX_PAGES = 3
 MAX_IMAGES_PER_DOC = 8
@@ -334,6 +334,44 @@ def _frame_strips_from_rects(r_a, r_b, scale: float, color: str) -> list[dict]:
     return out
 
 
+def _separator_block_from_line_items(
+    line_items, scale: float, color: str, stroke_w_pt: float = 0.8
+) -> dict | None:
+    """Segments tracés (1 à N) → filet si la bbox est un trait fin assez long.
+
+    Les filets de section Word/Canva sont souvent des chemins à 4 segments
+    (rectangle fin) : l'ancienne logique ``len(line_items) >= 3`` les ignorait.
+  """
+    xs: list[float] = []
+    ys: list[float] = []
+    for it in line_items:
+        if it[0] != "l":
+            continue
+        p1, p2 = it[1], it[2]
+        xs.extend([float(p1.x), float(p2.x)])
+        ys.extend([float(p1.y), float(p2.y)])
+    if not xs:
+        return None
+    thickness_pt = max(stroke_w_pt, 0.5)
+    x0, x1 = min(xs), max(xs)
+    y0, y1 = min(ys), max(ys)
+    if (y1 - y0) < thickness_pt * 0.5:
+        mid_y = (y0 + y1) / 2
+        y0 = mid_y - thickness_pt / 2
+        y1 = mid_y + thickness_pt / 2
+    elif (x1 - x0) < thickness_pt * 0.5:
+        mid_x = (x0 + x1) / 2
+        x0 = mid_x - thickness_pt / 2
+        x1 = mid_x + thickness_pt / 2
+    blk = _shape_block_from_box(x0, y0, x1, y1, scale, color)
+    if not blk:
+        return None
+    long_side = max(blk["w"], blk["h"])
+    if long_side < MIN_SEPARATOR_LEN_MM:
+        return None
+    return blk
+
+
 def _extract_shape_blocks(page, scale: float) -> list[dict]:
     """Rectangles pleins (sidebar, bandeau), filets/soulignements + séparateurs.
 
@@ -369,10 +407,13 @@ def _extract_shape_blocks(page, scale: float) -> list[dict]:
                 blocks.extend(_frame_strips_from_rects(re_items[0], re_items[1], scale, fill_hex))
             # ≥3 rectangles = art vectoriel complexe → ignoré (pollution).
 
+        if stroke_hex and not _is_near_white(stroke_hex) and line_items and not re_items:
+            blk = _separator_block_from_line_items(line_items, scale, stroke_hex, stroke_w_pt)
+            if blk:
+                blocks.append(blk)
+                continue
         if stroke_hex and not _is_near_white(stroke_hex):
-            # Un chemin avec rectangle(s) ou ≥3 segments = cadre → on ignore ses
-            # traits (on ne sait pas rendre un contour proprement).
-            is_frame = bool(re_items) or len(line_items) >= 3
+            is_frame = bool(re_items)
             if not is_frame:
                 for item in line_items:
                     p1, p2 = item[1], item[2]
@@ -760,15 +801,13 @@ def _extract_graphic_blocks(page, doc, scale: float, image_budget: list) -> list
             r0 = re_items[0]
             _push(_shape_block_from_box(r0.x0, r0.y0, r0.x1, r0.y1, scale, fill_hex))
             handled = True
-        # Filet tracé (segments longs, sans rectangle) → bloc fin.
+        # Filet tracé (segments, y compris cadres fins à 4 traits) → bloc fin.
         elif stroke_hex and not _is_near_white(stroke_hex) and line_items and not re_items:
-            for it in line_items:
-                p1, p2 = it[1], it[2]
-                if max(abs(p2.x - p1.x), abs(p2.y - p1.y)) * scale < MIN_SEPARATOR_LEN_MM:
-                    continue
-                _push(
-                    _line_block_from_segment(p1, p2, float(d.get("width") or 0), scale, stroke_hex)
-                )
+            blk = _separator_block_from_line_items(
+                line_items, scale, stroke_hex, float(d.get("width") or 0)
+            )
+            if blk:
+                _push(blk)
                 handled = True
 
         if not handled:

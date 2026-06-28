@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   HiBars3BottomLeft,
   HiBars3,
@@ -22,7 +22,7 @@ import {
   toggleTextCase,
   toggleTextCaseOnBlockContent,
 } from '../../lib/canvasRichTextFormat.js';
-import { CANVAS_FONT_FAMILIES } from '../../lib/canvasFontOptions.js';
+import { buildCanvasFontFamilies, fontLabelFromFamilies } from '../../lib/canvasFontOptions.js';
 import {
   blockSupportsStyleToolbar,
   blockSupportsTextToolbar,
@@ -51,8 +51,8 @@ function formatAction(event, fn) {
   fn();
 }
 
-function fontLabel(value) {
-  return CANVAS_FONT_FAMILIES.find((f) => f.value === value)?.label || 'Police';
+function fontLabel(value, families) {
+  return fontLabelFromFamilies(families, value);
 }
 
 function nextAlignValue(current) {
@@ -64,6 +64,7 @@ function nextAlignValue(current) {
 export default function EditorFloatingTextToolbar({
   block,
   isEditing = false,
+  fontFamilies,
   onBlockStylePatch,
   onBlockContentPatch,
   onOpenFontPanel,
@@ -72,6 +73,10 @@ export default function EditorFloatingTextToolbar({
   onOpenShapePanel,
   onOpenPositionPanel,
 }) {
+  const families = useMemo(
+    () => (fontFamilies?.length ? fontFamilies : buildCanvasFontFamilies()),
+    [fontFamilies],
+  );
   const [, tick] = useState(0);
   const [opacityOpen, setOpacityOpen] = useState(false);
   const opacityWrapRef = useRef(null);
@@ -255,7 +260,7 @@ export default function EditorFloatingTextToolbar({
             className="editor-format-bar__pill editor-format-bar__pill--wide"
             onClick={() => onOpenFontPanel?.()}
           >
-            {fontLabel(style.font_family || CANVAS_FONT_FAMILIES[0].value)}
+            {fontLabel(style.font_family || families[0]?.value, families)}
           </button>
           <div className="editor-format-bar__stepper">
             <button type="button" onPointerDown={(e) => stepFontSize(e, -1)}>−</button>

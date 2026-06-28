@@ -202,16 +202,19 @@
   z-index: 25;
 }
 
-/* Dock flottant au-dessus du canevas — hauteur réservée, fond transparent */
+/* Dock flottant au-dessus du canevas — hors flux pour ne pas décaler le CV */
 .cv-editor-beta-format-dock {
-  flex-shrink: 0;
-  min-height: var(--editor-format-dock-height, 56px);
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  min-height: 0;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 10px 20px 0;
+  padding: 8px 20px 0;
   background: transparent;
-  z-index: 20;
   pointer-events: none;
 }
 

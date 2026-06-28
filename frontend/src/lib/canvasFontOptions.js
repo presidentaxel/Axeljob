@@ -29,3 +29,26 @@ export function fontStackFromTemplateOption(name) {
   if (!name) return 'Inter, sans-serif';
   return FONT_STACK_BY_NAME[name] || `${name}, sans-serif`;
 }
+
+/** Polices web + polices embarquées du layout (import PDF). */
+export function buildCanvasFontFamilies(layout) {
+  const out = [...CANVAS_FONT_FAMILIES];
+  const seen = new Set(out.map((f) => f.value));
+  const embedded = Array.isArray(layout?.fonts) ? layout.fonts : [];
+  for (const face of embedded) {
+    const family = face?.family;
+    if (!family) continue;
+    const value = `'${family}', sans-serif`;
+    if (seen.has(value)) continue;
+    seen.add(value);
+    const label = family.startsWith('PDFEmbed-')
+      ? `${family.replace('PDFEmbed-', '')} (import PDF)`
+      : `${family} (import)`;
+    out.unshift({ value, label });
+  }
+  return out;
+}
+
+export function fontLabelFromFamilies(families, value) {
+  return families.find((f) => f.value === value)?.label || 'Police';
+}

@@ -260,8 +260,20 @@ export default function FreeCanvas({
     const found = findBlock(layout, block.id);
     const pageEl = event.currentTarget?.closest?.('.free-canvas-page');
     const pageIndex = found?.pageIndex ?? pageIndexFromElement(pageEl);
+    const dragIds = (
+      selectedBlockIds?.includes(block.id) && selectedBlockIds.length > 1
+        ? selectedBlockIds.filter((id) => !findBlock(layout, id)?.block?.locked)
+        : [block.id]
+    );
+    const startPositions = new Map();
+    dragIds.forEach((id) => {
+      const b = findBlock(layout, id)?.block;
+      if (b) startPositions.set(id, { x: b.x || 0, y: b.y || 0 });
+    });
     dragSessionRef.current = {
       blockId: block.id,
+      dragIds,
+      startPositions,
       pageIndex,
       selectedAtStart: selectedBlockId,
       moved: false,
@@ -285,6 +297,7 @@ export default function FreeCanvas({
     commitEditingBlock,
     layout,
     selectedBlockId,
+    selectedBlockIds,
   ]);
 
   const handleBlockPointerMove = useCallback((event) => {
@@ -325,7 +338,12 @@ export default function FreeCanvas({
       session.blockId,
       { x: pos.x, y: pos.y },
       targetPageIndex,
-      { groupKey: dragGroupKey(session.blockId) },
+      {
+        groupKey: dragGroupKey(session.blockId),
+        multi: session.dragIds?.length > 1
+          ? { ids: session.dragIds, startPositions: session.startPositions }
+          : undefined,
+      },
     );
   }, [scale, layout, onBlockPositionChange, onBlockMove, snapEnabled]);
 
@@ -567,8 +585,24 @@ export default function FreeCanvas({
     if (placing) return;
     if (event.target?.closest?.('.free-canvas-page')) return;
     if (event.target?.closest?.('.free-canvas-add-page-row')) return;
+    const pageEl = findPageElementAtPoint(event.clientX, event.clientY);
+    if (!pageEl) {
+      commitEditingBlock();
+      if (typeof onSelectBlock === 'function') onSelectBlock(null);
+      return;
+    }
     commitEditingBlock();
-    if (typeof onSelectBlock === 'function') onSelectBlock(null);
+    event.preventDefault();
+    const pageIndex = pageIndexFromElement(pageEl);
+    const pt = clientPointToPageMm(event.clientX, event.clientY, pageEl);
+    marqueeSessionRef.current = {
+      pageIndex,
+      startX: pt.x,
+      startY: pt.y,
+      pageEl,
+    };
+    setMarqueeRect({ x: pt.x, y: pt.y, w: 0, h: 0 });
+    pageEl.setPointerCapture?.(event.pointerId);
   }, [placing, commitEditingBlock, onSelectBlock]);
 
   const pages = Array.isArray(layout?.pages) ? layout.pages : [];

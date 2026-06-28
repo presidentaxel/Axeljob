@@ -55,7 +55,7 @@ function isEditableElement(el) {
  * @param {{ keyboardShortcuts?: boolean, onHistoryChange?: (layout: object, action: string) => void }} [options]
  */
 export function useLayoutHistory(initialLayoutOrFactory, options = {}) {
-  const { keyboardShortcuts = true, onHistoryChange } = options;
+  const { keyboardShortcuts = true, onHistoryChange, blockShortcutsRef } = options;
   const pendingHistoryActionRef = useRef(null);
 
   // useState avec fonction d initialisation : on accepte
@@ -100,6 +100,7 @@ export function useLayoutHistory(initialLayoutOrFactory, options = {}) {
     if (!keyboardShortcuts) return undefined;
     if (typeof window === 'undefined') return undefined;
     const handler = (event) => {
+      if (blockShortcutsRef?.current) return;
       const mod = event.ctrlKey || event.metaKey;
       if (!mod) return;
       if (isEditableElement(event.target)) return;
@@ -125,7 +126,7 @@ export function useLayoutHistory(initialLayoutOrFactory, options = {}) {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [keyboardShortcuts, onHistoryChange]);
+  }, [keyboardShortcuts, onHistoryChange, blockShortcutsRef]);
 
   useEffect(() => {
     const action = pendingHistoryActionRef.current;

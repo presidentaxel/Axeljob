@@ -119,6 +119,7 @@ export default function EditorCanvaSidebar({
   canvasDrafts = [],
   activeCanvasDraftKey = null,
   layout = null,
+  fontFamilies = null,
   selectedBlockId = null,
   selectedBlock = null,
   onBlockStylePatch,
@@ -340,13 +341,13 @@ export default function EditorCanvaSidebar({
               {selectedBlock && onBlockStylePatch && (
                 <>
                   <h4 className="editor-canva-drawer__subtitle">Police</h4>
-                  <EditorCanvaFontPanel block={selectedBlock} onBlockStylePatch={onBlockStylePatch} />
+                  <EditorCanvaFontPanel block={selectedBlock} onBlockStylePatch={onBlockStylePatch} fontFamilies={fontFamilies} />
                 </>
               )}
             </>
           )}
           {openSection === 'fonts' && selectedBlock && (
-            <EditorCanvaFontPanel block={selectedBlock} onBlockStylePatch={onBlockStylePatch} />
+            <EditorCanvaFontPanel block={selectedBlock} onBlockStylePatch={onBlockStylePatch} fontFamilies={fontFamilies} />
           )}
           {openSection === 'colors' && selectedBlock && (
             <EditorCanvaColorPanel block={selectedBlock} onBlockStylePatch={onBlockStylePatch} />

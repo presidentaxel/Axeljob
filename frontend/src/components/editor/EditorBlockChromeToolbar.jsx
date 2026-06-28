@@ -27,7 +27,8 @@ export default function EditorBlockChromeToolbar({
 }) {
   if (!block || !anchorRect) return null;
 
-  const top = anchorRect.top - 36;
+  const topbarOffset = 60;
+  const top = Math.max(topbarOffset, anchorRect.top - 36);
   const left = anchorRect.left + anchorRect.width / 2;
 
   return (
@@ -36,7 +37,7 @@ export default function EditorBlockChromeToolbar({
       role="toolbar"
       aria-label="Actions sur le bloc"
       style={{
-        top: `${Math.max(8, top)}px`,
+        top: `${top}px`,
         left: `${left}px`,
         transform: 'translateX(-50%)',
       }}

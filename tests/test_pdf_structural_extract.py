@@ -151,6 +151,29 @@ class ExtractLayoutTest(unittest.TestCase):
         big = [b for b in blocks if b["type"] == "shape:rect" and b["h"] > 50 and b["w"] > 100]
         self.assertEqual(big, [])
 
+    def test_four_stroke_frame_becomes_separator_line(self):
+        """Régression : filet de section en 4 segments (cadre fin) → shape:line."""
+        import fitz
+
+        from backend.services.pdf_structural_extract import _separator_block_from_line_items
+
+        doc = fitz.open()
+        page = doc.new_page(width=595, height=842)
+        # Rectangle fin horizontal simulé par 4 traits
+        y = 100.0
+        page.draw_line(fitz.Point(40, y), fitz.Point(540, y), color=(0, 0, 0), width=0.5)
+        page.draw_line(fitz.Point(40, y + 1.2), fitz.Point(540, y + 1.2), color=(0, 0, 0), width=0.5)
+        try:
+            drawings = page.get_drawings()
+            line_items = [it for d in drawings for it in d.get("items", []) if it[0] == "l"]
+            blk = _separator_block_from_line_items(line_items, MM_PER_PT, "#000000")
+        finally:
+            doc.close()
+
+        self.assertIsNotNone(blk)
+        self.assertEqual(blk["type"], "shape:line")
+        self.assertGreater(blk["w"], 80)
+
     def test_vertical_separator_line(self):
         import fitz
 

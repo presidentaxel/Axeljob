@@ -607,6 +607,74 @@ export function updateBlockStyle(layout, blockId, stylePatch) {
   return updateBlock(layout, blockId, { style: stylePatch });
 }
 
+/** Met a jour le style de plusieurs blocs. */
+export function updateBlocksStyle(layout, blockIds, stylePatch) {
+  const ids = (blockIds || []).filter(Boolean);
+  if (!ids.length || !stylePatch) return layout;
+  let next = layout;
+  for (const id of ids) {
+    next = updateBlockStyle(next, id, stylePatch);
+  }
+  return next;
+}
+
+/** Deplace plusieurs blocs du meme delta (mm). */
+export function moveBlocksBy(layout, blockIds, { dx = 0, dy = 0 }) {
+  const ids = (blockIds || []).filter(Boolean);
+  if (!ids.length) return layout;
+  let next = layout;
+  for (const id of ids) {
+    next = moveBlockBy(next, id, { dx, dy });
+  }
+  return next;
+}
+
+/**
+ * Deplace une selection en conservant les offsets relatifs.
+ * @param {Map<string, {x: number, y: number}>} startPositions positions au dragstart
+ */
+export function setBlocksPositionFromPrimary(
+  layout,
+  blockIds,
+  primaryId,
+  { x, y },
+  startPositions,
+) {
+  const ids = (blockIds || []).filter(Boolean);
+  const primaryStart = startPositions?.get(primaryId);
+  if (!ids.length || !primaryStart) return layout;
+  const dx = x - primaryStart.x;
+  const dy = y - primaryStart.y;
+  let next = layout;
+  for (const id of ids) {
+    const start = startPositions.get(id);
+    if (!start) continue;
+    next = setBlockPosition(next, id, { x: start.x + dx, y: start.y + dy });
+  }
+  return next;
+}
+
+/** Duplique plusieurs blocs (decalage cumule). */
+export function duplicateBlocks(layout, blockIds, options = {}) {
+  const ids = (blockIds || []).filter(Boolean);
+  if (!ids.length) return layout;
+  let next = layout;
+  ids.forEach((id, index) => {
+    const found = findBlock(next, id);
+    if (!found) return;
+    const copy = sanitizeBlock({
+      ...found.block,
+      id: undefined,
+      x: (found.block.x || 0) + 5 + index * 2,
+      y: (found.block.y || 0) + 5 + index * 2,
+      locked: false,
+    }, options);
+    if (!copy) return;
+    next = addBlockToPage(next, found.pageIndex, copy, options);
+  });
+  return next;
+}
+
 // ---------------------------------------------------------------------------
 // Pages
 // ---------------------------------------------------------------------------

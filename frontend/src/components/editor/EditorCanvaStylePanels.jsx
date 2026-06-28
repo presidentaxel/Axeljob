@@ -1,4 +1,4 @@
-import { CANVAS_FONT_FAMILIES } from '../../lib/canvasFontOptions.js';
+import { buildCanvasFontFamilies } from '../../lib/canvasFontOptions.js';
 import { CANVAS_COLOR_SWATCHES } from '../../lib/canvasColorPalette.js';
 import { CANVAS_BLOCK_EFFECTS } from '../../lib/canvasBlockEffects.js';
 import '../../styles/EditorCanvaStylePanels.css';
@@ -22,15 +22,16 @@ function SwatchGrid({ value, onChange }) {
   );
 }
 
-export function EditorCanvaFontPanel({ block, onBlockStylePatch }) {
+export function EditorCanvaFontPanel({ block, onBlockStylePatch, fontFamilies }) {
+  const families = fontFamilies?.length ? fontFamilies : buildCanvasFontFamilies();
   const style = block?.style || {};
-  const current = style.font_family || CANVAS_FONT_FAMILIES[0].value;
+  const current = style.font_family || families[0]?.value;
 
   return (
     <div className="editor-style-panel editor-style-panel--font">
       <h3 className="editor-style-panel__title">Police</h3>
       <ul className="editor-style-panel__font-list">
-        {CANVAS_FONT_FAMILIES.map((font) => (
+        {families.map((font) => (
           <li key={font.value}>
             <button
               type="button"

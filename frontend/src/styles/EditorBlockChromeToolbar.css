@@ -1,6 +1,6 @@
 .editor-block-chrome-toolbar {
   position: fixed;
-  z-index: 10040;
+  z-index: 20;
   display: flex;
   gap: 4px;
   padding: 4px;

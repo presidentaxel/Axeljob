@@ -1,5 +1,5 @@
 /**
- * Page Paramètres — Cohere 2026.
+ * Page Paramètres - Cohere 2026.
  * Rail latéral + grille mosaic 2 colonnes (hairline mesh, pas de cards).
  */
 
@@ -263,8 +263,8 @@
 }
 
 .settings-chip:hover {
-  background: var(--color-pale-green);
-  border-color: var(--color-slate);
+  background: var(--color-canvas-lavender);
+  border-color: var(--color-primary);
 }
 
 .settings-preview {
@@ -339,8 +339,8 @@
 }
 
 .settings-plan-badge--pro {
-  background: var(--color-pale-green);
-  color: var(--color-deep-green);
+  background: var(--color-canvas-lavender);
+  color: var(--color-primary);
 }
 
 .settings-list-grid {
@@ -502,7 +502,7 @@
   }
 
   .settings-rail-link:hover {
-    background: var(--color-pale-green);
+    background: var(--color-canvas-lavender);
   }
 
   .settings-mosaic {

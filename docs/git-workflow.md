@@ -19,8 +19,8 @@ flowchart LR
 
 | Branche | Rôle | Merge en prod |
 | --- | --- | --- |
-| **`main`** | Production. Déployée. | — |
-| **`wip/innovation`** | Éditeur Beta, import PDF canvas, score ATS — **dev actif** | **Non** pour l'instant (PR en **Draft**) |
+| **`main`** | Production. Déployée. | - |
+| **`wip/innovation`** | Éditeur Beta, import PDF canvas, score ATS - **dev actif** | **Non** pour l'instant (PR en **Draft**) |
 | **`feat/*`**, **`fix/*`** | Petites évolutions ou correctifs isolés | Via PR quand prêt |
 
 > [!IMPORTANT]
@@ -32,8 +32,8 @@ flowchart LR
 
 Le chantier innovation est suivi par une **PR en brouillon (Draft)** :
 
-- **PR ouverte** : [#33 — WIP: éditeur Beta, import PDF canvas et score ATS](https://github.com/presidentaxel/Axeljob/pull/33)
-- **Statut** : Draft — **ne pas merger** tant que l'éditeur Beta / l'import PDF ne sont pas prêts pour la prod
+- **PR ouverte** : [#33 - WIP: éditeur Beta, import PDF canvas et score ATS](https://github.com/presidentaxel/Axeljob/pull/33)
+- **Statut** : Draft - **ne pas merger** tant que l'éditeur Beta / l'import PDF ne sont pas prêts pour la prod
 - **But** : visibilité (diff, CI GitHub, commentaires) **sans** risque de mise en prod accidentelle
 
 ### Pourquoi une Draft PR et pas merge direct ?
@@ -109,7 +109,7 @@ bash scripts/pre-push.sh --skip-extras --skip-gitleaks
 
 Équivalent CI GitHub : ruff, **black 24.10.0**, mypy, pytest+couverture, `npm ci`, lint, build, `test:unit`.
 
-Ne pousser / ouvrir une PR que si la commande se termine par `OK — pre-push terminé sans erreur.`
+Ne pousser / ouvrir une PR que si la commande se termine par `OK - pre-push terminé sans erreur.`
 
 Setup hooks (une fois par clone) :
 
@@ -145,4 +145,4 @@ Non sur `wip/innovation` : la PR #33 existe déjà et se met à jour à chaque p
 Branche `fix/*` depuis `main`, PR classique, merge indépendamment de #33.
 
 **L'agent Cursor peut-il push sur `main` ?**  
-Non — règle `.cursor/rules/pre-push-ci.mdc` + hooks.
+Non - règle `.cursor/rules/pre-push-ci.mdc` + hooks.

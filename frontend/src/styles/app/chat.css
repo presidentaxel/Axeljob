@@ -1,5 +1,5 @@
 /**
- * Adapter le CV — chat, preview, score ATS.
+ * Adapter le CV - chat, preview, score ATS.
  */
 /* ----- Page Adapter le CV : layout ChatBot (chat à gauche, aperçu à droite) ----- */
 .cv-chat-page {
@@ -72,8 +72,8 @@ button.ats-score-trigger {
 }
 
 .ats-score-trigger:hover {
-  background: var(--color-pale-green);
-  border-color: var(--color-slate);
+  background: var(--color-canvas-lavender);
+  border-color: var(--color-primary);
 }
 
 .ats-score-pill-label {
@@ -816,7 +816,7 @@ button.ats-score-trigger {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #6366f1;
+  background: #4a154b;
   opacity: 0.35;
   animation: cv-plan-dot 1.1s ease-in-out infinite;
 }

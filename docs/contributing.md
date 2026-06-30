@@ -16,8 +16,8 @@ Flux recommande pour produire des PR petites, lisibles et faciles a merger.
 
 | Branche | Rôle |
 | --- | --- |
-| **`main`** | Production. **Jamais** de push direct — merge via PR uniquement. |
-| **`wip/innovation`** | Gros chantier (éditeur Beta, import PDF, score ATS). PR **Draft** [#33](https://github.com/presidentaxel/Axeljob/pull/33) — dev actif, **ne pas merger** tant que ce n'est pas prêt pour la prod. |
+| **`main`** | Production. **Jamais** de push direct - merge via PR uniquement. |
+| **`wip/innovation`** | Gros chantier (éditeur Beta, import PDF, score ATS). PR **Draft** [#33](https://github.com/presidentaxel/Axeljob/pull/33) - dev actif, **ne pas merger** tant que ce n'est pas prêt pour la prod. |
 | **`feat/*`**, **`fix/*`** | Petites évolutions depuis `main`, PR classique, merge quand prêt. |
 
 > Guide détaillé : **`docs/git-workflow.md`** (flux quotidien, FAQ, mise en prod).

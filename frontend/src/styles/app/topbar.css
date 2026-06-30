@@ -1,5 +1,5 @@
 /**
- * Topbar /app — navigation principale (Cohere 2026).
+ * Topbar /app - navigation principale (Cohere 2026).
  */
 .topbar {
   display: flex;
@@ -68,8 +68,8 @@
 
 .topbar-link.active {
   color: var(--color-primary);
-  background: var(--color-pale-green);
-  font-weight: 500;
+  background: var(--color-canvas-lavender);
+  font-weight: 600;
 }
 
 .topbar-link:focus-visible {
@@ -113,13 +113,13 @@
 }
 
 .topbar-pro-badge {
-  background: var(--color-deep-green);
-  color: var(--color-on-dark);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
   border: none;
   border-radius: var(--radius-pill);
   padding: 0.35rem 0.75rem;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   font-family: inherit;
   letter-spacing: 0.02em;
@@ -260,7 +260,7 @@
   font-weight: 500;
   font-family: inherit;
   color: var(--color-primary);
-  background: var(--color-pale-green);
+  background: var(--color-canvas-lavender);
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-xs);
   cursor: pointer;

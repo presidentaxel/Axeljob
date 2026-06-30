@@ -157,7 +157,7 @@ export default function SettingsView({
 
   const templateName = useMemo(() => {
     const t = templatesList.find((x) => x.id === templateId);
-    return t?.name || templateId || '—';
+    return t?.name || templateId || '-';
   }, [templatesList, templateId]);
 
   const pdfExportFilenameExample = useMemo(
@@ -219,7 +219,7 @@ export default function SettingsView({
     }
   }, [refreshLocalSummary]);
 
-  const accountEmail = session?.user?.email || '—';
+  const accountEmail = session?.user?.email || '-';
   const isPro = usage?.plan === 'pro' || usage?.paywall_disabled;
 
   return (

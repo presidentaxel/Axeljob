@@ -1,35 +1,36 @@
 /**
- * Base globale — alias legacy + reset (Cohere 2026).
+ * Base globale - alias legacy + reset (Cohere 2026).
  * Voir docs/DESIGN-cohere.md et design-tokens.css.
  */
 :root {
   --bg: var(--color-canvas);
-  --bg-page: var(--color-soft-stone);
+  --bg-page: var(--color-canvas-cream);
   --surface: var(--color-canvas);
-  --surface-sidebar: var(--color-soft-stone);
+  --surface-sidebar: var(--color-canvas-cream);
+  --surface-aubergine: var(--color-primary);
   --border: var(--color-hairline);
   --border-light: var(--color-card-border);
   --text: var(--color-ink);
   --text-secondary: var(--color-body-muted);
   --muted: var(--color-muted);
-  --accent: var(--color-action-blue);
-  --accent-hover: #1456c4;
-  --accent-light: var(--color-pale-blue);
-  --accent-subtle: var(--color-pale-green);
+  --accent: var(--color-primary);
+  --accent-hover: var(--color-primary-press);
+  --accent-light: var(--color-canvas-lavender);
+  --accent-subtle: var(--color-canvas-cream);
   --success: var(--color-deep-green);
   --success-light: var(--color-pale-green);
   --danger: var(--color-error);
   --danger-light: #fef2f2;
   --warning: #d97706;
-  --shadow-sm: none;
-  --shadow: none;
-  --shadow-card: none;
-  --shadow-lg: none;
-  --shadow-focus: 0 0 0 2px var(--color-focus-blue);
+  --shadow-sm: rgba(0, 0, 0, 0.1) 0 5px 20px 0;
+  --shadow: rgba(0, 0, 0, 0.1) 0 5px 20px 0;
+  --shadow-card: rgba(0, 0, 0, 0.1) 0 0 32px 0;
+  --shadow-lg: rgba(0, 0, 0, 0.1) 0 0 32px 0;
+  --shadow-focus: 0 0 0 2px var(--color-primary-tint);
   /* Alias legacy : --radius-sm/xs/lg/pill sont définis dans design-tokens.css */
-  --radius: var(--radius-md);
+  --radius: var(--radius-xl);
   --transition: 0.15s ease;
-  --app-font-family: 'Plus Jakarta Sans', Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --app-font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --app-topbar-height: 52px;
 }
 

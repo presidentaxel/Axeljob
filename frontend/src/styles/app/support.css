@@ -13,8 +13,8 @@
   margin: 0 auto;
 }
 .support-hero {
-  background: var(--color-deep-green);
-  color: var(--color-on-dark);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
   padding: 2rem 1.5rem;
   text-align: center;
   margin-bottom: 0;

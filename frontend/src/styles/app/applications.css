@@ -1,5 +1,5 @@
 /**
- * Postulé — kanban candidatures.
+ * Postulé - kanban candidatures.
  */
 .applications-section {
   margin-top: 1.5rem;
@@ -49,8 +49,8 @@
 }
 
 .kanban-column.drag-over {
-  border-color: var(--color-slate);
-  background: var(--color-pale-green);
+  border-color: var(--color-primary);
+  background: var(--color-canvas-lavender);
 }
 
 .kanban-column-header {

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Refuse un push direct vers main/master — les changements passent par PR.
+# Refuse un push direct vers main/master - les changements passent par PR.
 # Usage :
 #   guard-push-via-pr.sh --git-command "git push origin main"
 #   guard-push-via-pr.sh --pre-push-stdin   (lit les refs du hook pre-push)
 set -euo pipefail
 
 PROTECTED_RE='^(main|master)$'
-MSG='Push direct vers main/master interdit — créer une branche et ouvrir une PR (gh pr create).'
+MSG='Push direct vers main/master interdit - créer une branche et ouvrir une PR (gh pr create).'
 
 deny() {
   echo "$MSG" >&2

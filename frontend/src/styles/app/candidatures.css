@@ -1,7 +1,7 @@
 /**
- * Page Mes candidatures — design Cohere 2026.
+ * Page Mes candidatures - design Cohere 2026.
  * Canvas blanc, profondeur par règles hairline et un seul bloc stone (product-card).
- * Voir docs/DESIGN-cohere.md — product-card, research-table, button-primary.
+ * Voir docs/DESIGN-cohere.md - product-card, research-table, button-primary.
  */
 
 /* ── Page : canvas blanc continu (pas de fond stone sur toute la page) ── */
@@ -204,7 +204,7 @@
 }
 
 .view-candidatures .kanban-column.drag-over {
-  background: var(--color-pale-green);
+  background: var(--color-canvas-lavender);
 }
 
 .view-candidatures .kanban-column-header {
@@ -237,7 +237,7 @@
 }
 
 .view-candidatures .kanban-column-cards:empty::after {
-  content: '—';
+  content: '-';
   display: block;
   text-align: center;
   padding: 1.25rem 0;
@@ -247,7 +247,7 @@
   border-radius: 0;
 }
 
-/* Cartes : product-card — canvas blanc sur fond stone */
+/* Cartes : product-card - canvas blanc sur fond stone */
 .view-candidatures .kanban-board .application-card {
   background: var(--color-canvas);
   border: 1px solid var(--color-card-border);

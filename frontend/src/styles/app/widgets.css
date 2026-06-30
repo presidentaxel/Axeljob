@@ -79,10 +79,10 @@
 }
 
 .adapt-rating-btn:hover {
-  border-color: var(--color-slate);
-  background: var(--color-pale-green);
+  border-color: var(--color-primary);
+  background: var(--color-canvas-lavender);
   color: var(--color-primary);
-  }
+}
 
 .adapt-rating-btn--up:hover {
   border-color: var(--success);

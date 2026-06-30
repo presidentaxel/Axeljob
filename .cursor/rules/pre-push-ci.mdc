@@ -10,8 +10,8 @@ alwaysApply: true
 **Ne jamais pousser directement sur `main` ou `master`.** Toute intégration passe par une branche de feature et une **Pull Request** (`gh pr create`).
 
 Branches de travail typiques :
-- **`main`** — prod (merge via PR uniquement)
-- **`wip/innovation`** — dev éditeur Beta / canvas (PR Draft #33, voir `docs/git-workflow.md`)
+- **`main`** - prod (merge via PR uniquement)
+- **`wip/innovation`** - dev éditeur Beta / canvas (PR Draft #33, voir `docs/git-workflow.md`)
 
 ## Avant push ou création de PR
 
@@ -31,7 +31,7 @@ Branches de travail typiques :
 2. Commits locaux.
 3. CI locale (`pre-push.sh --skip-extras --skip-gitleaks`).
 4. Push de la branche de feature vers `origin` (autorisé).
-5. **`gh pr create`** vers `main` — ne pas merger sans validation explicite de l'utilisateur.
+5. **`gh pr create`** vers `main` - ne pas merger sans validation explicite de l'utilisateur.
 
 Ne pas utiliser `git push origin main` ni merger localement dans `main` puis pousser.
 
@@ -57,4 +57,4 @@ Les hooks bloquent aussi les push directs vers `main`/`master`.
 
 ## Contournement (urgence uniquement)
 
-`SKIP_PREPUSH=1 git push` — à éviter sauf urgence explicite demandée par l'utilisateur.
+`SKIP_PREPUSH=1 git push` - à éviter sauf urgence explicite demandée par l'utilisateur.

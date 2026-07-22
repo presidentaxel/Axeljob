@@ -148,6 +148,7 @@ Avant de modifier du code : identifier **ou** vit la regle (UI, API, SQL, templa
 - **Commits** : utiliser Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
 - **Description PR** : expliquer le pourquoi, l'impact utilisateur, les risques et le plan de test.
 - **Avant merge** : CI verte, checks securite verts, documentation mise a jour si comportement modifie.
+- **Chantier Linear (AxeL Job)** : maillage projet → issues Linear → issues GitHub → branche `gitBranchName` → draft PR + liens Linear. Voir [`docs/linear-github-workflow.md`](linear-github-workflow.md).
 
 ### 8.1 Verification locale recommandee avant PR
 

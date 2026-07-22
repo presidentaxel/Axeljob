@@ -11,6 +11,7 @@ Point d'entree de la documentation technique, securite et operations.
 | --- | --- |
 | Coder selon les standards du repo | `docs/guide-bonnes-pratiques.md` |
 | Contribuer (branches, PR, quality gates) | `docs/contributing.md` |
+| Ouvrir un chantier Linear ↔ GitHub (AxeL Job) | `docs/linear-github-workflow.md` |
 | Verifier la Definition of Done engineering | `docs/engineering-standards.md` |
 | Appliquer la baseline securite | `docs/security.md` |
 | Deployer en production | `docs/deploy.md` |

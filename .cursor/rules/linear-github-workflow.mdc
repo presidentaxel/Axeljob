@@ -1,0 +1,15 @@
+---
+description: Workflow Linear ↔ GitHub pour chantiers AxeL Job
+alwaysApply: false
+---
+
+# Linear ↔ GitHub (AxeL Job)
+
+Quand la demande concerne **Linear**, un **chantier AxeL Job**, ou « ouvrir un chantier / PR liée » :
+
+1. Lire et suivre **`docs/linear-github-workflow.md`** (source de vérité).
+2. Maillage obligatoire : projet Linear → issues Linear → issues GitHub → branche = `gitBranchName` Linear → draft PR.
+3. Labels : projet `Axel Job` (cyan `#26B5CE`) ; issue `AxelJob` + `Bug`|`Feature`|`Improvement`.
+4. Après création issue/PR GitHub : attacher les liens cliquables sur l’issue Linear (`links` MCP / Attachments).
+5. À chaque étape significative : commentaire Linear (`save_comment`) + statut ; project update si jalon / risque.
+6. Body PR : `Fixes AXE-XX` + `Closes #N`. Ne pas inventer de branche hors `gitBranchName`.

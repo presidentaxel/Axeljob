@@ -16,6 +16,12 @@ Flux recommande pour produire des PR petites, lisibles et faciles a merger.
 - Limiter une PR a une intention principale.
 - Utiliser Conventional Commits : `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`.
 
+> [!IMPORTANT]
+> Pour un **chantier AxeL Job** (projet / issue Linear, miroir GitHub, draft PR, liens cliquables) : suivre
+> [`docs/linear-github-workflow.md`](linear-github-workflow.md).
+> Branche = **exactement** le `gitBranchName` Linear (`louisvedovato/axe-XX-…`), titre PR `fix(AXE-XX): …` / `feat(AXE-XX): …`,
+> body avec `Fixes AXE-XX` + `Closes #N`, et attachments liens sur l'issue Linear.
+
 > [!TIP]
 > Une PR petite se revoit, se teste et se rollback plus facilement.
 

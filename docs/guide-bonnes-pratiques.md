@@ -43,7 +43,7 @@ Avant de modifier du code : identifier **ou** vit la regle (UI, API, SQL, templa
 
 ### 2.1 Outils
 
-- **Node** : utiliser une version recente compatible Vite 7 (Node 18+ minimum).
+- **Node** : utiliser une version récente compatible Vite 7 et `sharp` (Node **20.9+** ; CI = Node 20).
 - **ESLint** : configuration dans `frontend/eslint.config.js` ; traiter les erreurs et warnings avant merge.
 - **Build** : `npm run build` declenche aussi `build:brand-assets` ; ne pas contourner cette etape pour valider une livraison.
 - **E2E** : Playwright disponible via `npm run test:e2e` pour les parcours critiques.

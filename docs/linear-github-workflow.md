@@ -37,8 +37,8 @@ Règle d'or : **1 issue Linear = 1 branche = 1 PR**.
 Le gros chantier éditeur Beta peut vivre sur **`wip/innovation`** avec la [PR Draft #33](https://github.com/presidentaxel/Axeljob/pull/33) comme suivi global. Dans ce cas :
 
 - Les tickets Linear (AXE-27…AXE-41) restent la **source de vérité** du backlog.
-- Une **petite livraison isolée** hors innovation suit toujours 1 issue = 1 branche = 1 PR depuis `main`.
-- Quand on découpe un ticket Linear en PR mergeable : brancher depuis `main` (ou depuis `wip/innovation` si le code n’existe que là) avec le **`gitBranchName` Linear**, puis rattacher la PR à l’issue.
+- Une **petite livraison isolée** vers `main` : partir de **`origin/main`**, puis n’y appliquer **que** les commits du ticket (cherry-pick / extrait). Ne pas ouvrir une PR `wip/innovation` → `main` pour un seul ticket : elle emporterait tout le WIP.
+- Si le code n’existe que sur `wip/innovation` et qu’on ne peut pas l’isoler : PR **empilée** ciblant explicitement `wip/innovation` (pas `main`), avec le **`gitBranchName` Linear**, puis rattacher la PR à l’issue.
 
 Détail Git local : [`git-workflow.md`](git-workflow.md).
 
@@ -108,9 +108,10 @@ Pour chaque ticket :
 ### C. Issues GitHub (miroir)
 
 ```bash
+# Un seul label par commande (le shell interprète autrement bug|enhancement).
 gh issue create --repo presidentaxel/Axeljob \
   --title "<même titre que Linear>" \
-  --label bug|enhancement \
+  --label bug \
   --body "$(cat <<'EOF'
 ## Linear
 https://linear.app/axel-project/issue/AXE-XX/...
@@ -122,11 +123,15 @@ https://linear.app/axel-project/issue/AXE-XX/...
 - [ ] …
 EOF
 )"
+# Variante feature : --label enhancement
 ```
 
 ### D. Liens cliquables dans Linear (obligatoire)
 
-Dès que l'issue GitHub et/ou la PR existent, **ajouter des attachments liens** sur l'issue Linear (MCP `save_issue` → `links`, ou UI Linear → Attachments / Links) :
+Dès que l'issue GitHub et/ou la PR existent, **ajouter des attachments liens** sur l'issue Linear :
+
+1. **MCP Linear Cursor** : `save_issue` avec `id: "AXE-XX"` et `links: [{ url, title }, …]` (paramètre natif, **append-only**).
+2. **UI Linear** : issue → Attachments → Add link (si pas d’accès MCP).
 
 | Lien | Titre suggéré |
 |------|----------------|
@@ -135,7 +140,7 @@ Dès que l'issue GitHub et/ou la PR existent, **ajouter des attachments liens** 
 
 Sans cette étape, Linear n'affiche pas forcément un clic utile même si le body de la PR contient `Fixes AXE-XX`.
 
-Exemple MCP :
+Exemple MCP `save_issue` :
 
 ```json
 {
@@ -147,7 +152,7 @@ Exemple MCP :
 }
 ```
 
-`links` est **append-only** : on peut ajouter la PR après l'issue sans retirer le lien précédent.
+`links` est **append-only** : on peut ajouter la PR après l'issue sans retirer le lien précédent. Ne pas inventer d’autre champ JSON hors schéma MCP.
 
 ### E. Mises à jour Linear pendant le travail (obligatoire)
 
@@ -177,8 +182,8 @@ Exemple MCP commentaire issue :
 
 ### F. Branche + draft PR
 
-1. Partir de `origin/main` pour une livraison isolée (ne pas emporter de WIP local non lié).  
-   Si le code n’existe que sur `wip/innovation` : partir de cette branche et le noter dans le body PR / commentaire Linear.
+1. Partir de `origin/main` pour une livraison isolée vers `main` (ne pas emporter le WIP de `wip/innovation`).  
+   Si le code n’existe que sur `wip/innovation` : soit cherry-pick / extrait vers une branche basée sur `main`, soit PR empilée **vers `wip/innovation`** (pas vers `main`) — le noter dans le body PR / commentaire Linear.
 2. Branche = **exactement** le `gitBranchName` Linear.
 3. Commit scaffold vide OK au démarrage (`git commit --allow-empty`), puis vrais commits.
 4. **CI locale avant push** (règle repo) :

@@ -138,7 +138,7 @@ Contournement urgence uniquement : `SKIP_PREPUSH=1 git push`.
 ## FAQ
 
 **Je suis sur `wip/innovation`, je push, est-ce que ça part en prod ?**  
-Non. Seul un **merge de la PR** (ou un push direct sur `main`, interdit) mettrait en prod. La PR est en **Draft**.
+Non. Un push sur `wip/innovation` ne touche pas `main`. Même après **merge de la PR** vers `main` (ou un push direct interdit), le **déploiement serveur** reste une étape séparée ([`deploy.md`](deploy.md)). La PR #33 est en **Draft**.
 
 **Je dois ouvrir une nouvelle PR à chaque commit ?**  
 Non sur `wip/innovation` : la PR #33 existe déjà et se met à jour à chaque push.

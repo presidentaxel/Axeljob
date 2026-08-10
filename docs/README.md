@@ -10,10 +10,10 @@ Point d'entree de la documentation technique, securite et operations.
 | Besoin | Document |
 | --- | --- |
 | Coder selon les standards du repo | `docs/guide-bonnes-pratiques.md` |
-| Contribuer (branches, PR, quality gates) | `docs/contributing.md` |
-| Workflow Git (main, wip/innovation, PR Draft) | `docs/git-workflow.md` |
-| Protections branches / passage push → PR | `docs/branch-protections.md` |
-| Workflow Linear ↔ GitHub (tickets AXE, liens, PR) | `docs/linear-github-workflow.md` |
+| Contribuer (branches, PR, quality gates) | [docs/contributing.md](contributing.md) |
+| Workflow Git (main, wip/innovation, PR Draft) | [docs/git-workflow.md](git-workflow.md) |
+| Protections branches / passage push → PR | [docs/branch-protections.md](branch-protections.md) |
+| Workflow Linear ↔ GitHub (tickets AXE, liens, PR) | [docs/linear-github-workflow.md](linear-github-workflow.md) |
 | Verifier la Definition of Done engineering | `docs/engineering-standards.md` |
 | Appliquer la baseline securite | `docs/security.md` |
 | Deployer en production | `docs/deploy.md` |

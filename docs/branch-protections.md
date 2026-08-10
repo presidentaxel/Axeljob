@@ -17,7 +17,7 @@
 | CD auto | **Manuel** | Deploy serveur via `git pull origin main` + Docker — voir [`deploy.md`](deploy.md) |
 | Garde-fous locaux | **Actifs** | Hooks Git + Cursor (voir §2) |
 
-**Conséquence :** GitHub n’empêche pas encore un admin de pousser direct sur `main`. La discipline équipe + les hooks locaux + la CI sur les PR sont les garde-fous effectifs aujourd’hui. **À faire :** activer la branch protection §3 (repo public → pas besoin de Pro).
+**Conséquence :** GitHub n’empêche pas encore un admin de pousser direct sur `main`. La discipline équipe + les hooks locaux + la CI sur les PR sont les garde-fous effectifs aujourd’hui. **À faire :** activer la branch protection §4 (repo public → pas besoin de Pro).
 
 ---
 
@@ -45,7 +45,7 @@ Contournement urgence uniquement : `SKIP_PREPUSH=1 git push` — à éviter sauf
 
 ## 3. Process équipe (obligatoire)
 
-1. **Pas de push direct sur** `main` — toujours une branche (`feat/*`, `fix/*`, ou `wip/innovation`) + **Pull Request**.
+1. **Pas de push direct sur** `main` — toujours une branche + **Pull Request**. Formats autorisés : `feat/*`, `fix/*`, `hotfix/*`, `wip/innovation`, ou le **`gitBranchName` Linear exact** (ex. `louisvedovato/axe-XX-…`).
 2. **Pas de force-push** sur `main`.
 3. CI locale verte avant push / PR :  
    `bash scripts/pre-push.sh --skip-extras --skip-gitleaks`
@@ -54,7 +54,7 @@ Contournement urgence uniquement : `SKIP_PREPUSH=1 git push` — à éviter sauf
 
 Hotfix prod cassée :
 
-1. Brancher depuis `main` : `git fetch origin && git checkout -b hotfix/<sujet> origin/main`
+1. Brancher depuis `main` : `git fetch origin && git checkout -b hotfix/<sujet> origin/main` (même famille `hotfix/*` que ci-dessus)
 2. Fix minimal + tests
 3. PR vers `main` → merge → redeploy serveur ([`deploy.md`](deploy.md))
 4. Documenter dans Linear ([`linear-github-workflow.md`](linear-github-workflow.md))
@@ -72,10 +72,10 @@ Settings → Branches → Add rule (`main`) — ou Rulesets équivalent :
 - [ ] Require conversation resolution before merging (recommandé)
 - [ ] Do not allow force pushes
 - [ ] Do not allow deletions
-- [ ] Do not allow bypassing the above settings (si disponible)
-- [ ] Restrict who can push → pas de push humain direct (admins seulement si besoin d’urgence)
+- [ ] Do not allow bypassing the above settings (recommandé : bloque aussi le bypass admin)
+- [ ] Restrict who can push → pas de push humain direct (admins seulement si besoin d’urgence **et** si le bypass n’est pas bloqué)
 
-Dès que c’est coché, un `git push origin main` est rejeté côté GitHub même sans hooks locaux.
+Dès que c’est coché, un `git push origin main` est rejeté pour les acteurs couverts par la règle (même sans hooks locaux). Si le bypass admin reste autorisé, un admin peut encore pousser en urgence.
 
 ---
 
@@ -89,7 +89,7 @@ Dès que c’est coché, un `git push origin main` est rejeté côté GitHub mê
 | Visibilité repo | **Public** → branch protection possible sans Pro | Privé Free → Pro requis |
 | Garde-fous locaux | Hooks Git + Cursor | Discipline + env policies CD |
 
-Ne pas copier le flux `main` → `prod` ici : sur Axel Job, merger dans `main` **est** la mise en prod Git.
+Ne pas copier le flux `main` → `prod` ici : sur Axel Job, merger dans `main` met à jour la branche de prod Git ; le **déploiement serveur** reste une étape manuelle ([`deploy.md`](deploy.md)).
 
 ---
 

@@ -1,9 +1,12 @@
 # Workflow Linear ↔ GitHub (AxeL Job)
 
-> **Objectif :** à chaque chantier / retour, créer le même maillage : **projet Linear → issues Linear → issues GitHub → branches → draft PRs**, avec **liens cliquables dans Linear**.
-> **Workspace :** [axel-project](https://linear.app/axel-project) · Team **Axel Project** (`AXE`) · Repo [presidentaxel/Axeljob](https://github.com/presidentaxel/Axeljob)
+> **Objectif :** à chaque chantier / retour, créer le même maillage : **projet Linear → issues Linear → issues GitHub → branches → draft PRs**, avec **liens cliquables dans Linear**.  
+> **Workspace :** [axel-project](https://linear.app/axel-project) · Team **Axel Project** (`AXE`) · Repo [presidentaxel/Axeljob](https://github.com/presidentaxel/Axeljob)  
+> **Projet de référence :** [Axel Job — Éditeur CV Beta (Canva + ATS)](https://linear.app/axel-project/project/axel-job-editeur-cv-beta-canva-ats-5e659a36bbec)
 
 Agents IA : lire ce fichier quand la demande concerne Linear, un chantier AxeL Job, ou « ouvrir un chantier / PR liée ».
+
+Compléments Git locaux : [`git-workflow.md`](git-workflow.md) · [`branch-protections.md`](branch-protections.md).
 
 > **Note famille produit.** Le workspace `Axel Project` héberge plusieurs familles dans **une seule team** (`AXE`). On les distingue par **label de projet + couleur**, pas par team. Les tickets restent donc `AXE-XX` pour tout le monde.
 >
@@ -22,12 +25,22 @@ Agents IA : lire ce fichier quand la demande concerne Linear, un chantier AxeL J
 
 | Niveau | Rôle | Exemple |
 |--------|------|---------|
-| **Project** (Linear) | Chantier borné + dates | `Axel Job — Observabilité` |
-| **Issue** (Linear) | 1 problème / 1 livraison | `AXE-XX` correction export PDF |
+| **Project** (Linear) | Chantier borné + dates | `Axel Job — Éditeur CV Beta (Canva + ATS)` |
+| **Issue** (Linear) | 1 problème / 1 livraison | `AXE-29` autosave |
 | **Issue** (GitHub) | Miroir pour le repo / CI | `#N` |
-| **Branche + PR** (GitHub) | Code + revue | `louisvedovato/axe-XX-…` → PR `#N` |
+| **Branche + PR** (GitHub) | Code + revue | `louisvedovato/axe-29-…` → PR `#N` |
 
 Règle d'or : **1 issue Linear = 1 branche = 1 PR**.
+
+### Exception chantier long `wip/innovation`
+
+Le gros chantier éditeur Beta peut vivre sur **`wip/innovation`** avec la [PR Draft #33](https://github.com/presidentaxel/Axeljob/pull/33) comme suivi global. Dans ce cas :
+
+- Les tickets Linear (AXE-27…AXE-41) restent la **source de vérité** du backlog.
+- Une **petite livraison isolée** hors innovation suit toujours 1 issue = 1 branche = 1 PR depuis `main`.
+- Quand on découpe un ticket Linear en PR mergeable : brancher depuis `main` (ou depuis `wip/innovation` si le code n’existe que là) avec le **`gitBranchName` Linear**, puis rattacher la PR à l’issue.
+
+Détail Git local : [`git-workflow.md`](git-workflow.md).
 
 ### Labels
 
@@ -44,23 +57,23 @@ Views Linear : filtrer sur le label issue `AxelJob` pour voir « ce qui concerne
 
 ## 2. Icônes & couleurs des projets AxeL Job
 
-**Couleur de base AxeL Job :** cyan `#26B5CE` (réservée à la famille — rouge `#EB5757` = Gestion, jaune `#F2C94C` = Marketing, rose `#F7C8C1` = Compta).
-Variantes cyan OK si plusieurs projets AxeL Job ouverts : `#1FA8C4`, `#4FC3D9`, `#0E7C90`.
+**Couleur de base AxeL Job :** cyan `#26B5CE` (réservée à la famille — rouge `#EB5757` = Gestion, jaune `#F2C94C` = Marketing, rose `#F7C8C1` = Compta).  
+Variantes cyan OK si plusieurs projets AxeL Job ouverts : `#1FA8C4`, `#4FC3D9`, `#0E7C90`.  
 Ne pas passer en rouge/jaune/rose pour un projet AxeL Job (couleurs des autres familles).
 
-**Icône : différente à chaque nouveau projet AxeL Job** (c'est l'icône qui distingue, pas la couleur). Prendre le **prochain** nom de la liste qui n'est pas déjà utilisé par un projet AxeL Job **ouvert** (In Progress / Planned).
+**Icône : différente à chaque nouveau projet AxeL Job** (c'est l'icône qui distingue, pas la couleur). Prendre le **prochain** nom de la liste qui n'est pas déjà utilisé par un projet AxeL Job **ouvert** (In Progress / Planned / Backlog actif).
 
-Format API Linear : **PascalCase uniquement** parmi les noms **vérifiés** ci-dessous (tous confirmés en usage sur ce workspace).
+Format API Linear : **PascalCase uniquement** parmi les noms **vérifiés** ci-dessous (tous confirmés en usage sur ce workspace).  
 Interdit : emoji Unicode brut (`🚀`). Shortcodes `:rocket:` : possibles mais préférer la table.
 
 | # | Icon (API, vérifié) | Quand l'utiliser |
 |---|---------------------|------------------|
-| 1 | `Rocket` | Feature majeure / lancement |
+| 1 | `Rocket` | Feature majeure / lancement (ex. éditeur Beta) |
 | 2 | `Users` | Comptes / profils / candidatures |
 | 3 | `Calendar` | Suivi candidatures / relances / échéances |
 | 4 | `Database` | CV de base / imports / données Supabase |
 | 5 | `Chart` | Analytics / scoring ATS / metrics |
-| 6 | `Shield` | Auth / permissions / RGPD |
+| 6 | `Shield` | Auth / permissions / RGPD / sanitize |
 | 7 | `Home` | Dashboard / accueil produit |
 | 8 | `Computer` | Tech / perf / build / infra |
 | 9 | `Network` | Intégrations / IA (Gemini) / API externes |
@@ -68,6 +81,8 @@ Interdit : emoji Unicode brut (`🚀`). Shortcodes `:rocket:` : possibles mais p
 | 11 | `Bug` | Support / vague de correctifs |
 
 Si un nom est rejeté par l'API (`icon is not a valid icon`) : passer au suivant de la table. Ne pas inventer de noms hors liste sans test.
+
+**Exemple déjà posé :** *Axel Job — Éditeur CV Beta (Canva + ATS)* → icon `Rocket`, color `#26B5CE`, label projet `Axel Job`.
 
 ---
 
@@ -78,16 +93,16 @@ Si un nom est rejeté par l'API (`icon is not a valid icon`) : passer au suivant
 1. Créer le projet (team `Axel Project`) avec `startDate` / `targetDate` / `priority` / `lead`.
 2. **Label projet :** `Axel Job`.
 3. **Icon + color** selon §2 (icon unique parmi les projets AxeL Job ouverts, couleur cyan `#26B5CE`).
-4. Description : contexte, objectif, lien repo, rappel du workflow.
+4. Description : contexte, objectif, lien repo, rappel du workflow (et docs éditeur si besoin : `docs/editor-vision.md`, `docs/canva-editor-audit.md`).
 
 ### B. Issues Linear (une par sujet)
 
 Pour chaque ticket :
 
-1. Titre clair (`Fix: …` / `Feat: …` / `Improve: …`).
+1. Titre clair (`Fix: …` / `Feat: …` / `Improve: …` / `Spike: …`).
 2. Labels issue : `AxelJob` + `Bug` | `Feature` | `Improvement`.
 3. Assignee, priorité, état `Todo` (ou `In Progress` dès qu'une PR existe).
-4. Description : problème, repro, critères d'acceptation **vérifiables**, zones code probables.
+4. Description : problème, repro / état actuel du code, critères d'acceptation **vérifiables**, zones code probables.
 5. Noter le `gitBranchName` fourni par Linear (à réutiliser tel quel).
 
 ### C. Issues GitHub (miroir)
@@ -162,10 +177,17 @@ Exemple MCP commentaire issue :
 
 ### F. Branche + draft PR
 
-1. Partir de `origin/main` (ne pas emporter de WIP local non lié).
+1. Partir de `origin/main` pour une livraison isolée (ne pas emporter de WIP local non lié).  
+   Si le code n’existe que sur `wip/innovation` : partir de cette branche et le noter dans le body PR / commentaire Linear.
 2. Branche = **exactement** le `gitBranchName` Linear.
-3. Commit scaffold vide OK au démarrage (`git commit --allow-empty`), puis vrais commits de fix.
-4. Ouvrir une **draft PR** :
+3. Commit scaffold vide OK au démarrage (`git commit --allow-empty`), puis vrais commits.
+4. **CI locale avant push** (règle repo) :
+
+```bash
+bash scripts/pre-push.sh --skip-extras --skip-gitleaks
+```
+
+5. Ouvrir une **draft PR** :
 
 ```bash
 gh pr create --draft --repo presidentaxel/Axeljob \
@@ -181,15 +203,16 @@ Fixes AXE-XX
 Closes #N
 
 ## Test plan
-- [ ] Repro confirmée
+- [ ] Repro confirmée / critères d’acceptation
 - [ ] Fix validé
-- [ ] Tests auto si logique métier
+- [ ] `bash scripts/pre-push.sh --skip-extras --skip-gitleaks` OK
+- [ ] Tests auto si logique métier / ATS / canvas
 EOF
 )"
 ```
 
-5. **Revenir sur Linear** et ajouter le lien `Draft PR #N` (§D).
-6. Passer l'issue Linear en `In Progress` quand le travail démarre vraiment.
+6. **Revenir sur Linear** et ajouter le lien `Draft PR #N` (§D).
+7. Passer l'issue Linear en `In Progress` quand le travail démarre vraiment.
 
 ### G. Merge
 
@@ -205,7 +228,7 @@ EOF
 
 | Artefact | Format |
 |----------|--------|
-| Projet Linear | `Axel Job — <chantier>` (ex. `Axel Job — Observabilité`) |
+| Projet Linear | `Axel Job — <chantier>` (ex. `Axel Job — Éditeur CV Beta (Canva + ATS)`) |
 | Issue Linear | `Fix: …` / `Feat: …` / `Improve: …` (+ `Chore:` / `Spike:` pour ops & investigations) |
 | Branche | Celle de Linear : `louisvedovato/axe-XX-…` |
 | Titre PR | `fix(AXE-XX): …` ou `feat(AXE-XX): …` |
@@ -227,13 +250,21 @@ Même avec l'intégration active : **toujours** poser les liens §D pour un clic
 
 ---
 
-## 6. Exemple de référence
+## 6. Exemple de référence (éditeur CV Beta)
 
-> À compléter après le premier chantier AxeL Job (aucun projet/ticket AxeL Job n'existe encore au moment de la rédaction).
+Projet : [Axel Job — Éditeur CV Beta (Canva + ATS)](https://linear.app/axel-project/project/axel-job-editeur-cv-beta-canva-ats-5e659a36bbec)
 
-| Linear | GitHub issue | Draft PR |
-|--------|--------------|----------|
-| `AXE-XX` | `#N` | `#N` |
+| Linear | Sujet (raccourci) | Statut typique |
+|--------|-------------------|----------------|
+| [AXE-27](https://linear.app/axel-project/issue/AXE-27) | Spike intégration `wip/innovation` → `main` | Todo |
+| [AXE-28](https://linear.app/axel-project/issue/AXE-28) | Démarrage guidé / reset page blanche | Todo |
+| [AXE-29](https://linear.app/axel-project/issue/AXE-29) | Fiabiliser autosave | Todo |
+| [AXE-30](https://linear.app/axel-project/issue/AXE-30) | Alignement minimum front ↔ PDF | Todo |
+| [AXE-31](https://linear.app/axel-project/issue/AXE-31) … [AXE-41](https://linear.app/axel-project/issue/AXE-41) | P1–P4 (sidebar, ATS coach, import…) | Backlog |
+
+Suivi Git global du chantier : [PR Draft #33](https://github.com/presidentaxel/Axeljob/pull/33) sur `wip/innovation`.
+
+Quand une issue passe en livraison isolée : créer issue GitHub + branche `gitBranchName` + draft PR, puis remplir les liens Linear (§D).
 
 ---
 
@@ -248,3 +279,4 @@ Même avec l'intégration active : **toujours** poser les liens §D pour un clic
 - Plusieurs sujets unrelated dans une seule issue
 - Branche inventée au lieu du `gitBranchName` Linear
 - Critères d'acceptation non vérifiables (« ça marche mieux ») au lieu d'un test observable
+- Push direct sur `main` (interdit — voir [`git-workflow.md`](git-workflow.md) et [`branch-protections.md`](branch-protections.md))

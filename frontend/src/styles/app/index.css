@@ -1,0 +1,23 @@
+/**
+ * Styles shell applicatif /app - point d’entrée.
+ * design-tokens.css doit précéder base.css (définit --radius-*).
+ */
+@import '../design-tokens.css';
+@import './base.css';
+@import './shell.css';
+@import './topbar.css';
+@import './pages.css';
+@import './buttons.css';
+@import './auth.css';
+@import './dashboard.css';
+@import './support.css';
+@import './chat.css';
+@import './forms.css';
+@import './applications.css';
+@import './candidatures.css';
+@import './monitoring.css';
+@import './modals.css';
+@import './widgets.css';
+@import './billing.css';
+@import './settings.css';
+@import './responsive.css';

@@ -1,0 +1,120 @@
+/**
+ * Champs formulaire globaux.
+ */
+.input-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 0.4rem;
+}
+
+.input-field {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  color: var(--text);
+  margin-bottom: 0.5rem;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: var(--color-form-focus);
+  box-shadow: none;
+}
+
+.export-path-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  align-items: center;
+}
+
+.export-path-row .input-field {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.btn-success:hover {
+  background: #0d9668;
+}
+
+.rapport {
+  margin-top: 1rem;
+  padding: 1.125rem 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.8125rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.rapport h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.rapport p {
+  margin: 0.3rem 0;
+}
+
+.rapport .score {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.adapt-loading-steps {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+}
+
+.adapt-step {
+  margin: 0.25rem 0;
+  color: var(--muted);
+}
+
+.adapt-step.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.adapt-step-dot {
+  display: inline-block;
+  margin-right: 0.35rem;
+  animation: adapt-pulse 1s ease-in-out infinite;
+}
+
+.adapt-step.active .adapt-step-dot {
+  color: var(--accent);
+}
+
+@keyframes adapt-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.error {
+  margin-top: 0.75rem;
+  padding: 0.875rem 1rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  color: var(--danger);
+}
+
+.loading {
+  opacity: 0.7;
+  pointer-events: none;
+}

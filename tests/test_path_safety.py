@@ -63,3 +63,19 @@ def test_resolve_export_output_base_rejects_traversal(tmp_path: Path):
     default.mkdir()
     got = resolve_export_output_base(str(default / ".." / "etc"), default=default)
     assert got == default.resolve()
+
+
+def test_resolve_export_output_base_allows_relative_under_default(tmp_path: Path):
+    default = tmp_path / "exports"
+    default.mkdir()
+    got = resolve_export_output_base("batch_a", default=default)
+    assert got == (default / "batch_a").resolve()
+
+
+def test_resolve_export_output_base_rejects_foreign_absolute(tmp_path: Path):
+    default = tmp_path / "exports"
+    default.mkdir()
+    foreign = tmp_path / "other"
+    foreign.mkdir()
+    got = resolve_export_output_base(str(foreign), default=default)
+    assert got == default.resolve()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Heuristiques pour deviner le nom d'employeur depuis le texte brut d'une annonce.
-Retourne (nom, confiance) avec confiance dans [0, 1] — jamais d'appel LLM.
+Retourne (nom, confiance) avec confiance dans [0, 1] - jamais d'appel LLM.
 """
 
 from __future__ import annotations
@@ -82,10 +82,17 @@ _STOPISH = frozenset(
 )
 
 
+_EDGE_CHARS = frozenset(" \t\n\r\"'«»•–—:|-")
+
+
 def _clean_company(raw: str) -> str:
     s = (raw or "").strip()
-    s = re.sub(r"\s+", " ", s)
-    s = s.strip(" \t\"'«»•-–—:|")
+    # split/join = linéaire (évite ReDoS CodeQL sur ``\s+`` / classes bord).
+    s = " ".join(s.split())
+    while s and s[0] in _EDGE_CHARS:
+        s = s[1:]
+    while s and s[-1] in _EDGE_CHARS:
+        s = s[:-1]
     if len(s) > 90:
         s = s[:90].rsplit(" ", 1)[0]
     return s.strip()
@@ -142,7 +149,7 @@ def infer_entreprise_from_annonce(text: str) -> tuple[str, float]:
 
     for pat, conf in (
         (
-            r"\b(?:travailler|postuler|rejoindre|venir)\s+chez\s+([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9&\-\.]{0,48}?)(?:\s*[,\.;]|\s+[:—–-]|\s+c['']est\b|\s+et\s+|\s*$|\n)",
+            r"\b(?:travailler|postuler|rejoindre|venir)\s+chez\s+([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9&\-\.]{0,48}?)(?:\s*[,\.;]|\s+[:-–-]|\s+c['']est\b|\s+et\s+|\s*$|\n)",
             0.9,
         ),
         (
@@ -196,7 +203,7 @@ def infer_entreprise_from_annonce(text: str) -> tuple[str, float]:
                 return name, 0.84
 
     first = t.split("\n", 1)[0].strip()
-    for sep in (" — ", " – ", " - ", " | ", " / "):
+    for sep in (" - ", " – ", " - ", " | ", " / "):
         if sep in first:
             parts = [p.strip() for p in first.split(sep) if p.strip()]
             if len(parts) >= 2:

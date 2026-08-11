@@ -14,6 +14,7 @@ Point d'entree de la documentation technique, securite et operations.
 | Workflow Git (main, wip/innovation, PR Draft) | [docs/git-workflow.md](git-workflow.md) |
 | Protections branches / passage push → PR | [docs/branch-protections.md](branch-protections.md) |
 | Workflow Linear ↔ GitHub (tickets AXE, liens, PR) | [docs/linear-github-workflow.md](linear-github-workflow.md) |
+| Intégration `wip/innovation` → `main` (AXE-27) | [docs/axe-27-integration-strategy.md](axe-27-integration-strategy.md) |
 | Verifier la Definition of Done engineering | `docs/engineering-standards.md` |
 | Appliquer la baseline securite | `docs/security.md` |
 | Deployer en production | `docs/deploy.md` |

@@ -7,7 +7,7 @@ Pour ne pas pénaliser les requêtes API qui en émettent, on bufferise dans une
 mémoire et un thread worker daemon écrit en batch (file append + insert Supabase).
 Comportement compatible : la signature et l'ordre d'apparition côté lecteur restent
 identiques. En cas de saturation (queue pleine), on drop le plus vieux et on logge
-un warning — mieux qu'un crash OOM ou un blocage de l'event loop.
+un warning - mieux qu'un crash OOM ou un blocage de l'event loop.
 """
 
 import atexit

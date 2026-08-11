@@ -384,7 +384,6 @@ export default function LandingPage({ onCtaClick, onProClick }) {
             </p>
             <nav className="landing-footer-links" aria-label="Guides, FAQ et pages légales">
               <a href={`mailto:${CONTACT_EMAIL}?subject=Support%20AxeL%20Job`}>Support</a>
-              <Link to="/app?open=template-perso">Template personnalisé</Link>
               <Link to="/ats">CV et ATS</Link>
               <Link to="/faq">FAQ</Link>
               <Link to="/modeles-cv">Modèles de CV</Link>

@@ -3,6 +3,8 @@ import { NavLink } from 'react-router-dom';
 import { HiDocumentText, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiChartBarSquare, HiCog6Tooth } from 'react-icons/hi2';
 import TopbarPartnerCode from './TopbarPartnerCode';
 
+import BetaModeToggle from './BetaModeToggle.jsx';
+
 /**
  * Barre de navigation workspace /app/* (séparée du shell pour lisibilité d’App.jsx).
  */
@@ -58,7 +60,7 @@ export default function AppTopbar({
         </NavLink>
         <NavLink to="/app/settings" className={({ isActive }) => `topbar-link ${isActive ? 'active' : ''}`}>
           <HiCog6Tooth size={18} />
-          <span>Settings</span>
+          <span>Paramètres</span>
         </NavLink>
         <NavLink to="/app/support" className={({ isActive }) => `topbar-link ${isActive ? 'active' : ''}`}>
           <HiChatBubbleLeftRight size={18} />
@@ -72,6 +74,7 @@ export default function AppTopbar({
         )}
       </nav>
       <div className="topbar-right">
+        {session && <BetaModeToggle />}
         {session && usage && usage.plan !== 'pro' && (
           <button type="button" className="topbar-upgrade-btn" onClick={onUpgradeClick} disabled={checkoutLoading}>
             {checkoutLoading ? '…' : 'Passer Pro'}

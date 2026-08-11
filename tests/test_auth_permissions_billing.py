@@ -89,37 +89,46 @@ class TestAuthGuards(unittest.TestCase):
 
 
 class TestTemplatePermissions(unittest.TestCase):
+    """Tous les templates sont gratuits : seul le check d'ownership reste actif."""
+
     def test_check_custom_template_access_denied(self):
         with patch("backend.db.can_user_use_custom_template", return_value=False):
             with self.assertRaises(HTTPException) as ctx:
                 main._check_custom_template_access("user_1", "custom_abc")
         self.assertEqual(ctx.exception.status_code, 403)
 
-    def test_check_premium_template_denied_for_free(self):
-        with (
-            patch("backend.template_registry.get_template", return_value={"premium": True}),
-            patch.object(main, "get_user_plan", return_value="free"),
-            patch.object(main, "get_paywall_disabled", return_value=False),
-        ):
-            with self.assertRaises(HTTPException) as ctx:
-                main._check_premium_template("user_1", "modern_premium")
-        self.assertEqual(ctx.exception.status_code, 402)
+    def test_check_premium_template_is_noop_for_free_user(self):
+        """Plus de paywall sur templates : un user free peut acceder a un template marque premium."""
+        self.assertIsNone(main._check_premium_template("user_1", "any_template"))
+
+    def test_check_premium_template_is_noop_for_pro_user(self):
+        self.assertIsNone(main._check_premium_template("user_1", "any_template"))
+
+    def test_effective_template_id_returns_requested(self):
+        """Plus de fallback automatique sur un template par defaut pour les users free."""
+        out = main._effective_template_id_for_user("user_1", "creative")
+        self.assertEqual(out, "creative")
 
 
 class TestBillingHelpers(unittest.TestCase):
+    """Helpers transverses de billing_notifications."""
+
     def test_primary_frontend_base_url_first_origin(self):
         out = billing_notifications.primary_frontend_base_url(
             "https://a.example, https://b.example"
         )
         self.assertEqual(out, "https://a.example")
 
-    def test_send_template_perso_email_returns_false_without_key(self):
-        sent = billing_notifications.send_template_perso_email(
+    def test_primary_frontend_base_url_fallback(self):
+        out = billing_notifications.primary_frontend_base_url("")
+        self.assertTrue(out.startswith("https://"))
+
+    def test_send_subscription_cancelled_email_returns_false_without_key(self):
+        sent = billing_notifications.send_subscription_cancelled_email(
             to_email="test@example.com",
+            period_end_label="31 decembre 2026",
             resend_api_key="",
             resend_from_email="AxeL Job <onboarding@resend.dev>",
-            frontend_url="https://job.example.com",
-            support_email="support@example.com",
         )
         self.assertFalse(sent)
 

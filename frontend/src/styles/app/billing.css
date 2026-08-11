@@ -1,0 +1,110 @@
+/**
+ * Modale Pro / upgrade.
+ */
+/* ============================================
+   PRO MODAL
+   ============================================ */
+
+.pro-details-modal {
+  max-width: 520px;
+  text-align: center;
+}
+
+.pro-badge-big {
+  display: inline-block;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: 500;
+  font-size: 0.85rem;
+  padding: 0.3rem 1rem;
+  border-radius: 100px;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+}
+
+.pro-features-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+  text-align: left;
+}
+
+.pro-features-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  font-size: 0.88rem;
+  color: var(--text);
+}
+
+.pro-check {
+  color: #10b981;
+  font-weight: 500;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.pro-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  text-align: left;
+}
+
+.pro-comparison-col {
+  padding: 0.85rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-page, #f8fafc);
+}
+
+.pro-comparison-col h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.pro-comparison-col ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.pro-comparison-col ul li {
+  font-size: 0.82rem;
+  padding: 0.2rem 0;
+  color: var(--text);
+}
+
+.pro-comparison-col--pro {
+  border-color: var(--color-primary);
+  background: var(--color-canvas-lavender);
+}
+
+.pro-comparison-col--pro h4 {
+  color: var(--color-primary);
+}
+
+.btn-ghost {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0.4rem 0.75rem;
+  font-family: inherit;
+}
+
+.btn-ghost:hover {
+  color: var(--text);
+}
+
+@media (max-width: 500px) {
+  .pro-comparison {
+    grid-template-columns: 1fr;
+  }
+}
+

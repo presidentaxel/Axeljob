@@ -80,7 +80,7 @@ try {
                 gitleaks detect --source . --redact --verbose
                 Assert-NativeExit 'gitleaks'
             } else {
-                Write-Host 'Gitleaks non trouve dans le PATH — installe https://github.com/gitleaks/gitleaks ou passe -SkipGitleaks / -SkipExtras.' -ForegroundColor Yellow
+                Write-Host 'Gitleaks non trouve dans le PATH - installe https://github.com/gitleaks/gitleaks ou passe -SkipGitleaks / -SkipExtras.' -ForegroundColor Yellow
             }
         }
 

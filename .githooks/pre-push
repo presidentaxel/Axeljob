@@ -1,5 +1,5 @@
 #!/bin/sh
-# Hook Git : même gate que la CI locale (scripts/pre-push.*).
+# Hook Git : refuse push vers main/master + gate CI locale (scripts/pre-push.*).
 # Activer une fois : bash scripts/setup-dev.sh   ou   bash scripts/install-git-hooks.sh
 
 if [ -n "${SKIP_PREPUSH:-}" ]; then
@@ -8,6 +8,10 @@ fi
 
 repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root" || exit 1
+
+if ! bash "$repo_root/scripts/guard-push-via-pr.sh" --pre-push-stdin; then
+  exit 1
+fi
 
 if command -v pwsh >/dev/null 2>&1; then
   exec pwsh -NoProfile -ExecutionPolicy Bypass -File "$repo_root/scripts/pre-push.ps1" "$@"

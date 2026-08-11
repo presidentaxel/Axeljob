@@ -1,0 +1,95 @@
+/**
+ * Base globale - alias legacy + reset (Cohere 2026).
+ * Voir docs/DESIGN-cohere.md et design-tokens.css.
+ */
+:root {
+  --bg: var(--color-canvas);
+  --bg-page: var(--color-canvas-cream);
+  --surface: var(--color-canvas);
+  --surface-sidebar: var(--color-canvas-cream);
+  --surface-aubergine: var(--color-primary);
+  --border: var(--color-hairline);
+  --border-light: var(--color-card-border);
+  --text: var(--color-ink);
+  --text-secondary: var(--color-body-muted);
+  --muted: var(--color-muted);
+  --accent: var(--color-primary);
+  --accent-hover: var(--color-primary-press);
+  --accent-light: var(--color-canvas-lavender);
+  --accent-subtle: var(--color-canvas-cream);
+  --success: var(--color-deep-green);
+  --success-light: var(--color-pale-green);
+  --danger: var(--color-error);
+  --danger-light: #fef2f2;
+  --warning: #d97706;
+  --shadow-sm: rgba(0, 0, 0, 0.1) 0 5px 20px 0;
+  --shadow: rgba(0, 0, 0, 0.1) 0 5px 20px 0;
+  --shadow-card: rgba(0, 0, 0, 0.1) 0 0 32px 0;
+  --shadow-lg: rgba(0, 0, 0, 0.1) 0 0 32px 0;
+  --shadow-focus: 0 0 0 2px var(--color-primary-tint);
+  /* Alias legacy : --radius-sm/xs/lg/pill sont définis dans design-tokens.css */
+  --radius: var(--radius-xl);
+  --transition: 0.15s ease;
+  --app-font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --app-topbar-height: 52px;
+}
+
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-hairline) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--color-hairline);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-slate);
+}
+
+html {
+  background: var(--bg);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--app-font-family);
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  height: 100%;
+  min-width: 0;
+  width: 100%;
+}
+
+.app-shell button,
+.app-shell input,
+.app-shell select,
+.app-shell textarea,
+.app-shell optgroup {
+  font-family: var(--app-font-family);
+}

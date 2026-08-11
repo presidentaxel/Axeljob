@@ -1,0 +1,41 @@
+{
+  "_doc": "CV semantique standard utilise pour scorer les 7 templates livres. Dates au format MM/YYYY coherent, photo presente, sections classiques remplies.",
+  "prenom": "Alice",
+  "nom": "Martin",
+  "email": "alice.martin@example.fr",
+  "telephone": "+33 6 12 34 56 78",
+  "linkedin": "https://www.linkedin.com/in/alice-martin",
+  "ville": "Paris",
+  "titre_professionnel": "Data Analyst",
+  "resume": "Data Analyst confirmee, 5 ans d'experience en analyses business et tableaux de bord.",
+  "photo_url": "https://example.com/photo.jpg",
+  "experiences": [
+    {
+      "id": "exp_1",
+      "poste": "Data Analyst",
+      "entreprise": "Acme",
+      "date_debut": "01/2022",
+      "date_fin": "Aujourd'hui",
+      "bullet_points": ["Migration des dashboards vers Tableau.", "Reduction du time-to-insight de 30%."]
+    },
+    {
+      "id": "exp_2",
+      "poste": "Junior Analyst",
+      "entreprise": "Beta",
+      "date_debut": "06/2020",
+      "date_fin": "12/2021",
+      "bullet_points": ["Mise en place du suivi KPI marketing."]
+    }
+  ],
+  "formations": [
+    {"id": "form_1", "diplome": "Master Data", "etablissement": "Universite Paris", "date": "06/2020"}
+  ],
+  "certifications": [],
+  "competences": {
+    "techniques": ["SQL", "Python", "Tableau"],
+    "logiciels": ["Excel", "Looker"],
+    "langues": [{"langue": "Francais", "niveau": "Natif"}, {"langue": "Anglais", "niveau": "C1"}],
+    "autres": []
+  },
+  "projets": []
+}

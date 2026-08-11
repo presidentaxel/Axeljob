@@ -46,7 +46,6 @@ Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 #### Bash (Linux / macOS)
 
 ```bash
-cd ~/Documents/Code/cv-bot
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
@@ -56,7 +55,6 @@ uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 #### PowerShell (Windows)
 
 ```powershell
-cd D:\Code\cv-bot
 .\.venv\Scripts\Activate.ps1
 pip install -r backend/requirements.txt
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
@@ -67,7 +65,7 @@ uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 #### Bash (Linux / macOS)
 
 ```bash
-cd ~/Documents/Code/cv-bot/frontend
+cd frontend
 npm ci
 npm run dev
 ```
@@ -75,7 +73,7 @@ npm run dev
 #### PowerShell (Windows)
 
 ```powershell
-cd D:\Code\cv-bot\frontend
+cd frontend
 npm ci
 npm run dev
 ```
@@ -113,7 +111,7 @@ docker compose logs --tail 100 backend
 ### PowerShell (Windows)
 
 ```powershell
-cd D:\Code\cv-bot
+cd /opt/cv-bot
 docker compose logs -f
 docker compose logs -f backend
 docker compose logs -f frontend
@@ -136,7 +134,6 @@ docker compose up -d frontend
 ### PowerShell (Windows)
 
 ```powershell
-cd D:\Code\cv-bot
 git pull origin main
 docker compose build --no-cache backend
 docker compose up -d backend
@@ -162,30 +159,60 @@ docker compose restart backend
 docker compose restart frontend
 ```
 
-## 7) Git (workflow standard)
+## 7) Git (workflow PR)
 
-### Bash (Linux / macOS)
+> Guide complet : **`docs/git-workflow.md`** (branches, PR Draft #33, FAQ).
+
+### Branches
+
+| Branche | Usage |
+| --- | --- |
+| `main` | Prod — merge **via PR uniquement** |
+| `wip/innovation` | Dev actif (éditeur Beta, import PDF, ATS) — PR **Draft** [#33](https://github.com/presidentaxel/Axeljob/pull/33), **ne pas merger** pour l'instant |
+| `feat/*`, `fix/*` | Petites évolutions mergeables indépendamment |
+
+### Bash (Linux / macOS) — quotidien sur `wip/innovation`
 
 ```bash
-cd ~/Documents/Code/cv-bot
-git status
-git add .
+git checkout wip/innovation
 git commit -m "feat: description du changement"
-git push
+bash scripts/pre-push.sh --skip-extras --skip-gitleaks
+git push origin wip/innovation    # met à jour la PR Draft #33
+```
+
+### Bash — petite feature / fix depuis `main`
+
+```bash
+git checkout main && git pull origin main
+git checkout -b fix/mon-sujet
+git commit -m "fix: description"
+bash scripts/pre-push.sh --skip-extras --skip-gitleaks
+git push -u origin HEAD
+gh pr create --base main --title "fix: …" --body "…"
 ```
 
 ### PowerShell (Windows)
 
 ```powershell
-cd D:\Code\cv-bot
-git status
-git add .
+git checkout wip/innovation
 git commit -m "feat: description du changement"
-git push
+powershell -ExecutionPolicy Bypass -File .\scripts\pre-push.ps1 -SkipExtras -SkipGitleaks
+git push origin wip/innovation
+```
+
+```powershell
+git checkout main; git pull origin main
+git checkout -b fix/mon-sujet
+git commit -m "fix: description"
+powershell -ExecutionPolicy Bypass -File .\scripts\pre-push.ps1 -SkipExtras -SkipGitleaks
+git push -u origin HEAD
+gh pr create --base main --title "fix: …" --body "…"
 ```
 
 > [!WARNING]
 > Ne pas committer de secrets (`.env`, cles API, tokens).
+>
+> **Ne jamais** `git push origin main` — toute intégration passe par PR.
 
 ## 8) Pre-push (CI + security locale)
 
@@ -198,12 +225,15 @@ bash scripts/setup-dev.sh
 # ou : make setup
 ```
 
+Branches : **`main`** = prod ; **`wip/innovation`** = dev éditeur Beta / canvas (PR Draft [#33](https://github.com/presidentaxel/Axeljob/pull/33), ne pas merger). Voir **`docs/git-workflow.md`**.
+
 Configure `.venv` (Black **24.10.0** comme GitHub), active le hook **pre-push** Git (`.githooks/`), et rappelle les hooks **Cursor** (`.cursor/hooks.json`).
 
 ### Cursor (tous les chats / agent)
 
-- **Règle** : `.cursor/rules/pre-push-ci.mdc` — l'agent doit lancer `bash scripts/pre-push.sh --skip-extras --skip-gitleaks` avant tout `git push`.
-- **Hook** : `.cursor/hooks.json` — bloque `git push` dans le terminal de l'agent si la CI locale échoue (timeout 15 min).
+- **Règle** : `.cursor/rules/pre-push-ci.mdc` — CI locale avant push/PR ; **pas de push direct sur `main`**.
+- **Hook** : `.cursor/hooks.json` — bloque `git push` vers `main`/`master` et si la CI locale échoue (timeout 15 min).
+- Flux recommandé : branche feature → CI locale → `git push -u origin HEAD` → `gh pr create --base main`.
 - Contournement urgence : `SKIP_PREPUSH=1 git push`.
 - Après modification de `hooks.json`, redémarrer Cursor si le hook ne se déclenche pas (onglet **Hooks** / canal **Hooks**).
 
@@ -244,12 +274,12 @@ Cela définit `git config core.hooksPath .githooks` : le hook `.githooks/pre-pus
 
 | Script     | Option                                                                                                         |
 | ---------- | -------------------------------------------------------------------------------------------------------------- |
-| Bash       | `--skip-extras` — pas pip-audit, bandit, npm audit, gitleaks                                                   |
-| Bash       | `--skip-gitleaks` — pas gitleaks (garde pip-audit, bandit, npm audit)                                          |
-| Bash       | `--with-e2e` — Playwright après le build (long ; `npx playwright install chromium` dans `frontend/` au besoin) |
-| PowerShell | `-SkipExtras` — pas pip-audit, bandit, npm audit, gitleaks                                                     |
-| PowerShell | `-SkipGitleaks` — pas gitleaks (garde pip-audit, bandit, npm audit)                                            |
-| PowerShell | `-WithE2E` — Playwright après le build (long ; `npx playwright install chromium` dans `frontend/` au besoin)   |
+| Bash       | `--skip-extras` - pas pip-audit, bandit, npm audit, gitleaks                                                   |
+| Bash       | `--skip-gitleaks` - pas gitleaks (garde pip-audit, bandit, npm audit)                                          |
+| Bash       | `--with-e2e` - Playwright après le build (long ; `npx playwright install chromium` dans `frontend/` au besoin) |
+| PowerShell | `-SkipExtras` - pas pip-audit, bandit, npm audit, gitleaks                                                     |
+| PowerShell | `-SkipGitleaks` - pas gitleaks (garde pip-audit, bandit, npm audit)                                            |
+| PowerShell | `-WithE2E` - Playwright après le build (long ; `npx playwright install chromium` dans `frontend/` au besoin)   |
 
 
 ### Prérequis `.venv`

@@ -18,7 +18,7 @@ Modes d'exécution :
 Prérequis :
   pip install playwright
   playwright install chromium
-  (Docker : voir backend/Dockerfile — install --with-deps)
+  (Docker : voir backend/Dockerfile - install --with-deps)
 
 Ressources (/api/assets/, polices externes) : le document contient souvent <base href="CV_BOT_API_BASE_URL">.
 En conteneur, pointe l'API vers une URL joignable depuis le processus PDF (ex. http://127.0.0.1:8000).
@@ -466,7 +466,7 @@ class _BrowserWorker(threading.Thread):
                 except Exception as e:
                     last_exc = e
                     _log.warning(
-                        "Chromium pool worker #%s render failed (attempt %d/2): %s — recreating browser",
+                        "Chromium pool worker #%s render failed (attempt %d/2): %s - recreating browser",
                         self._worker_id,
                         attempt,
                         e,

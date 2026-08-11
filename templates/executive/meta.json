@@ -1,9 +1,9 @@
 {
   "id": "executive",
   "name": "Executive",
-  "description": "Template corporate haut de gamme. En-tête imposant, accents dorés, polices serif. Premium.",
-  "tags": ["ats-safe", "sidebar", "photo", "premium", "corporate"],
-  "premium": true,
+  "description": "Template corporate haut de gamme. En-tête imposant, accents dorés, polices serif.",
+  "tags": ["ats-safe", "sidebar", "photo", "corporate"],
+  "premium": false,
   "options": [
     {"key": "header_color", "type": "color", "default": "#0f172a", "label": "Couleur en-tête"},
     {"key": "sidebar_color", "type": "color", "default": "#f8f6f0", "label": "Couleur sidebar"},

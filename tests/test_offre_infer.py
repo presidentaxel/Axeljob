@@ -26,7 +26,7 @@ class TestOffreInfer(unittest.TestCase):
         self.assertGreaterEqual(conf, 0.65)
 
     def test_title_separator(self):
-        text = "Ingénieur data — BigCorp Industries"
+        text = "Ingénieur data - BigCorp Industries"
         name, conf = infer_entreprise_from_annonce(text)
         self.assertEqual(name, "BigCorp Industries")
         self.assertLess(conf, 0.7)

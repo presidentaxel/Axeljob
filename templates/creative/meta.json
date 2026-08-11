@@ -1,9 +1,9 @@
 {
   "id": "creative",
   "name": "Créatif",
-  "description": "Template coloré avec sidebar vibrante, idéal pour les profils design et marketing. Premium.",
-  "tags": ["ats-safe", "sidebar-left", "photo", "premium", "creative"],
-  "premium": true,
+  "description": "Template coloré avec sidebar vibrante, idéal pour les profils design et marketing.",
+  "tags": ["ats-safe", "sidebar-left", "photo", "creative"],
+  "premium": false,
   "options": [
     {"key": "header_color", "type": "color", "default": "#6366f1", "label": "Couleur en-tête"},
     {"key": "sidebar_color", "type": "color", "default": "#6366f1", "label": "Couleur sidebar"},

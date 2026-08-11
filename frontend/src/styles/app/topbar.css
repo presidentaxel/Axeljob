@@ -1,0 +1,350 @@
+/**
+ * Topbar /app - navigation principale (Cohere 2026).
+ */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm, 8px);
+  padding: 0 var(--space-lg, 16px);
+  height: var(--app-topbar-height);
+  min-height: var(--app-topbar-height);
+  background: var(--color-canvas);
+  border-bottom: 1px solid var(--color-hairline);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  flex-shrink: 0;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm, 8px);
+  flex-shrink: 0;
+}
+
+.topbar-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-xs);
+  object-fit: contain;
+}
+
+.topbar-brand {
+  font-weight: 500;
+  font-size: 0.9375rem;
+  color: var(--color-ink);
+  letter-spacing: -0.02em;
+}
+
+.topbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: var(--space-xl, 24px);
+  flex: 1;
+  min-width: 0;
+}
+
+.topbar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-muted);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.topbar-link:hover {
+  color: var(--color-ink);
+  background: var(--color-soft-stone);
+}
+
+.topbar-link.active {
+  color: var(--color-primary);
+  background: var(--color-canvas-lavender);
+  font-weight: 600;
+}
+
+.topbar-link:focus-visible {
+  outline: 2px solid var(--color-focus-blue);
+  outline-offset: 1px;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm, 8px);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.topbar-upgrade-btn {
+  background: var(--color-primary);
+  color: var(--color-on-dark);
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 0.45rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  font-family: inherit;
+}
+
+.topbar-upgrade-btn:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.topbar-upgrade-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.topbar-upgrade-btn:focus-visible {
+  outline: 2px solid var(--color-focus-blue);
+  outline-offset: 2px;
+}
+
+.topbar-pro-badge {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 0.35rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+}
+
+.topbar-user-btn {
+  background: transparent;
+  border: 1px solid var(--color-hairline);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-muted);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.topbar-user-btn:hover {
+  background: var(--color-soft-stone);
+  border-color: var(--color-slate);
+  color: var(--color-ink);
+}
+
+.topbar-user-btn:focus-visible {
+  outline: 2px solid var(--color-focus-blue);
+  outline-offset: 2px;
+}
+
+.topbar-account-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.topbar-account-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 15.5rem;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0;
+  z-index: 3000;
+}
+
+.topbar-account-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  text-align: left;
+  padding: 0.55rem 0.95rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.topbar-account-menu-item:hover {
+  background: var(--color-soft-stone);
+}
+
+.topbar-account-menu-item:focus-visible {
+  outline: 2px solid var(--color-focus-blue);
+  outline-offset: -2px;
+}
+
+.topbar-account-menu-item--danger {
+  color: var(--color-error);
+}
+
+.topbar-account-menu-item--danger:hover {
+  background: var(--danger-light);
+}
+
+.topbar-account-code {
+  padding: 0.5rem 0.75rem 0.55rem;
+}
+
+.topbar-account-code-hint {
+  margin: 0 0 0.45rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--color-muted);
+  text-transform: uppercase;
+}
+
+.topbar-account-code-form {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.topbar-account-code-input {
+  flex: 1;
+  min-width: 0;
+  height: 2rem;
+  padding: 0 0.55rem;
+  font-size: 0.8rem;
+  font-family: inherit;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  outline: none;
+  transition: border-color 0.12s;
+}
+
+.topbar-account-code-input::placeholder {
+  color: var(--muted);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.topbar-account-code-input:focus {
+  border-color: var(--color-form-focus);
+}
+
+.topbar-account-code-input:disabled {
+  opacity: 0.65;
+}
+
+.topbar-account-code-submit {
+  flex-shrink: 0;
+  height: 2rem;
+  padding: 0 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--color-primary);
+  background: var(--color-canvas-lavender);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.topbar-account-code-submit:hover:not(:disabled) {
+  background: var(--color-primary);
+  color: var(--color-on-dark);
+  border-color: var(--color-primary);
+}
+
+.topbar-account-code-submit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.topbar-account-code-feedback {
+  margin: 0.45rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.topbar-account-code-feedback--error {
+  color: var(--color-error);
+}
+
+.topbar-account-code-feedback--ok {
+  color: var(--color-deep-green);
+}
+
+.topbar-account-menu-sep {
+  height: 1px;
+  margin: 0.25rem 0.5rem;
+  background: var(--border);
+}
+
+@media (max-width: 600px) {
+  .topbar {
+    padding: 0 0.5rem;
+    gap: 0.25rem;
+  }
+
+  .topbar-brand {
+    display: none;
+  }
+
+  .topbar-nav {
+    margin-left: 0.5rem;
+    gap: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    min-width: 0;
+  }
+
+  .topbar-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .topbar-link {
+    padding: 0.35rem 0.45rem;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+  }
+
+  .topbar-link span {
+    display: none;
+  }
+
+  .topbar-upgrade-btn {
+    font-size: 0.72rem;
+    padding: 0.35rem 0.65rem;
+  }
+
+  .topbar-pro-badge {
+    padding: 0.3rem 0.55rem;
+    font-size: 0.7rem;
+  }
+
+  .topbar-user-btn {
+    width: 36px;
+    height: 36px;
+  }
+}

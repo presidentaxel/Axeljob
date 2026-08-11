@@ -16,6 +16,7 @@ import {
   trackEvent,
 } from './api';
 import { ensureAnalyticsFirstTouch, getStoredAttribution } from './analyticsSession';
+import { resetTemplateOptionsToDefaults } from './lib/templateOptionsSchema.js';
 import { useViewAnalytics } from './useViewAnalytics';
 import { supabase } from './lib/supabase';
 import AuthForm from './components/AuthForm';
@@ -35,7 +36,7 @@ import './styles/GuidedTour.css';
 import { formatApplicationDateLabel } from './lib/applicationDates';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from './lib/cvPreviewA4Pages';
 
-const ProfileView = lazyWithChunkReload(() => import('./components/ProfileView'));
+const ProfileView = lazyWithChunkReload(() => import('./components/editor/ProfileViewSwitcher'));
 const SettingsView = lazyWithChunkReload(() => import('./components/SettingsView'));
 const LandingPage = lazyWithChunkReload(() => import('./components/LandingPage'));
 const LegalPages = lazyWithChunkReload(() => import('./components/LegalPages'));
@@ -821,7 +822,7 @@ export default function App() {
   const [justAddedAppId, setJustAddedAppId] = useState(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
-  /** Erreur réseau/API sur GET /api/cv?profile=1 — ne pas confondre avec « profil vide ». */
+  /** Erreur réseau/API sur GET /api/cv?profile=1 - ne pas confondre avec « profil vide ». */
   const [profileCvLoadError, setProfileCvLoadError] = useState(null);
   const [profileRefreshKey, setProfileRefreshKey] = useState(0);
   /** Évite de repasser onboardingChecked à false (écran « Chargement… ») sur un simple refresh profil / même user. */
@@ -834,6 +835,33 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('cv_template_options') || '{}'); } catch { return {}; }
   });
   const [templatesList, setTemplatesList] = useState([]);
+
+  /**
+   * Wrapper a appeler quand l utilisateur CHOISIT explicitement un nouveau
+   * template (vs hydratation depuis Supabase / localStorage qui doivent
+   * preserver les options telles quelles).
+   *
+   * Probleme resolu : les `templateOptions` (couleurs, polices, booleens
+   * d affichage) sont specifiques a chaque template. Si l user passe d un
+   * template avec en-tete fonce (header_color: #1e293b par exemple) a un
+   * template a en-tete blanc, l ancienne couleur reste appliquee via
+   * `--cv-header-color`, ce qui peut rendre le header illisible (texte
+   * blanc sur fond blanc).
+   *
+   * Solution : a chaque changement EXPLICITE de template, on reset les
+   * options aux defauts du nouveau template. Si l user veut personnaliser,
+   * il refait ses reglages dans l inspecteur.
+   *
+   * Note : on accepte un parametre `templates` optionnel pour les cas ou
+   * `templatesList` n est pas encore charge (rare, mais defensive).
+   */
+  const handleUserPickTemplate = useCallback((nextId, templates = templatesList) => {
+    setTemplateId(nextId);
+    const nextTemplate = Array.isArray(templates)
+      ? templates.find((t) => t && t.id === nextId)
+      : null;
+    setTemplateOptions(nextTemplate ? resetTemplateOptionsToDefaults(nextTemplate) : {});
+  }, [templatesList]);
   const [tourRestartKey, setTourRestartKey] = useState(0);
   /** Incrémenté pour démonter le tour phase 1 si l’utilisateur lance la 1re adapt sans avoir cliqué « Terminer » (le spotlight laisse passer les clics). */
   const [phase1DismissForAdaptKey, setPhase1DismissForAdaptKey] = useState(0);
@@ -842,7 +870,7 @@ export default function App() {
   const [tourDemoPreviewHtml, setTourDemoPreviewHtml] = useState('');
   const prevTourHighlightRef = useRef(false);
   const cvChatInputRef = useRef(null);
-  /** Après la 1re adaptation réussie (chat), ouvre le tutoriel phase 2 — pas au début (évite conflit avec le modal « en cours »). */
+  /** Après la 1re adaptation réussie (chat), ouvre le tutoriel phase 2 - pas au début (évite conflit avec le modal « en cours »). */
   const openPhase2AfterFirstAdaptRef = useRef(false);
 
   const guidedTourUid = session?.user?.id || '';
@@ -990,14 +1018,6 @@ export default function App() {
     return () => clearTimeout(t);
   }, [session, templateId, templateOptions]);
 
-  /** Compte gratuit + template Pro encore en localStorage / état : évite 402 sur render-html avant que GET /api/cv ait répondu. */
-  useEffect(() => {
-    if (!session || !usage || !templatesList.length) return;
-    if (usage.plan === 'pro' || usage.paywall_disabled) return;
-    const meta = templatesList.find((t) => t.id === templateId);
-    if (meta?.premium) setTemplateId('minimal');
-  }, [session, usage, templatesList, templateId]);
-
   const templateParams = { template_id: templateId, template_options: templateOptions };
   const templateKey = templateId + '|' + JSON.stringify(templateOptions);
 
@@ -1040,7 +1060,7 @@ export default function App() {
     return () => subscription?.unsubscribe();
   }, []);
 
-  // Compte supprimé côté Supabase : le JWT peut rester valide un moment — getUser() interroge Auth et déclenche une déconnexion si l’utilisateur n’existe plus.
+  // Compte supprimé côté Supabase : le JWT peut rester valide un moment - getUser() interroge Auth et déclenche une déconnexion si l’utilisateur n’existe plus.
   useEffect(() => {
     if (!supabase || !session?.user?.id) return undefined;
     const kickIfGone = () => {
@@ -1333,7 +1353,7 @@ export default function App() {
       return;
     }
     if (!isCvView) return;
-    /** Pendant le flux NDJSON, le HTML arrive déjà dans le client — évite des POST /render-html en rafale. */
+    /** Pendant le flux NDJSON, le HTML arrive déjà dans le client - évite des POST /render-html en rafale. */
     if (adaptStreamMode) return;
 
     const sessionBecameActive = !prevHadSessionRef.current;
@@ -1895,7 +1915,7 @@ export default function App() {
       setAnnonce(description);
       trackEvent('job_description_pasted', { word_count: description.split(/\s+/).length, source });
       let streamedData = null;
-      /** HTML complet du dernier segment de preview (chaque étape + final) — appliqué à l’iframe à chaque fin de segment. */
+      /** HTML complet du dernier segment de preview (chaque étape + final) - appliqué à l’iframe à chaque fin de segment. */
       let lastStreamPreviewHtml = '';
       let previewAccum = '';
       let previewPartialTimer = null;
@@ -2164,7 +2184,7 @@ export default function App() {
           }
           await apiPatch(`/api/applications/${encodeURIComponent(lastAdaptationId)}`, patch);
         } catch (persistErr) {
-          showError(persistErr.message || 'CV affiné en local — enregistrement serveur incomplet. Réessaie ou exporte le dossier.');
+          showError(persistErr.message || 'CV affiné en local - enregistrement serveur incomplet. Réessaie ou exporte le dossier.');
         }
       }
       const html = await apiPost('/api/render-html', {
@@ -2972,7 +2992,7 @@ export default function App() {
               La version mobile du tableau de bord arrive. En attendant, les <strong>pages du site</strong> (guides, FAQ, articles) restent accessibles sur ton téléphone.
             </p>
             <p className="app-mobile-gate-hint">
-              Pour adapter ton CV, l’aperçu et le suivi des candidatures, ça fonctionne <strong>beaucoup mieux sur ordinateur</strong> — repasse depuis un PC ou une grande tablette.
+              Pour adapter ton CV, l’aperçu et le suivi des candidatures, ça fonctionne <strong>beaucoup mieux sur ordinateur</strong> - repasse depuis un PC ou une grande tablette.
             </p>
             <div className="app-mobile-gate-actions">
               <button type="button" className="btn btn-primary" onClick={() => navigate('/faq')}>
@@ -3284,14 +3304,12 @@ export default function App() {
                   templates={templatesList}
                   templateId={templateId}
                   templateOptions={templateOptions}
-                  onChangeTemplate={(id) => { setTemplateId(id); setTemplateOptions({}); trackEvent('template_changed', { template_id: id }); }}
+                  onChangeTemplate={(id) => { handleUserPickTemplate(id); trackEvent('template_changed', { template_id: id }); }}
                   onChangeOptions={setTemplateOptions}
-                  userPlan={usage?.plan}
-                  onUpgradeClick={handleUpgradeClick}
                   openOptionsFromSupport={location.state?.supportHighlight?.openTemplateOptions}
                   openOptionsNonce={exportPrepTemplateOptionsNonce}
                   onOptionsModalClosed={handleTemplateOptionsModalAfterClose}
-                  openModalToTab={new URLSearchParams(location.search || '').get('open') === 'template-perso' ? 'mine' : null}
+                  openModalToTab={null}
                   onOpenFromUrlConsumed={() => navigate(location.pathname, { replace: true })}
                   optionsPreviewHtml={previewVariant === 'original' ? (originalPreviewHtml || previewHtmlFallback) : (modifiedPreviewHtml || previewHtmlFallback)}
                   optionsPreviewLoading={false}
@@ -3476,7 +3494,7 @@ export default function App() {
                             onClick={(e) => e.stopPropagation()}
                           >
                             <div className="ats-score-modal-header">
-                              <h3 id="ats-score-modal-title">Score ATS — {rapport.score_global}/100</h3>
+                              <h3 id="ats-score-modal-title">Score ATS - {rapport.score_global}/100</h3>
                               <button
                                 type="button"
                                 className="ats-score-modal-close"
@@ -3557,7 +3575,7 @@ export default function App() {
               <p className="page-subtitle">Suis toutes tes candidatures ici. Glisse les cartes pour changer le statut.</p>
             </div>
             <div className="dashboard-header-actions">
-              <button type="button" className="btn btn-secondary" onClick={() => setAddManualModalOpen(true)}>
+              <button type="button" className="btn btn-tertiary btn-add-manual" onClick={() => setAddManualModalOpen(true)}>
                 Ajouter une candidature (hors app)
               </button>
               <button type="button" className="btn btn-primary btn-new-candidature" onClick={() => setSetupModalOpen(true)}>
@@ -3572,49 +3590,59 @@ export default function App() {
               <span>.</span>
             </div>
           )}
-          <div className="page-content applications-full" data-analytics-section="candidatures_board">
-            <div className="applications-stats" data-analytics-section="candidatures_stats">
-              <div className="stat-card">
-                <span className="stat-value">{applicationStats.countToday}</span>
-                <span className="stat-label">Aujourd'hui</span>
-                {applicationStats.countToday > 0 && (
-                  <span className="stat-delta stat-delta-up">↑ +{applicationStats.todayPct}%</span>
-                )}
+          <div className="page-content applications-full candidatures-page" data-analytics-section="candidatures_board">
+            <div className="candidatures-page-inner">
+              <dl className="candidatures-metrics" data-analytics-section="candidatures_stats">
+                <div className="candidatures-metric">
+                  <dt className="candidatures-metric-label">Aujourd&apos;hui</dt>
+                  <dd className="candidatures-metric-body">
+                    <span className="candidatures-metric-value">{applicationStats.countToday}</span>
+                    {applicationStats.countToday > 0 && (
+                      <span className="candidatures-metric-delta candidatures-metric-delta--up">↑ +{applicationStats.todayPct}%</span>
+                    )}
+                  </dd>
+                </div>
+                <div className="candidatures-metric">
+                  <dt className="candidatures-metric-label">Ce mois</dt>
+                  <dd className="candidatures-metric-body">
+                    <span className="candidatures-metric-value">{applicationStats.countMonth}</span>
+                    {applicationStats.countMonth > 0 && (
+                      <span className={`candidatures-metric-delta ${applicationStats.monthPct >= 0 ? 'candidatures-metric-delta--up' : 'candidatures-metric-delta--down'}`}>
+                        {applicationStats.monthPct >= 0 ? '↑' : '↓'} {applicationStats.monthPct >= 0 ? '+' : ''}{applicationStats.monthPct}%
+                      </span>
+                    )}
+                  </dd>
+                </div>
+                <div className="candidatures-metric">
+                  <dt className="candidatures-metric-label">Total</dt>
+                  <dd className="candidatures-metric-body">
+                    <span className="candidatures-metric-value">{applicationStats.total}</span>
+                  </dd>
+                </div>
+              </dl>
+              <div className="candidatures-controls">
+                <label className="applications-toggle">
+                  <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+                  Afficher les archivées
+                </label>
+                <div className="applications-search-wrap">
+                  <input
+                    type="search"
+                    className="applications-search"
+                    placeholder="Rechercher par poste, entreprise, source, date…"
+                    value={applicationSearchQuery}
+                    onChange={(e) => setApplicationSearchQuery(e.target.value)}
+                    aria-label="Filtrer les candidatures"
+                  />
+                  {applicationSearchDebounced && (
+                    <span className="applications-search-count">
+                      {filteredNonArchivedCount} résultat{filteredNonArchivedCount !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="stat-card">
-                <span className="stat-value">{applicationStats.countMonth}</span>
-                <span className="stat-label">Ce mois</span>
-                {applicationStats.countMonth > 0 && (
-                  <span className={`stat-delta ${applicationStats.monthPct >= 0 ? 'stat-delta-up' : 'stat-delta-down'}`}>
-                    {applicationStats.monthPct >= 0 ? '↑' : '↓'} {applicationStats.monthPct >= 0 ? '+' : ''}{applicationStats.monthPct}%
-                  </span>
-                )}
-              </div>
-              <div className="stat-card">
-                <span className="stat-value">{applicationStats.total}</span>
-                <span className="stat-label">Total</span>
-              </div>
-            </div>
-            <label className="applications-toggle">
-              <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
-              Afficher les archivées
-            </label>
-            <div className="applications-search-wrap">
-              <input
-                type="search"
-                className="applications-search"
-                placeholder="Rechercher par poste, entreprise, source, date…"
-                value={applicationSearchQuery}
-                onChange={(e) => setApplicationSearchQuery(e.target.value)}
-                aria-label="Filtrer les candidatures"
-              />
-              {applicationSearchDebounced && (
-                <span className="applications-search-count">
-                  {filteredNonArchivedCount} résultat{filteredNonArchivedCount !== 1 ? 's' : ''}
-                </span>
-              )}
-            </div>
-            <div className="kanban-board">
+              <div className="candidatures-board">
+                <div className="kanban-board">
               {KANBAN_COLUMNS.map((col) => {
                 const columnApps = filteredApplications.filter((app) => {
                   if (app.archived) return false;
@@ -3624,7 +3652,7 @@ export default function App() {
                 return (
                   <div
                     key={col.id}
-                    className={`kanban-column ${kanbanDragOverColumn === col.id ? 'drag-over' : ''}`}
+                    className={`kanban-column kanban-column--${col.id} ${kanbanDragOverColumn === col.id ? 'drag-over' : ''}`}
                     onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setKanbanDragOverColumn(col.id); }}
                     onDragLeave={() => setKanbanDragOverColumn(null)}
                     onDrop={(e) => {
@@ -3686,7 +3714,8 @@ export default function App() {
                   </div>
                 );
               })}
-            </div>
+                </div>
+              </div>
             {applications.filter((a) => !a.archived).length === 0 && !showArchived && (
               <div className="applications-empty-state">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5" style={{ marginBottom: '1rem' }}>
@@ -3734,6 +3763,7 @@ export default function App() {
                 </div>
               </div>
             )}
+            </div>
           </div>
         </div>
 
@@ -3965,17 +3995,27 @@ export default function App() {
             )}
           </header>
           <div className="page-content" data-analytics-section="profil_editor">
-            <ProfileView onSaveSuccess={handleProfileSaveSuccess} session={session} refreshKey={profileRefreshKey} usage={usage} onUpgradeClick={handleUpgradeClick} onUsageRefresh={loadUsage} onBillingPortalClick={() => setManageSubscriptionModalOpen(true)} templatesList={templatesList} templateId={templateId} templateOptions={templateOptions} onTemplateIdChange={setTemplateId} onTemplateOptionsChange={setTemplateOptions} onPhotoSessionExpired={handlePhotoSessionExpired} />
+            <ProfileView onSaveSuccess={handleProfileSaveSuccess} session={session} refreshKey={profileRefreshKey} usage={usage} onUpgradeClick={handleUpgradeClick} onUsageRefresh={loadUsage} onBillingPortalClick={() => setManageSubscriptionModalOpen(true)} templatesList={templatesList} templateId={templateId} templateOptions={templateOptions} onTemplateIdChange={handleUserPickTemplate} onTemplateOptionsChange={setTemplateOptions} onPhotoSessionExpired={handlePhotoSessionExpired} />
           </div>
         </div>
 
         <div id="viewSettings" className={`view-panel app-page view-settings ${view === 'settings' ? 'active' : ''}`} style={{ display: view === 'settings' ? 'flex' : 'none' }} data-analytics-section="settings_page">
           <header className="page-header">
-            <h1 className="page-title">Settings</h1>
-            <p className="page-subtitle">Compte, sécurité et options d&apos;export du CV adapté.</p>
+            <h1 className="page-title">Paramètres</h1>
+            <p className="page-subtitle">Compte, export PDF, éditeur et confidentialité.</p>
           </header>
           <div className="page-content">
-            <SettingsView session={session} />
+            <SettingsView
+              session={session}
+              usage={usage}
+              templateId={templateId}
+              templatesList={templatesList}
+              onUpgradeClick={handleUpgradeClick}
+              onBillingPortalClick={() => setManageSubscriptionModalOpen(true)}
+              onCookieSettingsClick={() => {
+                if (typeof window.axelOpenCookieSettings === 'function') window.axelOpenCookieSettings();
+              }}
+            />
           </div>
         </div>
 
@@ -4103,7 +4143,6 @@ export default function App() {
                   <ul className="pro-features-list">
                     <li><span className="pro-check"><HiCheck size={14} strokeWidth={2.5} /></span>Adaptations IA illimitées</li>
                     <li><span className="pro-check"><HiCheck size={14} strokeWidth={2.5} /></span>Suivi de candidatures illimité</li>
-                    <li><span className="pro-check"><HiCheck size={14} strokeWidth={2.5} /></span>Templates premium</li>
                     <li><span className="pro-check"><HiCheck size={14} strokeWidth={2.5} /></span>Lettre de motivation ciblée</li>
                   </ul>
                   <div className="linkedin-sync-actions" style={{ marginTop: '1rem', flexDirection: 'column', gap: '0.5rem' }}>
@@ -4127,7 +4166,7 @@ export default function App() {
                       <ul>
                         <li>3 adaptations IA</li>
                         <li>5 candidatures suivies</li>
-                        <li>Templates de base</li>
+                        <li>Tous les templates</li>
                       </ul>
                     </div>
                     <div className="pro-comparison-col pro-comparison-col--pro">
@@ -4135,8 +4174,8 @@ export default function App() {
                       <ul>
                         <li><strong>Illimité</strong> - adaptations IA</li>
                         <li><strong>Illimité</strong> - candidatures</li>
-                        <li>Templates premium</li>
                         <li>Lettre de motivation ciblée</li>
+                        <li>Tous les templates</li>
                       </ul>
                     </div>
                   </div>

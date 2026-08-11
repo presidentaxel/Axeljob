@@ -1,0 +1,853 @@
+/* Styles du drawer inspecteur (P1.4).
+ * Compose `EditorInspectorDrawer.jsx` et `EditorInspectorField.jsx`.
+ * Heritent la police via `var(--editor-font-family)` definie sur
+ * `.cv-editor-beta` (cf. CvEditorBeta.css).
+ */
+
+/* Layout side-by-side : workspace = canvas + drawer.
+ * Le wrapper `.cv-editor-beta-workspace` est cree dans CvEditorBeta.jsx
+ * pour englober le canvas et le drawer. Le canvas occupe l espace
+ * disponible, le drawer prend sa largeur fixe.
+ */
+.cv-editor-beta-workspace--canva {
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.cv-editor-beta-workspace--canva .cv-editor-beta-canva-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  position: relative;
+}
+
+.cv-editor-beta-bridge-btn {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid #c7d2fe;
+  border-radius: 0.4rem;
+  background: #f9f0ff;
+  color: #3730a3;
+  cursor: pointer;
+  font-family: var(--editor-font-family);
+}
+
+.cv-editor-beta-bridge-btn:hover {
+  background: #e0e7ff;
+}
+
+.cv-editor-beta-workspace {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  min-height: 0; /* permet a flex:1 de scroller le canvas si besoin */
+  overflow: hidden;
+}
+
+.cv-editor-beta-workspace .cv-editor-beta-canvas {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Slot du drawer dans le workspace. Doit etre `display: flex` (et non
+ * `block` qui est le defaut d un `<div>`) pour deux raisons :
+ *  - quand le contenu du drawer est COURT, sans flex le drawer prend
+ *    sa hauteur intrinseque (courte) et le fond du workspace apparait
+ *    en zone grise sous le drawer (le wrapper `<div>` lui s etire bien
+ *    via align-items: stretch du workspace, mais son enfant non).
+ *  - quand le contenu du drawer est LONG, sans flex le drawer prend
+ *    sa hauteur intrinseque (longue) et deborde le workspace au lieu
+ *    de declencher l overflow-y: auto de son body interne.
+ *
+ * En `display: flex` row, l enfant `.editor-inspector-drawer` herite
+ * `align-self: stretch` (default) -> il s etend a la hauteur du slot,
+ * qui prend la hauteur du workspace. Le body interne avec `flex:1` et
+ * `overflow-y: auto` peut alors scroller correctement.
+ */
+.cv-editor-beta-inspector-slot {
+  display: flex;
+  min-height: 0;
+}
+
+/* Bouton d ouverture/fermeture dans la topbar editeur. */
+.editor-inspector-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #ffffff;
+  border: 1px solid #cbd5e0;
+  color: #334155;
+  font-family: var(--editor-font-family);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.32rem 0.7rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.editor-inspector-toggle-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.editor-inspector-toggle-btn:focus-visible {
+  outline: none;
+  border-color: #4a154b;
+  box-shadow: 0 0 0 3px rgba(74, 21, 75, 0.18);
+}
+
+.editor-inspector-toggle-btn--active {
+  background: linear-gradient(135deg, #4a154b 0%, #611f69 100%);
+  border-color: transparent;
+  color: white;
+}
+
+.editor-inspector-toggle-btn--active:hover {
+  filter: brightness(1.05);
+  background: linear-gradient(135deg, #4a154b 0%, #611f69 100%);
+}
+
+.editor-inspector-toggle-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+/* Le drawer lui-meme. */
+.editor-inspector-drawer {
+  width: 340px;
+  max-width: 100%;
+  flex-shrink: 0;
+  background: #ffffff;
+  border-left: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  color: #1e293b;
+  font-family: var(--editor-font-family);
+  animation: editor-inspector-slide-in 200ms ease-out;
+}
+
+@keyframes editor-inspector-slide-in {
+  from { transform: translateX(20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.editor-inspector-drawer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 0.85rem 0.9rem 0.7rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.editor-inspector-drawer-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.editor-inspector-drawer-kicker {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+}
+
+.editor-inspector-drawer-title strong {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.editor-inspector-drawer-close {
+  background: transparent;
+  border: none;
+  font-size: 1.4rem;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0 0.3rem;
+  border-radius: 0.3rem;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.editor-inspector-drawer-close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.editor-inspector-drawer-close:focus-visible {
+  outline: 2px solid #4a154b;
+  outline-offset: 2px;
+}
+
+/* Onglets Style / Contenu (P1.5). */
+.editor-inspector-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.4rem 0.6rem 0;
+  border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
+}
+
+.editor-inspector-tab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  font-family: var(--editor-font-family);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+  padding: 0.5rem 0.8rem;
+  border-radius: 0.4rem 0.4rem 0 0;
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px; /* aligne sur le border-bottom du parent */
+}
+
+.editor-inspector-tab:hover {
+  color: #334155;
+  background: #f8fafc;
+}
+
+.editor-inspector-tab--active {
+  color: #611f69;
+  border-bottom-color: #4a154b;
+}
+
+.editor-inspector-tab:focus-visible {
+  outline: 2px solid #4a154b;
+  outline-offset: 2px;
+}
+
+.editor-inspector-drawer-body {
+  flex: 1;
+  min-height: 0; /* indispensable pour que `overflow-y: auto` scrolle */
+  overflow-y: auto;
+  padding: 0.75rem 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.editor-inspector-drawer-empty {
+  margin: 0;
+  padding: 1rem 0.5rem;
+  color: #64748b;
+  font-size: 0.82rem;
+  text-align: center;
+  font-style: italic;
+}
+
+.editor-inspector-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.editor-inspector-group-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+
+.editor-inspector-group-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+/* Champ generique. Le label est en row pour color/boolean, en column pour
+ * select (qui prend plus de place horizontale). */
+.editor-inspector-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.editor-inspector-field--select {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.3rem;
+}
+
+.editor-inspector-field-label {
+  font-weight: 500;
+}
+
+.editor-inspector-field-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* Color picker : on cache le rendu natif (encombrant) et on affiche un
+ * carre couleur de petite taille a cote du champ hex. */
+.editor-inspector-color-picker {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #cbd5e0;
+  border-radius: 0.3rem;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.editor-inspector-color-picker::-webkit-color-swatch-wrapper {
+  padding: 0;
+  border-radius: 0.25rem;
+}
+.editor-inspector-color-picker::-webkit-color-swatch {
+  border: none;
+  border-radius: 0.2rem;
+}
+.editor-inspector-color-picker::-moz-color-swatch {
+  border: none;
+  border-radius: 0.2rem;
+}
+
+.editor-inspector-color-hex {
+  width: 78px;
+  font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  padding: 0.28rem 0.4rem;
+  border: 1px solid #cbd5e0;
+  border-radius: 0.3rem;
+  color: #1e293b;
+  background: #ffffff;
+  text-transform: lowercase;
+}
+
+.editor-inspector-color-hex:focus-visible {
+  outline: none;
+  border-color: #4a154b;
+  box-shadow: 0 0 0 2px rgba(74, 21, 75, 0.18);
+}
+
+/* Select dans le drawer (typo). */
+.editor-inspector-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: #ffffff;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%2364748b' d='M0 0l5 6 5-6z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.55rem center;
+  background-size: 8px 5px;
+  border: 1px solid #cbd5e0;
+  border-radius: 0.4rem;
+  padding: 0.36rem 1.6rem 0.36rem 0.55rem;
+  font-size: 0.85rem;
+  color: #1e293b;
+  cursor: pointer;
+  font-family: var(--editor-font-family);
+}
+
+.editor-inspector-select:focus-visible {
+  outline: none;
+  border-color: #4a154b;
+  box-shadow: 0 0 0 3px rgba(74, 21, 75, 0.18);
+}
+
+/* Toggle stylise pour les booleens. On cache la checkbox native via
+ * `opacity: 0` plutot que `display: none` pour garder l accessibilite
+ * clavier (focus, ARIA). */
+.editor-inspector-field--boolean .editor-inspector-field-control {
+  position: relative;
+  width: 36px;
+  height: 20px;
+}
+
+.editor-inspector-checkbox {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+.editor-inspector-toggle {
+  position: absolute;
+  inset: 0;
+  background: #cbd5e0;
+  border-radius: 999px;
+  transition: background-color 180ms ease;
+}
+
+.editor-inspector-toggle::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
+  transition: transform 180ms ease;
+}
+
+.editor-inspector-checkbox:checked + .editor-inspector-toggle {
+  background: #4a154b;
+}
+
+.editor-inspector-checkbox:checked + .editor-inspector-toggle::after {
+  transform: translateX(16px);
+}
+
+.editor-inspector-checkbox:focus-visible + .editor-inspector-toggle {
+  box-shadow: 0 0 0 3px rgba(74, 21, 75, 0.25);
+}
+
+/* Footer : bouton reset. */
+.editor-inspector-drawer-footer {
+  padding: 0.75rem 0.9rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.editor-inspector-reset {
+  width: 100%;
+  background: #f8fafc;
+  border: 1px solid #cbd5e0;
+  color: #334155;
+  font-family: var(--editor-font-family);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.editor-inspector-reset:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.editor-inspector-reset:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.editor-inspector-reset:focus-visible {
+  outline: none;
+  border-color: #4a154b;
+  box-shadow: 0 0 0 3px rgba(74, 21, 75, 0.18);
+}
+
+/* ============================================================
+ * Panneau "Contenu" (P1.5) : add / remove / reorder par section.
+ * ============================================================ */
+.editor-content-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.editor-content-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.editor-content-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.editor-content-section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+
+.editor-content-section-count {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.editor-content-section-empty {
+  margin: 0;
+  padding: 0.4rem 0.55rem;
+  background: #f8fafc;
+  border: 1px dashed #e2e8f0;
+  border-radius: 0.4rem;
+  font-size: 0.78rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+.editor-content-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.editor-content-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.4rem 0.35rem 0.25rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.4rem;
+  font-size: 0.8rem;
+  color: #1e293b;
+  transition: border-color 150ms ease, box-shadow 150ms ease, opacity 150ms ease,
+              background-color 150ms ease;
+}
+
+.editor-content-item--dragging {
+  opacity: 0.5;
+  background: #f1f5f9;
+}
+
+/* Indication visuelle de la cible quand on survole une autre ligne en
+ * cours de drag. Une barre verticale gauche violette pour rester
+ * accessible sur les couleurs neutres existantes. */
+.editor-content-item--over {
+  border-color: #4a154b;
+  box-shadow: inset 3px 0 0 0 #4a154b;
+}
+
+.editor-content-item-handle {
+  flex-shrink: 0;
+  cursor: grab;
+  color: #94a3b8;
+  user-select: none;
+  font-size: 0.85rem;
+  letter-spacing: -2px;
+  padding: 0 0.15rem;
+  line-height: 1;
+}
+
+.editor-content-item-handle:active {
+  cursor: grabbing;
+}
+
+.editor-content-item-label {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.editor-content-item-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
+}
+
+.editor-content-item-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #64748b;
+  font-family: var(--editor-font-family);
+  font-size: 0.85rem;
+  line-height: 1;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.3rem;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.editor-content-item-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #1e293b;
+  border-color: #cbd5e0;
+}
+
+.editor-content-item-btn:focus-visible {
+  outline: 2px solid #4a154b;
+  outline-offset: 1px;
+}
+
+.editor-content-item-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.editor-content-item-btn--danger:hover:not(:disabled) {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.editor-content-add-btn {
+  appearance: none;
+  margin-top: 0.15rem;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e0;
+  color: #475569;
+  font-family: var(--editor-font-family);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+  width: 100%;
+  justify-content: center;
+}
+
+.editor-content-add-btn:hover {
+  background: #f9f0ff;
+  border-color: #818cf8;
+  border-style: solid;
+  color: #611f69;
+}
+
+.editor-content-add-btn:focus-visible {
+  outline: none;
+  border-color: #4a154b;
+  box-shadow: 0 0 0 3px rgba(74, 21, 75, 0.18);
+}
+
+/* Responsive : sur ecran etroit, le drawer prend tout l espace dispo
+ * (le canvas est masque par-dessous). */
+/* P3.6+ - Onglet Bloc (canvas libre) */
+.editor-block-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.editor-block-inspector-card {
+  background: linear-gradient(180deg, #fafbff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 0.55rem;
+  padding: 0.65rem 0.7rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.editor-block-inspector-card--meta {
+  border-color: #c7d2fe;
+  background: linear-gradient(135deg, #f5f7ff 0%, #f9f0ff 55%, #f8fafc 100%);
+}
+
+.editor-block-inspector-card-title {
+  margin: 0 0 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.editor-block-inspector-card-kicker {
+  margin: -0.15rem 0 0.5rem;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+
+.editor-block-inspector-type {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.55rem;
+}
+
+.editor-block-inspector-type-badge {
+  display: inline-flex;
+  align-items: center;
+  background: #4a154b;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.78rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 0.4rem;
+  letter-spacing: 0.01em;
+  box-shadow: 0 1px 3px rgba(79, 70, 229, 0.25);
+}
+
+.editor-block-inspector-id {
+  font-size: 0.68rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #64748b;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid #e2e8f0;
+  border-radius: 0.3rem;
+  padding: 0.15rem 0.35rem;
+  word-break: break-all;
+  max-width: 100%;
+}
+
+.editor-block-inspector-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.76rem;
+  color: #475569;
+  line-height: 1.45;
+  padding: 0.4rem 0.5rem;
+  background: rgba(255, 255, 255, 0.65);
+  border-radius: 0.35rem;
+  border-left: 3px solid #818cf8;
+}
+
+.editor-block-inspector-geometry-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem 0.55rem;
+}
+
+.editor-block-inspector-field {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.4rem;
+  padding: 0.35rem 0.45rem;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.editor-block-inspector-field:focus-within {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 2px rgba(74, 21, 75, 0.12);
+}
+
+.editor-block-inspector-field .editor-inspector-field-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.02em;
+}
+
+.editor-block-inspector-field .editor-inspector-field-control {
+  margin-top: 0.2rem;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.3rem;
+  padding: 0.28rem 0.4rem;
+  background: #f8fafc;
+}
+
+.editor-block-inspector-field .editor-inspector-field-control:focus {
+  outline: none;
+  border-color: #4a154b;
+  background: #ffffff;
+}
+
+.editor-block-inspector-card .editor-inspector-group-fields {
+  gap: 0.45rem;
+}
+
+.editor-block-inspector-card .editor-inspector-field {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.4rem;
+  padding: 0.4rem 0.5rem;
+}
+
+.editor-block-inspector-layer-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.editor-block-inspector-layer-btn {
+  border: none;
+  background: linear-gradient(135deg, #4a154b 0%, #4a154b 100%);
+  border-radius: 0.4rem;
+  padding: 0.42rem 0.5rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #ffffff;
+  cursor: pointer;
+  font-family: var(--editor-font-family, inherit);
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(79, 70, 229, 0.28);
+  transition: filter 120ms ease, transform 80ms ease;
+}
+
+.editor-block-inspector-layer-btn:hover {
+  filter: brightness(1.06);
+}
+
+.editor-block-inspector-layer-btn:active {
+  transform: scale(0.98);
+}
+
+.editor-block-inspector-layer-btn--secondary {
+  background: #ffffff;
+  color: #611f69;
+  border: 1px solid #c7d2fe;
+  box-shadow: none;
+}
+
+.editor-block-inspector-layer-btn--secondary:hover {
+  background: #f9f0ff;
+  filter: none;
+}
+
+.editor-inspector-group-fields--grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 0.65rem;
+}
+
+.editor-inspector-field--number .editor-inspector-field-control {
+  width: 100%;
+}
+
+.editor-inspector-field--textarea .editor-inspector-textarea {
+  width: 100%;
+  min-height: 4rem;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 0.82rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.35rem;
+  padding: 0.4rem 0.5rem;
+}
+
+@media (max-width: 900px) {
+  .editor-inspector-drawer {
+    width: 100%;
+    max-width: 100%;
+    border-left: none;
+    border-top: 1px solid #e2e8f0;
+  }
+  .cv-editor-beta-workspace {
+    flex-direction: column;
+  }
+}

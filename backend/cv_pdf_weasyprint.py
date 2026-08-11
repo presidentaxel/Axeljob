@@ -15,14 +15,14 @@ Règles à respecter (toute refonte doit les préserver ou les documenter explic
      (racine projet) et pourrait charger le mauvais fichier ou écraser le bundle pdf_export.
    - Injection en fin de <body> (préférée) ou avant </head> :
        layout (weasyprint_cv_layout.css)
-     + align  (weasyprint_cv_export.css)  — @page, cv-print-split, bandes multi-pages, ATS PDF…
-     + [templates custom_* uniquement] weasyprint_custom_template.css — @page margin 0, body blanc.
+     + align  (weasyprint_cv_export.css)  - @page, cv-print-split, bandes multi-pages, ATS PDF…
+     + [templates custom_* uniquement] weasyprint_custom_template.css - @page margin 0, body blanc.
    - Dernière couche : write_pdf(..., stylesheets=[CSS(string=PDF_FROM_HTML_FINAL_CSS)])
      pour forcer des couleurs de texte sur .cv-main / .cv-sidebar quand l’héritage WeasyPrint casse.
 
 3) Templates personnalisés (id prefix custom_)
    - Le même fichier weasyprint_custom_template.css est injecté dans le bundle (fin de body),
-     comme l’ancien chemin _render_pdf_bytes_from_custom_ctx — plus de duplication ad hoc dans main
+     comme l’ancien chemin _render_pdf_bytes_from_custom_ctx - plus de duplication ad hoc dans main
      (anciens <style> injectés dans </head> seuls).
 
 4) Windows
@@ -39,7 +39,6 @@ Règles à respecter (toute refonte doit les préserver ou les documenter explic
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 # Racine cv-bot (parent de backend/)
@@ -59,17 +58,6 @@ body.cv-preview article.cv.cv-pdf-dual-column > .cv-main,
 .cv .bullet::before, .cv .experience-item .bullet::before { font-size: 0.92em !important; }
 """
 
-_CSS_IMPORT_RE = re.compile(
-    r"@import\s+(?:url\()?[\"']?[^\"');]+[\"']?\)?[^;]*;\s*",
-    re.IGNORECASE | re.MULTILINE,
-)
-
-# Tout lien vers template.css (y compris chemins avec slash)
-_TEMPLATE_CSS_LINK_RE = re.compile(
-    r'<link\s[^>]*href\s*=\s*["\']?(?:[^"\'>\s]*/)?template\.css["\']?[^>]*>\s*',
-    re.IGNORECASE,
-)
-
 CUSTOM_TEMPLATE_ID_PREFIX = "custom_"
 
 
@@ -78,13 +66,56 @@ def is_custom_template_id(template_id: str | None) -> bool:
 
 
 def strip_css_imports(text: str) -> str:
+    """Retire les ``@import …;`` sans regex (évite ReDoS CodeQL)."""
     if not text:
         return text
-    return _CSS_IMPORT_RE.sub("", text)
+    lower = text.lower()
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    while i < n:
+        start = lower.find("@import", i)
+        if start < 0:
+            out.append(text[i:])
+            break
+        out.append(text[i:start])
+        semi = text.find(";", start)
+        if semi < 0:
+            # Pas de ';' : abandonne le reste pour ne pas laisser un @import partiel.
+            break
+        i = semi + 1
+        while i < n and text[i] in " \t\r\n":
+            i += 1
+    return "".join(out)
 
 
 def strip_template_css_links(html: str) -> str:
-    return _TEMPLATE_CSS_LINK_RE.sub("", html)
+    """Retire les ``<link … href=…template.css …>`` sans regex (évite ReDoS CodeQL)."""
+    if not html:
+        return html
+    lower = html.lower()
+    out: list[str] = []
+    i = 0
+    n = len(html)
+    while i < n:
+        start = lower.find("<link", i)
+        if start < 0:
+            out.append(html[i:])
+            break
+        end = html.find(">", start)
+        if end < 0:
+            out.append(html[i:])
+            break
+        tag = lower[start : end + 1]
+        if "template.css" in tag:
+            out.append(html[i:start])
+            i = end + 1
+            while i < n and html[i] in " \t\r\n":
+                i += 1
+            continue
+        out.append(html[i : end + 1])
+        i = end + 1
+    return "".join(out)
 
 
 def _read_pdf_export_css_file(filename: str) -> str:
@@ -123,7 +154,7 @@ def inject_weasyprint_export_bundle(
 
     Ordre (identique à l’ancien generer_pdf_bytes + _render_pdf_bytes_from_custom_ctx) :
     - Feuille « custom base » (weasyprint_custom_template.css) en premier si template custom_*,
-      puis layout, puis align — les :root utilisateur restent dans le <head> du HTML.
+      puis layout, puis align - les :root utilisateur restent dans le <head> du HTML.
     prepend_to_bundle : extension rare (ex. scale injecté hors render_cv_html).
     """
     if 'id="cv-bot-pdf-export-align"' in html_str:

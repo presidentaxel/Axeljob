@@ -341,6 +341,15 @@ export function applyA4PageFramesInHost(container) {
       window.requestAnimationFrame(run);
     });
     ro.observe(cv);
+    /**
+     * On observe aussi le `container` (wrapper de l aperçu) : quand son
+     * propre layout change (ex. drawer inspecteur qui s ouvre et reduit
+     * la largeur du canvas), le `.cv` lui-meme garde sa taille (210mm
+     * fixe) donc le ResizeObserver sur `cv` ne se declenche pas. Sans
+     * cette deuxieme observation, le `cv-preview-a4-page-layer` reste
+     * positionne selon les anciennes coordonnees et apparait decalé.
+     */
+    ro.observe(container);
     container[RESIZE_OBSERVER_KEY] = ro;
     window.setTimeout(scheduleRun, 320);
   } catch (_) {

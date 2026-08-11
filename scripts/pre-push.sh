@@ -58,7 +58,7 @@ if [[ "$SKIP_EXTRAS" -eq 0 ]]; then
     phase "Secrets (gitleaks)"
     gitleaks detect --source . --redact --verbose
   elif [[ "$SKIP_GITLEAKS" -eq 0 ]]; then
-    echo "Gitleaks absent du PATH — installe https://github.com/gitleaks/gitleaks ou passe --skip-gitleaks / --skip-extras." >&2
+    echo "Gitleaks absent du PATH - installe https://github.com/gitleaks/gitleaks ou passe --skip-gitleaks / --skip-extras." >&2
   fi
 
   phase "Backend (pip-audit)"
@@ -91,4 +91,4 @@ if [[ "$WITH_E2E" -eq 1 ]]; then
 fi
 
 echo ""
-echo "OK — pre-push terminé sans erreur."
+echo "OK - pre-push terminé sans erreur."

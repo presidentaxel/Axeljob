@@ -1,9 +1,9 @@
 {
   "id": "elegant",
   "name": "Élégant",
-  "description": "Template raffiné mono-colonne avec header centré, tons subtils et lignes fines. Premium.",
-  "tags": ["ats-safe", "single-column", "no-sidebar", "premium", "elegant"],
-  "premium": true,
+  "description": "Template raffiné mono-colonne avec header centré, tons subtils et lignes fines.",
+  "tags": ["ats-safe", "single-column", "no-sidebar", "elegant"],
+  "premium": false,
   "options": [
     {"key": "header_color", "type": "color", "default": "#ffffff", "label": "Couleur en-tête"},
     {"key": "accent_color", "type": "color", "default": "#4a5568", "label": "Couleur accent"},

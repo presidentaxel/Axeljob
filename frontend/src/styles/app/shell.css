@@ -1,0 +1,134 @@
+/**
+ * Shell applicatif /app - layout racine, gates, onboarding boot.
+ */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  background: var(--color-canvas);
+}
+
+.app-onboarding-boot {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.app-onboarding-boot-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: app-onboarding-boot-spin 0.7s linear infinite;
+}
+
+@keyframes app-onboarding-boot-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.app-mobile-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(1.25rem, env(safe-area-inset-top, 0px)) max(1.25rem, env(safe-area-inset-right, 0px))
+    max(1.25rem, env(safe-area-inset-bottom, 0px)) max(1.25rem, env(safe-area-inset-left, 0px));
+  background: rgba(7, 24, 41, 0.45);
+}
+
+.app-mobile-gate-card {
+  width: 100%;
+  max-width: 26rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.5rem 1.35rem 1.35rem;
+  text-align: center;
+}
+
+.app-mobile-gate-logo {
+  display: block;
+  margin: 0 auto 1rem;
+  border-radius: var(--radius-sm);
+}
+
+.app-mobile-gate-card h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.2rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.app-mobile-gate-lead,
+.app-mobile-gate-hint {
+  margin: 0 0 0.85rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.app-mobile-gate-hint {
+  margin-bottom: 1.15rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.app-mobile-gate-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.app-mobile-gate-actions .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg-page);
+  overflow: hidden;
+}
+
+.app-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.view-panel {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.view-panel.active {
+  display: flex;
+}

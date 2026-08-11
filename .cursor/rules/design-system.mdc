@@ -1,0 +1,170 @@
+---
+description: Design system Cohere - référence pour tout code frontend (composants, styles, couleurs, typographie)
+alwaysApply: true
+---
+
+# Design System - Cohere 2026
+
+Le design system de référence est documenté dans **`docs/DESIGN-cohere.md`**.
+Toute modification de l'UI doit respecter ce document. Les tokens ci-dessous sont la source de vérité.
+
+---
+
+## Couleurs (CSS custom properties)
+
+```css
+--color-primary:      #17171c;
+--color-ink:          #212121;
+--color-deep-green:   #003c33;
+--color-dark-navy:    #071829;
+--color-canvas:       #ffffff;
+--color-soft-stone:   #eeece7;
+--color-pale-green:   #edfce9;
+--color-pale-blue:    #f1f5ff;
+--color-hairline:     #d9d9dd;
+--color-border-light: #e5e7eb;
+--color-card-border:  #f2f2f2;
+--color-muted:        #93939f;
+--color-slate:        #75758a;
+--color-body-muted:   #616161;
+--color-action-blue:  #1863dc;
+--color-focus-blue:   #4c6ee6;
+--color-coral:        #ff7759;
+--color-coral-soft:   #ffad9b;
+--color-form-focus:   #9b60aa;
+--color-error:        #b30000;
+--color-on-dark:      #ffffff;
+```
+
+**Règles d'usage :**
+- Fond de page par défaut : `--color-canvas` (blanc).
+- Bandes produit sombres : `--color-deep-green` ou `--color-dark-navy` en pleine largeur.
+- Coral (`--color-coral`) réservé aux chips taxonomie et accents éditoriaux, jamais en fond large.
+- Pas de dégradés sur les surfaces UI ; les dégradés appartiennent aux médias (images, vidéos).
+- Pas de `box-shadow` lourdes ; la profondeur vient de la bordure et du contraste de surface.
+
+---
+
+## Typographie
+
+**Familles de polices :**
+- Display : `CohereText`, puis `Space Grotesk`, `Inter`, `ui-sans-serif`, `system-ui`.
+- Body/UI : `Unica77 Cohere Web`, puis `Inter`, `Arial`, `ui-sans-serif`, `system-ui`.
+- Labels techniques : `CohereMono`, puis `Arial`, `ui-sans-serif`, `system-ui`.
+
+**Hiérarchie (à reproduire via classes ou tokens) :**
+
+| Rôle | Famille | Taille | Poids | Line-height | Letter-spacing |
+|---|---|---:|---:|---:|---:|
+| hero-display | CohereText | 96px | 400 | 1.00 | -1.92px |
+| product-display | CohereText | 72px | 400 | 1.00 | -1.44px |
+| section-display | Unica77 | 60px | 400 | 1.00 | -1.2px |
+| section-heading | Unica77 | 48px | 400 | 1.20 | -0.48px |
+| card-heading | Unica77 | 32px | 400 | 1.20 | -0.32px |
+| feature-heading | Unica77 | 24px | 400 | 1.30 | 0 |
+| body-large | Unica77 | 18px | 400 | 1.40 | 0 |
+| body | Unica77 | 16px | 400 | 1.50 | 0 |
+| button | Unica77 | 14px | 500 | 1.71 | 0 |
+| caption | Unica77 | 14px | 400 | 1.40 | 0 |
+| mono-label | CohereMono | 14px | 400 | 1.40 | 0.28px |
+| micro | Unica77 | 12px | 400 | 1.40 | 0 |
+
+**Règles :**
+- Les headlines display doivent être compactes (tracking négatif, `line-height: 1`).
+- Pas de `font-weight` élevé (700+) ; la hiérarchie se fait par la taille et la surface.
+- Labels catégorie/système en `CohereMono` uppercase.
+
+---
+
+## Espacements
+
+```
+xxs: 2px | xs: 6px | sm: 8px | md: 12px | lg: 16px
+xl: 24px | xxl: 32px | section: 80px
+```
+
+---
+
+## Border-radius
+
+```
+xs: 4px   - champs, images utilitaires
+sm: 8px   - cards, chips, médias petits
+md: 16px  - blocs groupés moyens
+lg: 22px  - card média signature (hero-photo-card)
+xl: 30px  - pills filtres/research
+pill: 32px - boutons CTA primaires
+full: 9999px - statuts ronds
+```
+
+---
+
+## Composants - comportements attendus
+
+### `button-primary`
+- Fond : `--color-primary` (#17171c) sur fond clair, blanc sur fond sombre.
+- Radius : `32px` (pill).
+- Padding : `12px 24px`.
+- Typo : Unica77, 14px, weight 500.
+
+### `button-secondary`
+- Pas de fond ; action texte souligné ou alignée sur règle.
+- Radius : `4px`.
+- Padding : `8px 0`.
+
+### `button-pill-outline`
+- Fond transparent, bordure 1px `--color-primary`.
+- Radius : `30px`.
+- Padding : `6px 12px`.
+
+### `card` (générique)
+- Fond : `--color-canvas` ou `--color-soft-stone`.
+- Radius : `8px` (sm) ou `22px` (lg) selon contexte.
+- Pas de `box-shadow`; bordure fine `--color-card-border` ou `--color-hairline`.
+
+### `dark-feature-band`
+- Fond pleine largeur : `--color-deep-green` ou `--color-dark-navy`.
+- Texte : `--color-on-dark`.
+- Padding vertical : `80px`.
+- Radius sur le bloc intérieur : `22px`.
+
+### Focus / accessibilité
+- Focus visible : `outline` couleur `--color-focus-blue` (#4c6ee6).
+- Focus input texte : bordure `--color-form-focus` (#9b60aa).
+
+---
+
+## Responsive - breakpoints
+
+| Nom | Largeur | Comportement |
+|---|---:|---|
+| small-mobile | < 425px | 1 colonne, nav compact, headline réduit |
+| mobile | 425–640px | Médias empilés, grilles 1 col, formulaires 1 col |
+| large-mobile | 640–768px | 1 col élargie |
+| tablet | 768–1024px | 2 colonnes, nav resserré |
+| desktop | 1024–1440px | nav complet, grilles 3 col, hero split |
+| large-desktop | 1440–2560px | conteneurs larges, grands espaces verticaux |
+
+---
+
+## Do / Don't (résumé rapide)
+
+**Faire :**
+- Canvas blanc par défaut ; bandes sombres full-width pour les sections produit.
+- Un seul CTA primaire pill-shaped par section.
+- Radius 22px sur les cards médias majeures.
+- Logos partenaires monochromes avec grand espacement.
+- Laisser la photo et les mockups porter la couleur ; le shell UI reste sobre.
+
+**Ne pas faire :**
+- Pas de `box-shadow` décoratifs.
+- Pas de coral/blue en grande surface décorative.
+- Pas de grids card-based là où des listes/règles suffisent.
+- Pas de dégradés en fond de surface UI.
+- Pas de mélange de familles de polices hors du split display/body documenté.
+
+---
+
+## Référence complète
+
+→ **`docs/DESIGN-cohere.md`** - analyse exhaustive du système (couleurs avec hex, composants détaillés, itération guide, known gaps).

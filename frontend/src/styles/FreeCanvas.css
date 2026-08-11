@@ -1,0 +1,877 @@
+/* Canvas libre L3 - apercu read-only (P3.2) */
+
+.free-canvas {
+  width: 100%;
+  max-width: 100%;
+  flex: 1;
+  align-self: stretch;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.free-canvas-hint-banner,
+.free-canvas-readonly-banner {
+  margin: 0 0 0.75rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.78rem;
+  color: #475569;
+  background: #e0e7ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 0.35rem;
+  text-align: center;
+  max-width: 42rem;
+}
+
+.free-canvas-pages-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  gap: 0.5rem;
+}
+
+.free-canvas-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+/* Bouton + sous la derniere feuille : ajoute une page A4 vide (appendBlankPage). */
+.free-canvas-add-page-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0 1rem;
+}
+
+.free-canvas-add-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--color-hairline, #d9d9dd);
+  background: var(--color-canvas, #ffffff);
+  color: var(--color-primary, #17171c);
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 120ms ease;
+  font-family: var(--app-font-family);
+}
+
+.free-canvas-add-page-btn:hover {
+  background: var(--color-soft-stone, #eeece7);
+  border-color: var(--color-slate, #75758a);
+}
+
+.free-canvas-add-page-btn:active {
+  transform: scale(0.96);
+}
+
+.free-canvas-add-page-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35);
+}
+
+.free-canvas-add-page-hint {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  letter-spacing: 0.01em;
+}
+
+.free-canvas-page-wrap {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.free-canvas-remove-page-btn {
+  position: absolute;
+  top: -2rem;
+  right: max(0.75rem, calc(50% - 105mm));
+  z-index: 5;
+  border: 1px solid #fecaca;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #b91c1c;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.free-canvas-remove-page-btn:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.free-canvas-page--interactive {
+  cursor: default;
+}
+
+.free-canvas-page {
+  position: relative;
+  background: #ffffff;
+  box-shadow:
+    0 1px 3px rgba(15, 23, 42, 0.08),
+    0 8px 24px rgba(15, 23, 42, 0.1);
+  border-radius: 2px;
+  transform-origin: top center;
+  overflow: hidden;
+  color: #1e293b;
+  font-size: 9pt;
+  line-height: 1.4;
+  box-sizing: border-box;
+}
+
+.free-canvas-page-empty {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 10pt;
+  margin: 0;
+  pointer-events: none;
+}
+
+/* Grille 5 mm (P3.7) - visible en mode edition */
+.free-canvas-page--interactive.free-canvas-page--grid {
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(to right, rgba(79, 70, 229, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(79, 70, 229, 0.06) 1px, transparent 1px);
+  background-size: 5mm 5mm;
+}
+
+/* Guides magnetiques pendant drag/resize */
+.free-canvas-snap-guides {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10000;
+}
+
+.free-canvas-snap-guide {
+  position: absolute;
+  pointer-events: none;
+}
+
+.free-canvas-snap-guide--v {
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dashed #e11d48;
+  opacity: 0.9;
+}
+
+.free-canvas-snap-guide--h {
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px dashed #e11d48;
+  opacity: 0.9;
+}
+
+.free-canvas-snap-guide--center.free-canvas-snap-guide--v,
+.free-canvas-snap-guide--center.free-canvas-snap-guide--h {
+  border-color: #4a154b;
+  opacity: 1;
+}
+
+.free-canvas-snap-guide--center.free-canvas-snap-guide--v {
+  border-left-width: 1.5px;
+  border-left-style: solid;
+}
+
+.free-canvas-snap-guide--center.free-canvas-snap-guide--h {
+  border-top-width: 1.5px;
+  border-top-style: solid;
+}
+
+/* Bloc positionne en mm - cadre d edition via pseudo-element */
+.free-canvas-block {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: visible;
+  border: none;
+  background: transparent;
+}
+
+.free-canvas-block--interactive {
+  cursor: grab;
+  touch-action: none;
+}
+
+.free-canvas-block--interactive.free-canvas-block--editing {
+  cursor: default;
+}
+
+.free-canvas-block--editing .free-canvas-block__inner {
+  cursor: text;
+}
+
+.free-canvas-block--editing .free-canvas-block__inner * {
+  cursor: text;
+}
+
+.free-canvas-block--interactive::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid transparent;
+  border-radius: 1px;
+  pointer-events: none;
+  transition:
+    border-color 100ms ease,
+    box-shadow 100ms ease,
+    inset 100ms ease;
+}
+
+.free-canvas-block--interactive:hover::after {
+  border-color: rgba(79, 70, 229, 0.28);
+}
+
+.free-canvas-block__image-frame {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.free-canvas-block__image-frame-inner {
+  width: 100%;
+  height: 100%;
+}
+
+.free-canvas-block__image-frame-inner .free-canvas-block__image,
+.free-canvas-block__image-frame-inner .free-canvas-block__photo {
+  width: 100%;
+  height: 100%;
+}
+
+.free-canvas-block__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.free-canvas-block__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.free-canvas-block__image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
+.free-canvas-block--locked {
+  outline: 1px dashed #94a3b8;
+}
+
+.free-canvas-marquee {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid var(--color-focus-blue, #4c6ee6);
+  background: rgba(76, 110, 230, 0.12);
+  pointer-events: none;
+  z-index: 5000;
+}
+
+.free-canvas-block__lock-badge {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-slate, #75758a);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.free-canvas-block--editing .free-canvas-block__inner {
+  outline: 2px solid var(--color-focus-blue, #4c6ee6);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.free-canvas-block--editing[data-block-type='text'],
+.free-canvas-block--editing[data-block-type='title'] {
+  overflow: visible;
+}
+
+.free-canvas-block__text--editing,
+.free-canvas-block__title--editing,
+.canvas-editable-field {
+  cursor: text;
+  outline: none;
+  min-height: 1em;
+}
+
+.free-canvas-block--interactive.free-canvas-block--selected::after {
+  inset: -0.5mm;
+  border: 2px solid var(--color-focus-blue, #4c6ee6);
+  border-radius: 2px;
+}
+
+.free-canvas-block--interactive.free-canvas-block--dragging::after {
+  inset: -0.5mm;
+  border-color: var(--color-focus-blue, #4c6ee6);
+  transition: none;
+}
+
+.free-canvas-block--interactive.free-canvas-block--resizing::after {
+  inset: -0.5mm;
+  border-color: var(--color-focus-blue, #4c6ee6);
+  transition: none;
+}
+
+.free-canvas-block--interactive.free-canvas-block--dragging,
+.free-canvas-block--interactive.free-canvas-block--resizing {
+  cursor: grabbing;
+}
+
+.free-canvas-block--interactive.free-canvas-block--dragging {
+  transition: none;
+}
+
+/* Poignees resize - pastilles rondes */
+.free-canvas-resize-handles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10002;
+}
+
+.free-canvas-resize-handle {
+  position: absolute;
+  width: 2.4mm;
+  height: 2.4mm;
+  background: var(--color-canvas, #ffffff);
+  border: 1.5px solid var(--color-primary, #17171c);
+  border-radius: 50%;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+.free-canvas-resize-handle--nw {
+  left: -1mm;
+  top: -1mm;
+  cursor: nwse-resize;
+}
+
+.free-canvas-resize-handle--ne {
+  right: -1mm;
+  top: -1mm;
+  cursor: nesw-resize;
+}
+
+.free-canvas-resize-handle--sw {
+  left: -1mm;
+  bottom: -1mm;
+  cursor: nesw-resize;
+}
+
+.free-canvas-resize-handle--se {
+  right: -1mm;
+  bottom: -1mm;
+  cursor: nwse-resize;
+}
+
+.free-canvas-resize-handle--n {
+  left: 50%;
+  top: -1mm;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.free-canvas-resize-handle--s {
+  left: 50%;
+  bottom: -1mm;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.free-canvas-resize-handle--e {
+  right: -1mm;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+
+.free-canvas-resize-handle--w {
+  left: -1mm;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+
+.free-canvas-block__inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  overflow: clip;
+  padding: 0;
+  box-sizing: border-box;
+  overscroll-behavior: none;
+}
+
+/* Securite : aucune barre de scroll dans un bloc, meme si un enfant herite
+   overflow:auto d ailleurs dans l app. */
+.free-canvas-block__inner,
+.free-canvas-block__inner * {
+  scrollbar-width: none;
+}
+
+.free-canvas-block__inner::-webkit-scrollbar,
+.free-canvas-block__inner *::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.free-canvas-block__inner--editing {
+  overflow: visible !important;
+  height: auto !important;
+  min-height: 100%;
+  max-height: none !important;
+}
+
+/* Hauteur pilotée par le contenu (blocs sémantiques + texte libre) */
+.free-canvas-block__inner--content-fit {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.free-canvas-block__inner--content-fit.free-canvas-block__inner--editing {
+  min-height: 0 !important;
+}
+
+.free-canvas-block__inner--typography .free-canvas-block__identity-name,
+.free-canvas-block__inner--typography .free-canvas-block__identity-title,
+.free-canvas-block__inner--typography .free-canvas-block__contact p,
+.free-canvas-block__inner--typography .free-canvas-block__resume,
+.free-canvas-block__inner--typography .free-canvas-block__section-title,
+.free-canvas-block__inner--typography .free-canvas-block__section-list,
+.free-canvas-block__inner--typography .free-canvas-block__section-list p,
+.free-canvas-block__inner--typography .free-canvas-block__exp,
+.free-canvas-block__inner--typography .free-canvas-block__exp-header,
+.free-canvas-block__inner--typography .free-canvas-block__exp-role,
+.free-canvas-block__inner--typography .free-canvas-block__exp-dates,
+.free-canvas-block__inner--typography .free-canvas-block__text,
+.free-canvas-block__inner--typography .free-canvas-block__title {
+  font-size: inherit !important;
+  font-family: inherit !important;
+  color: inherit !important;
+}
+
+.free-canvas-block__inner--typography .free-canvas-block__identity-name {
+  font-weight: inherit;
+}
+
+/* Zones template (sidebar / header / main) */
+.free-canvas-block__inner--zone-sidebar,
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__identity-name,
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__identity-title,
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__contact p,
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__section-title,
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__section-list,
+.free-canvas-block__inner--zone-sidebar p {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__section-title {
+  border-bottom-color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__chip {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.free-canvas-block__inner--zone-header,
+.free-canvas-block__inner--zone-header .free-canvas-block__identity-name,
+.free-canvas-block__inner--zone-header .free-canvas-block__identity-title,
+.free-canvas-block__inner--zone-header .free-canvas-block__contact p,
+.free-canvas-block__inner--zone-header .free-canvas-block__resume,
+.free-canvas-block__inner--zone-header p {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.free-canvas-block__inner--zone-header .free-canvas-block__identity-title:not(.free-canvas-block__identity-title--accent) {
+  font-style: italic;
+  opacity: 0.9;
+}
+
+.free-canvas-block__identity--inline-title {
+  display: block;
+  margin: 0;
+  font-weight: inherit;
+  font-size: inherit;
+}
+
+.free-canvas-block__contact--header-bar {
+  display: block;
+  text-align: center;
+  margin: 0;
+}
+
+.free-canvas-block__inner--zone-main .free-canvas-block__section-title {
+  color: var(--free-canvas-accent, #3182ce);
+  border-bottom: 0.25mm solid var(--free-canvas-accent, #3182ce);
+}
+
+.free-canvas-block__inner--zone-sidebar-light .free-canvas-block__section-title {
+  color: var(--free-canvas-accent, #1e2a3a);
+  border-bottom: 0.25mm solid var(--free-canvas-accent, #1e2a3a);
+}
+
+.free-canvas-block__shape-rect {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+
+.free-canvas-block__inner--shape-effects {
+  overflow: visible !important;
+}
+
+.free-canvas-block__shape-line--vertical {
+  flex-shrink: 0;
+}
+
+.free-canvas-block__identity--divider .free-canvas-block__identity-name {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 2mm;
+  margin-bottom: 2mm;
+}
+
+.free-canvas-block__identity-name {
+  font-size: 14pt;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--free-canvas-accent, #1e293b);
+}
+
+.free-canvas-block__identity-title {
+  font-size: 10pt;
+  margin-top: 1mm;
+  color: #475569;
+}
+
+.free-canvas-block__contact p {
+  margin: 0 0 0.5mm;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 8pt;
+  color: #334155;
+}
+
+.free-canvas-block__resume {
+  margin: 0;
+  font-size: 9pt;
+  color: #334155;
+}
+
+.free-canvas-block[data-block-type='text'] .free-canvas-block__inner,
+.free-canvas-block[data-block-type='title'] .free-canvas-block__inner,
+.free-canvas-block[data-block-type='resume'] .free-canvas-block__inner {
+  padding: 1mm 1.5mm;
+}
+
+.free-canvas-block__section-title {
+  margin: 0 0 1.5mm;
+  font-size: 9pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--free-canvas-accent, #1e293b);
+  border-bottom: 0.25mm solid rgba(30, 41, 59, 0.35);
+  padding-bottom: 0.4mm;
+}
+
+.free-canvas-block__section-list {
+  font-size: 8.5pt;
+}
+
+.free-canvas-block__exp {
+  margin-bottom: 2mm;
+}
+
+.free-canvas-block__exp-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 2mm;
+  font-weight: 600;
+}
+
+.free-canvas-block__exp-dates {
+  font-weight: 500;
+  color: var(--free-canvas-accent, #64748b);
+  white-space: nowrap;
+  font-size: 8pt;
+}
+
+.free-canvas-block__exp-role {
+  color: #64748b;
+  font-size: 8pt;
+  margin-bottom: 0.5mm;
+}
+
+.free-canvas-block__bullets {
+  margin: 0.5mm 0 0 3mm;
+  padding: 0;
+  list-style: disc;
+}
+
+.free-canvas-block__bullets li {
+  margin-bottom: 0.3mm;
+}
+
+.free-canvas-block__formation-line {
+  margin: 0 0 1mm;
+}
+
+.free-canvas-block__formation-date {
+  font-weight: 500;
+  color: #64748b;
+}
+
+.free-canvas-block__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1mm;
+}
+
+.free-canvas-block__chip {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 2px;
+  padding: 0.5mm 2mm;
+  font-size: 8pt;
+}
+
+.free-canvas-block__photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.free-canvas-block__photo--round {
+  border-radius: 50%;
+}
+
+.free-canvas-block__photo-placeholder {
+  width: 100%;
+  height: 100%;
+  background: #e2e8f0;
+  border-radius: 2px;
+}
+
+.free-canvas-block__text,
+.free-canvas-block__title {
+  margin: 0;
+}
+
+.free-canvas-block__title {
+  font-size: 11pt;
+  font-weight: 700;
+  color: var(--free-canvas-accent, #1e293b);
+}
+
+.free-canvas-block__shape-line {
+  width: 100%;
+  height: 100%;
+  min-height: 0.5mm;
+}
+
+.free-canvas-block__shape-rect {
+  width: 100%;
+  height: 100%;
+}
+
+.free-canvas-block__icon,
+.free-canvas-block__qrcode {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  font-size: 8pt;
+  color: #64748b;
+}
+
+.free-canvas-block__icon--empty,
+.free-canvas-block__qrcode--empty {
+  background: rgba(248, 250, 252, 0.6);
+  border: 1px dashed rgba(148, 163, 184, 0.5);
+  border-radius: 2px;
+}
+
+.free-canvas-block__placeholder {
+  margin: 0;
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 8pt;
+}
+
+.free-canvas-block__empty {
+  opacity: 0.35;
+}
+
+/* Ces règles sont volontairement après les styles de base : les blocs header/sidebar
+   doivent rester lisibles sur fonds sombres, y compris hors édition. */
+.free-canvas-block__inner--zone-header,
+.free-canvas-block__inner--zone-header .free-canvas-block__identity-name,
+.free-canvas-block__inner--zone-header .free-canvas-block__identity-title,
+.free-canvas-block__inner--zone-header .free-canvas-block__contact p,
+.free-canvas-block__inner--zone-header .free-canvas-block__resume,
+.free-canvas-block__inner--zone-header .free-canvas-block__section-title,
+.free-canvas-block__inner--zone-header .free-canvas-block__section-list,
+.free-canvas-block__inner--zone-header p,
+.free-canvas-block__inner--zone-header span {
+  color: inherit;
+}
+
+.free-canvas-block__inner--zone-sidebar,
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__identity-name,
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__identity-title,
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__contact p,
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__section-title,
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__section-list,
+.free-canvas-block__inner--zone-sidebar p,
+.free-canvas-block__inner--zone-sidebar span {
+  color: inherit;
+}
+
+.free-canvas-block__inner--zone-header .free-canvas-block__identity-title:not(.free-canvas-block__identity-title--accent) {
+  font-style: italic;
+  opacity: 0.9;
+}
+
+.free-canvas-block__inner--zone-sidebar .free-canvas-block__section-title,
+.free-canvas-block__inner--zone-header .free-canvas-block__section-title {
+  border-bottom-color: rgba(255, 255, 255, 0.25);
+}
+
+.free-canvas--placing {
+  cursor: crosshair;
+}
+
+.free-canvas-page--placing {
+  cursor: crosshair;
+}
+
+.free-canvas-placement-ghost {
+  position: fixed;
+  z-index: 10040;
+  transform: translate(-50%, -50%);
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--color-primary, #17171c);
+  background: var(--color-canvas, #fff);
+  border: 1px dashed var(--color-hairline, #d9d9dd);
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.free-canvas-draw-rect-preview {
+  position: absolute;
+  border: 2px dashed var(--color-focus-blue, #4c6ee6);
+  background: rgba(76, 110, 230, 0.08);
+  pointer-events: none;
+  z-index: 9990;
+}
+
+/* Choix de demarrage (page blanche vs starter) - CvEditorBeta */
+.free-canvas-starter-picker {
+  width: 100%;
+  max-width: 32rem;
+  margin: 0 auto 1rem;
+  padding: 1rem 1.25rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  text-align: center;
+}
+
+.free-canvas-starter-picker__title {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.free-canvas-starter-picker__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.free-canvas-starter-picker__btn {
+  border: none;
+  border-radius: 32px;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--color-primary, #17171c);
+  color: var(--color-on-dark, #fff);
+  font-family: var(--editor-font-family, inherit);
+}
+
+.free-canvas-starter-picker__btn:hover {
+  background: var(--color-ink, #212121);
+}
+
+.free-canvas-starter-picker__btn--secondary {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.free-canvas-starter-picker__btn--secondary:hover {
+  background: #e2e8f0;
+  filter: none;
+}
+
+.free-canvas-block__shape-vector {
+  width: 100%;
+  height: 100%;
+}

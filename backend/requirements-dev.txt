@@ -1,11 +1,12 @@
 # Dépendances utilisées UNIQUEMENT par les scripts de maintenance (backend/scripts/*).
-# Ne sont PAS installées dans l'image Docker runtime - n'importez rien de ces libs depuis
+# Ne sont PAS installées dans l'image Docker runtime — n'importez rien de ces libs depuis
 # backend/main.py ou les modules importés au boot.
 #
 # Installation locale :
 #   pip install -r backend/requirements.txt -r backend/requirements-dev.txt
-#
-# PyMuPDF (fitz) : voir pymupdf==… dans requirements.txt (runtime + scripts cv_pdf_to_template).
+
+# Utilisé par backend/scripts/cv_pdf_to_template.py (rasterize PDF → image avant Gemini Vision).
+PyMuPDF==1.28.0
 
 # Typage mypy pour requests (lazy import dans main.py).
-types-requests>=2.32
+types-requests>=2.33.0.20260712

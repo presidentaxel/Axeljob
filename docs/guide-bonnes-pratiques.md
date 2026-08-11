@@ -43,7 +43,7 @@ Avant de modifier du code : identifier **ou** vit la regle (UI, API, SQL, templa
 
 ### 2.1 Outils
 
-- **Node** : utiliser une version recente compatible Vite 7 (Node 18+ minimum).
+- **Node** : utiliser une version récente compatible Vite 7 et `sharp` (Node **20.9+** ; CI = Node 20).
 - **ESLint** : configuration dans `frontend/eslint.config.js` ; traiter les erreurs et warnings avant merge.
 - **Build** : `npm run build` declenche aussi `build:brand-assets` ; ne pas contourner cette etape pour valider une livraison.
 - **E2E** : Playwright disponible via `npm run test:e2e` pour les parcours critiques.
@@ -144,12 +144,11 @@ Avant de modifier du code : identifier **ou** vit la regle (UI, API, SQL, templa
 
 ## 8. Git, PR et revue
 
-- **`main`** : prod — merge via PR uniquement, pas de `git push origin main`.
-- **`wip/innovation`** : chantier long (éditeur Beta, import PDF, ATS) — PR Draft [#33](https://github.com/presidentaxel/Axeljob/pull/33), push quotidien sur la branche, **ne pas merger** avant validation. Voir `docs/git-workflow.md`.
-- **Branches courtes** (`feat/*`, `fix/*`) : scope clair, une intention principale par PR, depuis `main`.
+- **Branches** : courtes, scope clair, une intention principale par PR.
 - **Commits** : utiliser Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
 - **Description PR** : expliquer le pourquoi, l'impact utilisateur, les risques et le plan de test.
 - **Avant merge** : CI verte, checks securite verts, documentation mise a jour si comportement modifie.
+- **Chantier Linear (AxeL Job)** : maillage projet → issues Linear → issues GitHub → branche `gitBranchName` → draft PR + liens Linear. Voir [`docs/linear-github-workflow.md`](linear-github-workflow.md).
 
 ### 8.1 Verification locale recommandee avant PR
 

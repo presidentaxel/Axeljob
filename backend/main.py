@@ -1839,58 +1839,74 @@ async def api_stripe_webhook(request: Request):
         if "signature" in str(e).lower():
             raise HTTPException(status_code=400, detail="Signature invalide.")
         raise
-    # set_user_plan / find_user_id_by_stripe_subscription_id font des appels DB + HTTP sync.
-    # On les déporte sur le ThreadPool pour ne pas bloquer l'event loop pendant que Stripe
-    # attend notre 200.
+    # set_user_plan / find_user_id_by_stripe_subscription_id / _send_template_perso_email
+    # font des appels DB + HTTP sync. On les déporte sur le ThreadPool pour ne pas bloquer
+    # l'event loop pendant que Stripe attend notre 200.
+    # stripe>=15 : construct_event renvoie des StripeObject (pas de .get() dict-like).
+    # Toujours passer par _stripe_attr / accès attributs.
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
+        metadata = _stripe_attr(session, "metadata") or {}
         try:
-            user_id = (session.get("client_reference_id") or "").strip()
-            if user_id:
-                customer_id = session.get("customer")
-                sub_id = session.get("subscription")
-                stripe_customer_id = (
-                    customer_id
-                    if isinstance(customer_id, str)
-                    else (customer_id.id if customer_id else None)
-                )
-                stripe_sub_id = (
-                    sub_id if isinstance(sub_id, str) else (sub_id.id if sub_id else None)
-                )
-                await asyncio.to_thread(
-                    set_user_plan,
-                    user_id,
-                    "pro",
-                    stripe_customer_id=stripe_customer_id,
-                    stripe_subscription_id=stripe_sub_id,
-                )
-                _invalidate_stripe_caches_for_user(user_id)
-                _invalidate_usage_cache(user_id)
-                if stripe_sub_id:
-                    _STRIPE_SNAPSHOT_CACHE.invalidate(stripe_sub_id)
-                logger.info("User %s set to pro after Stripe checkout", user_id)
+            if _stripe_attr(metadata, "type") == "template_perso":
+                customer_details = _stripe_attr(session, "customer_details") or {}
+                email = (
+                    _stripe_attr(customer_details, "email")
+                    or _stripe_attr(session, "customer_email")
+                    or ""
+                ).strip()
+                if email:
+                    await asyncio.to_thread(_send_template_perso_email, email)
+            else:
+                user_id = (_stripe_attr(session, "client_reference_id") or "").strip()
+                if user_id:
+                    customer_id = _stripe_attr(session, "customer")
+                    sub_id = _stripe_attr(session, "subscription")
+                    stripe_customer_id = (
+                        customer_id
+                        if isinstance(customer_id, str)
+                        else (_stripe_attr(customer_id, "id") if customer_id else None)
+                    )
+                    stripe_sub_id = (
+                        sub_id
+                        if isinstance(sub_id, str)
+                        else (_stripe_attr(sub_id, "id") if sub_id else None)
+                    )
+                    await asyncio.to_thread(
+                        set_user_plan,
+                        user_id,
+                        "pro",
+                        stripe_customer_id=stripe_customer_id,
+                        stripe_subscription_id=stripe_sub_id,
+                    )
+                    _invalidate_stripe_caches_for_user(user_id)
+                    _invalidate_usage_cache(user_id)
+                    if stripe_sub_id:
+                        _STRIPE_SNAPSHOT_CACHE.invalidate(stripe_sub_id)
+                    logger.info("User %s set to pro after Stripe checkout", user_id)
         except Exception as e:
             logger.exception(
                 "Stripe webhook checkout.session.completed failed: %s (event_id=%s)",
                 e,
-                event.get("id"),
+                _stripe_attr(event, "id"),
             )
             raise
     elif event["type"] == "customer.subscription.deleted":
         sub = event["data"]["object"]
         try:
-            meta = sub.get("metadata") or {}
-            uid = (meta.get("user_id") or "").strip()
+            meta = _stripe_attr(sub, "metadata") or {}
+            uid = (_stripe_attr(meta, "user_id") or "").strip()
             if not uid:
                 found = await asyncio.to_thread(
-                    find_user_id_by_stripe_subscription_id, sub.get("id") or ""
+                    find_user_id_by_stripe_subscription_id,
+                    _stripe_attr(sub, "id") or "",
                 )
                 uid = (found or "").strip()
             if uid:
                 await asyncio.to_thread(set_user_plan, uid, "free", stripe_subscription_id="")
                 _invalidate_stripe_caches_for_user(uid)
                 _invalidate_usage_cache(uid)
-                deleted_sub_id = (sub.get("id") or "").strip() if isinstance(sub, dict) else ""
+                deleted_sub_id = (_stripe_attr(sub, "id") or "").strip()
                 if deleted_sub_id:
                     _STRIPE_SNAPSHOT_CACHE.invalidate(deleted_sub_id)
                 logger.info("User %s set to free after Stripe subscription deleted", uid)
@@ -1898,7 +1914,7 @@ async def api_stripe_webhook(request: Request):
             logger.exception(
                 "Stripe webhook customer.subscription.deleted failed: %s (event_id=%s)",
                 e,
-                event.get("id"),
+                _stripe_attr(event, "id"),
             )
             raise
     return {"received": True}

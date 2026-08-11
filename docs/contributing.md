@@ -12,21 +12,18 @@ Flux recommande pour produire des PR petites, lisibles et faciles a merger.
 
 ## 1) Branches et commits
 
-### Stratégie des branches
-
-| Branche | Rôle |
-| --- | --- |
-| **`main`** | Production. **Jamais** de push direct — merge via PR uniquement. |
-| **`wip/innovation`** | Gros chantier (éditeur Beta, import PDF, score ATS). PR **Draft** [#33](https://github.com/presidentaxel/Axeljob/pull/33) — dev actif, **ne pas merger** tant que ce n'est pas prêt pour la prod. |
-| **`feat/*`**, **`fix/*`** | Petites évolutions depuis `main`, PR classique, merge quand prêt. |
-
-> Guide détaillé : **`docs/git-workflow.md`** (flux quotidien, FAQ, mise en prod).
-
-### Conventions
-
-- Créer les branches courtes depuis `main` : `feature/<sujet-court>` ou `fix/<sujet-court>` (sauf travail déjà sur `wip/innovation`).
-- Limiter une PR à une intention principale (sauf PR Draft de suivi long comme #33).
+- Creer les branches depuis `main` : `feature/<sujet-court>` ou `fix/<sujet-court>`.
+- Limiter une PR a une intention principale.
 - Utiliser Conventional Commits : `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`.
+
+> [!IMPORTANT]
+> Pour un **chantier AxeL Job** (projet / issue Linear, miroir GitHub, draft PR, liens cliquables) : suivre
+> [`docs/linear-github-workflow.md`](linear-github-workflow.md).
+> Branche = **exactement** le `gitBranchName` Linear (`louisvedovato/axe-XX-…`), titre PR `fix(AXE-XX): …` / `feat(AXE-XX): …`,
+> body avec `Fixes AXE-XX` + `Closes #N`, et attachments liens sur l'issue Linear.
+>
+> Workflow Git / PR-first (`main`, `wip/innovation`) : [`docs/git-workflow.md`](git-workflow.md).  
+> Protections branches : [`docs/branch-protections.md`](branch-protections.md).
 
 > [!TIP]
 > Une PR petite se revoit, se teste et se rollback plus facilement.

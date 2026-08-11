@@ -3,115 +3,26 @@
  */
 import { getOrCreateAnalyticsSessionId, ANALYTICS_SESSION_HEADER } from './analyticsSession';
 
+import {
+  closePreopenedDownloadWindow,
+  getDownloadPermissionHint,
+  prepareAppleDownloadWindow,
+  saveBlobWithPreferredMethod,
+  triggerBlobDownload,
+} from './lib/blobDownload.js';
+
+export {
+  closePreopenedDownloadWindow,
+  getDownloadPermissionHint,
+  prepareAppleDownloadWindow,
+  saveBlobWithPreferredMethod,
+  triggerBlobDownload,
+};
+
 const getApiUrl = () => import.meta.env.VITE_API_URL || '';
 
 let authToken = null;
 let onUnauthorized = null;
-
-function isLikelyApplePlatform() {
-  try {
-    const uaDataPlatform = navigator?.userAgentData?.platform || '';
-    const platform = navigator?.platform || '';
-    const ua = navigator?.userAgent || '';
-    return /mac|iphone|ipad|ipod/i.test(`${uaDataPlatform} ${platform} ${ua}`);
-  } catch {
-    return false;
-  }
-}
-
-export function prepareAppleDownloadWindow() {
-  if (!isLikelyApplePlatform()) return null;
-  try {
-    return window.open('', '_blank', 'noopener,noreferrer');
-  } catch {
-    return null;
-  }
-}
-
-export function getDownloadPermissionHint() {
-  if (!isLikelyApplePlatform()) return '';
-  return ' Sur Apple/Safari, autorisez les pop-ups et téléchargements automatiques pour ce site.';
-}
-
-/**
- * Cross-browser blob download with Apple/Safari fallback.
- * On Apple platforms, if a pre-opened tab is provided from a user click,
- * we navigate that tab to the blob URL to avoid popup/download blocking.
- */
-export function triggerBlobDownload(blob, filename, options = {}) {
-  const { preopenedWindow = null } = options;
-  const safeFilename = filename || 'download';
-  const url = URL.createObjectURL(blob);
-
-  try {
-    if (isLikelyApplePlatform()) {
-      if (preopenedWindow && !preopenedWindow.closed) {
-        preopenedWindow.location.href = url;
-      } else {
-        window.open(url, '_blank', 'noopener,noreferrer');
-      }
-      return;
-    }
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = safeFilename;
-    a.rel = 'noopener noreferrer';
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  } finally {
-    // Safari may fail if revoked immediately after click/navigation.
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  }
-}
-
-function getPickerTypesFromBlob(blob, filename) {
-  const lower = (filename || '').toLowerCase();
-  if ((blob?.type || '').includes('pdf') || lower.endsWith('.pdf')) {
-    return [{ description: 'PDF', accept: { 'application/pdf': ['.pdf'] } }];
-  }
-  if ((blob?.type || '').includes('zip') || lower.endsWith('.zip')) {
-    return [{ description: 'Archive ZIP', accept: { 'application/zip': ['.zip'] } }];
-  }
-  return undefined;
-}
-
-/**
- * Prefer native save picker (explicit location choice) when available,
- * then fallback to browser-driven blob download.
- */
-export async function saveBlobWithPreferredMethod(blob, filename, options = {}) {
-  const { preopenedWindow = null, startIn = null } = options;
-  const safeFilename = filename || 'download';
-
-  if (typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function') {
-    try {
-      const pickerOpts = {
-        suggestedName: safeFilename,
-        types: getPickerTypesFromBlob(blob, safeFilename),
-      };
-      if (startIn && typeof startIn === 'object' && startIn.kind) {
-        pickerOpts.startIn = startIn;
-      }
-      const handle = await window.showSaveFilePicker(pickerOpts);
-      const writable = await handle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      if (preopenedWindow && !preopenedWindow.closed) preopenedWindow.close();
-      return;
-    } catch (e) {
-      if (e?.name === 'AbortError') {
-        if (preopenedWindow && !preopenedWindow.closed) preopenedWindow.close();
-        return;
-      }
-      // Non bloquant: on repasse sur le téléchargement classique.
-    }
-  }
-
-  triggerBlobDownload(blob, safeFilename, { preopenedWindow });
-}
 
 export function setAuthToken(token) {
   authToken = token || null;

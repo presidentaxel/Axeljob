@@ -10,7 +10,8 @@
  *    hasPending) -- utilise par `AutoSaveIndicator`.
  *
  * Installe egalement un garde `beforeunload` qui empeche l utilisateur de
- * fermer la fenetre tant qu il reste des modifications en attente.
+ * fermer la fenetre tant qu il reste des modifications en attente, et un
+ * flush sur `pagehide` / onglet cache / `isActive=false` (AXE-29).
  *
  * IMPORTANT : `saveFn` est capture **par reference**. Pour qu un changement
  * de `saveFn` soit pris en compte (par exemple si templateId change), il
@@ -31,12 +32,47 @@ export const AUTO_SAVE_INITIAL_STATE = Object.freeze({
 });
 
 /**
+ * Handlers de cycle de vie (testables hors React).
+ * @param {() => { flush: () => Promise<any>, hasPendingChanges: () => boolean, dispose: () => void } | null} getScheduler
+ */
+export function createAutoSaveLifecycleHandlers(getScheduler) {
+  const flushIfAny = () => {
+    const sch = typeof getScheduler === 'function' ? getScheduler() : null;
+    if (!sch) return Promise.resolve();
+    return sch.flush();
+  };
+
+  return {
+    /** Vue Profil quittée (display:none) ou isActive false. */
+    onInactive: flushIfAny,
+    /** Fermeture / navigation navigateur (pagehide). */
+    onPageHide: flushIfAny,
+    /** Onglet passé en arrière-plan. */
+    onVisibilityHidden: () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'hidden') {
+        return Promise.resolve();
+      }
+      return flushIfAny();
+    },
+    /** Cleanup React : flush pending puis dispose. */
+    onUnmount: (scheduler) => {
+      if (!scheduler) return Promise.resolve();
+      const flushPromise = scheduler.hasPendingChanges()
+        ? scheduler.flush()
+        : Promise.resolve();
+      return flushPromise.finally(() => scheduler.dispose());
+    },
+  };
+}
+
+/**
  * @param {{
  *   saveFn: (payload: any) => Promise<any>,
  *   delayMs?: number,
  *   maxRetries?: number,
  *   baseRetryDelayMs?: number,
- *   saveFnKey?: any,    // change cette cle pour forcer un re-init du scheduler.
+ *   saveFnKey?: any,
+ *   isActive?: boolean,
  * }} options
  */
 export function useAutoSave({
@@ -45,15 +81,13 @@ export function useAutoSave({
   maxRetries = AUTO_SAVE_DEFAULTS.maxRetries,
   baseRetryDelayMs = AUTO_SAVE_DEFAULTS.baseRetryDelayMs,
   saveFnKey,
+  isActive = true,
 } = {}) {
   const [state, setState] = useState(AUTO_SAVE_INITIAL_STATE);
   const schedulerRef = useRef(null);
   const saveFnRef = useRef(saveFn);
+  const wasActiveRef = useRef(isActive);
 
-  // Synchronise la ref a chaque rerender (en effet pour ne pas violer la
-  // regle React 19 "no ref updates during render"). Le scheduler appelle
-  // toujours `saveFnRef.current(...)`, donc il prend la version la plus
-  // recente sans avoir besoin d etre recree a chaque changement de `saveFn`.
   useEffect(() => {
     saveFnRef.current = saveFn;
   }, [saveFn]);
@@ -70,33 +104,50 @@ export function useAutoSave({
       },
     });
     schedulerRef.current = scheduler;
+    const life = createAutoSaveLifecycleHandlers(() => schedulerRef.current);
     return () => {
       active = false;
-      const flushPromise = scheduler.hasPendingChanges()
-        ? scheduler.flush()
-        : Promise.resolve();
-      void flushPromise.finally(() => scheduler.dispose());
+      void life.onUnmount(scheduler);
       if (schedulerRef.current === scheduler) schedulerRef.current = null;
     };
-    // saveFnKey permet de re-init le scheduler quand la cible de sauvegarde
-    // change (changement de session, de profil, etc.).
   }, [delayMs, maxRetries, baseRetryDelayMs, saveFnKey]);
+
+  // AXE-29 : flush quand la vue Profil devient inactive (App garde le panel monté).
+  useEffect(() => {
+    const life = createAutoSaveLifecycleHandlers(() => schedulerRef.current);
+    const wasActive = wasActiveRef.current;
+    wasActiveRef.current = isActive;
+    if (wasActive && !isActive) {
+      void life.onInactive();
+    }
+  }, [isActive]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
-    const handler = (event) => {
+    const life = createAutoSaveLifecycleHandlers(() => schedulerRef.current);
+
+    const onBeforeUnload = (event) => {
       const sch = schedulerRef.current;
       if (!sch || !sch.hasPendingChanges()) return undefined;
-      // Specification : pour qu un navigateur affiche le dialog
-      // "Voulez-vous quitter ?", il faut soit setter returnValue, soit
-      // preventDefault. Chrome ignore le message custom mais affiche son
-      // propre dialog generique.
       event.preventDefault();
       event.returnValue = '';
       return '';
     };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
+    const onPageHide = () => {
+      void life.onPageHide();
+    };
+    const onVisibility = () => {
+      void life.onVisibilityHidden();
+    };
+
+    window.addEventListener('beforeunload', onBeforeUnload);
+    window.addEventListener('pagehide', onPageHide);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      window.removeEventListener('pagehide', onPageHide);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, []);
 
   return {

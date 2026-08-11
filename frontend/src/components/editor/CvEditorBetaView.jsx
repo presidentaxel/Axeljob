@@ -109,6 +109,10 @@ import {
   isCanvasEditHintDismissed,
   isSemanticEditNoteDismissed,
 } from '../../lib/canvasEditorUtils.js';
+import {
+  listNonFaithfulBlocks,
+  summarizeNonFaithfulBlocks,
+} from '../../lib/canvasPdfFidelity.js';
 
 import '../../styles/CvEditorBeta.css';
 import '../../styles/EditorCanvaSidebar.css';
@@ -204,6 +208,15 @@ function CvEditorBeta({
   layoutRef.current = layout;
 
   const canvasFontFamilies = useMemo(() => buildCanvasFontFamilies(layout), [layout]);
+
+  const pdfFidelityIssues = useMemo(
+    () => listNonFaithfulBlocks(layout, cv),
+    [layout, cv],
+  );
+  const pdfFidelitySummary = useMemo(
+    () => summarizeNonFaithfulBlocks(pdfFidelityIssues),
+    [pdfFidelityIssues],
+  );
 
   const clearCanvasSelection = useCallback(() => {
     setSelectedBlockIds([]);
@@ -1290,6 +1303,13 @@ function CvEditorBeta({
       {pdfExportError && (
         <div className="cv-editor-beta-error" role="alert">
           {pdfExportError}
+        </div>
+      )}
+      {pdfFidelityIssues.length > 0 && !loading && layout && (
+        <div className="cv-editor-beta-pdf-fidelity" role="status">
+          Certains blocs ne seront pas exportés à l&apos;identique dans le PDF
+          {pdfFidelitySummary ? ` (${pdfFidelitySummary})` : ''}.
+          Survole le badge « PDF » sur le canvas pour le détail.
         </div>
       )}
       {atsOptimizeMessage && (

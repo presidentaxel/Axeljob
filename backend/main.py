@@ -1366,7 +1366,9 @@ def _parse_cv_text_with_ai(text: str, user_id: str | None = None) -> dict:
             raise HTTPException(status_code=502, detail="Erreur Gemini lors de l'import.")
         if r and getattr(r, "text", None):
             break
-        logger.warning("_parse_cv_text_with_ai: réponse vide (modèle=%s attempt=%d)", model_id, attempt)
+        logger.warning(
+            "_parse_cv_text_with_ai: réponse vide (modèle=%s attempt=%d)", model_id, attempt
+        )
         r = None
         if attempt < len(models_to_try) - 1:
             time.sleep(0.5)
@@ -1716,6 +1718,20 @@ def api_create_checkout_session(request: Request):
 
 def _primary_frontend_base_url() -> str:
     return billing_notifications.primary_frontend_base_url(FRONTEND_URL)
+
+
+def _html_email_template_perso_confirmation() -> str:
+    return billing_notifications.html_email_template_perso_confirmation(FRONTEND_URL, SUPPORT_EMAIL)
+
+
+def _send_template_perso_email(to_email: str) -> bool:
+    return billing_notifications.send_template_perso_email(
+        to_email=to_email,
+        resend_api_key=RESEND_API_KEY,
+        resend_from_email=RESEND_FROM_EMAIL,
+        frontend_url=FRONTEND_URL,
+        support_email=SUPPORT_EMAIL,
+    )
 
 
 def _stripe_attr(obj, name: str):

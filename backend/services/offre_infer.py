@@ -85,7 +85,8 @@ _STOPISH = frozenset(
 def _clean_company(raw: str) -> str:
     s = (raw or "").strip()
     s = re.sub(r"\s+", " ", s)
-    s = re.sub(r'^[\s"\'«»•\-–-:|]+|[\s"\'«»•\-–-:|]+$', "", s)
+    # Tiret ASCII en fin de classe (évite « bad character range » avec –- sous Python 3.14).
+    s = re.sub(r'^[\s"\'«»•–—:|-]+|[\s"\'«»•–—:|-]+$', "", s)
     if len(s) > 90:
         s = s[:90].rsplit(" ", 1)[0]
     return s.strip()

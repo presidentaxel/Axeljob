@@ -162,7 +162,9 @@ class ExtractLayoutTest(unittest.TestCase):
         # Rectangle fin horizontal simulé par 4 traits
         y = 100.0
         page.draw_line(fitz.Point(40, y), fitz.Point(540, y), color=(0, 0, 0), width=0.5)
-        page.draw_line(fitz.Point(40, y + 1.2), fitz.Point(540, y + 1.2), color=(0, 0, 0), width=0.5)
+        page.draw_line(
+            fitz.Point(40, y + 1.2), fitz.Point(540, y + 1.2), color=(0, 0, 0), width=0.5
+        )
         try:
             drawings = page.get_drawings()
             line_items = [it for d in drawings for it in d.get("items", []) if it[0] == "l"]
@@ -186,7 +188,8 @@ class ExtractLayoutTest(unittest.TestCase):
             doc.close()
 
         vlines = [
-            b for b in blocks
+            b
+            for b in blocks
             if b["type"] == "shape:line" and b["style"].get("orientation") == "vertical"
         ]
         self.assertGreaterEqual(len(vlines), 1)
@@ -217,17 +220,16 @@ class ExtractLayoutTest(unittest.TestCase):
         doc = fitz.open()
         page = doc.new_page(width=595, height=842)
         page.insert_text((40, 60), "Titre de section avec assez de texte natif.", fontsize=14)
-        page.insert_text((40, 100), "Contenu supplementaire pour le seuil de caracteres.", fontsize=11)
+        page.insert_text(
+            (40, 100), "Contenu supplementaire pour le seuil de caracteres.", fontsize=11
+        )
         page.draw_line(fitz.Point(40, 130), fitz.Point(540, 130), color=(0.3, 0.3, 0.3), width=0.8)
         data = doc.tobytes()
         doc.close()
 
         layout = extract_layout_from_pdf(data)
         self.assertIsNotNone(layout)
-        lines = [
-            b for b in layout["pages"][0]["blocks"]
-            if b["type"] == "shape:line"
-        ]
+        lines = [b for b in layout["pages"][0]["blocks"] if b["type"] == "shape:line"]
         self.assertGreaterEqual(len(lines), 1)
 
     def test_empty_bytes_returns_none(self):

@@ -76,7 +76,6 @@ import {
   setBlocksPositionFromPrimary,
   swapBlockZWithAdjacent,
   updateBlock,
-  updateBlockStyle,
   updateBlocksStyle,
   isAutoHeightBlockType,
   isSemanticBlockType,

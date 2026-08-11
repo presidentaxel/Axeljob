@@ -423,14 +423,7 @@ function isSquarePhotoSized(w, h) {
   return side >= 12 && side <= 90 && short >= 9;
 }
 
-function blockCenter(block) {
-  return {
-    x: (Number(block.x) || 0) + (Number(block.w) || 0) / 2,
-    y: (Number(block.y) || 0) + (Number(block.h) || 0) / 2,
-  };
-}
-
-function blockOverlapRatio(a, b, minRatio = 0.25) {
+function blockOverlapRatio(a, b) {
   const ax = Number(a.x) || 0;
   const ay = Number(a.y) || 0;
   const aw = Number(a.w) || 0;

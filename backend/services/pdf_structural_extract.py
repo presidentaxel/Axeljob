@@ -139,9 +139,8 @@ def _extract_theme_colors(page, scale: float) -> dict:
         h_mm = (rect.y1 - rect.y0) * scale
 
         items_raw = d.get("items", [])
-        is_pure_segment = (
-            any(it[0] == "l" for it in items_raw if it)
-            and not any(it[0] == "re" for it in items_raw if it)
+        is_pure_segment = any(it[0] == "l" for it in items_raw if it) and not any(
+            it[0] == "re" for it in items_raw if it
         )
         if (w_mm <= 0 or h_mm <= 0) and not is_pure_segment:
             continue
@@ -456,7 +455,7 @@ def _separator_block_from_line_items(
 
     Les filets de section Word/Canva sont souvent des chemins à 4 segments
     (rectangle fin) : l'ancienne logique ``len(line_items) >= 3`` les ignorait.
-  """
+    """
     xs: list[float] = []
     ys: list[float] = []
     for it in line_items:
@@ -848,8 +847,18 @@ def _guess_icon_name(w_mm: float, h_mm: float, cluster: list) -> str:
 
 def _blocks_overlap_ratio(a: dict, b: dict, min_ratio: float = 0.25) -> bool:
     """True si l'intersection couvre au moins ``min_ratio`` du plus petit bloc."""
-    ax, ay, aw, ah = float(a.get("x", 0)), float(a.get("y", 0)), float(a.get("w", 0)), float(a.get("h", 0))
-    bx, by, bw, bh = float(b.get("x", 0)), float(b.get("y", 0)), float(b.get("w", 0)), float(b.get("h", 0))
+    ax, ay, aw, ah = (
+        float(a.get("x", 0)),
+        float(a.get("y", 0)),
+        float(a.get("w", 0)),
+        float(a.get("h", 0)),
+    )
+    bx, by, bw, bh = (
+        float(b.get("x", 0)),
+        float(b.get("y", 0)),
+        float(b.get("w", 0)),
+        float(b.get("h", 0)),
+    )
     if aw <= 0 or ah <= 0 or bw <= 0 or bh <= 0:
         return False
     x0, y0 = max(ax, bx), max(ay, by)
@@ -1080,11 +1089,7 @@ def _extract_graphic_blocks(page, doc, scale: float, image_budget: list) -> list
 
         # Rectangle plein recolorable : soit un fond structurel (sidebar/bandeau),
         # soit un filet/timeline plein et fin (rectangle long).
-        if (
-            fill_hex
-            and not _is_near_white(fill_hex)
-            and len(re_items) == 2
-        ):
+        if fill_hex and not _is_near_white(fill_hex) and len(re_items) == 2:
             for strip in _frame_strips_from_rects(re_items[0], re_items[1], scale, fill_hex):
                 _push(strip)
             handled = True
@@ -1135,7 +1140,8 @@ def _extract_graphic_blocks(page, doc, scale: float, image_budget: list) -> list
     # extraits (sidebar, filets) en les re-dessinant en pixels, puis les
     # masque (z=2 > shape:line z=1).
     misc = [
-        d for d in misc
+        d
+        for d in misc
         if not (
             _is_near_white(_float_rgb_to_hex(d.get("fill")) if d.get("fill") is not None else None)
             and not d.get("color")  # pas de stroke

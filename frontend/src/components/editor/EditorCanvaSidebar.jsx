@@ -65,11 +65,12 @@ function ImageHistoryTile({ entry, disabled, onBeginPlacement, onRemove }) {
     e.dataTransfer.effectAllowed = 'copy';
   };
   if (!safeSrc) return null;
+  // Pas d'URL dynamique dans img/src ni style backgroundImage (CodeQL js/xss-through-dom).
   return (
     <div className="editor-canva-image-history__item">
       <button
         type="button"
-        className="editor-canva-image-history__thumb"
+        className="editor-canva-image-history__thumb editor-canva-image-history__thumb--safe"
         disabled={disabled}
         draggable={!disabled}
         title={entry.label || 'Glisser sur le canevas ou cliquer pour placer'}
@@ -77,7 +78,9 @@ function ImageHistoryTile({ entry, disabled, onBeginPlacement, onRemove }) {
         onClick={(e) => e.preventDefault()}
         onDragStart={onDragStart}
       >
-        <img src={safeSrc} alt="" draggable={false} />
+        <span className="editor-canva-image-history__thumb-label" aria-hidden>
+          {(entry.label || 'IMG').slice(0, 3).toUpperCase()}
+        </span>
       </button>
       <button
         type="button"

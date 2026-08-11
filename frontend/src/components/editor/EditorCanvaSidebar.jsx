@@ -9,7 +9,7 @@ import {
   HiTrash,
   HiWrench,
 } from 'react-icons/hi2';
-import { compressImageFile } from '../../lib/compressImageForCanvas.js';
+import { uploadCanvasImageFile } from '../../lib/uploadCanvasAsset.js';
 import {
   addUserCanvasImage,
   CANVAS_IMAGE_DROP_MIME,
@@ -172,10 +172,10 @@ export default function EditorCanvaSidebar({
     if (!file) return;
     setImporting(true);
     try {
-      const dataUrl = await compressImageFile(file);
-      addUserCanvasImage(dataUrl, { label: file.name || '' });
+      const url = await uploadCanvasImageFile(file);
+      addUserCanvasImage(url, { label: file.name || '' });
       refreshImageHistory();
-      const preset = createImageBlockPreset(dataUrl);
+      const preset = createImageBlockPreset(url);
       if (preset) onBeginPlacement?.(preset);
     } catch (err) {
       console.error('[canvas] import image', err);

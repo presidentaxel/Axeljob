@@ -30,7 +30,7 @@ function blobToDataUrl(blob) {
   });
 }
 
-async function encodeWithQuality(img, maxDim, quality) {
+async function encodeBlobWithQuality(img, maxDim, quality) {
   const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
   const w = Math.max(1, Math.round(img.width * scale));
   const h = Math.max(1, Math.round(img.height * scale));
@@ -41,13 +41,24 @@ async function encodeWithQuality(img, maxDim, quality) {
   ctx.drawImage(img, 0, 0, w, h);
   const blob = await canvasToJpegBlob(canvas, quality);
   if (!blob) throw new Error('Compression impossible');
-  return blobToDataUrl(blob);
+  return blob;
+}
+
+async function loadImageFromFile(file) {
+  const rawUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+  return loadImage(rawUrl);
 }
 
 /**
- * Compresse un fichier image → data URL JPEG (cible < maxBytes si possible).
+ * Compresse un fichier image → Blob JPEG (cible < maxBytes si possible).
+ * Préféré pour upload Storage (AXE-40 : pas de data URL dans le layout).
  */
-export async function compressImageFile(file, options = {}) {
+export async function compressImageFileToBlob(file, options = {}) {
   if (!file?.type?.startsWith('image/')) {
     throw new Error('Fichier non image');
   }
@@ -55,27 +66,48 @@ export async function compressImageFile(file, options = {}) {
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
   let quality = options.quality ?? DEFAULT_QUALITY;
 
-  const rawUrl = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-
-  const img = await loadImage(rawUrl);
-  let dataUrl = await encodeWithQuality(img, maxDim, quality);
+  const img = await loadImageFromFile(file);
+  let blob = await encodeBlobWithQuality(img, maxDim, quality);
 
   let attempts = 0;
-  while (attempts < 6 && dataUrl.length > maxBytes * 1.37 && quality > 0.45) {
+  while (attempts < 6 && blob.size > maxBytes && quality > 0.45) {
     quality -= 0.08;
-    dataUrl = await encodeWithQuality(img, maxDim, quality);
+    blob = await encodeBlobWithQuality(img, maxDim, quality);
     attempts += 1;
   }
 
-  if (dataUrl.length > maxBytes * 1.37) {
+  if (blob.size > maxBytes) {
     const smallerDim = Math.round(maxDim * 0.75);
-    dataUrl = await encodeWithQuality(img, smallerDim, quality);
+    blob = await encodeBlobWithQuality(img, smallerDim, quality);
   }
 
-  return dataUrl;
+  return blob;
+}
+
+/**
+ * Compresse un fichier image → data URL JPEG (cible < maxBytes si possible).
+ * @deprecated Préférer compressImageFileToBlob + uploadCanvasAsset pour le layout.
+ */
+export async function compressImageFile(file, options = {}) {
+  const blob = await compressImageFileToBlob(file, options);
+  return blobToDataUrl(blob);
+}
+
+/** Compresse une data URL → Blob JPEG (ré-upload d’historique legacy). */
+export async function compressDataUrlToBlob(dataUrl, options = {}) {
+  if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
+    throw new Error('Data URL image attendue');
+  }
+  const maxDim = options.maxDim ?? DEFAULT_MAX_DIM;
+  const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
+  let quality = options.quality ?? DEFAULT_QUALITY;
+  const img = await loadImage(dataUrl);
+  let blob = await encodeBlobWithQuality(img, maxDim, quality);
+  let attempts = 0;
+  while (attempts < 6 && blob.size > maxBytes && quality > 0.45) {
+    quality -= 0.08;
+    blob = await encodeBlobWithQuality(img, maxDim, quality);
+    attempts += 1;
+  }
+  return blob;
 }

@@ -7,13 +7,14 @@ import {
   getFieldDisplayValue,
   isCanvasInlineEditableType,
   normalizeRichTextHtml,
+  handleRichTextPaste,
   sanitizeRichTextHtml,
+  fieldValueLooksLikeHtml,
 } from '../../lib/canvasInlineEdit.js';
 import {
   attachEditableFieldBehavior,
   getEditableFieldConfig,
 } from '../../lib/editableFieldBehavior.js';
-import { fieldValueLooksLikeHtml } from '../../lib/canvasInlineEdit.js';
 import {
   resolveCompetenceList,
   resolveBoundText,
@@ -570,6 +571,7 @@ function EditableRichText({ tag, className, style, editing, html, onAutoHeight }
         suppressContentEditableWarning
         data-canvas-block-content="1"
         onInput={reportHeight}
+        onPaste={handleRichTextPaste}
         onPointerDown={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
       />

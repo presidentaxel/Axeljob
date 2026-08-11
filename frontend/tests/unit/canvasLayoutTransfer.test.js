@@ -16,7 +16,7 @@ const sourceLayout = {
     blocks: [
       { id: 'identity', type: 'identity', bind: ['prenom', 'nom'], x: 10, y: 10, w: 80, h: 12, z: 1 },
       { id: 'title-custom', type: 'title', content: 'Portfolio', x: 10, y: 30, w: 80, h: 10, z: 2 },
-      { id: 'image-custom', type: 'image', image_src: 'data:image/png;base64,AAA', x: 20, y: 50, w: 30, h: 30, z: 3 },
+      { id: 'image-custom', type: 'image', image_src: 'assets/uploads/u/canvas_x.jpg', x: 20, y: 50, w: 30, h: 30, z: 3 },
     ],
   }],
 };
@@ -43,7 +43,7 @@ test('cloneBlocksForTransfer regenere les ids et conserve les styles importants'
   const clones = cloneBlocksForTransfer(candidates, { now: 123, idPrefix: 'test' });
   assert.equal(clones[0].id, 'test_123_0');
   assert.equal(clones[0].content, 'Portfolio');
-  assert.equal(clones[1].image_src, 'data:image/png;base64,AAA');
+  assert.equal(clones[1].image_src, 'assets/uploads/u/canvas_x.jpg');
   assert.notEqual(clones[0].id, candidates[0].blockId);
 });
 

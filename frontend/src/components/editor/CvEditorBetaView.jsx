@@ -26,6 +26,7 @@ import {
   applyCvFieldsFromRoot,
   readBlockContentFromRoot,
 } from '../../lib/canvasInlineEdit.js';
+import { resolveCanvasImageSrcForLayout } from '../../lib/uploadCanvasAsset.js';
 import { applyAtsLayoutOptimizations } from '../../lib/atsLayoutOptimize.js';
 import { saveLayoutProposal } from '../../lib/layoutProposalsStorage.js';
 import {
@@ -725,10 +726,17 @@ function CvEditorBeta({
     if (cv) autoSave.schedule(cv);
   }, [placementPreset, layout, commitLayout, cv, autoSave]);
 
-  const handleDropImage = useCallback((pageIndex, xMm, yMm, dataUrl) => {
-    if (!dataUrl) return;
-    addUserCanvasImage(dataUrl);
-    const preset = createImageBlockPreset(dataUrl);
+  const handleDropImage = useCallback(async (pageIndex, xMm, yMm, rawSrc) => {
+    if (!rawSrc) return;
+    let src;
+    try {
+      src = await resolveCanvasImageSrcForLayout(rawSrc);
+    } catch (err) {
+      console.error('[canvas] drop image upload', err);
+      return;
+    }
+    addUserCanvasImage(src);
+    const preset = createImageBlockPreset(src);
     if (!preset) return;
     const w = preset.w ?? 40;
     const h = preset.h ?? 40;

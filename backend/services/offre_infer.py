@@ -82,11 +82,17 @@ _STOPISH = frozenset(
 )
 
 
+_EDGE_CHARS = frozenset(" \t\n\r\"'«»•–—:|-")
+
+
 def _clean_company(raw: str) -> str:
     s = (raw or "").strip()
-    s = re.sub(r"\s+", " ", s)
-    # Tiret ASCII en fin de classe (évite « bad character range » avec –- sous Python 3.14).
-    s = re.sub(r'^[\s"\'«»•–—:|-]+|[\s"\'«»•–—:|-]+$', "", s)
+    # split/join = linéaire (évite ReDoS CodeQL sur ``\s+`` / classes bord).
+    s = " ".join(s.split())
+    while s and s[0] in _EDGE_CHARS:
+        s = s[1:]
+    while s and s[-1] in _EDGE_CHARS:
+        s = s[:-1]
     if len(s) > 90:
         s = s[:90].rsplit(" ", 1)[0]
     return s.strip()

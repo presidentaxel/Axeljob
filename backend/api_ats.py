@@ -27,6 +27,7 @@ from typing import Any
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
 
+from backend.path_safety import is_safe_id_segment, resolve_under_base
 from backend.services.ats_score import score_parsing
 from backend.services.ats_score.serialization import score_result_to_dict
 from backend.services.ats_score.template_layout import template_meta_to_layout
@@ -74,9 +75,12 @@ def _load_template_meta(template_id: str) -> dict[str, Any]:
     explicite plutot que ``FileNotFoundError`` cote serveur).
     """
     safe_id = (template_id or "").strip()
-    if not safe_id or "/" in safe_id or ".." in safe_id:
+    if not is_safe_id_segment(safe_id, max_len=64):
         raise HTTPException(status_code=400, detail="template_id invalide")
-    meta_path = _templates_dir / safe_id / "meta.json"
+    try:
+        meta_path = resolve_under_base(_templates_dir, safe_id, "meta.json")
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="template_id invalide") from err
     if not meta_path.is_file():
         raise HTTPException(status_code=404, detail=f"Template introuvable : {safe_id}")
     try:

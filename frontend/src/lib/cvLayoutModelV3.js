@@ -454,6 +454,16 @@ export function isEmptyLayoutV3(layout) {
   return layout.pages.every((p) => !p || !Array.isArray(p.blocks) || p.blocks.length === 0);
 }
 
+/**
+ * Valeur `layout` à envoyer au PUT /api/cv (AXE-28).
+ * Layout vide → `null` (reset explicite) ; sinon objet v3.
+ */
+export function layoutPayloadForPersist(layout) {
+  if (layout === undefined) return undefined;
+  if (!layout || isEmptyLayoutV3(layout)) return null;
+  return layout;
+}
+
 // ---------------------------------------------------------------------------
 // Operations pures sur les blocs
 // ---------------------------------------------------------------------------

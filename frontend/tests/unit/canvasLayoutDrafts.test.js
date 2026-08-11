@@ -5,6 +5,7 @@ import {
   BLANK_CANVAS_CONTEXT_KEY,
   IMPORTED_CANVAS_CONTEXT_KEY,
   canvasContextLabel,
+  clearCanvasDraft,
   getActiveCanvasContext,
   getCanvasDraftPrefs,
   listCanvasDrafts,
@@ -73,4 +74,12 @@ test('canvasContextLabel utilise les noms de templates', () => {
     canvasContextLabel('template:modern', [{ id: 'modern', name: 'Moderne' }]),
     'Moderne',
   );
+});
+
+test('clearCanvasDraft supprime un brouillon local (reset Page blanche)', () => {
+  saveCanvasDraft(BLANK_CANVAS_CONTEXT_KEY, { pages: [{ blocks: [] }] }, { label: 'Blank' });
+  assert.ok(loadCanvasDraft(BLANK_CANVAS_CONTEXT_KEY));
+  assert.equal(clearCanvasDraft(BLANK_CANVAS_CONTEXT_KEY), true);
+  assert.equal(loadCanvasDraft(BLANK_CANVAS_CONTEXT_KEY), null);
+  assert.equal(clearCanvasDraft(BLANK_CANVAS_CONTEXT_KEY), false);
 });

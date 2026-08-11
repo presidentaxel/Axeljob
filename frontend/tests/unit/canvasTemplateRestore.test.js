@@ -64,3 +64,10 @@ test('resolveTemplateContextLayout fusionne pour template:* seulement', () => {
   const untouched = resolveTemplateContextLayout('imported', base, draft);
   assert.equal(untouched.pages[0].blocks.length, draft.pages[0].blocks.length);
 });
+
+test('resolveTemplateContextLayout forceBase ignore le brouillon', () => {
+  const base = createCanvasLayoutForTemplate(template);
+  const draft = { ...base, pages: [{ ...base.pages[0], blocks: [] }] };
+  const forced = resolveTemplateContextLayout('template:modern', base, draft, { forceBase: true });
+  assert.equal(forced, base);
+});

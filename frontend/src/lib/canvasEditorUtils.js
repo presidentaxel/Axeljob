@@ -77,6 +77,19 @@ export function buildCanvasPdfFilename(cv) {
   return `${parts.join(' - ') || 'CV'}.pdf`;
 }
 
+/**
+ * Message d’échec export PDF (AXE-29) — visible via role="alert", pas seulement console.
+ * @param {unknown} err
+ * @param {string} [hint]
+ */
+export function formatPdfExportError(err, hint = '') {
+  const base =
+    err && typeof err === 'object' && typeof err.message === 'string' && err.message
+      ? err.message
+      : 'Impossible de telecharger le PDF.';
+  return `${base}${hint || ''}`;
+}
+
 /** Égalité structurelle tolérante de deux layouts (référence ou JSON). */
 export function sameLayout(a, b) {
   if (a === b) return true;

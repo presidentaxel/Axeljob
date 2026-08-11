@@ -99,6 +99,7 @@ import EditorCvImportModal from './EditorCvImportModal.jsx';
 
 import {
   buildCanvasPdfFilename,
+  formatPdfExportError,
   sameLayout,
   blockSupportsEditHint,
   dismissCanvasEditHint,
@@ -125,6 +126,7 @@ function CvEditorBeta({
   templatesList,
   onTemplateIdChange,
   onTemplateOptionsChange,
+  isActive = true,
 }) {
   const [cv, setCv] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -178,7 +180,9 @@ function CvEditorBeta({
       setSelectedBlockRect(null);
     }
     if (!cv || profileLoadError) return;
-    autoSaveRef.current?.schedule(cv);
+    // Inclure le layout post-undo/redo : layoutRef peut encore être l’ancien
+    // jusqu’au prochain render (AXE-29).
+    autoSaveRef.current?.schedule({ ...cv, layout: newLayout });
   }, [cv, profileLoadError]);
 
   const layoutHistory = useLayoutHistory(() => createBlankLayoutV3(), {
@@ -226,6 +230,7 @@ function CvEditorBeta({
   const autoSave = useAutoSave({
     saveFn,
     saveFnKey: `${templateId}|${JSON.stringify(templateOptions || {})}`,
+    isActive,
   });
   autoSaveRef.current = autoSave;
 
@@ -1024,7 +1029,7 @@ function CvEditorBeta({
     } catch (err) {
       if (preopenedWindow && !preopenedWindow.closed) preopenedWindow.close();
       console.error('[cv-editor-beta] export PDF layout', err);
-      setPdfExportError(`${err?.message || 'Impossible de telecharger le PDF.'}${getDownloadPermissionHint()}`);
+      setPdfExportError(formatPdfExportError(err, getDownloadPermissionHint()));
     } finally {
       setPdfExporting(false);
     }

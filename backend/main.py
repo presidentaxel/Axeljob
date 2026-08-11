@@ -708,6 +708,54 @@ def _validate_cv_put_payload(body: Any) -> dict[str, Any]:
     return body
 
 
+def _materialize_canvas_image(user_id: str, image_bytes: bytes, mime: str) -> str:
+    """Stocke une image canvas (hors data URL) → URL Storage ou assets/uploads."""
+    safe_id = "".join(c for c in (user_id or "") if c.isalnum() or c in "_-") or "user"
+    from PIL import Image
+
+    img = Image.open(BytesIO(image_bytes)).convert("RGB")
+    w, h = img.size
+    max_side = 1200
+    if w > max_side or h > max_side:
+        ratio = min(max_side / w, max_side / h)
+        new_size = (int(w * ratio), int(h * ratio))
+        resample = getattr(Image, "Resampling", Image).LANCZOS
+        img = img.resize(new_size, resample)
+    buffer = BytesIO()
+    img.save(buffer, "JPEG", quality=85, optimize=True)
+    buffer.seek(0)
+    out_bytes = buffer.getvalue()
+    asset_name = f"canvas_{uuid_module.uuid4().hex[:16]}.jpg"
+    if USE_SUPABASE:
+        from backend.db import upload_canvas_asset_to_storage
+
+        return upload_canvas_asset_to_storage(safe_id, out_bytes, asset_name)
+    uploads_dir = BASE_DIR / "assets" / "uploads" / safe_id
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    dest = uploads_dir / asset_name
+    dest.write_bytes(out_bytes)
+    return f"assets/uploads/{safe_id}/{asset_name}"
+
+
+def _sanitize_cv_layout_field(body: dict[str, Any], user_id: str) -> dict[str, Any]:
+    """Si ``layout`` est présent, le valide/sanitize (HTML + images)."""
+    if "layout" not in body:
+        return body
+    layout = body.get("layout")
+    if layout is None:
+        return body
+    from backend.services.layout_sanitize import LayoutValidationError, sanitize_layout_v3
+
+    def _mat(raw: bytes, mime: str) -> str:
+        return _materialize_canvas_image(user_id, raw, mime)
+
+    try:
+        body = {**body, "layout": sanitize_layout_v3(layout, materialize_image=_mat)}
+    except LayoutValidationError as exc:
+        raise HTTPException(status_code=400, detail=f"Layout invalide : {exc}") from exc
+    return body
+
+
 _ANALYTICS_UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
     re.IGNORECASE,
@@ -992,6 +1040,7 @@ def api_cv_patch(request: Request, body: dict):
     if patch.get("template_id") is not None:
         _check_premium_template(user_id, patch["template_id"])
         _check_custom_template_access(user_id, patch["template_id"])
+    patch = _sanitize_cv_layout_field(patch, user_id)
     try:
         cv = load_cv_base(user_id)
     except FileNotFoundError:
@@ -1010,6 +1059,7 @@ def api_cv_put(request: Request, body: dict):
     user_id = _require_user_id(request)
     try:
         body = _validate_cv_put_payload(body)
+        body = _sanitize_cv_layout_field(body, user_id)
         if body.get("template_id") is not None:
             body["template_id"] = _effective_template_id_for_user(user_id, body.get("template_id"))
         save_cv_base(body, user_id)
@@ -1200,6 +1250,31 @@ def api_cv_upload_photo(request: Request, file: UploadFile = File(...)):
     with open(dest, "wb") as f:
         f.write(image_bytes)
     return {"photo_url": f"assets/{UPLOADS_SUBDIR}/{safe_id}.jpg"}
+
+
+@app.post("/api/cv/upload-canvas-asset")
+def api_cv_upload_canvas_asset(request: Request, file: UploadFile = File(...)):
+    """Upload une image canvas (hors data URL dans le layout). Retourne ``{ url }``."""
+    user_id = _require_user_id(request)
+    content_type = (file.content_type or "").strip().lower()
+    if content_type not in ALLOWED_PHOTO_CONTENT_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail="Format d'image non accepté. Utilisez JPEG, PNG, WebP ou GIF.",
+        )
+    try:
+        contents = file.file.read()
+        if len(contents) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="Image trop volumineuse (max 5 Mo).")
+        url = _materialize_canvas_image(user_id, contents, content_type)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning("Canvas asset upload error: %s", e)
+        raise HTTPException(status_code=400, detail="Image invalide ou illisible.") from e
+    if not url:
+        raise HTTPException(status_code=502, detail="Erreur de stockage. Réessaie.")
+    return {"url": url}
 
 
 # --- Import CV (PDF / texte brut → profil structuré via Gemini) ---

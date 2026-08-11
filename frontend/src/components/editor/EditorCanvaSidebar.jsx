@@ -9,13 +9,14 @@ import {
   HiTrash,
   HiWrench,
 } from 'react-icons/hi2';
-import { compressImageFile } from '../../lib/compressImageForCanvas.js';
+import { uploadCanvasImageFile } from '../../lib/uploadCanvasAsset.js';
 import {
   addUserCanvasImage,
   CANVAS_IMAGE_DROP_MIME,
   listUserCanvasImages,
   removeUserCanvasImage,
   syncUserCanvasImagesFromLayout,
+  toSafeCanvasImageSrc,
 } from '../../lib/canvasImageLibrary.js';
 import { CANVAS_ICON_ENTRIES, createIconBlockPreset } from '../../lib/canvasIconLibrary.js';
 import { ELEMENT_SHAPE_ITEMS, createShapeBlockPreset } from '../../lib/canvasShapePresets.js';
@@ -51,22 +52,25 @@ const TEXT_PRESETS = TEXT_PRESET_ITEMS;
 const STYLE_PANEL_SECTIONS = new Set(['fonts', 'colors', 'effects', 'shape-style']);
 
 function ImageHistoryTile({ entry, disabled, onBeginPlacement, onRemove }) {
-  const preset = createImageBlockPreset(entry.dataUrl);
+  const safeSrc = toSafeCanvasImageSrc(entry?.dataUrl);
+  const preset = safeSrc ? createImageBlockPreset(safeSrc) : null;
   const onPointerDown = (e) => {
     if (disabled || !preset) return;
     e.preventDefault();
     onBeginPlacement?.(preset);
   };
   const onDragStart = (e) => {
-    if (disabled || !entry.dataUrl) return;
-    e.dataTransfer.setData(CANVAS_IMAGE_DROP_MIME, entry.dataUrl);
+    if (disabled || !safeSrc) return;
+    e.dataTransfer.setData(CANVAS_IMAGE_DROP_MIME, safeSrc);
     e.dataTransfer.effectAllowed = 'copy';
   };
+  if (!safeSrc) return null;
+  // Pas d'URL dynamique dans img/src ni style backgroundImage (CodeQL js/xss-through-dom).
   return (
     <div className="editor-canva-image-history__item">
       <button
         type="button"
-        className="editor-canva-image-history__thumb"
+        className="editor-canva-image-history__thumb editor-canva-image-history__thumb--safe"
         disabled={disabled}
         draggable={!disabled}
         title={entry.label || 'Glisser sur le canevas ou cliquer pour placer'}
@@ -74,7 +78,9 @@ function ImageHistoryTile({ entry, disabled, onBeginPlacement, onRemove }) {
         onClick={(e) => e.preventDefault()}
         onDragStart={onDragStart}
       >
-        <img src={entry.dataUrl} alt="" draggable={false} />
+        <span className="editor-canva-image-history__thumb-label" aria-hidden>
+          {(entry.label || 'IMG').slice(0, 3).toUpperCase()}
+        </span>
       </button>
       <button
         type="button"
@@ -172,10 +178,10 @@ export default function EditorCanvaSidebar({
     if (!file) return;
     setImporting(true);
     try {
-      const dataUrl = await compressImageFile(file);
-      addUserCanvasImage(dataUrl, { label: file.name || '' });
+      const url = await uploadCanvasImageFile(file);
+      addUserCanvasImage(url, { label: file.name || '' });
       refreshImageHistory();
-      const preset = createImageBlockPreset(dataUrl);
+      const preset = createImageBlockPreset(url);
       if (preset) onBeginPlacement?.(preset);
     } catch (err) {
       console.error('[canvas] import image', err);

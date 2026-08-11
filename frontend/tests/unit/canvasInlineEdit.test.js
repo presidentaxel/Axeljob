@@ -4,6 +4,7 @@ import {
   fieldValueLooksLikeHtml,
   isCanvasInlineEditableType,
   normalizeRichTextHtml,
+  sanitizeRichTextHtml,
   setByPath,
 } from '../../src/lib/canvasInlineEdit.js';
 
@@ -27,4 +28,14 @@ test('normalise le HTML riche echappe par un contentEditable', () => {
     '<span style="font-weight: normal;">L</span>ouitos',
   );
   assert.equal(fieldValueLooksLikeHtml(escaped), true);
+});
+
+test('sanitizeRichTextHtml sans DOM escape le markup (Node)', () => {
+  const out = sanitizeRichTextHtml(
+    '<b>A</b><script>evil()</script><a href="https://x">link</a>',
+  );
+  assert.equal(out.includes('<script'), false);
+  assert.equal(out.includes('<b>'), false);
+  assert.match(out, /&lt;b&gt;A&lt;\/b&gt;/);
+  assert.match(out, /&lt;script&gt;/);
 });

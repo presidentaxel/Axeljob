@@ -85,6 +85,34 @@ class TestLayoutRenderer(unittest.TestCase):
         self.assertNotIn("<script>", html.lower())
         self.assertIn("&lt;script&gt;", html)
 
+    def test_renders_whitelisted_rich_text(self):
+        cv = _sample_cv()
+        layout = {
+            "version": 3,
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "rich",
+                            "type": "text",
+                            "content": "<strong>Bold</strong> <em>Ital</em>"
+                            "<script>evil()</script>",
+                            "x": 10,
+                            "y": 10,
+                            "w": 50,
+                            "h": 10,
+                            "z": 1,
+                        }
+                    ],
+                }
+            ],
+        }
+        html = render_html(cv, layout)
+        self.assertIn("<strong>Bold</strong>", html)
+        self.assertIn("<em>Ital</em>", html)
+        self.assertNotIn("<script>", html.lower())
+
     def test_empty_layout_renders_page_shell(self):
         html = render_html(_sample_cv(), {"version": 3, "pages": []})
         self.assertIn("cv-layout-page", html)

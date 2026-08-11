@@ -515,6 +515,22 @@ def upload_photo_to_storage(user_safe_id: str, image_bytes: bytes) -> str:
     return url
 
 
+def upload_canvas_asset_to_storage(user_safe_id: str, image_bytes: bytes, filename: str) -> str:
+    """Stocke un asset canvas (image libre) dans cv_photos sous ``{user}/canvas/…``."""
+    sb = _get_supabase()
+    if not sb:
+        raise RuntimeError("Supabase non configuré.")
+    _ensure_cv_photos_bucket(sb)
+    safe_name = "".join(c for c in filename if c.isalnum() or c in "._-") or "asset.jpg"
+    path = f"{user_safe_id}/canvas/{safe_name}"
+    sb.storage.from_(CV_PHOTOS_BUCKET).upload(
+        path=path,
+        file=image_bytes,
+        file_options={"content-type": "image/jpeg", "upsert": "true"},
+    )
+    return _signed_url(sb, CV_PHOTOS_BUCKET, path) or ""
+
+
 def _signed_url(sb, bucket: str, path: str) -> str:
     try:
         res = sb.storage.from_(bucket).create_signed_url(path, _SIGNED_URL_EXPIRY)

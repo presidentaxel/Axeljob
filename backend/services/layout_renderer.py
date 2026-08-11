@@ -580,7 +580,12 @@ def _css_value(value: str) -> str:
 
 
 def _text(s: str) -> str:
-    return html.escape(str(s or ""), quote=True)
+    raw = s if isinstance(s, str) else ("" if s is None else str(s))
+    from backend.html_sanitize import looks_like_rich_html, sanitize_rich_text_html
+
+    if looks_like_rich_html(raw):
+        return sanitize_rich_text_html(raw)
+    return html.escape(raw, quote=True)
 
 
 def _esc(s: str) -> str:

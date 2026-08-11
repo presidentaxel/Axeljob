@@ -51,6 +51,18 @@
 
 import { generateItemId } from './cvSectionOps.js';
 
+function isSafeLayoutImageSrc(src) {
+  if (typeof src !== 'string') return false;
+  const s = src.trim();
+  if (!s || s.startsWith('data:')) return false;
+  return (
+    s.startsWith('https://') ||
+    s.startsWith('http://') ||
+    s.startsWith('assets/') ||
+    s.startsWith('/')
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Constantes
 // ---------------------------------------------------------------------------
@@ -256,7 +268,8 @@ export function sanitizeBlock(
       out.target_url = input.target_url;
     }
     if (type === 'image' && typeof input.image_src === 'string') {
-      out.image_src = input.image_src;
+      // AXE-40 : pas de data URL dans le layout (upload Storage / assets).
+      out.image_src = isSafeLayoutImageSrc(input.image_src) ? input.image_src.trim() : '';
     }
   }
 

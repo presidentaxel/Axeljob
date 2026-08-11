@@ -1,8 +1,14 @@
 import { useEffect, useRef } from 'react';
-import { fieldValueLooksLikeHtml, normalizeRichTextHtml } from '../../lib/canvasInlineEdit.js';
+import {
+  fieldValueLooksLikeHtml,
+  handleRichTextPaste,
+  normalizeRichTextHtml,
+  sanitizeRichTextHtml,
+} from '../../lib/canvasInlineEdit.js';
 
 /**
  * Champ editable inline sur le canvas (P4.1).
+ * AXE-40 : HTML whitelisté + collage propre.
  */
 export default function CanvasEditableField({
   path,
@@ -14,7 +20,7 @@ export default function CanvasEditableField({
   const Tag = tag;
   const ref = useRef(null);
   const text = typeof children === 'string' ? children : String(children ?? '');
-  const richText = normalizeRichTextHtml(text);
+  const richText = sanitizeRichTextHtml(normalizeRichTextHtml(text));
 
   useEffect(() => {
     if (!editing || !ref.current) return;
@@ -38,6 +44,7 @@ export default function CanvasEditableField({
       contentEditable
       suppressContentEditableWarning
       data-cv-field={path}
+      onPaste={handleRichTextPaste}
       onPointerDown={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}

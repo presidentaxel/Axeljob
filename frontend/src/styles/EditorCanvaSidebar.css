@@ -379,6 +379,22 @@
   pointer-events: none;
 }
 
+.editor-canva-image-history__thumb--safe {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.editor-canva-image-history__thumb-label {
+  font-family: CohereMono, Arial, ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--color-slate, #75758a);
+  text-transform: uppercase;
+  user-select: none;
+  pointer-events: none;
+}
+
 .editor-canva-image-history__remove {
   position: absolute;
   top: 4px;

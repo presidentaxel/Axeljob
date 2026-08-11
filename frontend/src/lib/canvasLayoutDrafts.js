@@ -5,6 +5,8 @@ const PREFS_STORAGE_KEY = 'cv_canvas_layout_draft_prefs_v1';
 const ACTIVE_CONTEXT_STORAGE_KEY = 'cv_canvas_layout_active_context_v1';
 
 export const BLANK_CANVAS_CONTEXT_KEY = 'blank';
+/** Brouillon dédié au dernier import CV (ne remplace pas les brouillons template:*). */
+export const IMPORTED_CANVAS_CONTEXT_KEY = 'imported';
 
 export function templateCanvasContextKey(templateId) {
   const id = String(templateId || '').trim();
@@ -13,6 +15,7 @@ export function templateCanvasContextKey(templateId) {
 
 export function canvasContextLabel(contextKey, templatesList = []) {
   if (contextKey === BLANK_CANVAS_CONTEXT_KEY) return 'Page blanche';
+  if (contextKey === IMPORTED_CANVAS_CONTEXT_KEY) return 'CV importé';
   const templateId = String(contextKey || '').replace(/^template:/, '');
   const template = (templatesList || []).find((item) => item?.id === templateId);
   return template?.name || templateId || 'Template';

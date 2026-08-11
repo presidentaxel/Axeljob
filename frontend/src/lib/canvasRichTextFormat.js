@@ -51,6 +51,13 @@ export function selectAllInEditableRoot() {
   return true;
 }
 
+/** Efface la sélection texte du navigateur (ex. après Ctrl+A puis clic ailleurs). */
+export function clearDocumentTextSelection() {
+  if (typeof window === 'undefined') return;
+  const sel = window.getSelection?.();
+  if (sel?.rangeCount) sel.removeAllRanges();
+}
+
 export function applyRichTextCommand(command, value = null) {
   const root = getActiveEditableRoot();
   if (!root) return false;

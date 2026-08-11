@@ -1,35 +1,55 @@
 /**
- * Design tokens Cohere 2026 — source unique (voir docs/DESIGN-cohere.md).
+ * Design tokens Slacc 2026 - source unique.
+ * Palette aubergine + crème-lavande, boutons pill 90 px, liens bleus.
  * Importé depuis App.css ; les composants Beta utilisent --color-* directement.
  */
 :root {
-  --color-primary: #17171c;
-  --color-ink: #212121;
-  --color-deep-green: #003c33;
-  --color-dark-navy: #071829;
-  --color-canvas: #ffffff;
-  --color-soft-stone: #eeece7;
-  --color-pale-green: #edfce9;
-  --color-pale-blue: #f1f5ff;
-  --color-hairline: #d9d9dd;
-  --color-border-light: #e5e7eb;
-  --color-card-border: #f2f2f2;
-  --color-muted: #93939f;
-  --color-slate: #75758a;
-  --color-body-muted: #616161;
-  --color-action-blue: #1863dc;
-  --color-focus-blue: #4c6ee6;
-  --color-coral: #ff7759;
-  --color-form-focus: #9b60aa;
-  --color-error: #b30000;
-  --color-on-dark: #ffffff;
+  /* ── Brand aubergine ── */
+  --color-primary: #4a154b;
+  --color-primary-deep: #481a54;
+  --color-primary-press: #611f69;
+  --color-primary-tint: #592466;
+  --color-on-primary: #ffffff;
 
-  --radius-xs: 4px;
-  --radius-sm: 8px;
-  --radius-md: 16px;
-  --radius-lg: 22px;
-  --radius-xl: 30px;
-  --radius-pill: 32px;
+  /* ── Texte ── */
+  --color-ink: #1d1d1d;
+  --color-body-muted: #696969;
+  --color-muted: #696969;
+  --color-slate: #696969;
+  --color-on-aubergine-mute: #d9bdde;
+
+  /* ── Surfaces ── */
+  --color-canvas: #ffffff;
+  --color-canvas-cream: #f4ede4;
+  --color-canvas-lavender: #f9f0ff;
+  --color-soft-stone: #f4ede4;   /* alias légacy → cream */
+
+  /* ── Liens ── */
+  --color-action-blue: #1264a3;
+  --color-focus-blue: #3860be;
+  --color-form-focus: #4a154b;
+
+  /* ── Bordures & hairlines ── */
+  --color-hairline: #e6e6e6;
+  --color-border-light: #e6e6e6;
+  --color-card-border: #e6e6e6;
+
+  /* ── Héritage / utilitaires ── */
+  --color-on-dark: #ffffff;
+  --color-deep-green: #007a5a;
+  --color-dark-navy: #071829;
+  --color-pale-green: #e6f6f0;
+  --color-pale-blue: #f9f0ff;
+  --color-coral: #cc4117;
+  --color-error: #cc4117;
+
+  /* ── Rayon ── */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 90px;   /* boutons pill Slacc */
   --radius-full: 9999px;
 
   --editor-drawer-width: 300px;

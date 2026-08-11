@@ -20,6 +20,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  position: relative;
 }
 
 .cv-editor-beta-bridge-btn {
@@ -28,7 +29,7 @@
   font-weight: 600;
   border: 1px solid #c7d2fe;
   border-radius: 0.4rem;
-  background: #eef2ff;
+  background: #f9f0ff;
   color: #3730a3;
   cursor: pointer;
   font-family: var(--editor-font-family);
@@ -96,19 +97,19 @@
 
 .editor-inspector-toggle-btn:focus-visible {
   outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+  border-color: #4a154b;
+  box-shadow: 0 0 0 3px rgba(74, 21, 75, 0.18);
 }
 
 .editor-inspector-toggle-btn--active {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, #4a154b 0%, #611f69 100%);
   border-color: transparent;
   color: white;
 }
 
 .editor-inspector-toggle-btn--active:hover {
   filter: brightness(1.05);
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, #4a154b 0%, #611f69 100%);
 }
 
 .editor-inspector-toggle-icon {
@@ -184,7 +185,7 @@
 }
 
 .editor-inspector-drawer-close:focus-visible {
-  outline: 2px solid #6366f1;
+  outline: 2px solid #4a154b;
   outline-offset: 2px;
 }
 
@@ -219,12 +220,12 @@
 }
 
 .editor-inspector-tab--active {
-  color: #4338ca;
-  border-bottom-color: #6366f1;
+  color: #611f69;
+  border-bottom-color: #4a154b;
 }
 
 .editor-inspector-tab:focus-visible {
-  outline: 2px solid #6366f1;
+  outline: 2px solid #4a154b;
   outline-offset: 2px;
 }
 
@@ -338,8 +339,8 @@
 
 .editor-inspector-color-hex:focus-visible {
   outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.18);
+  border-color: #4a154b;
+  box-shadow: 0 0 0 2px rgba(74, 21, 75, 0.18);
 }
 
 /* Select dans le drawer (typo). */
@@ -363,8 +364,8 @@
 
 .editor-inspector-select:focus-visible {
   outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+  border-color: #4a154b;
+  box-shadow: 0 0 0 3px rgba(74, 21, 75, 0.18);
 }
 
 /* Toggle stylise pour les booleens. On cache la checkbox native via
@@ -409,7 +410,7 @@
 }
 
 .editor-inspector-checkbox:checked + .editor-inspector-toggle {
-  background: #6366f1;
+  background: #4a154b;
 }
 
 .editor-inspector-checkbox:checked + .editor-inspector-toggle::after {
@@ -417,7 +418,7 @@
 }
 
 .editor-inspector-checkbox:focus-visible + .editor-inspector-toggle {
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 0 0 3px rgba(74, 21, 75, 0.25);
 }
 
 /* Footer : bouton reset. */
@@ -452,8 +453,8 @@
 
 .editor-inspector-reset:focus-visible {
   outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+  border-color: #4a154b;
+  box-shadow: 0 0 0 3px rgba(74, 21, 75, 0.18);
 }
 
 /* ============================================================
@@ -534,8 +535,8 @@
  * cours de drag. Une barre verticale gauche violette pour rester
  * accessible sur les couleurs neutres existantes. */
 .editor-content-item--over {
-  border-color: #6366f1;
-  box-shadow: inset 3px 0 0 0 #6366f1;
+  border-color: #4a154b;
+  box-shadow: inset 3px 0 0 0 #4a154b;
 }
 
 .editor-content-item-handle {
@@ -594,7 +595,7 @@
 }
 
 .editor-content-item-btn:focus-visible {
-  outline: 2px solid #6366f1;
+  outline: 2px solid #4a154b;
   outline-offset: 1px;
 }
 
@@ -630,16 +631,16 @@
 }
 
 .editor-content-add-btn:hover {
-  background: #eef2ff;
+  background: #f9f0ff;
   border-color: #818cf8;
   border-style: solid;
-  color: #4338ca;
+  color: #611f69;
 }
 
 .editor-content-add-btn:focus-visible {
   outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+  border-color: #4a154b;
+  box-shadow: 0 0 0 3px rgba(74, 21, 75, 0.18);
 }
 
 /* Responsive : sur ecran etroit, le drawer prend tout l espace dispo
@@ -661,7 +662,7 @@
 
 .editor-block-inspector-card--meta {
   border-color: #c7d2fe;
-  background: linear-gradient(135deg, #f5f7ff 0%, #eef2ff 55%, #f8fafc 100%);
+  background: linear-gradient(135deg, #f5f7ff 0%, #f9f0ff 55%, #f8fafc 100%);
 }
 
 .editor-block-inspector-card-title {
@@ -690,7 +691,7 @@
 .editor-block-inspector-type-badge {
   display: inline-flex;
   align-items: center;
-  background: #4f46e5;
+  background: #4a154b;
   color: #ffffff;
   font-weight: 700;
   font-size: 0.78rem;
@@ -739,7 +740,7 @@
 
 .editor-block-inspector-field:focus-within {
   border-color: #818cf8;
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12);
+  box-shadow: 0 0 0 2px rgba(74, 21, 75, 0.12);
 }
 
 .editor-block-inspector-field .editor-inspector-field-label {
@@ -762,7 +763,7 @@
 
 .editor-block-inspector-field .editor-inspector-field-control:focus {
   outline: none;
-  border-color: #6366f1;
+  border-color: #4a154b;
   background: #ffffff;
 }
 
@@ -785,7 +786,7 @@
 
 .editor-block-inspector-layer-btn {
   border: none;
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  background: linear-gradient(135deg, #4a154b 0%, #4a154b 100%);
   border-radius: 0.4rem;
   padding: 0.42rem 0.5rem;
   font-size: 0.74rem;
@@ -808,13 +809,13 @@
 
 .editor-block-inspector-layer-btn--secondary {
   background: #ffffff;
-  color: #4338ca;
+  color: #611f69;
   border: 1px solid #c7d2fe;
   box-shadow: none;
 }
 
 .editor-block-inspector-layer-btn--secondary:hover {
-  background: #eef2ff;
+  background: #f9f0ff;
   filter: none;
 }
 

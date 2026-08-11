@@ -119,6 +119,7 @@ export default function EditorCanvaSidebar({
   canvasDrafts = [],
   activeCanvasDraftKey = null,
   layout = null,
+  fontFamilies = null,
   selectedBlockId = null,
   selectedBlock = null,
   onBlockStylePatch,
@@ -294,7 +295,7 @@ export default function EditorCanvaSidebar({
             <>
               <h3 className="editor-canva-drawer__title">Éléments</h3>
               <p className="editor-canva-drawer__hint editor-canva-drawer__hint--subtle">
-                Formes vectorielles — cliquez puis placez sur le canevas.
+                Formes vectorielles - cliquez puis placez sur le canevas.
               </p>
               <div className="editor-canva-drawer__shape-grid">
                 {ELEMENT_SHAPE_ITEMS.map((item) => {
@@ -340,13 +341,13 @@ export default function EditorCanvaSidebar({
               {selectedBlock && onBlockStylePatch && (
                 <>
                   <h4 className="editor-canva-drawer__subtitle">Police</h4>
-                  <EditorCanvaFontPanel block={selectedBlock} onBlockStylePatch={onBlockStylePatch} />
+                  <EditorCanvaFontPanel block={selectedBlock} onBlockStylePatch={onBlockStylePatch} fontFamilies={fontFamilies} />
                 </>
               )}
             </>
           )}
           {openSection === 'fonts' && selectedBlock && (
-            <EditorCanvaFontPanel block={selectedBlock} onBlockStylePatch={onBlockStylePatch} />
+            <EditorCanvaFontPanel block={selectedBlock} onBlockStylePatch={onBlockStylePatch} fontFamilies={fontFamilies} />
           )}
           {openSection === 'colors' && selectedBlock && (
             <EditorCanvaColorPanel block={selectedBlock} onBlockStylePatch={onBlockStylePatch} />

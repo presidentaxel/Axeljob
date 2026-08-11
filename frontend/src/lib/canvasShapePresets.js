@@ -121,7 +121,7 @@ export const SHAPE_SVG_PATHS = Object.freeze({
   'shape:rect': 'M0,0 H100 V100 H0 Z',
   'shape:frame': 'M0,0 H100 V100 H0 Z',
   'shape:circle': 'M50,50 m-50,0 a50,50 0 1,0 100,0 a50,50 0 1,0 -100,0',
-  'shape:ellipse': 'M50,50 m-50,-30 a50,30 0 1,0 100,0 a50,30 0 1,0 -100,0',
+  'shape:ellipse': 'M50,50 m-50,0 a50,30 0 1,0 100,0 a50,30 0 1,0 -100,0',
   'shape:triangle': 'M50,5 L95,95 L5,95 Z',
   'shape:diamond': 'M50,2 L98,50 L50,98 L2,50 Z',
   'shape:star': 'M50,2 L61,38 L98,38 L67,60 L78,96 L50,74 L22,96 L33,60 L2,38 L39,38 Z',

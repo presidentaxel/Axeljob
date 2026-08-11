@@ -5,8 +5,14 @@ import {
   MM_TO_PX,
   PAGE_HEIGHT_PX,
   PAGE_WIDTH_PX,
+  CANVAS_ZOOM_MAX,
+  CANVAS_ZOOM_MIN,
+  canvasZoomPercent,
+  clampCanvasUserZoom,
+  combinePageScales,
   computePageScale,
   scaledPageHeightPx,
+  stepCanvasUserZoom,
 } from '../../src/lib/freeCanvasScale.js';
 
 import { PAGE_HEIGHT_MM, PAGE_WIDTH_MM } from '../../src/lib/cvLayoutModelV3.js';
@@ -34,4 +40,17 @@ test('computePageScale : largeur 0 -> 1', () => {
 
 test('scaledPageHeightPx', () => {
   assert.equal(scaledPageHeightPx(0.5), PAGE_HEIGHT_PX * 0.5);
+});
+
+test('combinePageScales et zoom', () => {
+  assert.equal(combinePageScales(0.8, 1), 0.8);
+  assert.ok(Math.abs(combinePageScales(0.8, 1.5) - 1.2) < 0.001);
+  assert.equal(canvasZoomPercent(0.5, 2), 100);
+});
+
+test('clampCanvasUserZoom et stepCanvasUserZoom', () => {
+  assert.equal(clampCanvasUserZoom(5), CANVAS_ZOOM_MAX);
+  assert.equal(clampCanvasUserZoom(0.1), CANVAS_ZOOM_MIN);
+  assert.equal(stepCanvasUserZoom(1, 1), 1.1);
+  assert.equal(stepCanvasUserZoom(CANVAS_ZOOM_MIN, -1), CANVAS_ZOOM_MIN);
 });

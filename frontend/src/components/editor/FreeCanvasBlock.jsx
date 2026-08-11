@@ -34,6 +34,7 @@ import CanvasEditableField from './CanvasEditableField.jsx';
 import CanvasIconGlyph from './CanvasIconGlyph.jsx';
 import { isVectorShapeType } from '../../lib/canvasShapePresets.js';
 import { blockEffectToCss } from '../../lib/canvasBlockEffects.js';
+import CanvasImageFrame from './CanvasImageFrame.jsx';
 import CanvasShapeSvg from './CanvasShapeSvg.jsx';
 
 const SECTION_LABELS = {
@@ -158,51 +159,14 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       if (!src) {
         return <div className="free-canvas-block__photo-placeholder" aria-hidden="true" />;
       }
-      const round = style.shape === 'circle';
-      const shape = style.shape || 'rect';
-      const radiusMm = style.border_radius_mm;
-      const radius = radiusMm > 0
-        ? `${radiusMm}mm`
-        : shape === 'circle'
-          ? '50%'
-          : shape === 'rounded'
-            ? '12px'
-            : '0';
-      const focalX = style.focal_x ?? 50;
-      const focalY = style.focal_y ?? 50;
-      const zoom = style.image_zoom ?? 1;
-      const borderCls = style.photo_border === 'light'
-        ? 'free-canvas-block__photo--border-light'
-        : style.photo_border === 'accent'
-          ? 'free-canvas-block__photo--border-accent'
-          : style.photo_border === 'accent-thick'
-            ? 'free-canvas-block__photo--border-accent'
-            : style.photo_border === 'accent-thin'
-              ? 'free-canvas-block__photo--border-accent'
-              : '';
       return (
-        <div
-          className={[
-            'free-canvas-block__image-frame',
-            borderCls,
-          ].filter(Boolean).join(' ')}
-          style={{ borderRadius: radius, opacity: style.opacity ?? 1 }}
-        >
-          <img
-            className={[
-              'free-canvas-block__photo',
-              round ? 'free-canvas-block__photo--round' : '',
-            ].filter(Boolean).join(' ')}
-            src={src}
-            alt=""
-            style={{
-              objectFit: 'cover',
-              objectPosition: `${focalX}% ${focalY}%`,
-              transform: `scale(${zoom})`,
-              transformOrigin: `${focalX}% ${focalY}%`,
-            }}
-          />
-        </div>
+        <CanvasImageFrame
+          blockW={block.w}
+          blockH={block.h}
+          style={style}
+          src={src}
+          imgClassName="free-canvas-block__photo"
+        />
       );
     }
     case 'contact': {
@@ -695,42 +659,42 @@ function NonSemanticBlockBody({ block, editing = false, onAutoHeight }) {
       if (!src) {
         return <div className="free-canvas-block__image-placeholder">Image</div>;
       }
-      const shape = style.shape || 'rect';
-      const radiusMm = style.border_radius_mm;
-      const radius = radiusMm > 0
-        ? `${radiusMm}mm`
-        : shape === 'circle'
-          ? '50%'
-          : shape === 'rounded'
-            ? '12px'
-            : '0';
-      const focalX = style.focal_x ?? 50;
-      const focalY = style.focal_y ?? 50;
-      const zoom = style.image_zoom ?? 1;
       return (
-        <div className="free-canvas-block__image-frame" style={{ borderRadius: radius, opacity: style.opacity ?? 1 }}>
-          <img
-            className="free-canvas-block__image"
-            src={src}
-            alt=""
-            style={{
-              objectFit: 'cover',
-              objectPosition: `${focalX}% ${focalY}%`,
-              transform: `scale(${zoom})`,
-              transformOrigin: `${focalX}% ${focalY}%`,
-            }}
-          />
-        </div>
+        <CanvasImageFrame
+          blockW={block.w}
+          blockH={block.h}
+          style={style}
+          src={src}
+          imgClassName="free-canvas-block__image"
+        />
       );
     }
     case 'shape:line': {
       const stroke = style.stroke_width ?? block.h ?? 0.6;
+      const vertical = style.orientation === 'vertical' || ((block.w ?? 0) < (block.h ?? 0) && (block.w ?? 0) <= 2.5);
+      if (vertical) {
+        return (
+          <div
+            className="free-canvas-block__shape-line free-canvas-block__shape-line--vertical"
+            style={{
+              backgroundColor: style.color || '#1e293b',
+              width: `${stroke}mm`,
+              minWidth: '1px',
+              height: '100%',
+              marginLeft: `${Math.max(0, ((block.w || stroke) - stroke) / 2)}mm`,
+              opacity: style.opacity ?? 1,
+            }}
+            role="presentation"
+          />
+        );
+      }
       return (
         <div
           className="free-canvas-block__shape-line"
           style={{
             backgroundColor: style.color || '#1e293b',
             height: `${stroke}mm`,
+            minHeight: '1px',
             marginTop: `${Math.max(0, ((block.h || stroke) - stroke) / 2)}mm`,
             opacity: style.opacity ?? 1,
           }}
@@ -745,7 +709,6 @@ function NonSemanticBlockBody({ block, editing = false, onAutoHeight }) {
           style={{
             backgroundColor: style.color || style.bg || '#e2e8f0',
             opacity: style.opacity ?? 1,
-            ...blockEffectToCss(style.effect, style),
           }}
           role="presentation"
         />
@@ -778,7 +741,6 @@ function NonSemanticBlockBody({ block, editing = false, onAutoHeight }) {
         return (
           <div
             className="free-canvas-block__shape-vector"
-            style={blockEffectToCss(style.effect, style)}
             role="presentation"
           >
             <CanvasShapeSvg type={type} style={style} />
@@ -873,6 +835,15 @@ export default function FreeCanvasBlock({
   const zone = blockStyle?.zone;
   const isNonSemantic = isNonSemanticBlockType(type);
   const canEdit = isCanvasInlineEditableType(type);
+  const supportsBlockEffects = isNonSemantic && (
+    type === 'shape:rect'
+    || type === 'shape:line'
+    || type === 'icon'
+    || isVectorShapeType(type)
+  );
+  const blockEffectStyle = supportsBlockEffects
+    ? blockEffectToCss(blockStyle?.effect, blockStyle)
+    : {};
 
   const handlePointerDown = (e) => {
     if (editing) return;
@@ -922,6 +893,7 @@ export default function FreeCanvasBlock({
         width: `${w}mm`,
         height: `${h}mm`,
         zIndex: dragging || resizing || editing ? 9999 : z,
+        ...blockEffectStyle,
       }}
       title={
         editing
@@ -944,6 +916,7 @@ export default function FreeCanvasBlock({
           typographyOverride ? 'free-canvas-block__inner--typography' : '',
           editing ? 'free-canvas-block__inner--editing' : '',
           autoHeight ? 'free-canvas-block__inner--content-fit' : '',
+          supportsBlockEffects ? 'free-canvas-block__inner--shape-effects' : '',
         ].filter(Boolean).join(' ')}
         style={innerTypography}
         onPointerDown={editing ? handleInnerPointerDown : undefined}
@@ -960,7 +933,7 @@ export default function FreeCanvasBlock({
           : <SemanticBlockBody block={block} cv={cv} editing={editing} />}
       </div>
       {locked && (
-        <span className="free-canvas-block__lock-badge" title="Position verrouillée — utilisez la barre d’actions pour déverrouiller" aria-hidden>
+        <span className="free-canvas-block__lock-badge" title="Position verrouillée - utilisez la barre d’actions pour déverrouiller" aria-hidden>
           <HiLockClosed size={12} />
         </span>
       )}
@@ -972,7 +945,7 @@ export default function FreeCanvasBlock({
               className={`free-canvas-resize-handle free-canvas-resize-handle--${handle}`}
               data-resize-handle={handle}
               title={autoHeight
-                ? 'Hauteur automatique selon le contenu — redimensionnez en largeur uniquement'
+                ? 'Hauteur automatique selon le contenu - redimensionnez en largeur uniquement'
                 : undefined}
               onPointerDown={(e) => onResizePointerDown(e, block, handle)}
               onPointerMove={onResizePointerMove || undefined}

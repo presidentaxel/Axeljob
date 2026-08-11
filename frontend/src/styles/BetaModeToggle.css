@@ -10,7 +10,7 @@
   font-family: var(--app-font-family);
   font-size: 0.75rem;
   font-weight: 500;
-  color: #4a5568;
+  color: #696969;
   user-select: none;
   cursor: pointer;
   padding: 0.25rem 0.625rem;
@@ -39,7 +39,7 @@
   display: inline-block;
   width: 34px;
   height: 18px;
-  background-color: #cbd5e0;
+  background-color: #e6e6e6;
   border-radius: 999px;
   transition: background-color 200ms ease;
   flex-shrink: 0;
@@ -58,7 +58,7 @@
 }
 
 .beta-mode-toggle--on .beta-mode-toggle-track {
-  background-color: #6366f1;
+  background-color: #4a154b;
 }
 
 .beta-mode-toggle--on .beta-mode-toggle-thumb {
@@ -72,17 +72,17 @@
 }
 
 .beta-mode-toggle--on .beta-mode-toggle-label-right {
-  color: #6366f1;
+  color: #4a154b;
   font-weight: 700;
 }
 
 .beta-mode-toggle:not(.beta-mode-toggle--on) .beta-mode-toggle-label-left {
-  color: #2d3748;
+  color: #1d1d1d;
   font-weight: 600;
 }
 
 .beta-mode-toggle-badge {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: #4a154b;
   color: white;
   padding: 0.1rem 0.35rem;
   border-radius: 0.3rem;
@@ -95,7 +95,7 @@
 }
 
 .beta-mode-toggle-checkbox:focus-visible + .beta-mode-toggle-track {
-  outline: 2px solid #6366f1;
+  outline: 2px solid #4a154b;
   outline-offset: 2px;
 }
 
@@ -108,7 +108,7 @@
   }
   .beta-mode-toggle--on::after {
     content: 'BETA';
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    background: #4a154b;
     color: white;
     padding: 0.1rem 0.35rem;
     border-radius: 0.3rem;

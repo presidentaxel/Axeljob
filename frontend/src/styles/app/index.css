@@ -1,5 +1,5 @@
 /**
- * Styles shell applicatif /app — point d’entrée.
+ * Styles shell applicatif /app - point d’entrée.
  * design-tokens.css doit précéder base.css (définit --radius-*).
  */
 @import '../design-tokens.css';

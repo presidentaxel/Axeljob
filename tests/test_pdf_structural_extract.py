@@ -82,9 +82,8 @@ class ExtractLayoutTest(unittest.TestCase):
         # Le bandeau latéral plein est un rectangle indépendant (recolorable).
         self.assertIn("shape:rect", types)
 
-    def test_complex_vector_becomes_movable_cutout(self):
-        # Un pictogramme/puce vectoriel (cercle plein) ne sait pas se rendre en
-        # forme simple → vignette image décorative, déplaçable indépendamment.
+    def test_complex_vector_becomes_shape_circle(self):
+        # Une puce vectorielle (cercle plein) → forme circle native, pas une image.
         import fitz
 
         doc = fitz.open()
@@ -100,12 +99,12 @@ class ExtractLayoutTest(unittest.TestCase):
         layout = extract_layout_from_pdf(data)
         self.assertIsNotNone(layout)
         blocks = layout["pages"][0]["blocks"]
-        cutouts = [b for b in blocks if b["type"] == "image" and b["style"].get("decorative")]
-        self.assertGreaterEqual(len(cutouts), 1)
-        cut = cutouts[0]
-        self.assertGreater(cut["w"], 0)
-        self.assertGreater(cut["h"], 0)
-        self.assertTrue(cut["image_src"].startswith("data:image/"))
+        bullets = [b for b in blocks if b["type"] == "shape:circle"]
+        self.assertGreaterEqual(len(bullets), 1)
+        bullet = bullets[0]
+        self.assertGreater(bullet["w"], 0)
+        self.assertGreater(bullet["h"], 0)
+        self.assertIn("color", bullet["style"])
 
     def test_text_block_has_content_and_position(self):
         layout = extract_layout_from_pdf(self.pdf)
@@ -152,6 +151,49 @@ class ExtractLayoutTest(unittest.TestCase):
         big = [b for b in blocks if b["type"] == "shape:rect" and b["h"] > 50 and b["w"] > 100]
         self.assertEqual(big, [])
 
+    def test_four_stroke_frame_becomes_separator_line(self):
+        """Régression : filet de section en 4 segments (cadre fin) → shape:line."""
+        import fitz
+
+        from backend.services.pdf_structural_extract import _separator_block_from_line_items
+
+        doc = fitz.open()
+        page = doc.new_page(width=595, height=842)
+        # Rectangle fin horizontal simulé par 4 traits
+        y = 100.0
+        page.draw_line(fitz.Point(40, y), fitz.Point(540, y), color=(0, 0, 0), width=0.5)
+        page.draw_line(fitz.Point(40, y + 1.2), fitz.Point(540, y + 1.2), color=(0, 0, 0), width=0.5)
+        try:
+            drawings = page.get_drawings()
+            line_items = [it for d in drawings for it in d.get("items", []) if it[0] == "l"]
+            blk = _separator_block_from_line_items(line_items, MM_PER_PT, "#000000")
+        finally:
+            doc.close()
+
+        self.assertIsNotNone(blk)
+        self.assertEqual(blk["type"], "shape:line")
+        self.assertGreater(blk["w"], 80)
+
+    def test_vertical_separator_line(self):
+        import fitz
+
+        doc = fitz.open()
+        page = doc.new_page(width=595, height=842)
+        page.draw_line(fitz.Point(80, 40), fitz.Point(80, 400), color=(0.4, 0.4, 0.4), width=0.8)
+        try:
+            blocks = _extract_shape_blocks(page, MM_PER_PT)
+        finally:
+            doc.close()
+
+        vlines = [
+            b for b in blocks
+            if b["type"] == "shape:line" and b["style"].get("orientation") == "vertical"
+        ]
+        self.assertGreaterEqual(len(vlines), 1)
+        line = vlines[0]
+        self.assertLessEqual(line["w"], 2.0)
+        self.assertGreater(line["h"], 50)
+
     def test_even_odd_nested_rects_become_thin_underline(self):
         # Régression : deux rectangles imbriqués (remplissage even-odd) =
         # un soulignement de section. Seule la fine différence doit être peinte,
@@ -167,6 +209,26 @@ class ExtractLayoutTest(unittest.TestCase):
         self.assertEqual(strip["type"], "shape:line")
         self.assertLessEqual(strip["h"], 1.0)  # fin, pas un gros bloc
         self.assertGreater(strip["w"], 40)  # s'étend sur la largeur
+
+    def test_extract_layout_includes_separator_line(self):
+        """Régression : filet horizontal importé en bloc shape:line (chemin graphique)."""
+        import fitz
+
+        doc = fitz.open()
+        page = doc.new_page(width=595, height=842)
+        page.insert_text((40, 60), "Titre de section avec assez de texte natif.", fontsize=14)
+        page.insert_text((40, 100), "Contenu supplementaire pour le seuil de caracteres.", fontsize=11)
+        page.draw_line(fitz.Point(40, 130), fitz.Point(540, 130), color=(0.3, 0.3, 0.3), width=0.8)
+        data = doc.tobytes()
+        doc.close()
+
+        layout = extract_layout_from_pdf(data)
+        self.assertIsNotNone(layout)
+        lines = [
+            b for b in layout["pages"][0]["blocks"]
+            if b["type"] == "shape:line"
+        ]
+        self.assertGreaterEqual(len(lines), 1)
 
     def test_empty_bytes_returns_none(self):
         self.assertIsNone(extract_layout_from_pdf(b""))

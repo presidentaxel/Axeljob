@@ -11,7 +11,7 @@ import {
 
 const memory = new Map();
 
-test('canvasImageLibrary — add, list, dedupe, remove', () => {
+test('canvasImageLibrary - add, list, dedupe, remove', () => {
   const original = globalThis.localStorage;
   globalThis.localStorage = {
     getItem: (k) => memory.get(k) ?? null,

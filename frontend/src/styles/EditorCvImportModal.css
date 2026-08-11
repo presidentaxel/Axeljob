@@ -62,34 +62,6 @@
   background: var(--color-soft-stone, #eeece7);
 }
 
-.editor-cv-import-tabs {
-  display: flex;
-  gap: 0.35rem;
-  margin-bottom: 0.85rem;
-  padding: 0.2rem;
-  background: var(--color-soft-stone, #eeece7);
-  border-radius: 8px;
-}
-
-.editor-cv-import-tabs button {
-  flex: 1;
-  border: none;
-  background: transparent;
-  border-radius: 6px;
-  padding: 0.45rem 0.6rem;
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: var(--color-body-muted, #616161);
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.editor-cv-import-tabs button.is-active {
-  background: var(--color-canvas, #fff);
-  color: var(--color-primary, #17171c);
-  border: 1px solid var(--color-hairline, #d9d9dd);
-}
-
 .editor-cv-import-pane {
   display: flex;
   flex-direction: column;
@@ -144,39 +116,6 @@
   max-width: 28rem;
 }
 
-.editor-cv-import-textarea {
-  width: 100%;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.65rem;
-  padding: 0.65rem 0.75rem;
-  font-size: 0.84rem;
-  font-family: inherit;
-  resize: vertical;
-  min-height: 9rem;
-}
-
-.editor-cv-import-textarea:focus {
-  outline: none;
-  border-color: var(--color-form-focus, #9b60aa);
-}
-
-.editor-cv-import-submit {
-  align-self: flex-end;
-  border: 1px solid var(--color-primary, #17171c);
-  border-radius: 32px;
-  padding: 0.55rem 1rem;
-  background: var(--color-primary, #17171c);
-  color: var(--color-on-dark, #fff);
-  font-size: 0.82rem;
-  font-weight: 500;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.editor-cv-import-submit:hover:not(:disabled) {
-  background: var(--color-ink, #212121);
-}
-
 .editor-cv-import-error {
   margin: 0.75rem 0 0;
   font-size: 0.82rem;
@@ -218,11 +157,6 @@
 
 .cv-editor-beta-import-btn svg {
   flex-shrink: 0;
-}
-
-.editor-cv-import-submit:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 @keyframes cv-editor-beta-import-toast-in {

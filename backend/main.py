@@ -40,6 +40,7 @@ from backend.config import (
     API_BASE_URL,
     FRONTEND_URL,
     GEMINI_MODEL_IMPORT,
+    GEMINI_MODEL_IMPORT_FALLBACK,
     GEMINI_MODEL_LINKEDIN,
     IS_PRODUCTION,
     METRICS_AUTH_TOKEN,
@@ -1332,6 +1333,7 @@ def _split_cv_import_payload(parsed: dict) -> tuple[dict, dict]:
 
 def _parse_cv_text_with_ai(text: str, user_id: str | None = None) -> dict:
     import os
+    import time
 
     ensure_budget(user_id)
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -1345,13 +1347,33 @@ def _parse_cv_text_with_ai(text: str, user_id: str | None = None) -> dict:
 
     client = genai.Client(api_key=api_key)
     prompt = _CV_IMPORT_SYSTEM_PROMPT.strip() + "\n\n---\n\nTexte du CV :\n\n" + text[:8000]
-    r = client.models.generate_content(
-        model=GEMINI_MODEL_IMPORT,
-        contents=prompt,
-        config=types.GenerateContentConfig(temperature=0.1),
-    )
+    cfg = types.GenerateContentConfig(temperature=0.1)
+
+    # Essai principal + 1 retry sur réponse vide, puis fallback modèle.
+    models_to_try = [GEMINI_MODEL_IMPORT]
+    if GEMINI_MODEL_IMPORT_FALLBACK and GEMINI_MODEL_IMPORT_FALLBACK != GEMINI_MODEL_IMPORT:
+        models_to_try.append(GEMINI_MODEL_IMPORT_FALLBACK)
+
+    r = None
+    for attempt, model_id in enumerate(models_to_try):
+        try:
+            r = client.models.generate_content(model=model_id, contents=prompt, config=cfg)
+        except Exception as exc:
+            logger.warning("_parse_cv_text_with_ai: %s tentative %d: %s", model_id, attempt, exc)
+            if attempt < len(models_to_try) - 1:
+                time.sleep(0.5)
+                continue
+            raise HTTPException(status_code=502, detail="Erreur Gemini lors de l'import.")
+        if r and getattr(r, "text", None):
+            break
+        logger.warning("_parse_cv_text_with_ai: réponse vide (modèle=%s attempt=%d)", model_id, attempt)
+        r = None
+        if attempt < len(models_to_try) - 1:
+            time.sleep(0.5)
+
     if not r or not getattr(r, "text", None):
-        raise HTTPException(status_code=502, detail="Réponse Gemini vide.")
+        raise HTTPException(status_code=502, detail="Réponse Gemini vide après tous les essais.")
+
     inp, out = usage_from_response(r)
     if inp or out:
         from backend.db import record_gemini_usage

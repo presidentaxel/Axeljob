@@ -230,6 +230,9 @@ GEMINI_USD_PER_EUR = float(os.environ.get("GEMINI_USD_PER_EUR", "1.08"))
 GEMINI_MODEL_DEFAULT = _env("GEMINI_MODEL", "gemini-2.5-flash-lite")
 GEMINI_MODEL_LINKEDIN = _env("GEMINI_MODEL_LINKEDIN", GEMINI_MODEL_DEFAULT)
 GEMINI_MODEL_IMPORT = _env("GEMINI_MODEL_IMPORT", GEMINI_MODEL_DEFAULT)
+# Fallback si le modèle principal renvoie vide (liste ordonnée, le premier
+# différent de GEMINI_MODEL_IMPORT sera utilisé).
+GEMINI_MODEL_IMPORT_FALLBACK = _env("GEMINI_MODEL_IMPORT_FALLBACK", "gemini-2.5-flash")
 GEMINI_MODELS_VISION = [
     m.strip()
     for m in _env(

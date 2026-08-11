@@ -1,9 +1,9 @@
 ---
-description: Design system Cohere — référence pour tout code frontend (composants, styles, couleurs, typographie)
+description: Design system Cohere - référence pour tout code frontend (composants, styles, couleurs, typographie)
 alwaysApply: true
 ---
 
-# Design System — Cohere 2026
+# Design System - Cohere 2026
 
 Le design system de référence est documenté dans **`docs/DESIGN-cohere.md`**.
 Toute modification de l'UI doit respecter ce document. Les tokens ci-dessous sont la source de vérité.
@@ -88,18 +88,18 @@ xl: 24px | xxl: 32px | section: 80px
 ## Border-radius
 
 ```
-xs: 4px   — champs, images utilitaires
-sm: 8px   — cards, chips, médias petits
-md: 16px  — blocs groupés moyens
-lg: 22px  — card média signature (hero-photo-card)
-xl: 30px  — pills filtres/research
-pill: 32px — boutons CTA primaires
-full: 9999px — statuts ronds
+xs: 4px   - champs, images utilitaires
+sm: 8px   - cards, chips, médias petits
+md: 16px  - blocs groupés moyens
+lg: 22px  - card média signature (hero-photo-card)
+xl: 30px  - pills filtres/research
+pill: 32px - boutons CTA primaires
+full: 9999px - statuts ronds
 ```
 
 ---
 
-## Composants — comportements attendus
+## Composants - comportements attendus
 
 ### `button-primary`
 - Fond : `--color-primary` (#17171c) sur fond clair, blanc sur fond sombre.
@@ -134,7 +134,7 @@ full: 9999px — statuts ronds
 
 ---
 
-## Responsive — breakpoints
+## Responsive - breakpoints
 
 | Nom | Largeur | Comportement |
 |---|---:|---|
@@ -167,4 +167,4 @@ full: 9999px — statuts ronds
 
 ## Référence complète
 
-→ **`docs/DESIGN-cohere.md`** — analyse exhaustive du système (couleurs avec hex, composants détaillés, itération guide, known gaps).
+→ **`docs/DESIGN-cohere.md`** - analyse exhaustive du système (couleurs avec hex, composants détaillés, itération guide, known gaps).

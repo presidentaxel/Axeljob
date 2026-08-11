@@ -1,5 +1,5 @@
 /**
- * Pages internes /app — en-têtes, structure, bandeaux.
+ * Pages internes /app - en-têtes, structure, bandeaux.
  */
 .app-page {
   flex: 1;
@@ -147,12 +147,7 @@
   align-items: stretch;
 }
 
-.view-settings .page-content {
-  max-width: none;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-}
+/* Paramètres : layout dans styles/app/settings.css */
 
 /* Bandeaux plan gratuit / onboarding */
 .free-plan-banner {
@@ -180,7 +175,7 @@
   justify-content: center;
   gap: 0.35rem;
   padding: 0.45rem 1rem;
-  background: var(--color-pale-green);
+  background: var(--color-canvas-lavender);
   border-bottom: 1px solid var(--color-hairline);
   font-size: 0.8rem;
   color: var(--color-body-muted);

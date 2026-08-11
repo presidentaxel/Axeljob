@@ -1,5 +1,5 @@
 /**
- * Boutons globaux — Cohere 2026 (pill primary, outline secondary).
+ * Boutons globaux - Cohere 2026 (pill primary, outline secondary).
  */
 .btn {
   font-family: var(--app-font-family);
@@ -7,30 +7,35 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.65rem 1.25rem;
-  font-size: 0.875rem;
-  font-weight: 500;
+  padding: 0.875rem 1.75rem;    /* 14px 28px — Slacc pill over-padded */
+  font-size: 1rem;
+  font-weight: 700;
   border: none;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-pill);   /* 90px */
   cursor: pointer;
-  transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-  letter-spacing: 0;
-  line-height: 1.4;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  letter-spacing: 0.012em;
+  line-height: 1.38;
   white-space: nowrap;
 }
 
 .btn:focus-visible {
-  outline: 2px solid var(--color-focus-blue);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: rgb(97, 31, 105) 0 0 0 2px inset, 0 0 0 3px rgba(74, 21, 75, 0.35);
 }
 
+/* Primary — aubergine pill */
 .btn-primary {
   background: var(--color-primary);
-  color: var(--color-on-dark);
+  color: var(--color-on-primary);
 }
 
 .btn-primary:hover:not(:disabled) {
-  opacity: 0.9;
+  background: var(--color-primary-press);
+}
+
+.btn-primary:active:not(:disabled) {
+  background: var(--color-primary-deep);
 }
 
 .btn-primary:disabled {
@@ -38,16 +43,17 @@
   cursor: not-allowed;
 }
 
+/* Secondary — lavender pill */
 .btn-secondary {
-  background: var(--color-canvas);
+  background: var(--color-canvas-lavender);
   color: var(--color-ink);
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-sm);
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 0.625rem 1.875rem;   /* 10px 30px */
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: var(--color-soft-stone);
-  border-color: var(--color-slate);
+  background: #eddeff;
 }
 
 .btn-secondary:disabled {
@@ -55,17 +61,42 @@
   cursor: not-allowed;
 }
 
+/* Outline on white surface */
+.btn-outline {
+  background: var(--color-canvas);
+  color: var(--color-primary);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-pill);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: var(--color-canvas-lavender);
+}
+
+/* Outline on aubergine surface */
+.btn-outline-on-dark {
+  background: transparent;
+  color: var(--color-on-primary);
+  border: 2px solid var(--color-on-primary);
+  border-radius: var(--radius-pill);
+}
+
+.btn-outline-on-dark:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .btn-tertiary {
   background: transparent;
   color: var(--color-muted);
   border: none;
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-md);
   padding: 0.5rem 0.75rem;
+  font-weight: 400;
 }
 
 .btn-tertiary:hover:not(:disabled) {
   color: var(--color-ink);
-  background: var(--color-soft-stone);
+  background: var(--color-canvas-cream);
 }
 
 .btn-tertiary:disabled {
@@ -75,7 +106,7 @@
 
 .btn-success {
   background: var(--color-deep-green);
-  color: var(--color-on-dark);
+  color: var(--color-on-primary);
   margin-top: 0.5rem;
 }
 
@@ -83,12 +114,15 @@
   opacity: 0.9;
 }
 
+/* Tailles */
 .btn-sm {
-  padding: 0.4rem 0.85rem;
+  padding: 0.5rem 1.1rem;
   font-size: 0.8125rem;
+  font-weight: 700;
   border-radius: var(--radius-pill);
 }
 
-.btn-sm.btn-secondary {
-  border-radius: var(--radius-sm);
+.btn-sm.btn-secondary,
+.btn-sm.btn-outline {
+  padding: 0.4rem 1rem;
 }

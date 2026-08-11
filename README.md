@@ -336,7 +336,7 @@ Le projet inclut des standards de contribution et des quality gates :
 - Audit conformité guide : `docs/conformity-audit.md`
 - Politique securite : `docs/security.md`
 - Standards engineering : `docs/engineering-standards.md`
-- **Design system UI (Cohere 2026)** : `docs/DESIGN-cohere.md` — référence couleurs, typographie, composants, spacing, responsive. Chargé automatiquement par Cursor via `.cursor/rules/design-system.mdc`.
+- **Design system UI (Cohere 2026)** : `docs/DESIGN-cohere.md` - référence couleurs, typographie, composants, spacing, responsive. Chargé automatiquement par Cursor via `.cursor/rules/design-system.mdc`.
 - CI GitHub Actions : `.github/workflows/ci.yml`
 - Workflow securite : `.github/workflows/security.yml` (CodeQL, Gitleaks, pip-audit)
 - Dependabot : `.github/dependabot.yml`

@@ -35,6 +35,7 @@ import CanvasEditableField from './CanvasEditableField.jsx';
 import CanvasIconGlyph from './CanvasIconGlyph.jsx';
 import { isVectorShapeType } from '../../lib/canvasShapePresets.js';
 import { blockEffectToCss } from '../../lib/canvasBlockEffects.js';
+import { getBlockPdfFidelity } from '../../lib/canvasPdfFidelity.js';
 import CanvasImageFrame from './CanvasImageFrame.jsx';
 import CanvasShapeSvg from './CanvasShapeSvg.jsx';
 
@@ -846,6 +847,8 @@ export default function FreeCanvasBlock({
   const blockEffectStyle = supportsBlockEffects
     ? blockEffectToCss(blockStyle?.effect, blockStyle)
     : {};
+  const pdfFidelity = interactable ? getBlockPdfFidelity(block, cv) : { level: 'ok', reason: '' };
+  const showPdfFidelityBadge = pdfFidelity.level !== 'ok';
 
   const handlePointerDown = (e) => {
     if (editing) return;
@@ -937,6 +940,15 @@ export default function FreeCanvasBlock({
       {locked && (
         <span className="free-canvas-block__lock-badge" title="Position verrouillée - utilisez la barre d’actions pour déverrouiller" aria-hidden>
           <HiLockClosed size={12} />
+        </span>
+      )}
+      {showPdfFidelityBadge && (
+        <span
+          className={`free-canvas-block__pdf-fidelity-badge free-canvas-block__pdf-fidelity-badge--${pdfFidelity.level}`}
+          title={pdfFidelity.reason || 'Export PDF partiel pour ce bloc'}
+          aria-label={pdfFidelity.reason || 'Export PDF partiel pour ce bloc'}
+        >
+          PDF
         </span>
       )}
       {selected && interactable && !editing && !locked && onResizePointerDown && (

@@ -80,7 +80,46 @@ body.cv-layout-body {
   color: var(--layout-accent, #1e293b);
 }
 .cv-layout-identity-title { font-size: 10pt; margin-top: 1mm; color: #475569; }
-.cv-layout-contact p { margin: 0 0 0.5mm; font-size: 8pt; color: #334155; }
+.cv-layout-identity--inline-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 1.5mm;
+}
+.cv-layout-identity--inline-title .cv-layout-identity-title { margin-top: 0; }
+.cv-layout-identity-sep { color: #64748b; font-weight: 500; }
+.cv-layout-contact p {
+  margin: 0 0 0.5mm;
+  display: flex;
+  align-items: center;
+  gap: 1mm;
+  font-size: 8pt;
+  color: #334155;
+}
+.cv-layout-contact--header-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 2mm;
+  margin: 0;
+  font-size: 8pt;
+  color: #334155;
+  text-align: center;
+}
+.cv-layout-contact-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 1mm;
+  white-space: nowrap;
+}
+.cv-layout-contact-icon {
+  width: 3.2mm;
+  height: 3.2mm;
+  flex-shrink: 0;
+  color: inherit;
+}
+.cv-layout-contact-icon svg { width: 100%; height: 100%; display: block; }
 .cv-layout-section-title {
   font-family: var(--layout-font-heading, var(--layout-font-body, 'Inter', sans-serif));
   margin: 0 0 1.5mm;
@@ -92,13 +131,23 @@ body.cv-layout-body {
   border-bottom: 0.25mm solid rgba(30, 41, 59, 0.35);
   padding-bottom: 0.4mm;
 }
+.cv-layout-sidebar-category {
+  margin: 0 0 1mm;
+  font-size: 8pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--layout-accent, #1e293b);
+}
 .cv-layout-exp { margin-bottom: 2mm; }
 .cv-layout-exp-header { display: flex; justify-content: space-between; gap: 2mm; font-weight: 600; }
 .cv-layout-exp-dates { font-weight: 500; color: #64748b; white-space: nowrap; font-size: 8pt; }
 .cv-layout-exp-role { color: #64748b; font-size: 8pt; margin-bottom: 0.5mm; }
+.cv-layout-exp-clients { margin: 0 0 0.5mm; font-size: 8pt; color: #475569; }
 .cv-layout-bullets { margin: 0.5mm 0 0 3mm; padding: 0; }
 .cv-layout-bullets li { margin-bottom: 0.3mm; }
 .cv-layout-chips { display: flex; flex-wrap: wrap; gap: 1mm; }
+.cv-layout-sidebar-item { margin: 0 0 0.5mm; font-size: 8pt; }
 .cv-layout-chip {
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
@@ -219,9 +268,20 @@ def _render_semantic(cv: dict, block: dict) -> str:
         name = bind.resolve_bound_text(cv, ["prenom", "nom"])
         title = bind.resolve_bound_text(cv, "titre_professionnel")
         align = _esc(str(style.get("align") or "left"))
-        parts = [
-            f'<div class="cv-layout-identity-name" style="text-align:{align}">{_text(name or "Prénom Nom")}</div>'
-        ]
+        name_html = (
+            f'<div class="cv-layout-identity-name" style="text-align:{align}">'
+            f'{_text(name or "Prénom Nom")}</div>'
+        )
+        if style.get("header_layout") == "inline-title":
+            parts = [f'<span class="cv-layout-identity-name">{_text(name or "Prénom Nom")}</span>']
+            if title:
+                parts.append('<span class="cv-layout-identity-sep"> - </span>')
+                parts.append(f'<span class="cv-layout-identity-title">{_text(title)}</span>')
+            return (
+                f'<div class="cv-layout-identity cv-layout-identity--inline-title" '
+                f'style="text-align:{align}">{"".join(parts)}</div>'
+            )
+        parts = [name_html]
         if title:
             parts.append(f'<div class="cv-layout-identity-title">{_text(title)}</div>')
         return f'<div class="cv-layout-identity">{"".join(parts)}</div>'
@@ -235,49 +295,47 @@ def _render_semantic(cv: dict, block: dict) -> str:
         return _image_frame_html(url, style, w, h, "cv-layout-photo")
 
     if btype == "contact":
-        lines = []
-        for key, label in (
-            ("telephone", "Tél."),
-            ("email", "Email"),
-            ("linkedin", "LinkedIn"),
-        ):
-            val = bind.resolve_bound_text(cv, key)
-            if val:
-                lines.append(f"<p><span>{_esc(label)}</span> {_text(val)}</p>")
-        return f'<div class="cv-layout-contact">{"".join(lines) or _placeholder("Contact")}</div>'
+        return _render_contact(cv, style)
 
     if btype == "resume":
         text = bind.resolve_bound_text(cv, binding if binding else "resume")
-        return f'<p class="cv-layout-text">{_text(text) or _placeholder("Résumé")}</p>'
+        body = f'<p class="cv-layout-text">{_text(text) or _placeholder("Résumé")}</p>'
+        return _section_with_style("resume", body, style, default_title=False)
 
     if btype == "experiences":
-        return _render_experiences(cv, limit, fmt)
+        return _render_experiences(cv, limit, fmt, style)
 
     if btype == "formations":
-        return _render_formations(cv, limit)
+        return _render_formations(cv, limit, style)
 
     if btype == "certifications":
-        return _render_certifications(cv, limit)
+        return _render_certifications(cv, limit, style)
 
     if btype == "projets":
-        return _render_projets(cv, limit)
+        return _render_projets(cv, limit, style)
 
     if btype == "skills":
         items = bind.resolve_bound_string_list(cv, binding if binding else "competences.techniques")
         if not items:
-            return _section("skills", _placeholder("Compétences"))
-        inner = (
-            "".join(f'<span class="cv-layout-chip">{_text(s)}</span>' for s in items)
-            if fmt == "chips"
-            else f"<p>{_text(', '.join(items))}</p>"
-        )
-        body = f'<div class="cv-layout-chips">{inner}</div>' if fmt == "chips" else inner
-        return _section("skills", body)
+            return _section_with_style(
+                "skills", _placeholder("Compétences"), style, default_title=False
+            )
+        list_fmt = str(style.get("list_format") or fmt or "default")
+        if fmt == "chips" or list_fmt == "chips":
+            inner = "".join(f'<span class="cv-layout-chip">{_text(s)}</span>' for s in items)
+            body = f'<div class="cv-layout-chips">{inner}</div>'
+        elif list_fmt == "list" or fmt == "list":
+            body = "".join(f'<p class="cv-layout-sidebar-item">{_text(s)}</p>' for s in items)
+        else:
+            body = f"<p>{_text(', '.join(items))}</p>"
+        return _section_with_style("skills", body, style, default_title=False)
 
     if btype == "languages":
         items = bind.resolve_langues(cv)
         if not items:
-            return _section("languages", _placeholder("Langues"))
+            return _section_with_style(
+                "languages", _placeholder("Langues"), style, default_title=True
+            )
         lang_labels: list[str] = []
         for row in items:
             if not isinstance(row, dict):
@@ -289,43 +347,95 @@ def _render_semantic(cv: dict, block: dict) -> str:
             if label:
                 lang_labels.append(label)
         text = ", ".join(lang_labels)
-        return _section("languages", f"<p>{_text(text)}</p>")
+        return _section_with_style("languages", f"<p>{_text(text)}</p>", style, default_title=True)
 
     return _placeholder(btype)
 
 
-def _render_experiences(cv: dict, limit: Any, fmt: str) -> str:
+def _render_contact(cv: dict, style: dict[str, Any]) -> str:
+    fields = (
+        ("telephone", "HiPhone"),
+        ("email", "HiEnvelope"),
+        ("linkedin", "HiLink"),
+    )
+    values: list[tuple[str, str]] = []
+    for key, icon_name in fields:
+        val = bind.resolve_bound_text(cv, key)
+        if val:
+            values.append((icon_name, val))
+    if not values:
+        return f'<div class="cv-layout-contact">{_placeholder("Contact")}</div>'
+
+    header_bar = style.get("contact_layout") == "header-bar"
+    if header_bar:
+        segments = []
+        for icon_name, val in values:
+            icon = (
+                f'<span class="cv-layout-contact-icon" aria-hidden="true">'
+                f"{_icon_svg(icon_name)}</span>"
+            )
+            segments.append(f'<span class="cv-layout-contact-segment">{icon}{_text(val)}</span>')
+        body = f'<div class="cv-layout-contact cv-layout-contact--header-bar">{"".join(segments)}</div>'
+        return _section_with_style("contact", body, style, default_title=False)
+
+    lines = []
+    for icon_name, val in values:
+        icon = (
+            f'<span class="cv-layout-contact-icon" aria-hidden="true">'
+            f"{_icon_svg(icon_name)}</span>"
+        )
+        lines.append(f"<p>{icon}{_text(val)}</p>")
+    body = f'<div class="cv-layout-contact">{"".join(lines)}</div>'
+    return _section_with_style("contact", body, style, default_title=False)
+
+
+def _render_experiences(cv: dict, limit: Any, fmt: str, style: dict[str, Any] | None = None) -> str:
+    style = style or {}
     items = bind.resolve_experiences(cv, limit if isinstance(limit, int | float) else None)
     if not items:
-        return _section("experiences", _placeholder("Expériences"))
+        return _section_with_style(
+            "experiences", _placeholder("Expériences"), style, default_title=True
+        )
     rows = []
     for exp in items:
         ent = (exp.get("entreprise") or "").strip()
         poste = (exp.get("poste") or "").strip()
-        dates = " – ".join(
+        lieu = (exp.get("lieu") or "").strip()
+        date_parts = [
             x
             for x in [(exp.get("date_debut") or "").strip(), (exp.get("date_fin") or "").strip()]
             if x
-        )
+        ]
+        dates = " – ".join(date_parts)
+        date_line = " · ".join(x for x in [dates, lieu] if x)
         header = f"<strong>{_text(ent or poste)}</strong>"
-        if dates:
-            header += f'<span class="cv-layout-exp-dates">{_text(dates)}</span>'
+        if date_line:
+            header += f'<span class="cv-layout-exp-dates">{_text(date_line)}</span>'
         role = f'<div class="cv-layout-exp-role">{_text(poste)}</div>' if poste and ent else ""
+        clients = (exp.get("clients") or "").strip()
+        clients_html = (
+            f'<p class="cv-layout-exp-clients"><strong>Clients :</strong> {_text(clients)}</p>'
+            if clients
+            else ""
+        )
         bullets = exp.get("bullet_points") or []
         bl = "".join(f"<li>{_text((b or '').strip())}</li>" for b in bullets if (b or "").strip())
         compact = " cv-layout-exp--compact" if fmt == "compact" else ""
         rows.append(
             f'<div class="cv-layout-exp{compact}">'
-            f'<div class="cv-layout-exp-header">{header}</div>{role}'
+            f'<div class="cv-layout-exp-header">{header}</div>{role}{clients_html}'
             f'<ul class="cv-layout-bullets">{bl}</ul></div>'
         )
-    return _section("experiences", "".join(rows))
+    return _section_with_style("experiences", "".join(rows), style, default_title=True)
 
 
-def _render_formations(cv: dict, limit: Any) -> str:
+def _render_formations(cv: dict, limit: Any, style: dict[str, Any] | None = None) -> str:
+    style = style or {}
     items = bind.resolve_formations(cv, limit if isinstance(limit, int | float) else None)
     if not items:
-        return _section("formations", _placeholder("Formations"))
+        return _section_with_style(
+            "formations", _placeholder("Formations"), style, default_title=True
+        )
     lines = []
     for f in items:
         dip = (f.get("diplome") or "").strip()
@@ -337,13 +447,16 @@ def _render_formations(cv: dict, limit: Any) -> str:
         if date:
             line += f' <span class="cv-layout-exp-dates">({_text(date)})</span>'
         lines.append(f"<p>{line}</p>")
-    return _section("formations", "".join(lines))
+    return _section_with_style("formations", "".join(lines), style, default_title=True)
 
 
-def _render_certifications(cv: dict, limit: Any) -> str:
+def _render_certifications(cv: dict, limit: Any, style: dict[str, Any] | None = None) -> str:
+    style = style or {}
     items = bind.resolve_certifications(cv, limit if isinstance(limit, int | float) else None)
     if not items:
-        return _section("certifications", _placeholder("Certifications"))
+        return _section_with_style(
+            "certifications", _placeholder("Certifications"), style, default_title=True
+        )
     lines = []
     for c in items:
         parts = [
@@ -356,13 +469,14 @@ def _render_certifications(cv: dict, limit: Any) -> str:
             if x
         ]
         lines.append(f"<p>{_text(' · '.join(parts))}</p>")
-    return _section("certifications", "".join(lines))
+    return _section_with_style("certifications", "".join(lines), style, default_title=True)
 
 
-def _render_projets(cv: dict, limit: Any) -> str:
+def _render_projets(cv: dict, limit: Any, style: dict[str, Any] | None = None) -> str:
+    style = style or {}
     items = bind.resolve_projets(cv, limit if isinstance(limit, int | float) else None)
     if not items:
-        return _section("projets", _placeholder("Projets"))
+        return _section_with_style("projets", _placeholder("Projets"), style, default_title=True)
     lines = []
     for p in items:
         nom = (p.get("nom") or "").strip()
@@ -371,7 +485,7 @@ def _render_projets(cv: dict, limit: Any) -> str:
         if desc:
             line += f" - {_text(desc)}"
         lines.append(f"<p>{line}</p>")
-    return _section("projets", "".join(lines))
+    return _section_with_style("projets", "".join(lines), style, default_title=True)
 
 
 def _render_non_semantic(block: dict) -> str:
@@ -428,11 +542,31 @@ def _render_non_semantic(block: dict) -> str:
 
 
 def _section(key: str, body: str) -> str:
-    title = SECTION_LABELS.get(key, key)
-    return (
-        f'<div class="cv-layout-section">'
-        f'<h3 class="cv-layout-section-title">{_esc(title)}</h3>{body}</div>'
-    )
+    return _section_with_style(key, body, {}, default_title=True)
+
+
+def _section_with_style(
+    key: str,
+    body: str,
+    style: dict[str, Any] | None,
+    *,
+    default_title: bool,
+) -> str:
+    """Titre de section : section_label > sidebar_category > défaut SECTION_LABELS."""
+    style = style or {}
+    custom = str(style.get("section_label") or "").strip()
+    category = str(style.get("sidebar_category") or "").strip()
+    headings: list[str] = []
+    if custom:
+        headings.append(f'<h3 class="cv-layout-section-title">{_esc(custom)}</h3>')
+    elif default_title:
+        title = SECTION_LABELS.get(key, key)
+        headings.append(f'<h3 class="cv-layout-section-title">{_esc(title)}</h3>')
+    if category and category != custom:
+        headings.append(f'<p class="cv-layout-sidebar-category">{_esc(category)}</p>')
+    if not headings:
+        return f'<div class="cv-layout-section">{body}</div>'
+    return f'<div class="cv-layout-section">{"".join(headings)}{body}</div>'
 
 
 def _placeholder(label: str) -> str:
@@ -481,7 +615,7 @@ def _image_radius(style: dict[str, Any]) -> str:
     if shape == "circle":
         return "50%"
     if shape == "rounded":
-        return "12%"
+        return "12px"
     return "0"
 
 

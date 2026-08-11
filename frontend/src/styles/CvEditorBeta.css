@@ -301,6 +301,15 @@
   font-weight: 500;
 }
 
+.cv-editor-beta-pdf-fidelity {
+  background: var(--color-soft-stone);
+  color: var(--color-body-muted);
+  border-bottom: 1px solid var(--color-hairline);
+  padding: 0.5rem 1rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
 .cv-editor-beta-canvas {
   position: relative;
   flex: 1;

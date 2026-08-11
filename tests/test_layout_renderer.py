@@ -1,10 +1,13 @@
-"""Tests unitaires layout_renderer (P3.8)."""
+"""Tests unitaires layout_renderer (P3.8 / AXE-30)."""
 
 import json
+import re
 import unittest
 from pathlib import Path
 
 from backend.services.layout_renderer import render_html
+
+SNAPSHOTS_DIR = Path(__file__).resolve().parent / "snapshots"
 
 
 def _sample_cv() -> dict:
@@ -15,6 +18,21 @@ def _sample_cv() -> dict:
     payload["nom"] = "Dupont"
     payload["titre_professionnel"] = "Développeur"
     payload["resume"] = "Profil test layout renderer."
+    payload["telephone"] = "0601020304"
+    payload["email"] = "jean.dupont@example.com"
+    payload["linkedin"] = "linkedin.com/in/jeandupont"
+    payload["experiences"] = [
+        {
+            "entreprise": "Acme",
+            "poste": "Dev",
+            "date_debut": "2020",
+            "date_fin": "2024",
+            "lieu": "Paris",
+            "clients": "Banque X",
+            "bullet_points": ["Livré le module PDF"],
+        }
+    ]
+    payload["competences"] = {"techniques": ["Python", "React", "SQL"]}
     return payload
 
 
@@ -48,6 +66,97 @@ def _starter_layout() -> dict:
         "theme": {"color_accent": "#1e3a5f"},
         "pages": [{"id": "p1", "blocks": blocks}],
     }
+
+
+def _main_blocks_layout() -> dict:
+    """Layout des 5 blocs principaux (AXE-30 snapshot)."""
+    return {
+        "version": 3,
+        "theme": {"color_accent": "#1e3a5f", "font_heading": "Inter", "font_body": "Inter"},
+        "pages": [
+            {
+                "id": "p1",
+                "blocks": [
+                    {
+                        "id": "b-identity",
+                        "type": "identity",
+                        "x": 10,
+                        "y": 10,
+                        "w": 190,
+                        "h": 18,
+                        "z": 1,
+                        "style": {"header_layout": "inline-title", "align": "left"},
+                    },
+                    {
+                        "id": "b-contact",
+                        "type": "contact",
+                        "x": 10,
+                        "y": 30,
+                        "w": 190,
+                        "h": 10,
+                        "z": 1,
+                        "style": {"contact_layout": "header-bar"},
+                    },
+                    {
+                        "id": "b-resume",
+                        "type": "resume",
+                        "bind": "resume",
+                        "x": 10,
+                        "y": 44,
+                        "w": 190,
+                        "h": 18,
+                        "z": 1,
+                        "style": {"section_label": "Profil"},
+                    },
+                    {
+                        "id": "b-exp",
+                        "type": "experiences",
+                        "x": 10,
+                        "y": 66,
+                        "w": 190,
+                        "h": 60,
+                        "z": 1,
+                        "style": {"section_label": "Expériences"},
+                    },
+                    {
+                        "id": "b-skills",
+                        "type": "skills",
+                        "bind": "competences.techniques",
+                        "x": 10,
+                        "y": 130,
+                        "w": 90,
+                        "h": 40,
+                        "z": 1,
+                        "style": {
+                            "format": "list",
+                            "list_format": "list",
+                            "section_label": "Stack",
+                        },
+                    },
+                ],
+            }
+        ],
+    }
+
+
+def _normalize_html(html: str) -> str:
+    """Normalise pour snapshot stable (whitespace uniquement)."""
+    text = html.strip()
+    text = re.sub(r">\s+<", "><", text)
+    text = re.sub(r"\s+", " ", text)
+    return text
+
+
+def _assert_snapshot(name: str, html: str) -> None:
+    SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+    path = SNAPSHOTS_DIR / name
+    normalized = _normalize_html(html)
+    if not path.exists():
+        path.write_text(normalized + "\n", encoding="utf-8")
+    expected = path.read_text(encoding="utf-8").strip()
+    if normalized != expected:
+        path.with_suffix(path.suffix + ".got").write_text(normalized + "\n", encoding="utf-8")
+    assert normalized == expected, f"Snapshot mismatch: {path}"
 
 
 class TestLayoutRenderer(unittest.TestCase):
@@ -180,6 +289,7 @@ class TestLayoutRenderer(unittest.TestCase):
         self.assertIn('src="data:image/png;base64,AAA"', html)
         self.assertIn("object-position:40.0% 60.0%", html)
         self.assertIn("transform:scale(1.4)", html)
+        self.assertIn("border-radius:12px", html)
 
     def test_icon_block_exports_svg_not_technical_name(self):
         layout = {
@@ -208,6 +318,31 @@ class TestLayoutRenderer(unittest.TestCase):
         self.assertIn("<svg", html)
         self.assertIn("color:#2563eb", html)
         self.assertNotIn(">HiPhone<", html)
+
+    def test_main_blocks_parity_fragments(self):
+        """AXE-30 : champs / layouts critiques des 5 blocs principaux."""
+        html = render_html(_sample_cv(), _main_blocks_layout())
+        self.assertIn("cv-layout-identity--inline-title", html)
+        self.assertIn("Jean Dupont", html)
+        self.assertIn("Développeur", html)
+        self.assertIn("cv-layout-contact--header-bar", html)
+        self.assertIn("cv-layout-contact-icon", html)
+        self.assertNotIn("Tél.", html)
+        self.assertIn("0601020304", html)
+        self.assertIn(">Profil<", html)
+        self.assertIn("Profil test layout renderer.", html)
+        self.assertIn(">Expériences<", html)
+        self.assertIn("Paris", html)
+        self.assertIn("cv-layout-exp-clients", html)
+        self.assertIn("Banque X", html)
+        self.assertIn(">Stack<", html)
+        self.assertIn('class="cv-layout-sidebar-item"', html)
+        self.assertIn("Python", html)
+        self.assertIn("React", html)
+
+    def test_main_blocks_html_snapshot(self):
+        html = render_html(_sample_cv(), _main_blocks_layout())
+        _assert_snapshot("layout_main_blocks.html", html)
 
 
 if __name__ == "__main__":

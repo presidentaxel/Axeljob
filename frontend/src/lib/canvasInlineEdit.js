@@ -91,27 +91,23 @@ function normalizeAliasTags(html) {
     .replace(/<\s*\/?\s*strike\b/gi, (m) => m.replace(/strike/i, 's'));
 }
 
-/** Fallback Node (tests) : strip tags hors whitelist + script content. */
-function sanitizeRichTextHtmlFallback(html) {
-  let s = String(html);
-  s = s.replace(/<(script|style|iframe|object|embed|svg)\b[^>]*>[\s\S]*?<\/\1>/gi, '');
-  s = s.replace(/<\/?(?!\/?(?:strong|em|u|s|span|br|b|i|strike)\b)[a-zA-Z][^>]*>/gi, '');
-  s = s.replace(/\son\w+\s*=\s*(['"]).*?\1/gi, '');
-  s = s.replace(/<(span)\b([^>]*)>/gi, (_, _tag, attrs) => {
-    const styleMatch = /\bstyle\s*=\s*(['"])(.*?)\1/i.exec(attrs || '');
-    const style = styleMatch ? sanitizeSpanStyle(styleMatch[2]) : '';
-    return style ? `<span style="${style}">` : '<span>';
-  });
-  return normalizeAliasTags(s);
+/** Escape HTML (Node / absence de DOM) — jamais de regex strip tags (CodeQL). */
+function escapeHtmlPlain(html) {
+  return String(html)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 /** Nettoie un fragment de texte riche selon la whitelist canvas. */
 export function sanitizeRichTextHtml(html) {
   if (typeof html !== 'string' || html === '') return '';
   ensureDomPurifyHooks();
-  const cleaned = DOMPurify?.sanitize
-    ? normalizeAliasTags(DOMPurify.sanitize(html, RICH_TEXT_SANITIZE_CONFIG))
-    : sanitizeRichTextHtmlFallback(html);
+  if (!DOMPurify?.sanitize) {
+    return escapeHtmlPlain(html);
+  }
+  const cleaned = normalizeAliasTags(DOMPurify.sanitize(html, RICH_TEXT_SANITIZE_CONFIG));
   return cleaned === '<br>' ? '' : cleaned;
 }
 

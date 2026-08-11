@@ -8,6 +8,20 @@ const STORAGE_KEY = 'cv_canvas_user_images_v1';
 const REMOVED_KEY = 'cv_canvas_user_images_removed_v1';
 const MAX_ITEMS = 24;
 
+/**
+ * URL sûre pour &lt;img src&gt; / drop canvas.
+ * Pas de data: ni javascript: (AXE-40 + CodeQL js/xss-through-dom).
+ */
+export function toSafeCanvasImageSrc(src) {
+  if (typeof src !== 'string') return '';
+  const trimmed = src.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^assets\/[A-Za-z0-9._/-]+$/.test(trimmed)) return trimmed;
+  if (/^\/assets\/[A-Za-z0-9._/-]+$/.test(trimmed)) return trimmed;
+  return '';
+}
+
 function readAll() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -72,10 +86,11 @@ export function listUserCanvasImages() {
  * Ajoute une image (data URL). Déduplique par contenu exact.
  */
 export function addUserCanvasImage(dataUrl, meta = {}) {
-  if (!dataUrl || typeof dataUrl !== 'string') return null;
-  removeFromRemovedSet(dataUrl);
+  const safeSrc = toSafeCanvasImageSrc(dataUrl);
+  if (!safeSrc) return null;
+  removeFromRemovedSet(safeSrc);
   const all = readAll();
-  const existing = all.find((item) => item.dataUrl === dataUrl);
+  const existing = all.find((item) => item.dataUrl === safeSrc);
   if (existing) {
     const bumped = { ...existing, addedAt: Date.now(), label: meta.label || existing.label };
     writeAll([bumped, ...all.filter((i) => i.id !== existing.id)].slice(0, MAX_ITEMS));
@@ -83,7 +98,7 @@ export function addUserCanvasImage(dataUrl, meta = {}) {
   }
   const entry = {
     id: `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    dataUrl,
+    dataUrl: safeSrc,
     label: meta.label || '',
     addedAt: Date.now(),
   };

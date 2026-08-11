@@ -16,6 +16,7 @@ import {
   listUserCanvasImages,
   removeUserCanvasImage,
   syncUserCanvasImagesFromLayout,
+  toSafeCanvasImageSrc,
 } from '../../lib/canvasImageLibrary.js';
 import { CANVAS_ICON_ENTRIES, createIconBlockPreset } from '../../lib/canvasIconLibrary.js';
 import { ELEMENT_SHAPE_ITEMS, createShapeBlockPreset } from '../../lib/canvasShapePresets.js';
@@ -51,17 +52,19 @@ const TEXT_PRESETS = TEXT_PRESET_ITEMS;
 const STYLE_PANEL_SECTIONS = new Set(['fonts', 'colors', 'effects', 'shape-style']);
 
 function ImageHistoryTile({ entry, disabled, onBeginPlacement, onRemove }) {
-  const preset = createImageBlockPreset(entry.dataUrl);
+  const safeSrc = toSafeCanvasImageSrc(entry?.dataUrl);
+  const preset = safeSrc ? createImageBlockPreset(safeSrc) : null;
   const onPointerDown = (e) => {
     if (disabled || !preset) return;
     e.preventDefault();
     onBeginPlacement?.(preset);
   };
   const onDragStart = (e) => {
-    if (disabled || !entry.dataUrl) return;
-    e.dataTransfer.setData(CANVAS_IMAGE_DROP_MIME, entry.dataUrl);
+    if (disabled || !safeSrc) return;
+    e.dataTransfer.setData(CANVAS_IMAGE_DROP_MIME, safeSrc);
     e.dataTransfer.effectAllowed = 'copy';
   };
+  if (!safeSrc) return null;
   return (
     <div className="editor-canva-image-history__item">
       <button
@@ -74,7 +77,7 @@ function ImageHistoryTile({ entry, disabled, onBeginPlacement, onRemove }) {
         onClick={(e) => e.preventDefault()}
         onDragStart={onDragStart}
       >
-        <img src={entry.dataUrl} alt="" draggable={false} />
+        <img src={safeSrc} alt="" draggable={false} />
       </button>
       <button
         type="button"

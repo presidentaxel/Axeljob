@@ -30,18 +30,12 @@ test('normalise le HTML riche echappe par un contentEditable', () => {
   assert.equal(fieldValueLooksLikeHtml(escaped), true);
 });
 
-test('sanitizeRichTextHtml whitelist AXE-40', () => {
+test('sanitizeRichTextHtml sans DOM escape le markup (Node)', () => {
   const out = sanitizeRichTextHtml(
-    '<b>A</b><i>B</i><u>C</u><s>D</s><span style="color:blue;font-size:99px">E</span>'
-      + '<script>evil()</script><a href="https://x">link</a>',
+    '<b>A</b><script>evil()</script><a href="https://x">link</a>',
   );
-  assert.match(out, /<strong>A<\/strong>/);
-  assert.match(out, /<em>B<\/em>/);
-  assert.match(out, /<u>C<\/u>/);
-  assert.match(out, /<s>D<\/s>/);
-  assert.match(out, /color:\s*blue/i);
-  assert.doesNotMatch(out, /font-size/i);
-  assert.doesNotMatch(out, /script/i);
-  assert.doesNotMatch(out, /<a\b/i);
-  assert.match(out, /link/);
+  assert.equal(out.includes('<script'), false);
+  assert.equal(out.includes('<b>'), false);
+  assert.match(out, /&lt;b&gt;A&lt;\/b&gt;/);
+  assert.match(out, /&lt;script&gt;/);
 });

@@ -7,9 +7,17 @@ import {
   listUserCanvasImages,
   removeUserCanvasImage,
   syncUserCanvasImagesFromLayout,
+  toSafeCanvasImageSrc,
 } from '../../src/lib/canvasImageLibrary.js';
 
 const memory = new Map();
+
+test('toSafeCanvasImageSrc refuse data: et javascript:', () => {
+  assert.equal(toSafeCanvasImageSrc('data:image/jpeg;base64,AAA'), '');
+  assert.equal(toSafeCanvasImageSrc('javascript:alert(1)'), '');
+  assert.equal(toSafeCanvasImageSrc('assets/uploads/u/x.jpg'), 'assets/uploads/u/x.jpg');
+  assert.equal(toSafeCanvasImageSrc('https://cdn.example/x.jpg'), 'https://cdn.example/x.jpg');
+});
 
 test('canvasImageLibrary - add, list, dedupe, remove', () => {
   const original = globalThis.localStorage;
@@ -20,7 +28,7 @@ test('canvasImageLibrary - add, list, dedupe, remove', () => {
   };
   try {
     memory.clear();
-    const url = 'data:image/jpeg;base64,AAA';
+    const url = 'assets/uploads/u/canvas_a.jpg';
     addUserCanvasImage(url, { label: 'a.jpg' });
     addUserCanvasImage(url);
     assert.equal(listUserCanvasImages().length, 1);
@@ -42,9 +50,26 @@ test('collectImageUrlsFromLayout extrait les blocs image', () => {
     pages: [{
       blocks: [
         { type: 'text', content: 'x' },
-        { type: 'image', image_src: 'data:image/jpeg;base64,BBB' },
+        { type: 'image', image_src: 'assets/uploads/u/bbb.jpg' },
       ],
     }],
   };
-  assert.deepEqual(collectImageUrlsFromLayout(layout), ['data:image/jpeg;base64,BBB']);
+  assert.deepEqual(collectImageUrlsFromLayout(layout), ['assets/uploads/u/bbb.jpg']);
+});
+
+test('addUserCanvasImage ignore les data URL', () => {
+  const original = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem: (k) => memory.get(k) ?? null,
+    setItem: (k, v) => { memory.set(k, v); },
+    removeItem: (k) => { memory.delete(k); },
+  };
+  try {
+    memory.clear();
+    assert.equal(addUserCanvasImage('data:image/jpeg;base64,AAA'), null);
+    assert.equal(listUserCanvasImages().length, 0);
+  } finally {
+    globalThis.localStorage = original;
+    memory.clear();
+  }
 });

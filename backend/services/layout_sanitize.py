@@ -130,11 +130,11 @@ def _sanitize_block(
     if btype == "qrcode" and isinstance(block.get("target_url"), str):
         url = block["target_url"].strip()
         out["target_url"] = url if _SAFE_HTTP_RE.match(url) else ""
-    if isinstance(block.get("bind"), (str, list)):
+    if isinstance(block.get("bind"), str | list):
         out["bind"] = block["bind"]
     if block.get("locked") is True:
         out["locked"] = True
-    if isinstance(block.get("limit"), (int, float)) and block["limit"] > 0:
+    if isinstance(block.get("limit"), int | float) and block["limit"] > 0:
         out["limit"] = int(block["limit"])
     return out
 

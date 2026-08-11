@@ -81,8 +81,9 @@ export function mergeTemplateBaseWithDraft(baseLayout, draftLayout) {
   });
 }
 
-export function resolveTemplateContextLayout(contextKey, baseLayout, draftLayout) {
-  if (!draftLayout) return baseLayout;
+export function resolveTemplateContextLayout(contextKey, baseLayout, draftLayout, options = {}) {
+  const { forceBase = false } = options;
+  if (forceBase || !draftLayout) return baseLayout;
   if (String(contextKey || '').startsWith('template:')) {
     return mergeTemplateBaseWithDraft(baseLayout, draftLayout);
   }

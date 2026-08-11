@@ -43,6 +43,7 @@ import {
   isAutoHeightBlockType,
   isNonSemanticBlockType,
   isSemanticBlockType,
+  layoutPayloadForPersist,
   listAllBlocks,
   migrateLayoutToV3,
   moveBlockBy,
@@ -295,6 +296,14 @@ test('isEmptyLayoutV3 : true sur blank, false sur starter', () => {
   assert.equal(isEmptyLayoutV3(createBlankLayoutV3({ idHelpers })), true);
   assert.equal(isEmptyLayoutV3(createStarterLayoutV3({ idHelpers })), false);
   assert.equal(isEmptyLayoutV3(null), true);
+});
+
+test('layoutPayloadForPersist : undefined / null / empty → null pour reset API', () => {
+  assert.equal(layoutPayloadForPersist(undefined), undefined);
+  assert.equal(layoutPayloadForPersist(null), null);
+  assert.equal(layoutPayloadForPersist(createBlankLayoutV3({ idHelpers })), null);
+  const starter = createStarterLayoutV3({ idHelpers });
+  assert.equal(layoutPayloadForPersist(starter), starter);
 });
 
 // ---------------------------------------------------------------------------

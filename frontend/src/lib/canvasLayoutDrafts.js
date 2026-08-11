@@ -103,6 +103,16 @@ export function saveCanvasDraft(contextKey, layout, meta = {}) {
   return entry;
 }
 
+/** Supprime le brouillon local d’un contexte (reset Page blanche AXE-28). */
+export function clearCanvasDraft(contextKey) {
+  const key = String(contextKey || BLANK_CANVAS_CONTEXT_KEY);
+  const drafts = readJson(DRAFTS_STORAGE_KEY, {});
+  if (!(key in drafts)) return false;
+  delete drafts[key];
+  writeJson(DRAFTS_STORAGE_KEY, drafts);
+  return true;
+}
+
 export function listCanvasDrafts(templatesList = []) {
   const drafts = readJson(DRAFTS_STORAGE_KEY, {});
   return Object.values(drafts)

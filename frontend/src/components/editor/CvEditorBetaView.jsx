@@ -33,8 +33,8 @@ import {
   BLANK_CANVAS_CONTEXT_KEY,
   IMPORTED_CANVAS_CONTEXT_KEY,
   canvasContextLabel,
+  clearCanvasDraft,
   getActiveCanvasContext,
-  getCanvasDraftPrefs,
   listCanvasDrafts,
   loadCanvasDraft,
   saveCanvasDraft,
@@ -66,7 +66,7 @@ import {
   createStarterLayoutV3,
   duplicateBlocks,
   findBlock,
-  isEmptyLayoutV3,
+  layoutPayloadForPersist,
   migrateLayoutToV3,
   moveBlocksBy,
   removeBlocks,
@@ -81,6 +81,7 @@ import {
   isAutoHeightBlockType,
   isSemanticBlockType,
 } from '../../lib/cvLayoutModelV3.js';
+import { isAtsSafe, sortTemplatesForEditor } from '../../lib/editorTemplateUtils.js';
 import { resetTemplateOptionsToDefaults } from '../../lib/templateOptionsSchema.js';
 import { reflowColumnBlocksOnPage } from '../../lib/layoutReflow.js';
 import { moveBlockToPage } from '../../lib/canvasPageTransfer.js';
@@ -222,7 +223,7 @@ function CvEditorBeta({
     };
     const layoutToSave = payload.layout !== undefined ? payload.layout : layoutRef.current;
     if (layoutToSave !== undefined) {
-      body.layout = layoutToSave && !isEmptyLayoutV3(layoutToSave) ? layoutToSave : null;
+      body.layout = layoutPayloadForPersist(layoutToSave);
     }
     return apiPut('/api/cv', body);
   }, [templateId, templateOptions, profileLoadError]);
@@ -272,6 +273,7 @@ function CvEditorBeta({
 
   const openCanvasContext = useCallback((contextKey, nextLayout) => {
     const hydrated = migrateLayoutToV3(nextLayout || createCanvasLayoutBlank());
+    layoutRef.current = hydrated;
     resetLayout(hydrated);
     setSelectedBlockIds([]);
     setEditingBlockId(null);
@@ -282,7 +284,13 @@ function CvEditorBeta({
     setActiveCanvasContext(contextKey);
     saveCanvasDraft(contextKey, hydrated, { label: canvasContextLabel(contextKey, templatesList) });
     refreshCanvasDrafts();
-    if (cv) autoSave.schedule(cv);
+    if (cv) {
+      const payload = { ...cv, layout: layoutPayloadForPersist(hydrated) };
+      autoSave.schedule(payload);
+      // Flush immédiat pour Page blanche / génération (AXE-28) — ne pas
+      // dépendre du debounce avant une navigation.
+      void autoSave.flush();
+    }
   }, [resetLayout, templatesList, refreshCanvasDrafts, cv, autoSave]);
 
   useEffect(() => {
@@ -340,35 +348,49 @@ function CvEditorBeta({
     autoSave.flush();
   }, [autoSave]);
 
-  const requestCanvasContextSwitch = useCallback(({ contextKey, label, baseLayout }) => {
-    if (!contextKey || !baseLayout) return;
-    const currentLayout = layoutRef.current;
-    saveCurrentCanvasDraft();
-    const draft = loadCanvasDraft(contextKey);
-    const targetLayout = resolveTemplateContextLayout(contextKey, baseLayout, draft?.layout);
-    const candidates = currentLayout && contextKey !== activeLayoutContextKey
-      ? detectTransferCandidates(currentLayout, baseLayout)
-      : [];
-    if (getCanvasDraftPrefs().showTransferPrompt && candidates.length > 0) {
-      setTransferRequest({
-        mode: 'switch',
-        contextKey,
-        label,
-        targetLayout,
-        candidates,
-      });
+  const handlePickBlankCanvas = useCallback(() => {
+    // Reset explicite : ignorer le brouillon local et forcer layout null côté API.
+    clearCanvasDraft(BLANK_CANVAS_CONTEXT_KEY);
+    const blank = createBlankLayoutV3();
+    openCanvasContext(BLANK_CANVAS_CONTEXT_KEY, blank);
+  }, [openCanvasContext]);
+
+  const handleChooseAtsSafeTemplate = useCallback(() => {
+    setStartupPromptOpen(false);
+    setSidebarSection('models');
+  }, []);
+
+  const handleGenerateStarterCanvas = useCallback(() => {
+    const templates = templatesList || [];
+    const current = templates.find((t) => t?.id === templateId);
+    const preferred =
+      (current && isAtsSafe(current) ? current : null)
+      || sortTemplatesForEditor(templates).find(isAtsSafe)
+      || current
+      || templates[0];
+
+    if (preferred && cv) {
+      const adapted = buildAdaptedCanvasLayoutForCv(cv, preferred, {
+        templatesList: templates,
+        templateId: preferred.id,
+      }).layout;
+      if (onTemplateIdChange) onTemplateIdChange(preferred.id);
+      openCanvasContext(templateCanvasContextKey(preferred.id), adapted);
       return;
     }
-    openCanvasContext(contextKey, targetLayout);
-  }, [activeLayoutContextKey, saveCurrentCanvasDraft, openCanvasContext]);
 
-  const handlePickBlankCanvas = useCallback(() => {
-    requestCanvasContextSwitch({
-      contextKey: BLANK_CANVAS_CONTEXT_KEY,
-      label: 'Page blanche',
-      baseLayout: createCanvasLayoutBlank(),
-    });
-  }, [requestCanvasContextSwitch]);
+    openCanvasContext(
+      preferred ? templateCanvasContextKey(preferred.id) : BLANK_CANVAS_CONTEXT_KEY,
+      preferred ? buildTemplateCanvasLayout(preferred) : createStarterLayoutV3(),
+    );
+  }, [
+    templatesList,
+    templateId,
+    cv,
+    onTemplateIdChange,
+    openCanvasContext,
+    buildTemplateCanvasLayout,
+  ]);
 
   const applyImportedCvToCanvas = useCallback(async (nextCv, {
     layoutHints = {},
@@ -498,23 +520,6 @@ function CvEditorBeta({
   useEffect(() => () => {
     if (importCleanupRef.current) importCleanupRef.current();
   }, []);
-
-  const handleGenerateStarterCanvas = useCallback(() => {
-    const selectedTemplate = (templatesList || []).find((t) => t?.id === templateId);
-    if (selectedTemplate) {
-      requestCanvasContextSwitch({
-        contextKey: templateCanvasContextKey(selectedTemplate.id),
-        label: selectedTemplate.name || selectedTemplate.id,
-        baseLayout: buildTemplateCanvasLayout(selectedTemplate),
-      });
-      return;
-    }
-    requestCanvasContextSwitch({
-      contextKey: BLANK_CANVAS_CONTEXT_KEY,
-      label: 'Page blanche',
-      baseLayout: createStarterLayoutV3(),
-    });
-  }, [templatesList, templateId, requestCanvasContextSwitch, buildTemplateCanvasLayout]);
 
   const handleAddCanvasPage = useCallback(() => {
     if (!layout || !canAppendBlankPage(layout)) return;
@@ -1411,44 +1416,54 @@ function CvEditorBeta({
               </div>
             )}
             {startupPromptOpen && (
-              <section className="cv-editor-beta-start-panel" aria-label="Demarrer le canvas">
-                <span className="cv-editor-beta-start-panel__eyebrow">Démarrer en Beta</span>
-                <h2>Importez ou générez votre CV visuel</h2>
-                <p>
-                  Importez un PDF/Word pour voir instantanément une mise en page Canva
-                  adaptée à votre profil, ou générez depuis les données déjà enregistrées.
-                </p>
-                <div className="cv-editor-beta-start-panel__actions">
-                  <button
-                    type="button"
-                    className="cv-editor-beta-start-panel__import"
-                    onClick={() => {
-                      clearCanvasSelection();
-                      setImportError('');
-                      setImportModalOpen(true);
-                    }}
-                  >
-                    Importer mon CV
-                  </button>
-                  <button
-                    type="button"
-                    className="cv-editor-beta-start-panel__primary"
-                    onClick={handleGenerateStarterCanvas}
-                  >
-                    Générer depuis mon profil
-                  </button>
-                  <button
-                    type="button"
-                    className="cv-editor-beta-start-panel__secondary"
-                    onClick={handlePickBlankCanvas}
-                  >
-                    Page blanche
-                  </button>
+              <section className="cv-editor-beta-start-panel" role="dialog" aria-modal="true" aria-label="Démarrer le canvas">
+                <div className="cv-editor-beta-start-panel__backdrop" aria-hidden />
+                <div className="cv-editor-beta-start-panel__card">
+                  <span className="cv-editor-beta-start-panel__eyebrow">Démarrer en Beta</span>
+                  <h2>Comment veux-tu commencer ?</h2>
+                  <p>
+                    Ton profil est chargé, mais aucune mise en page canvas n&apos;est encore
+                    enregistrée. Choisis une option pour ne pas rester sur une page vide.
+                  </p>
+                  <div className="cv-editor-beta-start-panel__actions">
+                    <button
+                      type="button"
+                      className="cv-editor-beta-start-panel__primary"
+                      onClick={handleGenerateStarterCanvas}
+                    >
+                      Générer depuis mon profil
+                    </button>
+                    <button
+                      type="button"
+                      className="cv-editor-beta-start-panel__secondary"
+                      onClick={handleChooseAtsSafeTemplate}
+                    >
+                      Choisir un modèle ATS-safe
+                    </button>
+                    <button
+                      type="button"
+                      className="cv-editor-beta-start-panel__import"
+                      onClick={() => {
+                        clearCanvasSelection();
+                        setImportError('');
+                        setImportModalOpen(true);
+                      }}
+                    >
+                      Importer mon CV
+                    </button>
+                    <button
+                      type="button"
+                      className="cv-editor-beta-start-panel__advanced"
+                      onClick={handlePickBlankCanvas}
+                    >
+                      Page blanche (avancé)
+                    </button>
+                  </div>
+                  <p className="cv-editor-beta-start-panel__hint">
+                    « Générer depuis mon profil » crée une mise en page ATS-safe à partir de
+                    tes données. « Page blanche » efface le layout serveur (reload → canvas vide).
+                  </p>
                 </div>
-                <p className="cv-editor-beta-start-panel__hint">
-                  L&apos;import analyse sections, densité et choisit un template - blocs
-                  redimensionnés et vides masqués automatiquement.
-                </p>
               </section>
             )}
             {transferRequest && (

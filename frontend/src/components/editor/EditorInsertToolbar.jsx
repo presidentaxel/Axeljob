@@ -17,12 +17,13 @@ const ICON_BY_TYPE = {
 };
 
 /**
- * Barre d insertion de blocs (P3.5) - visible en mode canvas libre.
+ * Barre d insertion de blocs (legacy) - décorations uniquement.
+ * Le parcours guidé passe par EditorCanvaSidebar (AXE-31 : Sections CV vs Design).
  */
 export default function EditorInsertToolbar({ onInsert, disabled = false }) {
   return (
-    <div className="editor-insert-toolbar" role="toolbar" aria-label="Insérer un bloc">
-      <span className="editor-insert-toolbar-label">Insérer</span>
+    <div className="editor-insert-toolbar" role="toolbar" aria-label="Insérer une décoration">
+      <span className="editor-insert-toolbar-label">Décoration</span>
       <div className="editor-insert-toolbar-actions">
         {INSERT_TOOLBAR_ITEMS.map((item) => {
           const Icon = ICON_BY_TYPE[item.type];

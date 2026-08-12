@@ -43,10 +43,60 @@
 }
 
 .editor-canva-rail__label {
-  font-size: 0.58rem;
+  font-size: 0.55rem;
   font-weight: 600;
   line-height: 1.1;
   text-align: center;
+}
+
+.editor-canva-design-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.editor-canva-design-tabs__btn {
+  padding: 6px 10px;
+  border: 1px solid var(--color-hairline, #d9d9dd);
+  border-radius: 9999px;
+  background: var(--color-canvas, #ffffff);
+  color: var(--color-body-muted, #616161);
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.editor-canva-design-tabs__btn:hover {
+  border-color: var(--color-muted, #93939f);
+  color: var(--color-ink, #212121);
+}
+
+.editor-canva-design-tabs__btn--active {
+  border-color: var(--color-primary, #17171c);
+  background: var(--color-pale-green, #edfce9);
+  color: var(--color-primary, #17171c);
+}
+
+.editor-canva-drawer__tile--section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  padding: 10px 12px;
+}
+
+.editor-canva-drawer__tile-label {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--color-ink, #212121);
+}
+
+.editor-canva-drawer__tile-hint {
+  font-size: 0.68rem;
+  line-height: 1.3;
+  color: var(--color-muted, #93939f);
 }
 
 .editor-canva-drawer {
@@ -107,6 +157,11 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
+}
+
+/* Après la règle 2 colonnes : une seule colonne pour Sections CV (Bugbot #58). */
+.editor-canva-drawer__grid--sections {
+  grid-template-columns: 1fr;
 }
 
 .editor-canva-drawer__btn,

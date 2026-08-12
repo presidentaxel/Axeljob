@@ -45,12 +45,16 @@ class Rule:
         label: libelle affichable en UI (francais).
         delta: variation appliquee au score total (peut etre negative).
         severity: severite ; conditionne l'affichage front (couleur, icone).
+        block_ids: ids de blocs layout concernes (coach : highlight canvas).
+        advice: explication courte pour le coach (peut etre vide = label seul).
     """
 
     id: str
     label: str
     delta: int
     severity: RuleSeverity
+    block_ids: tuple[str, ...] = ()
+    advice: str = ""
 
 
 @dataclass(frozen=True)

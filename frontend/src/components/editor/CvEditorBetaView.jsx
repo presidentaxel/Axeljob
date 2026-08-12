@@ -1363,6 +1363,17 @@ function CvEditorBeta({
             layout={layout}
             cv={cv}
             paused={canvasBusy}
+            onSelectBlock={handleSelectBlock}
+            onApplyLayout={(nextLayout, meta = {}) => {
+              if (!nextLayout || !layout) return;
+              if (sameLayout(layout, nextLayout)) {
+                setAtsOptimizeMessage('Aucune correction applicable pour ce conseil.');
+                return;
+              }
+              commitLayout(nextLayout, { groupKey: meta.groupKey || 'ats:coach' });
+              setAtsOptimizeMessage('Correction ATS appliquée. Ctrl+Z pour annuler.');
+              if (cv) autoSave.schedule(cv);
+            }}
           />
           <button
             type="button"

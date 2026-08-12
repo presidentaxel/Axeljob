@@ -10,7 +10,30 @@ class TestRuleSerialization(unittest.TestCase):
     def test_rule_to_dict_has_expected_keys(self):
         rule = Rule(id="r1", label="L", delta=-3, severity=RuleSeverity.WARNING)
         payload = rule_to_dict(rule)
-        self.assertEqual(payload, {"id": "r1", "label": "L", "delta": -3, "severity": "warning"})
+        self.assertEqual(
+            payload,
+            {
+                "id": "r1",
+                "label": "L",
+                "delta": -3,
+                "severity": "warning",
+                "block_ids": [],
+                "advice": "L",
+            },
+        )
+
+    def test_rule_to_dict_includes_block_ids_and_advice(self):
+        rule = Rule(
+            id="malus_contact_low_on_page",
+            label="Contact bas",
+            delta=-3,
+            severity=RuleSeverity.WARNING,
+            block_ids=("b1",),
+            advice="Remonte le contact.",
+        )
+        payload = rule_to_dict(rule)
+        self.assertEqual(payload["block_ids"], ["b1"])
+        self.assertEqual(payload["advice"], "Remonte le contact.")
 
     def test_severity_is_serialized_as_lowercase_string(self):
         # Regression : si on serialise l'enum brute, le client front recoit

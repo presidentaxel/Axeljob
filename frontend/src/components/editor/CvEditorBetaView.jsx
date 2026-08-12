@@ -52,6 +52,7 @@ import { blockSupportsStyleToolbar } from '../../lib/canvasBlockToolbar.js';
 import { buildCanvasFontFamilies } from '../../lib/canvasFontOptions.js';
 import { selectAllInEditableRoot, clearDocumentTextSelection, toggleTextCaseOnBlockContent } from '../../lib/canvasRichTextFormat.js';
 import { getLastBlockIdOnPage, createImageBlockPreset } from '../../lib/freeCanvasBlockPresets.js';
+import { placementPartialAtPoint } from '../../lib/canvasSidebarPlacement.js';
 import { addUserCanvasImage } from '../../lib/canvasImageLibrary.js';
 import {
   createCanvasLayoutBlank,
@@ -735,23 +736,33 @@ function CvEditorBeta({
     setPlacementPreset(null);
   }, []);
 
-  const handlePlaceBlockAt = useCallback((pageIndex, xMm, yMm) => {
-    if (!placementPreset) return;
-    const w = placementPreset.w ?? 20;
-    const h = placementPreset.h ?? 10;
-    const partial = {
-      ...placementPreset,
-      x: Math.max(0, xMm - w / 2),
-      y: Math.max(0, yMm - h / 2),
-    };
-    delete partial.placementMode;
-    const next = addBlockToPage(layout, pageIndex, partial);
+  const commitPlacedPreset = useCallback((pageIndex, xMm, yMm, preset, { enterEdit = false } = {}) => {
+    if (!preset) return;
+    const { x, y, partial } = placementPartialAtPoint(preset, xMm, yMm);
+    const next = addBlockToPage(layout, pageIndex, { ...partial, x, y });
     commitLayout(next);
     const newId = getLastBlockIdOnPage(next, pageIndex);
-    if (newId) setSelectedBlockIds([newId]);
+    if (newId) {
+      setSelectedBlockIds([newId]);
+      setImageEditBlockId(null);
+      if (enterEdit || partial.type === 'text' || partial.type === 'title') {
+        setEditingBlockId(newId);
+      } else {
+        setEditingBlockId(null);
+      }
+    }
     setPlacementPreset(null);
     if (cv) autoSave.schedule(cv);
-  }, [placementPreset, layout, commitLayout, cv, autoSave]);
+  }, [layout, commitLayout, cv, autoSave]);
+
+  const handlePlaceBlockAt = useCallback((pageIndex, xMm, yMm) => {
+    if (!placementPreset) return;
+    commitPlacedPreset(pageIndex, xMm, yMm, placementPreset);
+  }, [placementPreset, commitPlacedPreset]);
+
+  const handleDropBlockPreset = useCallback((pageIndex, xMm, yMm, preset) => {
+    commitPlacedPreset(pageIndex, xMm, yMm, preset);
+  }, [commitPlacedPreset]);
 
   const handlePlaceBlockRect = useCallback((pageIndex, rect) => {
     if (!placementPreset) return;
@@ -762,7 +773,7 @@ function CvEditorBeta({
       w: Math.max(rect.w, 12),
       h: Math.max(rect.h, 8),
     };
-    const enterEdit = partial.type === 'text';
+    const enterEdit = partial.type === 'text' || partial.type === 'title';
     delete partial.placementMode;
     const next = addBlockToPage(layout, pageIndex, partial);
     commitLayout(next);
@@ -770,6 +781,7 @@ function CvEditorBeta({
     if (newId) {
       setSelectedBlockIds([newId]);
       if (enterEdit) setEditingBlockId(newId);
+      else setEditingBlockId(null);
     }
     setPlacementPreset(null);
     if (cv) autoSave.schedule(cv);
@@ -1394,6 +1406,7 @@ function CvEditorBeta({
           onShowGridChange={setShowCanvasGrid}
           onSnapEnabledChange={setCanvasSnapEnabled}
           onBeginPlacement={handleBeginPlacement}
+          onCancelPlacement={handleCancelPlacement}
           onSelectBlock={handleSelectBlock}
           onBlockPatch={handleBlockPatchById}
           onBlockBringToFront={handleBlockBringToFront}
@@ -1438,6 +1451,7 @@ function CvEditorBeta({
               onPlaceBlockAt={handlePlaceBlockAt}
               onPlaceBlockRect={handlePlaceBlockRect}
               onDropImage={handleDropImage}
+              onDropBlockPreset={handleDropBlockPreset}
               onCancelPlacement={handleCancelPlacement}
               onSelectBlock={handleSelectBlock}
               onBlockPositionChange={handleBlockPositionChange}

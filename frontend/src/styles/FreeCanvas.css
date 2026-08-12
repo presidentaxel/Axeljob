@@ -883,8 +883,12 @@
 .free-canvas-placement-ghost {
   position: fixed;
   z-index: 10040;
-  transform: translate(-50%, -50%);
-  padding: 4px 10px;
+  transform: translate(12px, 12px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 220px;
+  padding: 6px 10px;
   font-size: 0.72rem;
   font-weight: 500;
   color: var(--color-primary, #17171c);
@@ -892,6 +896,17 @@
   border: 1px dashed var(--color-hairline, #d9d9dd);
   border-radius: 8px;
   pointer-events: none;
+  box-shadow: none;
+}
+
+.free-canvas-placement-ghost__type {
+  font-weight: 500;
+}
+
+.free-canvas-placement-ghost__hint {
+  font-size: 0.65rem;
+  font-weight: 400;
+  color: var(--color-muted, #93939f);
 }
 
 .free-canvas-draw-rect-preview {

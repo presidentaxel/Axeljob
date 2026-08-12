@@ -15,6 +15,10 @@ import {
   syncUserCanvasImagesFromLayout,
   toSafeCanvasImageSrc,
 } from '../../lib/canvasImageLibrary.js';
+import {
+  CANVAS_BLOCK_PRESET_MIME,
+  serializeBlockPreset,
+} from '../../lib/canvasSidebarPlacement.js';
 import { CANVAS_ICON_ENTRIES, createIconBlockPreset } from '../../lib/canvasIconLibrary.js';
 import { ELEMENT_SHAPE_ITEMS, createShapeBlockPreset } from '../../lib/canvasShapePresets.js';
 import { TEXT_PRESET_ITEMS, createTextBlockPreset } from '../../lib/canvasTextPresets.js';
@@ -138,14 +142,10 @@ function ImageHistoryTile({ entry, disabled, onBeginPlacement, onRemove }) {
 }
 
 function PlacementTile({ disabled, preset, onBeginPlacement, className, title, children }) {
+  const draggedRef = useRef(false);
+
   const startPlacement = () => {
     if (!disabled && preset) onBeginPlacement?.(preset);
-  };
-
-  const onPointerDown = (e) => {
-    if (disabled || !preset) return;
-    e.preventDefault();
-    startPlacement();
   };
 
   return (
@@ -154,11 +154,31 @@ function PlacementTile({ disabled, preset, onBeginPlacement, className, title, c
       className={className}
       disabled={disabled}
       title={title}
-      onPointerDown={onPointerDown}
+      draggable={!disabled && Boolean(preset)}
+      onDragStart={(e) => {
+        if (disabled || !preset) {
+          e.preventDefault();
+          return;
+        }
+        const raw = serializeBlockPreset(preset);
+        if (!raw) {
+          e.preventDefault();
+          return;
+        }
+        draggedRef.current = true;
+        e.dataTransfer.setData(CANVAS_BLOCK_PRESET_MIME, raw);
+        e.dataTransfer.effectAllowed = 'copy';
+      }}
+      onDragEnd={() => {
+        // Laisse passer le cycle click post-drag avant reset.
+        requestAnimationFrame(() => {
+          draggedRef.current = false;
+        });
+      }}
       onClick={(e) => {
         e.preventDefault();
-        // Entrée / Espace : detail === 0 (pas un clic pointeur).
-        if (e.detail === 0) startPlacement();
+        if (draggedRef.current) return;
+        startPlacement();
       }}
     >
       {children}
@@ -184,6 +204,7 @@ export default function EditorCanvaSidebar({
   onShowGridChange,
   onSnapEnabledChange,
   onBeginPlacement,
+  onCancelPlacement,
   onSelectBlock,
   onBlockPatch,
   onBlockBringToFront,
@@ -299,9 +320,18 @@ export default function EditorCanvaSidebar({
   return (
     <aside className={`editor-canva-shell${placementActive ? ' editor-canva-shell--placing' : ''}`} aria-label="Outils canvas">
       {placementActive && (
-        <p className="editor-canva-shell__place-hint" role="status">
-          Cliquez sur le canevas pour placer · un fantôme suit le curseur · Échap pour annuler
-        </p>
+        <div className="editor-canva-shell__place-hint" role="status">
+          <p className="editor-canva-shell__place-hint-text">
+            Cliquez sur le canevas pour placer · ou glissez depuis la sidebar · Échap pour annuler
+          </p>
+          <button
+            type="button"
+            className="editor-canva-shell__place-cancel"
+            onClick={() => onCancelPlacement?.()}
+          >
+            Annuler (Échap)
+          </button>
+        </div>
       )}
       <nav className="editor-canva-rail" aria-label="Familles d’outils">
         {SECTIONS.map((section) => {

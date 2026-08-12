@@ -32,6 +32,11 @@ import { nextOverlappingBlockId } from '../../lib/freeCanvasSelection.js';
 import { blockIdsInMarquee, normalizeMarqueeRect } from '../../lib/canvasMarqueeUtils.js';
 import { clearDocumentTextSelection } from '../../lib/canvasRichTextFormat.js';
 import { CANVAS_IMAGE_DROP_MIME } from '../../lib/canvasImageLibrary.js';
+import {
+  CANVAS_BLOCK_PRESET_MIME,
+  dataTransferHasBlockPreset,
+  parseBlockPreset,
+} from '../../lib/canvasSidebarPlacement.js';
 import { snapBlockGeometry, snapBlockPosition } from '../../lib/freeCanvasSnap.js';
 import '../../styles/FreeCanvas.css';
 import '../../styles/CanvasTemplateFidelity.css';
@@ -128,6 +133,7 @@ export default function FreeCanvas({
   onPlaceBlockRect,
   onCancelPlacement,
   onDropImage,
+  onDropBlockPreset,
   onAddPage,
   onRemovePage,
   onEmptyAddSection,
@@ -561,20 +567,34 @@ export default function FreeCanvas({
   }, [interactable, onSelectBlock, onBlockResizeChange, endDrag, setCanvasBusy, onResizeStart, handleResizePointerMove, handleResizePointerUp]);
 
   const handlePageDragOver = useCallback((event) => {
-    if (!event.dataTransfer?.types?.includes(CANVAS_IMAGE_DROP_MIME)) return;
+    const types = event.dataTransfer?.types;
+    const hasImage = types?.includes?.(CANVAS_IMAGE_DROP_MIME);
+    const hasPreset = dataTransferHasBlockPreset(event.dataTransfer);
+    if (!hasImage && !hasPreset) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = 'copy';
   }, []);
 
   const handlePageDrop = useCallback((event) => {
-    const dataUrl = event.dataTransfer?.getData(CANVAS_IMAGE_DROP_MIME);
-    if (!dataUrl || typeof onDropImage !== 'function') return;
-    event.preventDefault();
-    event.stopPropagation();
     const pageIndex = pageIndexFromElement(event.currentTarget);
     const pt = clientPointToPageMm(event.clientX, event.clientY, event.currentTarget);
-    onDropImage(pageIndex, pt.x, pt.y, dataUrl);
-  }, [onDropImage]);
+
+    const dataUrl = event.dataTransfer?.getData(CANVAS_IMAGE_DROP_MIME);
+    if (dataUrl && typeof onDropImage === 'function') {
+      event.preventDefault();
+      event.stopPropagation();
+      onDropImage(pageIndex, pt.x, pt.y, dataUrl);
+      return;
+    }
+
+    const rawPreset = event.dataTransfer?.getData(CANVAS_BLOCK_PRESET_MIME);
+    const preset = parseBlockPreset(rawPreset);
+    if (preset && typeof onDropBlockPreset === 'function') {
+      event.preventDefault();
+      event.stopPropagation();
+      onDropBlockPreset(pageIndex, pt.x, pt.y, preset);
+    }
+  }, [onDropImage, onDropBlockPreset]);
 
   const [placeCursor, setPlaceCursor] = useState(null);
 
@@ -702,7 +722,9 @@ export default function FreeCanvas({
       ? 'Icône'
       : placementPreset?.type === 'image'
         ? 'Image'
-        : placementPreset?.type || 'Élément';
+        : placementPreset?.type === 'text' || placementPreset?.type === 'title'
+          ? 'Texte'
+          : placementPreset?.type || 'Élément';
 
   return (
     <div
@@ -717,7 +739,12 @@ export default function FreeCanvas({
           style={{ left: placeCursor.x, top: placeCursor.y }}
           aria-hidden
         >
-          {placeLabel}
+          <span className="free-canvas-placement-ghost__type">{placeLabel}</span>
+          <span className="free-canvas-placement-ghost__hint">
+            {placementPreset?.placementMode === 'draw-rect'
+              ? 'Glissez pour dessiner · Échap annule'
+              : 'Cliquez pour placer · Échap annule'}
+          </span>
         </div>
       )}
       <div className="free-canvas-pages-stack">

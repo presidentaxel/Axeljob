@@ -5,6 +5,7 @@ import {
   blockHasEditableContent,
   blockIsSemanticBound,
   getBlockContentFields,
+  getBlockDisplayName,
   getBlockStyleFields,
   getBlockTypeLabel,
 } from '../../src/lib/blockInspectorSchema.js';
@@ -12,6 +13,15 @@ import {
 test('getBlockTypeLabel', () => {
   assert.equal(getBlockTypeLabel('experiences'), 'Expériences');
   assert.equal(getBlockTypeLabel('text'), 'Texte libre');
+  assert.equal(getBlockTypeLabel('shape:rect'), 'Rectangle');
+});
+
+test('getBlockDisplayName : custom layer_label prioritaire', () => {
+  assert.equal(getBlockDisplayName({ type: 'text' }), 'Texte libre');
+  assert.equal(
+    getBlockDisplayName({ type: 'shape:rect', style: { layer_label: 'Bandeau vert' } }),
+    'Bandeau vert',
+  );
 });
 
 test('blockIsSemanticBound', () => {

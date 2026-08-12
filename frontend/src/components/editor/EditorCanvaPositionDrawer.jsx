@@ -1,32 +1,112 @@
-import { useCallback, useMemo, useState } from 'react';
-import { getBlockTypeLabel } from '../../lib/blockInspectorSchema.js';
-import { listAllBlocks } from '../../lib/cvLayoutModelV3.js';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  HiBars3BottomLeft,
+  HiBars3,
+  HiBars3BottomRight,
+  HiDocumentDuplicate,
+  HiLockClosed,
+  HiLockOpen,
+  HiTrash,
+} from 'react-icons/hi2';
+import { getBlockDisplayName } from '../../lib/blockInspectorSchema.js';
+import {
+  computeBlockHorizontalAlign,
+  computeHorizontalDistribute,
+  computeLayerLabelPatch,
+} from '../../lib/canvasEditorUtils.js';
+import { isNonSemanticBlockType, listAllBlocks } from '../../lib/cvLayoutModelV3.js';
 import '../../styles/EditorCanvaPositionDrawer.css';
 
 const LAYER_DRAG_MIME = 'application/x-cv-canvas-layer';
+const TAB_POSITION_ID = 'editor-canva-position-tab';
+const TAB_LAYERS_ID = 'editor-canva-layers-tab';
+const PANEL_POSITION_ID = 'editor-canva-position-panel';
+const PANEL_LAYERS_ID = 'editor-canva-layers-panel';
+
+function layerLabelFromBlock(block) {
+  return typeof block?.style?.layer_label === 'string' ? block.style.layer_label : '';
+}
 
 /**
- * Panneau Position / calques (drawer sidebar) avec onglets.
+ * Panneau Position / calques (drawer sidebar) — actions simples d'abord (AXE-34).
  */
 export default function EditorCanvaPositionDrawer({
   layout,
   selectedBlockId,
+  selectedBlockIds = [],
   onSelectBlock,
   onBlockPatch,
+  onBlocksPatch,
   onBlockBringToFront,
   onBlockSendToBack,
   onBlockZStep,
   onReorderLayers,
+  onDeleteSelected,
+  onDuplicateSelected,
+  onToggleLock,
 }) {
   const [activeTab, setActiveTab] = useState('position');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [dragLayerId, setDragLayerId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
+  const [renameDraft, setRenameDraft] = useState('');
 
   const blocks = useMemo(
     () => listAllBlocks(layout).slice().sort((a, b) => (b.z || 0) - (a.z || 0)),
     [layout],
   );
   const selected = blocks.find((b) => b.id === selectedBlockId);
+  const multiIds = selectedBlockIds?.length ? selectedBlockIds : (selectedBlockId ? [selectedBlockId] : []);
+  const selectedIdSet = useMemo(() => new Set(multiIds), [multiIds]);
+  const canDistribute = multiIds.length >= 3;
+  const canRename = selected && isNonSemanticBlockType(selected.type);
+  const locked = Boolean(selected?.locked);
+  const lockedInSelection = multiIds.filter((id) => blocks.find((b) => b.id === id)?.locked).length;
+  const showLockedAlignHint = multiIds.length > 1 && lockedInSelection > 0 && lockedInSelection < multiIds.length;
+
+  useEffect(() => {
+    setRenameDraft(layerLabelFromBlock(selected));
+  }, [selectedBlockId, selected?.style?.layer_label]);
+
+  const commitRename = useCallback(() => {
+    if (!selected || !canRename || locked) return;
+    const current = layerLabelFromBlock(selected);
+    if (renameDraft === current) return;
+    const patch = computeLayerLabelPatch(selected, renameDraft);
+    if (patch) onBlockPatch?.(selected.id, patch);
+  }, [canRename, locked, onBlockPatch, renameDraft, selected]);
+
+  const applyAlign = useCallback((align) => {
+    const targets = multiIds.length ? multiIds : (selectedBlockId ? [selectedBlockId] : []);
+    if (!targets.length) return;
+    const patches = [];
+    for (const id of targets) {
+      const block = blocks.find((b) => b.id === id);
+      if (!block || block.locked) continue;
+      const patch = computeBlockHorizontalAlign(block, align);
+      if (patch) patches.push({ id, ...patch });
+    }
+    if (!patches.length) return;
+    if (typeof onBlocksPatch === 'function') {
+      onBlocksPatch(patches);
+      return;
+    }
+    patches.forEach(({ id, ...patch }) => onBlockPatch?.(id, patch));
+  }, [blocks, multiIds, onBlockPatch, onBlocksPatch, selectedBlockId]);
+
+  const applyDistribute = useCallback(() => {
+    if (!canDistribute) return;
+    const selectedBlocks = multiIds
+      .map((id) => blocks.find((b) => b.id === id))
+      .filter(Boolean);
+    const patches = computeHorizontalDistribute(selectedBlocks);
+    if (!patches.length) return;
+    if (typeof onBlocksPatch === 'function') {
+      onBlocksPatch(patches);
+      return;
+    }
+    patches.forEach(({ id, x }) => onBlockPatch?.(id, { x }));
+  }, [blocks, canDistribute, multiIds, onBlockPatch, onBlocksPatch]);
 
   const handleLayerDragStart = useCallback((blockId, event) => {
     setDragLayerId(blockId);
@@ -75,8 +155,11 @@ export default function EditorCanvaPositionDrawer({
       <div className="editor-canva-position-drawer__tabs" role="tablist" aria-label="Position ou calques">
         <button
           type="button"
+          id={TAB_POSITION_ID}
           role="tab"
+          aria-controls={PANEL_POSITION_ID}
           aria-selected={activeTab === 'position'}
+          tabIndex={activeTab === 'position' ? 0 : -1}
           className={
             activeTab === 'position'
               ? 'editor-canva-position-drawer__tab editor-canva-position-drawer__tab--active'
@@ -88,8 +171,11 @@ export default function EditorCanvaPositionDrawer({
         </button>
         <button
           type="button"
+          id={TAB_LAYERS_ID}
           role="tab"
+          aria-controls={PANEL_LAYERS_ID}
           aria-selected={activeTab === 'layers'}
+          tabIndex={activeTab === 'layers' ? 0 : -1}
           className={
             activeTab === 'layers'
               ? 'editor-canva-position-drawer__tab editor-canva-position-drawer__tab--active'
@@ -102,38 +188,149 @@ export default function EditorCanvaPositionDrawer({
       </div>
 
       {activeTab === 'position' && (
-        <div role="tabpanel">
+        <div
+          id={PANEL_POSITION_ID}
+          role="tabpanel"
+          aria-labelledby={TAB_POSITION_ID}
+        >
           {!selected && (
             <p className="editor-canva-position-drawer__empty">
               Sélectionnez un élément sur le canevas pour ajuster sa position.
             </p>
           )}
           {selected && (
-            <div className="editor-canva-position-drawer__geom">
-              {['x', 'y', 'w', 'h', 'z'].map((key) => (
-                <label key={key}>
-                  {key.toUpperCase()}
+            <>
+              <p className="editor-canva-position-drawer__selection-name">
+                {getBlockDisplayName(selected)}
+                {multiIds.length > 1 ? ` · ${multiIds.length} sélectionnés` : ''}
+              </p>
+
+              <div className="editor-canva-position-drawer__section">
+                <p className="editor-canva-position-drawer__section-label">Aligner</p>
+                <div className="editor-canva-position-drawer__action-row" role="group" aria-label="Alignement horizontal">
+                  <button type="button" title="Aligner à gauche" aria-label="Aligner à gauche" disabled={locked && multiIds.length <= 1} onClick={() => applyAlign('left')}>
+                    <HiBars3BottomLeft size={16} aria-hidden />
+                  </button>
+                  <button type="button" title="Centrer" aria-label="Centrer" disabled={locked && multiIds.length <= 1} onClick={() => applyAlign('center')}>
+                    <HiBars3 size={16} aria-hidden />
+                  </button>
+                  <button type="button" title="Aligner à droite" aria-label="Aligner à droite" disabled={locked && multiIds.length <= 1} onClick={() => applyAlign('right')}>
+                    <HiBars3BottomRight size={16} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    className="editor-canva-position-drawer__action-text"
+                    title={canDistribute ? 'Distribuer horizontalement' : 'Sélectionnez au moins 3 éléments'}
+                    aria-label="Distribuer horizontalement"
+                    disabled={!canDistribute}
+                    onClick={applyDistribute}
+                  >
+                    Distribuer
+                  </button>
+                </div>
+                {showLockedAlignHint && (
+                  <p className="editor-canva-position-drawer__hint">
+                    Les éléments verrouillés restent en place.
+                  </p>
+                )}
+              </div>
+
+              <div className="editor-canva-position-drawer__section">
+                <p className="editor-canva-position-drawer__section-label">Plan</p>
+                <div className="editor-canva-position-drawer__action-row editor-canva-position-drawer__action-row--wrap">
+                  <button type="button" className="editor-canva-position-drawer__action-text" onClick={() => onBlockBringToFront?.(selected.id)}>
+                    Premier plan
+                  </button>
+                  <button type="button" className="editor-canva-position-drawer__action-text" onClick={() => onBlockSendToBack?.(selected.id)}>
+                    Arrière-plan
+                  </button>
+                </div>
+              </div>
+
+              <div className="editor-canva-position-drawer__section">
+                <p className="editor-canva-position-drawer__section-label">Actions</p>
+                <div className="editor-canva-position-drawer__action-row" role="group" aria-label="Actions sur le bloc">
+                  <button
+                    type="button"
+                    title={locked ? 'Déverrouiller' : 'Verrouiller'}
+                    aria-label={locked ? 'Déverrouiller' : 'Verrouiller'}
+                    aria-pressed={locked}
+                    onClick={() => onToggleLock?.()}
+                  >
+                    {locked ? <HiLockClosed size={16} aria-hidden /> : <HiLockOpen size={16} aria-hidden />}
+                  </button>
+                  <button type="button" title="Dupliquer" aria-label="Dupliquer" onClick={() => onDuplicateSelected?.()}>
+                    <HiDocumentDuplicate size={16} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    className="editor-canva-position-drawer__btn-danger"
+                    title="Supprimer"
+                    aria-label="Supprimer"
+                    onClick={() => onDeleteSelected?.()}
+                  >
+                    <HiTrash size={16} aria-hidden />
+                  </button>
+                </div>
+              </div>
+
+              {canRename && (
+                <label className="editor-canva-position-drawer__rename">
+                  Nom du calque
                   <input
-                    type="number"
-                    step={key === 'z' ? 1 : 0.5}
-                    value={selected[key] ?? 0}
-                    onChange={(e) => onBlockPatch?.(selected.id, { [key]: parseFloat(e.target.value) || 0 })}
+                    type="text"
+                    maxLength={60}
+                    value={renameDraft}
+                    placeholder={getBlockDisplayName({ type: selected.type })}
+                    onChange={(e) => setRenameDraft(e.target.value)}
+                    onBlur={commitRename}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        e.currentTarget.blur();
+                      }
+                    }}
+                    disabled={locked}
                   />
                 </label>
-              ))}
-              <div className="editor-canva-position-drawer__z-actions">
-                <button type="button" onClick={() => onBlockBringToFront?.(selected.id)}>Premier plan</button>
-                <button type="button" onClick={() => onBlockSendToBack?.(selected.id)}>Arrière-plan</button>
-                <button type="button" onClick={() => onBlockZStep?.(selected.id, 1)}>+ plan</button>
-                <button type="button" onClick={() => onBlockZStep?.(selected.id, -1)}>− plan</button>
-              </div>
-            </div>
+              )}
+
+              <details
+                className="editor-canva-position-drawer__advanced"
+                open={advancedOpen}
+                onToggle={(e) => setAdvancedOpen(e.currentTarget.open)}
+              >
+                <summary>Avancé</summary>
+                <div className="editor-canva-position-drawer__geom">
+                  {['x', 'y', 'w', 'h', 'z'].map((key) => (
+                    <label key={key}>
+                      {key.toUpperCase()}
+                      <input
+                        type="number"
+                        step={key === 'z' ? 1 : 0.5}
+                        value={selected[key] ?? 0}
+                        disabled={locked && key !== 'z'}
+                        onChange={(e) => onBlockPatch?.(selected.id, { [key]: parseFloat(e.target.value) || 0 })}
+                      />
+                    </label>
+                  ))}
+                  <div className="editor-canva-position-drawer__z-actions">
+                    <button type="button" onClick={() => onBlockZStep?.(selected.id, 1)}>+ plan</button>
+                    <button type="button" onClick={() => onBlockZStep?.(selected.id, -1)}>− plan</button>
+                  </div>
+                </div>
+              </details>
+            </>
           )}
         </div>
       )}
 
       {activeTab === 'layers' && (
-        <div role="tabpanel">
+        <div
+          id={PANEL_LAYERS_ID}
+          role="tabpanel"
+          aria-labelledby={TAB_LAYERS_ID}
+        >
           <p className="editor-canva-position-drawer__layers-hint">
             Glissez les calques pour changer l&apos;ordre d&apos;empilement.
           </p>
@@ -162,14 +359,15 @@ export default function EditorCanvaPositionDrawer({
                 <button
                   type="button"
                   className={
-                    b.id === selectedBlockId
+                    selectedIdSet.has(b.id)
                       ? 'editor-canva-position-drawer__layer editor-canva-position-drawer__layer--active'
                       : 'editor-canva-position-drawer__layer'
                   }
+                  aria-pressed={selectedIdSet.has(b.id)}
                   onClick={() => onSelectBlock?.(b.id)}
                 >
-                  <span className="editor-canva-position-drawer__layer-z">z{b.z ?? 0}</span>
-                  <span>{getBlockTypeLabel(b.type)}</span>
+                  {b.locked ? <HiLockClosed size={12} aria-hidden className="editor-canva-position-drawer__layer-lock" /> : null}
+                  <span className="editor-canva-position-drawer__layer-name">{getBlockDisplayName(b)}</span>
                 </button>
               </li>
             ))}

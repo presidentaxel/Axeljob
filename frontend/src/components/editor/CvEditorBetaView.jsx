@@ -906,6 +906,19 @@ function CvEditorBeta({
     if (cv) autoSave.schedule(cv);
   }, [layout, commitLayout, cv, autoSave]);
 
+  const handleBlocksPatch = useCallback((patches) => {
+    if (!Array.isArray(patches) || !patches.length) return;
+    let next = layout;
+    for (const item of patches) {
+      if (!item?.id) continue;
+      const { id, ...patch } = item;
+      if (!Object.keys(patch).length) continue;
+      next = updateBlock(next, id, patch);
+    }
+    commitLayout(next, { groupKey: `blocks-patch:${patches.map((p) => p.id).join(',')}` });
+    if (cv) autoSave.schedule(cv);
+  }, [layout, commitLayout, cv, autoSave]);
+
   const handleBlockStylePatch = useCallback((stylePatch) => {
     const targetIds = selectedBlockIds.length > 1 ? selectedBlockIds : (selectedBlockId ? [selectedBlockId] : []);
     if (!targetIds.length) return;
@@ -1396,6 +1409,7 @@ function CvEditorBeta({
           layout={layout}
           fontFamilies={canvasFontFamilies}
           selectedBlockId={selectedBlockId}
+          selectedBlockIds={selectedBlockIds}
           selectedBlock={selectedBlock}
           onBlockStylePatch={handleBlockStylePatch}
           templatesList={templatesList}
@@ -1409,10 +1423,14 @@ function CvEditorBeta({
           onCancelPlacement={handleCancelPlacement}
           onSelectBlock={handleSelectBlock}
           onBlockPatch={handleBlockPatchById}
+          onBlocksPatch={handleBlocksPatch}
           onBlockBringToFront={handleBlockBringToFront}
           onBlockSendToBack={handleBlockSendToBack}
           onBlockZStep={handleBlockZStep}
           onReorderLayers={handleReorderLayers}
+          onDeleteSelected={handleDeleteSelectedBlock}
+          onDuplicateSelected={handleDuplicateSelectedBlock}
+          onToggleLock={handleToggleSelectedBlockLock}
           onPickBlank={handlePickBlankCanvas}
           onApplyCanvasTemplate={handleApplyCanvasTemplate}
           onLoadProposal={handleLoadLayoutProposal}

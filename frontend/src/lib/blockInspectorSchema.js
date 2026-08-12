@@ -9,7 +9,7 @@ const TYPE_LABELS = Object.freeze({
   identity: 'Identité',
   photo: 'Photo',
   contact: 'Contact',
-  resume: 'Résumé',
+  resume: 'Profil',
   experiences: 'Expériences',
   formations: 'Formations',
   certifications: 'Certifications',
@@ -18,14 +18,40 @@ const TYPE_LABELS = Object.freeze({
   languages: 'Langues',
   text: 'Texte libre',
   title: 'Titre',
+  image: 'Image',
   'shape:line': 'Trait',
-  'shape:rect': 'Bandeau',
+  'shape:rect': 'Rectangle',
+  'shape:frame': 'Cadre',
+  'shape:circle': 'Cercle',
+  'shape:ellipse': 'Ellipse',
+  'shape:triangle': 'Triangle',
+  'shape:diamond': 'Losange',
+  'shape:star': 'Étoile',
+  'shape:hexagon': 'Hexagone',
+  'shape:arrow-right': 'Flèche',
+  'shape:arrow-left': 'Flèche',
+  'shape:arrow-up': 'Flèche',
+  'shape:arrow-down': 'Flèche',
+  'shape:cross': 'Croix',
+  'shape:heart': 'Cœur',
   icon: 'Icône',
   qrcode: 'QR code',
 });
 
 export function getBlockTypeLabel(type) {
   return TYPE_LABELS[type] || type || 'Bloc';
+}
+
+/**
+ * Nom affiché dans le panneau calques (label custom ou type).
+ * @param {object|null|undefined} block
+ * @returns {string}
+ */
+export function getBlockDisplayName(block) {
+  if (!block || typeof block !== 'object') return 'Bloc';
+  const custom = block.style?.layer_label;
+  if (typeof custom === 'string' && custom.trim()) return custom.trim();
+  return getBlockTypeLabel(block.type);
 }
 
 /** Champs position / taille (tous les blocs). */

@@ -78,10 +78,6 @@
   color: var(--color-primary, #17171c);
 }
 
-.editor-canva-drawer__grid--sections {
-  grid-template-columns: 1fr;
-}
-
 .editor-canva-drawer__tile--section {
   display: flex;
   flex-direction: column;
@@ -161,6 +157,11 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
+}
+
+/* Après la règle 2 colonnes : une seule colonne pour Sections CV (Bugbot #58). */
+.editor-canva-drawer__grid--sections {
+  grid-template-columns: 1fr;
 }
 
 .editor-canva-drawer__btn,

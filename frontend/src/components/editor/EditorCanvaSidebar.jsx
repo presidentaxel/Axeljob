@@ -93,7 +93,10 @@ function ImageHistoryTile({ entry, disabled, onBeginPlacement, onRemove }) {
         draggable={!disabled}
         title={entry.label || 'Glisser sur le canevas ou cliquer pour placer'}
         onPointerDown={onPointerDown}
-        onClick={(e) => e.preventDefault()}
+        onClick={(e) => {
+          e.preventDefault();
+          if (e.detail === 0 && !disabled && preset) onBeginPlacement?.(preset);
+        }}
         onDragStart={onDragStart}
       >
         <span className="editor-canva-image-history__thumb-label" aria-hidden>
@@ -115,11 +118,16 @@ function ImageHistoryTile({ entry, disabled, onBeginPlacement, onRemove }) {
 }
 
 function PlacementTile({ disabled, preset, onBeginPlacement, className, title, children }) {
+  const startPlacement = () => {
+    if (!disabled && preset) onBeginPlacement?.(preset);
+  };
+
   const onPointerDown = (e) => {
     if (disabled || !preset) return;
     e.preventDefault();
-    onBeginPlacement?.(preset);
+    startPlacement();
   };
+
   return (
     <button
       type="button"
@@ -127,7 +135,11 @@ function PlacementTile({ disabled, preset, onBeginPlacement, className, title, c
       disabled={disabled}
       title={title}
       onPointerDown={onPointerDown}
-      onClick={(e) => e.preventDefault()}
+      onClick={(e) => {
+        e.preventDefault();
+        // Entrée / Espace : detail === 0 (pas un clic pointeur).
+        if (e.detail === 0) startPlacement();
+      }}
     >
       {children}
     </button>
@@ -271,7 +283,7 @@ export default function EditorCanvaSidebar({
           Cliquez sur le canevas pour placer l’élément · Échap pour annuler
         </p>
       )}
-      <nav className="editor-canva-rail" role="tablist" aria-label="Familles d’outils">
+      <nav className="editor-canva-rail" aria-label="Familles d’outils">
         {SECTIONS.map((section) => {
           const Icon = section.icon;
           const active = railActiveId === section.id;
@@ -279,8 +291,7 @@ export default function EditorCanvaSidebar({
             <button
               key={section.id}
               type="button"
-              role="tab"
-              aria-selected={active}
+              aria-current={active ? 'true' : undefined}
               className={active ? 'editor-canva-rail__btn editor-canva-rail__btn--active' : 'editor-canva-rail__btn'}
               title={section.label}
               onClick={() => toggleSection(section.id)}
@@ -297,7 +308,6 @@ export default function EditorCanvaSidebar({
             'editor-canva-drawer',
             openSection === 'fonts' ? 'editor-canva-drawer--fill' : '',
           ].filter(Boolean).join(' ')}
-          role="tabpanel"
         >
           {openSection === 'sections' && (
             <>
@@ -329,15 +339,14 @@ export default function EditorCanvaSidebar({
           {showDesignDrawer && (
             <>
               <h3 className="editor-canva-drawer__title">Design</h3>
-              <div className="editor-canva-design-tabs" role="tablist" aria-label="Sous-sections Design">
+              <div className="editor-canva-design-tabs" role="group" aria-label="Sous-sections Design">
                 {DESIGN_TABS.map((tab) => {
                   const active = effectiveDesignTab === tab.id;
                   return (
                     <button
                       key={tab.id}
                       type="button"
-                      role="tab"
-                      aria-selected={active}
+                      aria-pressed={active}
                       className={
                         active
                           ? 'editor-canva-design-tabs__btn editor-canva-design-tabs__btn--active'

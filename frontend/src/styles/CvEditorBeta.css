@@ -301,6 +301,101 @@
   font-weight: 500;
 }
 
+.cv-editor-beta-ats-toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.cv-editor-beta-ats-toast__undo {
+  border: none;
+  background: transparent;
+  color: var(--color-action-blue);
+  font-weight: 500;
+  font-size: 0.82rem;
+  text-decoration: underline;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.cv-editor-beta-ats-preview {
+  border-bottom: 1px solid var(--color-hairline);
+  background: var(--color-canvas);
+  padding: 0.75rem 1rem 0.85rem;
+}
+
+.cv-editor-beta-ats-preview__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.cv-editor-beta-ats-preview__close {
+  border: none;
+  background: transparent;
+  color: var(--color-slate);
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0.1rem 0.25rem;
+}
+
+.cv-editor-beta-ats-preview__impact {
+  margin: 0 0 0.45rem;
+  font-size: 0.82rem;
+  color: var(--color-deep-green);
+  font-weight: 500;
+}
+
+.cv-editor-beta-ats-preview__changes {
+  margin: 0 0 0.65rem;
+  padding-left: 1.1rem;
+  font-size: 0.78rem;
+  color: var(--color-body-muted);
+  line-height: 1.4;
+  max-height: 7.5rem;
+  overflow-y: auto;
+}
+
+.cv-editor-beta-ats-preview__empty {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+
+.cv-editor-beta-ats-preview__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.cv-editor-beta-ats-preview__btn {
+  border: 1px solid var(--color-primary);
+  background: transparent;
+  color: var(--color-primary);
+  border-radius: 30px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.cv-editor-beta-ats-preview__btn--primary {
+  background: var(--color-primary);
+  color: var(--color-on-dark);
+}
+
+.cv-editor-beta-ats-preview__btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
 .cv-editor-beta-pdf-fidelity {
   background: var(--color-soft-stone);
   color: var(--color-body-muted);

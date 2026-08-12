@@ -27,7 +27,12 @@ import {
   readBlockContentFromRoot,
 } from '../../lib/canvasInlineEdit.js';
 import { resolveCanvasImageSrcForLayout } from '../../lib/uploadCanvasAsset.js';
-import { applyAtsLayoutOptimizations } from '../../lib/atsLayoutOptimize.js';
+import {
+  applyAtsLayoutOptimizations,
+  describeAtsOptimizationChanges,
+} from '../../lib/atsLayoutOptimize.js';
+import { fetchAtsScoreParsing } from '../../lib/atsScoreClient.js';
+import { formatAtsScoreImpact } from '../../lib/atsCoachFixes.js';
 import { saveLayoutProposal } from '../../lib/layoutProposalsStorage.js';
 import {
   BLANK_CANVAS_CONTEXT_KEY,
@@ -167,6 +172,9 @@ function CvEditorBeta({
   const [onboardingDismissed, setOnboardingDismissed] = useState(() => isEditorOnboardingDismissed());
   const [pdfExportError, setPdfExportError] = useState('');
   const [atsOptimizeMessage, setAtsOptimizeMessage] = useState('');
+  const [atsOptimizePreview, setAtsOptimizePreview] = useState(null);
+  const [atsOptimizePreviewLoading, setAtsOptimizePreviewLoading] = useState(false);
+  const [atsOptimizeCanUndo, setAtsOptimizeCanUndo] = useState(false);
   const autoHeightPendingRef = useRef(new Map());
   const autoHeightTimerRef = useRef(null);
   const suppressAutoHeightUntilRef = useRef(0);
@@ -1079,23 +1087,100 @@ function CvEditorBeta({
     clearDocumentTextSelection();
   }, [layout, cv, commitLayout, handleCvChange]);
 
-  const handleOptimizeAtsLayout = useCallback(() => {
-    if (!layout) return;
+  const handleOptimizeAtsLayout = useCallback(async () => {
+    if (!layout || atsOptimizePreviewLoading) return;
     const next = applyAtsLayoutOptimizations(layout);
     if (sameLayout(layout, next)) {
-      setAtsOptimizeMessage('Layout deja optimise pour la lecture ATS.');
+      setAtsOptimizeMessage('Layout déjà optimisé pour la lecture ATS.');
+      setAtsOptimizePreview(null);
       return;
     }
-    commitLayout(next, { groupKey: 'ats:optimize' });
-    setAtsOptimizeMessage('Optimisation appliquee : contenu devant, bandeaux derriere. Ctrl+Z pour annuler.');
+    const changes = describeAtsOptimizationChanges(layout, next);
+    setAtsOptimizePreviewLoading(true);
+    setAtsOptimizeMessage('');
+    setAtsOptimizePreview({
+      beforeLayout: layout,
+      afterLayout: next,
+      changes,
+      beforeScore: null,
+      afterScore: null,
+      error: '',
+    });
+    try {
+      const [beforeScored, afterScored] = await Promise.all([
+        fetchAtsScoreParsing({ layout, cv, templateId }),
+        fetchAtsScoreParsing({ layout: next, cv, templateId }),
+      ]);
+      setAtsOptimizePreview((prev) => (
+        prev
+          ? {
+            ...prev,
+            beforeScore: beforeScored.score,
+            afterScore: afterScored.score,
+            error: '',
+          }
+          : prev
+      ));
+    } catch (err) {
+      setAtsOptimizePreview((prev) => (
+        prev
+          ? {
+            ...prev,
+            error: err?.message || 'Impossible de calculer l’impact ATS',
+          }
+          : prev
+      ));
+    } finally {
+      setAtsOptimizePreviewLoading(false);
+    }
+  }, [layout, cv, templateId, atsOptimizePreviewLoading]);
+
+  const handleCancelAtsOptimizePreview = useCallback(() => {
+    setAtsOptimizePreview(null);
+    setAtsOptimizePreviewLoading(false);
+  }, []);
+
+  const handleApplyAtsOptimizePreview = useCallback(() => {
+    if (!atsOptimizePreview?.afterLayout) return;
+    const next = atsOptimizePreview.afterLayout;
+    if (sameLayout(layout, next)) {
+      setAtsOptimizePreview(null);
+      setAtsOptimizeMessage('Layout déjà optimisé pour la lecture ATS.');
+      return;
+    }
+    commitLayout(next, { groupKey: 'ats:optimize-spatial' });
+    setAtsOptimizeCanUndo(true);
+    const impact = formatAtsScoreImpact(
+      atsOptimizePreview.beforeScore,
+      atsOptimizePreview.afterScore,
+    );
+    setAtsOptimizeMessage(`Réorganisation spatiale ATS appliquée. ${impact}`);
+    setAtsOptimizePreview(null);
     if (cv) autoSave.schedule(cv);
-  }, [layout, commitLayout, cv, autoSave]);
+  }, [atsOptimizePreview, layout, commitLayout, cv, autoSave]);
+
+  const handleUndoAtsOptimize = useCallback(() => {
+    if (!canUndoLayout) {
+      setAtsOptimizeCanUndo(false);
+      return;
+    }
+    undoLayout();
+    setAtsOptimizeCanUndo(false);
+    setAtsOptimizeMessage('Optimisation ATS annulée.');
+    if (cv) autoSave.schedule(cv);
+  }, [canUndoLayout, undoLayout, cv, autoSave]);
 
   useEffect(() => {
     if (!atsOptimizeMessage) return undefined;
-    const id = setTimeout(() => setAtsOptimizeMessage(''), 4500);
+    const id = setTimeout(() => setAtsOptimizeMessage(''), 6500);
     return () => clearTimeout(id);
   }, [atsOptimizeMessage]);
+
+  useEffect(() => {
+    if (!atsOptimizeCanUndo) return undefined;
+    if (!canUndoLayout) setAtsOptimizeCanUndo(false);
+    return undefined;
+  }, [atsOptimizeCanUndo, canUndoLayout]);
 
   const handleExportLayoutPdf = useCallback(async () => {
     if (!cv || !layout || pdfExporting) return;
@@ -1379,10 +1464,10 @@ function CvEditorBeta({
             type="button"
             className="cv-editor-beta-history-btn"
             onClick={handleOptimizeAtsLayout}
-            disabled={loading || !layout}
-            title="Réordonner les blocs pour la lecture ATS"
+            disabled={loading || !layout || atsOptimizePreviewLoading}
+            title="Réorganiser spatialement les blocs pour la lecture ATS (aperçu avant application)"
           >
-            Optimiser ATS
+            {atsOptimizePreviewLoading ? 'Analyse ATS…' : 'Optimiser ATS'}
           </button>
           <button
             type="button"
@@ -1413,9 +1498,72 @@ function CvEditorBeta({
           Survole le badge « PDF » sur le canvas pour le détail.
         </div>
       )}
+      {atsOptimizePreview && (
+        <div className="cv-editor-beta-ats-preview" role="dialog" aria-label="Aperçu optimisation ATS">
+          <div className="cv-editor-beta-ats-preview__header">
+            <strong>Aperçu — réorganisation spatiale ATS</strong>
+            <button
+              type="button"
+              className="cv-editor-beta-ats-preview__close"
+              onClick={handleCancelAtsOptimizePreview}
+              aria-label="Fermer l’aperçu"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="cv-editor-beta-ats-preview__impact" role="status">
+            {atsOptimizePreviewLoading && 'Calcul de l’impact score…'}
+            {!atsOptimizePreviewLoading && atsOptimizePreview.error && atsOptimizePreview.error}
+            {!atsOptimizePreviewLoading && !atsOptimizePreview.error && (
+              formatAtsScoreImpact(
+                atsOptimizePreview.beforeScore,
+                atsOptimizePreview.afterScore,
+              )
+            )}
+          </p>
+          {atsOptimizePreview.changes?.length > 0 ? (
+            <ul className="cv-editor-beta-ats-preview__changes">
+              {atsOptimizePreview.changes.slice(0, 8).map((change) => (
+                <li key={change.id}>{change.label}</li>
+              ))}
+              {atsOptimizePreview.changes.length > 8 && (
+                <li>+ {atsOptimizePreview.changes.length - 8} autre(s) déplacement(s)</li>
+              )}
+            </ul>
+          ) : (
+            <p className="cv-editor-beta-ats-preview__empty">Aucun déplacement détecté.</p>
+          )}
+          <div className="cv-editor-beta-ats-preview__actions">
+            <button
+              type="button"
+              className="cv-editor-beta-ats-preview__btn"
+              onClick={handleCancelAtsOptimizePreview}
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              className="cv-editor-beta-ats-preview__btn cv-editor-beta-ats-preview__btn--primary"
+              onClick={handleApplyAtsOptimizePreview}
+              disabled={atsOptimizePreviewLoading}
+            >
+              Appliquer
+            </button>
+          </div>
+        </div>
+      )}
       {atsOptimizeMessage && (
-        <div className="cv-editor-beta-info" role="status">
-          {atsOptimizeMessage}
+        <div className="cv-editor-beta-info cv-editor-beta-ats-toast" role="status">
+          <span>{atsOptimizeMessage}</span>
+          {atsOptimizeCanUndo && (
+            <button
+              type="button"
+              className="cv-editor-beta-ats-toast__undo"
+              onClick={handleUndoAtsOptimize}
+            >
+              Annuler
+            </button>
+          )}
         </div>
       )}
 

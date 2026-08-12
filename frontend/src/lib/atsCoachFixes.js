@@ -4,7 +4,7 @@
 
 import {
   optimizeContactVerticalPosition,
-  optimizeLayoutReadingOrder,
+  optimizeLayoutSpatialOrder,
 } from './atsLayoutOptimize.js';
 import { getAtsCoachAdvice } from './atsCoachAdvice.js';
 
@@ -21,7 +21,7 @@ export function applyAtsCoachFix(layout, ruleId) {
     return optimizeContactVerticalPosition(layout);
   }
   if (fixKind === 'reading-order') {
-    return optimizeLayoutReadingOrder(layout);
+    return optimizeLayoutSpatialOrder(layout);
   }
   return layout;
 }

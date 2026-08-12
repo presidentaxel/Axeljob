@@ -41,10 +41,30 @@ import '../../styles/EditorCanvaSidebar.css';
 
 /** Rail principal AXE-31 : 4 familles guidantes. */
 const SECTIONS = [
-  { id: 'sections', label: 'Sections CV', icon: HiDocumentText },
-  { id: 'design', label: 'Design', icon: HiSwatch },
-  { id: 'import', label: 'Importer', icon: HiArrowUpTray },
-  { id: 'position', label: 'Position', icon: HiArrowsPointingOut },
+  {
+    id: 'sections',
+    label: 'Sections CV',
+    title: 'Sections CV — contenu lié à ton profil (expériences, formations…)',
+    icon: HiDocumentText,
+  },
+  {
+    id: 'design',
+    label: 'Design',
+    title: 'Design — modèles, décorations et outils de composition',
+    icon: HiSwatch,
+  },
+  {
+    id: 'import',
+    label: 'Importer',
+    title: 'Importer — images décoratives uniquement (pas de PDF/Word ici)',
+    icon: HiArrowUpTray,
+  },
+  {
+    id: 'position',
+    label: 'Position',
+    title: 'Position — calques, taille et ordre des blocs',
+    icon: HiArrowsPointingOut,
+  },
 ];
 
 const DESIGN_TABS = [
@@ -280,7 +300,7 @@ export default function EditorCanvaSidebar({
     <aside className={`editor-canva-shell${placementActive ? ' editor-canva-shell--placing' : ''}`} aria-label="Outils canvas">
       {placementActive && (
         <p className="editor-canva-shell__place-hint" role="status">
-          Cliquez sur le canevas pour placer l’élément · Échap pour annuler
+          Cliquez sur le canevas pour placer · un fantôme suit le curseur · Échap pour annuler
         </p>
       )}
       <nav className="editor-canva-rail" aria-label="Familles d’outils">
@@ -293,7 +313,7 @@ export default function EditorCanvaSidebar({
               type="button"
               aria-current={active ? 'true' : undefined}
               className={active ? 'editor-canva-rail__btn editor-canva-rail__btn--active' : 'editor-canva-rail__btn'}
-              title={section.label}
+              title={section.title || section.label}
               onClick={() => toggleSection(section.id)}
             >
               {Icon ? <Icon size={22} aria-hidden /> : null}

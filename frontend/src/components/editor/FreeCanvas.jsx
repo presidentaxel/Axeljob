@@ -130,6 +130,8 @@ export default function FreeCanvas({
   onDropImage,
   onAddPage,
   onRemovePage,
+  onEmptyAddSection,
+  onEmptyChooseTemplate,
 }) {
   const viewportRef = useRef(null);
   const blockElementsRef = useRef({});
@@ -832,10 +834,35 @@ export default function FreeCanvas({
                   />
                   );
                 })}
-                {blocks.length === 0 && (
-                  <p className="free-canvas-page-empty">
-                    Page {pageIndex + 1} vide - choisissez un élément dans la barre latérale, puis cliquez ici pour le placer
-                  </p>
+                {blocks.length === 0 && !placing && (
+                  <div className="free-canvas-page-empty" role="status">
+                    <p className="free-canvas-page-empty__title">Cette page est vide</p>
+                    <p className="free-canvas-page-empty__text">
+                      Ajoute une section CV ou pars d’un modèle pour démarrer.
+                    </p>
+                    <div className="free-canvas-page-empty__actions">
+                      <button
+                        type="button"
+                        className="free-canvas-page-empty__btn free-canvas-page-empty__btn--primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEmptyAddSection?.();
+                        }}
+                      >
+                        Ajouter une section
+                      </button>
+                      <button
+                        type="button"
+                        className="free-canvas-page-empty__btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEmptyChooseTemplate?.();
+                        }}
+                      >
+                        Partir d’un modèle
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>

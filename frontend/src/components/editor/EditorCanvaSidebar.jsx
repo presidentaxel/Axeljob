@@ -197,6 +197,7 @@ export default function EditorCanvaSidebar({
   layout = null,
   fontFamilies = null,
   selectedBlockId = null,
+  selectedBlockIds = [],
   selectedBlock = null,
   onBlockStylePatch,
   showGrid = false,
@@ -207,10 +208,14 @@ export default function EditorCanvaSidebar({
   onCancelPlacement,
   onSelectBlock,
   onBlockPatch,
+  onBlocksPatch,
   onBlockBringToFront,
   onBlockSendToBack,
   onBlockZStep,
   onReorderLayers,
+  onDeleteSelected,
+  onDuplicateSelected,
+  onToggleLock,
   onPickBlank,
   onApplyCanvasTemplate,
   onLoadProposal,
@@ -675,12 +680,17 @@ export default function EditorCanvaSidebar({
             <EditorCanvaPositionDrawer
               layout={layout}
               selectedBlockId={selectedBlockId}
+              selectedBlockIds={selectedBlockIds}
               onSelectBlock={onSelectBlock}
               onBlockPatch={onBlockPatch}
+              onBlocksPatch={onBlocksPatch}
               onBlockBringToFront={onBlockBringToFront}
               onBlockSendToBack={onBlockSendToBack}
               onBlockZStep={onBlockZStep}
               onReorderLayers={onReorderLayers}
+              onDeleteSelected={onDeleteSelected}
+              onDuplicateSelected={onDuplicateSelected}
+              onToggleLock={onToggleLock}
             />
           )}
         </div>

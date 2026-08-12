@@ -1108,7 +1108,7 @@ export default function App() {
   useEffect(() => {
     const uid = session?.user?.id;
     if (!uid) return;
-    let attr = null;
+    let attr;
     try {
       attr = getStoredAttribution();
     } catch {

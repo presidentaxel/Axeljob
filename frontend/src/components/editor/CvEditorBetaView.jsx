@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import {
   apiGet,
@@ -189,10 +189,15 @@ function CvEditorBeta({
   const blocksClipboardRef = useRef([]);
   const [profileLoadAttempt, setProfileLoadAttempt] = useState(0);
   const templatesListRef = useRef(templatesList);
-  templatesListRef.current = templatesList;
-
   const blockHistoryShortcutsRef = useRef(false);
-  blockHistoryShortcutsRef.current = Boolean(editingBlockId);
+
+  useLayoutEffect(() => {
+    templatesListRef.current = templatesList;
+  }, [templatesList]);
+
+  useLayoutEffect(() => {
+    blockHistoryShortcutsRef.current = Boolean(editingBlockId);
+  }, [editingBlockId]);
 
   const handleLayoutHistoryChange = useCallback((newLayout, action) => {
     if (action === 'undo' || action === 'redo') {
@@ -222,7 +227,9 @@ function CvEditorBeta({
     canRedo: canRedoLayout,
   } = layoutHistory;
 
-  layoutRef.current = layout;
+  useLayoutEffect(() => {
+    layoutRef.current = layout;
+  }, [layout]);
 
   const canvasFontFamilies = useMemo(() => buildCanvasFontFamilies(layout), [layout]);
 
@@ -263,7 +270,9 @@ function CvEditorBeta({
     saveFnKey: `${templateId}|${JSON.stringify(templateOptions || {})}`,
     isActive,
   });
-  autoSaveRef.current = autoSave;
+  useLayoutEffect(() => {
+    autoSaveRef.current = autoSave;
+  }, [autoSave]);
 
   const refreshCanvasDrafts = useCallback(() => {
     setCanvasDrafts(listCanvasDrafts(templatesList));
@@ -854,7 +863,7 @@ function CvEditorBeta({
     const contextKey = templateCanvasContextKey(template.id);
     saveCurrentCanvasDraft();
     const baseLayout = buildTemplateCanvasLayout(template);
-    let targetLayout = baseLayout;
+    let targetLayout;
     if (cv) {
       targetLayout = buildAdaptedCanvasLayoutForCv(cv, template, {
         templatesList,

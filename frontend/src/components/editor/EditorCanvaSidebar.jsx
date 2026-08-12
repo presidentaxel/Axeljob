@@ -338,7 +338,7 @@ export default function EditorCanvaSidebar({
           </button>
         </div>
       )}
-      <nav className="editor-canva-rail" aria-label="Familles d’outils">
+      <nav className="editor-canva-rail" aria-label="Familles d’outils du canvas">
         {SECTIONS.map((section) => {
           const Icon = section.icon;
           const active = railActiveId === section.id;
@@ -346,7 +346,10 @@ export default function EditorCanvaSidebar({
             <button
               key={section.id}
               type="button"
-              aria-current={active ? 'true' : undefined}
+              aria-label={section.title || section.label}
+              aria-pressed={active}
+              aria-expanded={active}
+              aria-controls={active ? 'editor-canva-drawer' : undefined}
               className={active ? 'editor-canva-rail__btn editor-canva-rail__btn--active' : 'editor-canva-rail__btn'}
               title={section.title || section.label}
               onClick={() => toggleSection(section.id)}
@@ -359,10 +362,23 @@ export default function EditorCanvaSidebar({
       </nav>
       {openSection && (
         <div
+          id="editor-canva-drawer"
           className={[
             'editor-canva-drawer',
             openSection === 'fonts' ? 'editor-canva-drawer--fill' : '',
           ].filter(Boolean).join(' ')}
+          role="region"
+          aria-label={
+            openSection === 'sections'
+              ? 'Panneau Sections CV'
+              : openSection === 'design' || openSection === 'models'
+                ? 'Panneau Design'
+                : openSection === 'import'
+                  ? 'Panneau Importer'
+                  : openSection === 'position'
+                    ? 'Panneau Position et calques'
+                    : 'Panneau outils canvas'
+          }
         >
           {openSection === 'sections' && (
             <>

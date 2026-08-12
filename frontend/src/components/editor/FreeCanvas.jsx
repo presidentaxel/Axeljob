@@ -849,6 +849,7 @@ export default function FreeCanvas({
                     onResizePointerMove={handleResizePointerMove}
                     onResizePointerUp={handleResizePointerUp}
                     onResizePointerCancel={handleResizePointerUp}
+                    onSelect={onSelectBlock}
                     onDoubleClickEdit={onStartBlockEdit}
                     onImageEdit={onImageEdit}
                     onInnerBlur={onCommitBlockEdit}

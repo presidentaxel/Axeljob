@@ -120,6 +120,13 @@ import {
   listNonFaithfulBlocks,
   summarizeNonFaithfulBlocks,
 } from '../../lib/canvasPdfFidelity.js';
+import {
+  canvasNudgeDeltaFromKey,
+  CANVAS_DESKTOP_LAYOUT_MQ,
+  dismissCanvasDesktopHint,
+  isCanvasDesktopHintDismissed,
+  isCanvasTypingTarget,
+} from '../../lib/freeCanvasSelection.js';
 
 import '../../styles/CvEditorBeta.css';
 import '../../styles/EditorCanvaSidebar.css';
@@ -176,6 +183,8 @@ function CvEditorBeta({
   const [importToast, setImportToast] = useState('');
   const [editHintOpen, setEditHintOpen] = useState(false);
   const [semanticEditNoteOpen, setSemanticEditNoteOpen] = useState(false);
+  const [narrowViewport, setNarrowViewport] = useState(false);
+  const [desktopHintDismissed, setDesktopHintDismissed] = useState(() => isCanvasDesktopHintDismissed());
   const importCleanupRef = useRef(null);
   const blocksClipboardRef = useRef([]);
   const [profileLoadAttempt, setProfileLoadAttempt] = useState(0);
@@ -1177,9 +1186,7 @@ function CvEditorBeta({
 
   useEffect(() => {
     const onKeyDown = (e) => {
-      const tag = document.activeElement?.tagName?.toLowerCase();
-      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
-      if (document.activeElement?.isContentEditable) return;
+      if (isCanvasTypingTarget(document.activeElement) || isCanvasTypingTarget(e.target)) return;
       if (editingBlockId && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         selectAllInEditableRoot();
@@ -1225,20 +1232,27 @@ function CvEditorBeta({
         setSelectedBlockIds([]);
         return;
       }
-      const step = e.shiftKey ? 5 : 1;
-      let dx = 0;
-      let dy = 0;
-      if (e.key === 'ArrowLeft') dx = -step;
-      else if (e.key === 'ArrowRight') dx = step;
-      else if (e.key === 'ArrowUp') dy = -step;
-      else if (e.key === 'ArrowDown') dy = step;
-      else return;
+      const delta = canvasNudgeDeltaFromKey(e.key, { shiftKey: e.shiftKey });
+      if (!delta) return;
       e.preventDefault();
-      handleNudgeSelectedBlock(dx, dy);
+      handleNudgeSelectedBlock(delta.dx, delta.dy);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [selectedBlockIds, editingBlockId, handleDeleteSelectedBlock, handleNudgeSelectedBlock, handlePasteBlocks, layout]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+    const mq = window.matchMedia(CANVAS_DESKTOP_LAYOUT_MQ);
+    const sync = () => setNarrowViewport(Boolean(mq.matches));
+    sync();
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', sync);
+      return () => mq.removeEventListener('change', sync);
+    }
+    mq.addListener(sync);
+    return () => mq.removeListener(sync);
+  }, []);
 
   if (loading) {
     return (
@@ -1276,8 +1290,24 @@ function CvEditorBeta({
 
   return (
     <div className="cv-editor-beta">
-      <header className="cv-editor-beta-topbar">
-        <div className="cv-editor-beta-topbar-left">
+      {narrowViewport && !desktopHintDismissed && (
+        <div className="cv-editor-beta-desktop-hint" role="status">
+          <p className="cv-editor-beta-desktop-hint__text">
+            Édition de mise en page recommandée sur un ordinateur. Sur mobile ou tablette, le canvas reste consultable mais moins confortable à éditer.
+          </p>
+          <button
+            type="button"
+            className="cv-editor-beta-desktop-hint__dismiss"
+            onClick={() => {
+              dismissCanvasDesktopHint();
+              setDesktopHintDismissed(true);
+            }}
+          >
+            Compris
+          </button>
+        </div>
+      )}
+      <header className="cv-editor-beta-topbar">        <div className="cv-editor-beta-topbar-left">
           <span className="cv-editor-beta-badge">Mode Beta</span>
           <div className="cv-editor-beta-history-btns">
             <button

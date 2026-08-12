@@ -12,17 +12,17 @@ import {
 } from './cvLayoutModelV3.js';
 import { isVectorShapeType } from './canvasShapePresets.js';
 
-/** Ordre de lecture sémantique recommandé (haut → bas, même page). */
+/** Ordre aligné sur `free_canvas._CANONICAL_READ_ORDER` (scorer ATS). */
 export const SEMANTIC_READ_ORDER = [
   'identity',
-  'photo',
   'contact',
+  'photo',
   'resume',
   'experiences',
   'formations',
+  'certifications',
   'skills',
   'languages',
-  'certifications',
   'projets',
 ];
 
@@ -135,11 +135,15 @@ export function optimizeLayoutSpatialOrder(layout) {
   return { ...layout, pages };
 }
 
-/** Applique spatial + contact + calques (pipeline ATS 1-clic). */
+/** Applique spatial + calques (pipeline ATS 1-clic).
+ *
+ * Pas de `optimizeContactVerticalPosition` ici : le stack spatial place déjà
+ * le contact juste sous l'identité. Un yank à y=40 après coup chevaucherait
+ * identity/photo et casserait l'ordre que le scorer attend.
+ */
 export function applyAtsLayoutOptimizations(layout) {
   let next = layout;
   next = optimizeLayoutSpatialOrder(next);
-  next = optimizeContactVerticalPosition(next);
   next = optimizeLayoutReadingOrder(next);
   return next;
 }

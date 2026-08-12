@@ -98,6 +98,57 @@ test('applyAtsLayoutOptimizations remonte contact + ordre spatial', () => {
   assert.ok(byType.contact.y < byType.experiences.y);
 });
 
+test('ordre spatial aligne scorer free_canvas (contact avant photo, certif avant skills)', () => {
+  const layout = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    theme: {},
+    pages: [{
+      id: 'page-1',
+      blocks: [
+        { id: 'skills', type: 'skills', x: 10, y: 10, w: 180, h: 20, z: 1, style: {} },
+        { id: 'photo', type: 'photo', x: 10, y: 40, w: 40, h: 40, z: 2, style: {} },
+        { id: 'cert', type: 'certifications', x: 10, y: 90, w: 180, h: 20, z: 3, style: {} },
+        { id: 'contact', type: 'contact', x: 10, y: 120, w: 180, h: 10, z: 4, style: {} },
+        { id: 'id', type: 'identity', x: 10, y: 150, w: 180, h: 20, z: 5, style: {} },
+      ],
+    }],
+  };
+  const next = applyAtsLayoutOptimizations(layout);
+  const byType = Object.fromEntries(
+    next.pages[0].blocks.filter((b) => b.type !== 'shape:rect').map((b) => [b.type, b]),
+  );
+  assert.ok(byType.identity.y < byType.contact.y);
+  assert.ok(byType.contact.y < byType.photo.y);
+  assert.ok(byType.certifications.y < byType.skills.y);
+});
+
+test('applyAtsLayoutOptimizations ne yank pas le contact hors du stack', () => {
+  const layout = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    theme: {},
+    pages: [{
+      id: 'page-1',
+      blocks: [
+        { id: 'id', type: 'identity', x: 10, y: 200, w: 180, h: 40, z: 1, style: {} },
+        { id: 'photo', type: 'photo', x: 10, y: 10, w: 40, h: 50, z: 2, style: {} },
+        { id: 'contact', type: 'contact', x: 10, y: 250, w: 180, h: 10, z: 3, style: {} },
+      ],
+    }],
+  };
+  const next = applyAtsLayoutOptimizations(layout);
+  const byType = Object.fromEntries(next.pages[0].blocks.map((b) => [b.type, b]));
+  // identity (h=40) + gap 6 → contact à y≈56, pas yanké à 40 par-dessus identity
+  assert.ok(byType.contact.y >= byType.identity.y + byType.identity.h);
+  assert.ok(byType.identity.y < byType.contact.y);
+  assert.ok(byType.contact.y < byType.photo.y);
+});
+
 test('describeAtsOptimizationChanges liste les deplacements y', () => {
   const before = {
     version: 3,

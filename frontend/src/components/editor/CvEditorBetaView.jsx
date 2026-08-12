@@ -174,7 +174,9 @@ function CvEditorBeta({
   const [atsOptimizeMessage, setAtsOptimizeMessage] = useState('');
   const [atsOptimizePreview, setAtsOptimizePreview] = useState(null);
   const [atsOptimizePreviewLoading, setAtsOptimizePreviewLoading] = useState(false);
-  const [atsOptimizeCanUndo, setAtsOptimizeCanUndo] = useState(false);
+  /** Layout post-apply : Annuler n'est visible que tant que le canvas === ce snapshot. */
+  const [atsOptimizeUndoAfter, setAtsOptimizeUndoAfter] = useState(null);
+  const atsOptimizePreviewReqRef = useRef(0);
   const autoHeightPendingRef = useRef(new Map());
   const autoHeightTimerRef = useRef(null);
   const suppressAutoHeightUntilRef = useRef(0);
@@ -1096,8 +1098,11 @@ function CvEditorBeta({
       return;
     }
     const changes = describeAtsOptimizationChanges(layout, next);
+    const reqId = atsOptimizePreviewReqRef.current + 1;
+    atsOptimizePreviewReqRef.current = reqId;
     setAtsOptimizePreviewLoading(true);
     setAtsOptimizeMessage('');
+    setAtsOptimizeUndoAfter(null);
     setAtsOptimizePreview({
       beforeLayout: layout,
       afterLayout: next,
@@ -1111,6 +1116,7 @@ function CvEditorBeta({
         fetchAtsScoreParsing({ layout, cv, templateId }),
         fetchAtsScoreParsing({ layout: next, cv, templateId }),
       ]);
+      if (atsOptimizePreviewReqRef.current !== reqId) return;
       setAtsOptimizePreview((prev) => (
         prev
           ? {
@@ -1122,6 +1128,7 @@ function CvEditorBeta({
           : prev
       ));
     } catch (err) {
+      if (atsOptimizePreviewReqRef.current !== reqId) return;
       setAtsOptimizePreview((prev) => (
         prev
           ? {
@@ -1131,17 +1138,25 @@ function CvEditorBeta({
           : prev
       ));
     } finally {
-      setAtsOptimizePreviewLoading(false);
+      if (atsOptimizePreviewReqRef.current === reqId) {
+        setAtsOptimizePreviewLoading(false);
+      }
     }
   }, [layout, cv, templateId, atsOptimizePreviewLoading]);
 
   const handleCancelAtsOptimizePreview = useCallback(() => {
+    atsOptimizePreviewReqRef.current += 1;
     setAtsOptimizePreview(null);
     setAtsOptimizePreviewLoading(false);
   }, []);
 
   const handleApplyAtsOptimizePreview = useCallback(() => {
-    if (!atsOptimizePreview?.afterLayout) return;
+    if (!atsOptimizePreview?.afterLayout || !atsOptimizePreview?.beforeLayout) return;
+    if (!sameLayout(layout, atsOptimizePreview.beforeLayout)) {
+      setAtsOptimizeMessage('Le canvas a changé depuis l’aperçu — relance Optimiser ATS.');
+      setAtsOptimizePreview(null);
+      return;
+    }
     const next = atsOptimizePreview.afterLayout;
     if (sameLayout(layout, next)) {
       setAtsOptimizePreview(null);
@@ -1149,7 +1164,7 @@ function CvEditorBeta({
       return;
     }
     commitLayout(next, { groupKey: 'ats:optimize-spatial' });
-    setAtsOptimizeCanUndo(true);
+    setAtsOptimizeUndoAfter(next);
     const impact = formatAtsScoreImpact(
       atsOptimizePreview.beforeScore,
       atsOptimizePreview.afterScore,
@@ -1160,27 +1175,36 @@ function CvEditorBeta({
   }, [atsOptimizePreview, layout, commitLayout, cv, autoSave]);
 
   const handleUndoAtsOptimize = useCallback(() => {
+    if (!atsOptimizeUndoAfter || !sameLayout(layout, atsOptimizeUndoAfter)) {
+      setAtsOptimizeUndoAfter(null);
+      return;
+    }
     if (!canUndoLayout) {
-      setAtsOptimizeCanUndo(false);
+      setAtsOptimizeUndoAfter(null);
       return;
     }
     undoLayout();
-    setAtsOptimizeCanUndo(false);
+    setAtsOptimizeUndoAfter(null);
     setAtsOptimizeMessage('Optimisation ATS annulée.');
     if (cv) autoSave.schedule(cv);
-  }, [canUndoLayout, undoLayout, cv, autoSave]);
+  }, [atsOptimizeUndoAfter, layout, canUndoLayout, undoLayout, cv, autoSave]);
+
+  const atsOptimizeUndoVisible = Boolean(
+    atsOptimizeUndoAfter && layout && sameLayout(layout, atsOptimizeUndoAfter),
+  );
 
   useEffect(() => {
-    if (!atsOptimizeMessage) return undefined;
+    if (!atsOptimizeMessage || atsOptimizeUndoVisible) return undefined;
     const id = setTimeout(() => setAtsOptimizeMessage(''), 6500);
     return () => clearTimeout(id);
-  }, [atsOptimizeMessage]);
+  }, [atsOptimizeMessage, atsOptimizeUndoVisible]);
 
   useEffect(() => {
-    if (!atsOptimizeCanUndo) return undefined;
-    if (!canUndoLayout) setAtsOptimizeCanUndo(false);
-    return undefined;
-  }, [atsOptimizeCanUndo, canUndoLayout]);
+    if (!atsOptimizeUndoAfter) return;
+    if (!layout || !sameLayout(layout, atsOptimizeUndoAfter)) {
+      setAtsOptimizeUndoAfter(null);
+    }
+  }, [layout, atsOptimizeUndoAfter]);
 
   const handleExportLayoutPdf = useCallback(async () => {
     if (!cv || !layout || pdfExporting) return;
@@ -1552,10 +1576,10 @@ function CvEditorBeta({
           </div>
         </div>
       )}
-      {atsOptimizeMessage && (
+      {(atsOptimizeMessage || atsOptimizeUndoVisible) && (
         <div className="cv-editor-beta-info cv-editor-beta-ats-toast" role="status">
-          <span>{atsOptimizeMessage}</span>
-          {atsOptimizeCanUndo && (
+          <span>{atsOptimizeMessage || 'Réorganisation spatiale ATS appliquée.'}</span>
+          {atsOptimizeUndoVisible && (
             <button
               type="button"
               className="cv-editor-beta-ats-toast__undo"

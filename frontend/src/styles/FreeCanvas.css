@@ -146,7 +146,8 @@
   background: rgba(255, 255, 255, 0.92);
   color: var(--color-body-muted, #616161);
   text-align: center;
-  pointer-events: auto;
+  /* Laisser passer les clics de placement ; seuls les CTA capturent le pointeur. */
+  pointer-events: none;
   z-index: 2;
 }
 
@@ -170,6 +171,7 @@
   flex-wrap: wrap;
   gap: 8px;
   justify-content: center;
+  pointer-events: auto;
 }
 
 .free-canvas-page-empty__btn {

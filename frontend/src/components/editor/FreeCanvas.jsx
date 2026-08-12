@@ -834,12 +834,8 @@ export default function FreeCanvas({
                   />
                   );
                 })}
-                {blocks.length === 0 && (
-                  <div
-                    className="free-canvas-page-empty"
-                    role="status"
-                    onPointerDown={(e) => e.stopPropagation()}
-                  >
+                {blocks.length === 0 && !placing && (
+                  <div className="free-canvas-page-empty" role="status">
                     <p className="free-canvas-page-empty__title">Cette page est vide</p>
                     <p className="free-canvas-page-empty__text">
                       Ajoute une section CV ou pars d’un modèle pour démarrer.

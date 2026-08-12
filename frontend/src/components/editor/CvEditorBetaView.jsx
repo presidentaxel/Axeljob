@@ -97,6 +97,7 @@ import EditorFloatingTextToolbar from './EditorFloatingTextToolbar.jsx';
 import EditorImageEditPopover from './EditorImageEditPopover.jsx';
 import EditorCanvaTransferModal from './EditorCanvaTransferModal.jsx';
 import EditorCvImportModal from './EditorCvImportModal.jsx';
+import EditorOnboardingTour from './EditorOnboardingTour.jsx';
 
 import {
   buildCanvasPdfFilename,
@@ -109,6 +110,11 @@ import {
   isCanvasEditHintDismissed,
   isSemanticEditNoteDismissed,
 } from '../../lib/canvasEditorUtils.js';
+import {
+  dismissEditorOnboarding,
+  isEditorOnboardingDismissed,
+  shouldShowEditorOnboarding,
+} from '../../lib/editorOnboarding.js';
 import {
   listNonFaithfulBlocks,
   summarizeNonFaithfulBlocks,
@@ -150,6 +156,7 @@ function CvEditorBeta({
   const [sidebarSection, setSidebarSection] = useState('sections');
   const [placementPreset, setPlacementPreset] = useState(null);
   const [startupPromptOpen, setStartupPromptOpen] = useState(false);
+  const [onboardingDismissed, setOnboardingDismissed] = useState(() => isEditorOnboardingDismissed());
   const [pdfExportError, setPdfExportError] = useState('');
   const [atsOptimizeMessage, setAtsOptimizeMessage] = useState('');
   const autoHeightPendingRef = useRef(new Map());
@@ -372,6 +379,25 @@ function CvEditorBeta({
     setStartupPromptOpen(false);
     setSidebarSection('design');
   }, []);
+
+  const handleEmptyAddSection = useCallback(() => {
+    setSidebarSection('sections');
+  }, []);
+
+  const handleEmptyChooseTemplate = useCallback(() => {
+    setSidebarSection('design');
+  }, []);
+
+  const handleDismissOnboarding = useCallback(() => {
+    dismissEditorOnboarding();
+    setOnboardingDismissed(true);
+  }, []);
+
+  const onboardingOpen = shouldShowEditorOnboarding({
+    dismissed: onboardingDismissed,
+    loading,
+    startupPromptOpen,
+  });
 
   const handleGenerateStarterCanvas = useCallback(() => {
     const templates = templatesList || [];
@@ -1429,12 +1455,18 @@ function CvEditorBeta({
               onBlockAutoHeight={handleBlockAutoHeight}
               onAddPage={handleAddCanvasPage}
               onRemovePage={handleRemoveCanvasPage}
+              onEmptyAddSection={handleEmptyAddSection}
+              onEmptyChooseTemplate={handleEmptyChooseTemplate}
             />
             {importToast && (
               <div className="cv-editor-beta-import-toast" role="status">
                 Canvas généré - {importToast}
               </div>
             )}
+            <EditorOnboardingTour
+              open={onboardingOpen}
+              onDismiss={handleDismissOnboarding}
+            />
             {startupPromptOpen && (
               <section className="cv-editor-beta-start-panel" role="dialog" aria-modal="true" aria-label="Démarrer le canvas">
                 <div className="cv-editor-beta-start-panel__backdrop" aria-hidden />

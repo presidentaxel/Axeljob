@@ -138,11 +138,59 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  color: #94a3b8;
-  font-style: italic;
-  font-size: 10pt;
+  width: min(220mm, 88%);
   margin: 0;
-  pointer-events: none;
+  padding: 16px 18px;
+  border: 1px dashed var(--color-hairline, #d9d9dd);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--color-body-muted, #616161);
+  text-align: center;
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.free-canvas-page-empty__title {
+  margin: 0 0 6px;
+  font-size: 11pt;
+  font-style: normal;
+  font-weight: 500;
+  color: var(--color-ink, #212121);
+}
+
+.free-canvas-page-empty__text {
+  margin: 0 0 12px;
+  font-size: 9.5pt;
+  line-height: 1.4;
+  font-style: normal;
+}
+
+.free-canvas-page-empty__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.free-canvas-page-empty__btn {
+  padding: 8px 14px;
+  border: 1px solid var(--color-primary, #17171c);
+  border-radius: 32px;
+  background: transparent;
+  color: var(--color-primary, #17171c);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.free-canvas-page-empty__btn--primary {
+  background: var(--color-primary, #17171c);
+  color: var(--color-on-dark, #ffffff);
+}
+
+.free-canvas-page-empty__btn:focus-visible {
+  outline: 2px solid var(--color-focus-blue, #4c6ee6);
+  outline-offset: 2px;
 }
 
 /* Grille 5 mm (P3.7) - visible en mode edition */

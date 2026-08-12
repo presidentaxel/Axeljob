@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   HiBars3BottomLeft,
   HiBars3,
@@ -18,6 +18,14 @@ import { isNonSemanticBlockType, listAllBlocks } from '../../lib/cvLayoutModelV3
 import '../../styles/EditorCanvaPositionDrawer.css';
 
 const LAYER_DRAG_MIME = 'application/x-cv-canvas-layer';
+const TAB_POSITION_ID = 'editor-canva-position-tab';
+const TAB_LAYERS_ID = 'editor-canva-layers-tab';
+const PANEL_POSITION_ID = 'editor-canva-position-panel';
+const PANEL_LAYERS_ID = 'editor-canva-layers-panel';
+
+function layerLabelFromBlock(block) {
+  return typeof block?.style?.layer_label === 'string' ? block.style.layer_label : '';
+}
 
 /**
  * Panneau Position / calques (drawer sidebar) — actions simples d'abord (AXE-34).
@@ -41,6 +49,7 @@ export default function EditorCanvaPositionDrawer({
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [dragLayerId, setDragLayerId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
+  const [renameDraft, setRenameDraft] = useState('');
 
   const blocks = useMemo(
     () => listAllBlocks(layout).slice().sort((a, b) => (b.z || 0) - (a.z || 0)),
@@ -48,9 +57,24 @@ export default function EditorCanvaPositionDrawer({
   );
   const selected = blocks.find((b) => b.id === selectedBlockId);
   const multiIds = selectedBlockIds?.length ? selectedBlockIds : (selectedBlockId ? [selectedBlockId] : []);
+  const selectedIdSet = useMemo(() => new Set(multiIds), [multiIds]);
   const canDistribute = multiIds.length >= 3;
   const canRename = selected && isNonSemanticBlockType(selected.type);
   const locked = Boolean(selected?.locked);
+  const lockedInSelection = multiIds.filter((id) => blocks.find((b) => b.id === id)?.locked).length;
+  const showLockedAlignHint = multiIds.length > 1 && lockedInSelection > 0 && lockedInSelection < multiIds.length;
+
+  useEffect(() => {
+    setRenameDraft(layerLabelFromBlock(selected));
+  }, [selectedBlockId, selected?.style?.layer_label]);
+
+  const commitRename = useCallback(() => {
+    if (!selected || !canRename || locked) return;
+    const current = layerLabelFromBlock(selected);
+    if (renameDraft === current) return;
+    const patch = computeLayerLabelPatch(selected, renameDraft);
+    if (patch) onBlockPatch?.(selected.id, patch);
+  }, [canRename, locked, onBlockPatch, renameDraft, selected]);
 
   const applyAlign = useCallback((align) => {
     const targets = multiIds.length ? multiIds : (selectedBlockId ? [selectedBlockId] : []);
@@ -83,12 +107,6 @@ export default function EditorCanvaPositionDrawer({
     }
     patches.forEach(({ id, x }) => onBlockPatch?.(id, { x }));
   }, [blocks, canDistribute, multiIds, onBlockPatch, onBlocksPatch]);
-
-  const handleRename = useCallback((value) => {
-    if (!selected || !canRename) return;
-    const patch = computeLayerLabelPatch(selected, value);
-    if (patch) onBlockPatch?.(selected.id, patch);
-  }, [canRename, onBlockPatch, selected]);
 
   const handleLayerDragStart = useCallback((blockId, event) => {
     setDragLayerId(blockId);
@@ -137,8 +155,11 @@ export default function EditorCanvaPositionDrawer({
       <div className="editor-canva-position-drawer__tabs" role="tablist" aria-label="Position ou calques">
         <button
           type="button"
+          id={TAB_POSITION_ID}
           role="tab"
+          aria-controls={PANEL_POSITION_ID}
           aria-selected={activeTab === 'position'}
+          tabIndex={activeTab === 'position' ? 0 : -1}
           className={
             activeTab === 'position'
               ? 'editor-canva-position-drawer__tab editor-canva-position-drawer__tab--active'
@@ -150,8 +171,11 @@ export default function EditorCanvaPositionDrawer({
         </button>
         <button
           type="button"
+          id={TAB_LAYERS_ID}
           role="tab"
+          aria-controls={PANEL_LAYERS_ID}
           aria-selected={activeTab === 'layers'}
+          tabIndex={activeTab === 'layers' ? 0 : -1}
           className={
             activeTab === 'layers'
               ? 'editor-canva-position-drawer__tab editor-canva-position-drawer__tab--active'
@@ -164,7 +188,11 @@ export default function EditorCanvaPositionDrawer({
       </div>
 
       {activeTab === 'position' && (
-        <div role="tabpanel">
+        <div
+          id={PANEL_POSITION_ID}
+          role="tabpanel"
+          aria-labelledby={TAB_POSITION_ID}
+        >
           {!selected && (
             <p className="editor-canva-position-drawer__empty">
               Sélectionnez un élément sur le canevas pour ajuster sa position.
@@ -200,6 +228,11 @@ export default function EditorCanvaPositionDrawer({
                     Distribuer
                   </button>
                 </div>
+                {showLockedAlignHint && (
+                  <p className="editor-canva-position-drawer__hint">
+                    Les éléments verrouillés restent en place.
+                  </p>
+                )}
               </div>
 
               <div className="editor-canva-position-drawer__section">
@@ -247,9 +280,16 @@ export default function EditorCanvaPositionDrawer({
                   <input
                     type="text"
                     maxLength={60}
-                    value={typeof selected.style?.layer_label === 'string' ? selected.style.layer_label : ''}
+                    value={renameDraft}
                     placeholder={getBlockDisplayName({ type: selected.type })}
-                    onChange={(e) => handleRename(e.target.value)}
+                    onChange={(e) => setRenameDraft(e.target.value)}
+                    onBlur={commitRename}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        e.currentTarget.blur();
+                      }
+                    }}
                     disabled={locked}
                   />
                 </label>
@@ -286,7 +326,11 @@ export default function EditorCanvaPositionDrawer({
       )}
 
       {activeTab === 'layers' && (
-        <div role="tabpanel">
+        <div
+          id={PANEL_LAYERS_ID}
+          role="tabpanel"
+          aria-labelledby={TAB_LAYERS_ID}
+        >
           <p className="editor-canva-position-drawer__layers-hint">
             Glissez les calques pour changer l&apos;ordre d&apos;empilement.
           </p>
@@ -315,10 +359,11 @@ export default function EditorCanvaPositionDrawer({
                 <button
                   type="button"
                   className={
-                    b.id === selectedBlockId
+                    selectedIdSet.has(b.id)
                       ? 'editor-canva-position-drawer__layer editor-canva-position-drawer__layer--active'
                       : 'editor-canva-position-drawer__layer'
                   }
+                  aria-pressed={selectedIdSet.has(b.id)}
                   onClick={() => onSelectBlock?.(b.id)}
                 >
                   {b.locked ? <HiLockClosed size={12} aria-hidden className="editor-canva-position-drawer__layer-lock" /> : null}

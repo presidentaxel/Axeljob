@@ -30,11 +30,16 @@
 }
 
 .editor-canva-position-drawer__empty,
-.editor-canva-position-drawer__layers-hint {
+.editor-canva-position-drawer__layers-hint,
+.editor-canva-position-drawer__hint {
   margin: 0 0 10px;
   font-size: 0.72rem;
   line-height: 1.45;
   color: var(--color-muted, #93939f);
+}
+
+.editor-canva-position-drawer__hint {
+  margin: 6px 0 0;
 }
 
 .editor-canva-position-drawer__selection-name {

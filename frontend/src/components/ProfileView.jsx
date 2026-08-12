@@ -204,6 +204,66 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
     } catch (_) { /* ignore */ }
   }, []);
 
+  // Auto-save : sauvegarde automatique après modification (debounce)
+  const saveToApi = useCallback(async () => {
+    setError('');
+    setSaving(true);
+    try {
+      await apiPut('/api/cv', { ...cv, template_id: templateId, template_options: templateOptions });
+      setMessage('Sauvegardé');
+      setTimeout(() => setMessage(''), 2000);
+      onSaveSuccess?.();
+    } catch (e) {
+      setError(e.message || 'Erreur lors de l’enregistrement.');
+    } finally {
+      setSaving(false);
+    }
+  }, [cv, templateId, templateOptions, onSaveSuccess]);
+
+  const fetchLinkedInWithToken = useCallback(async (token) => {
+    setLinkedinError('');
+    setLinkedinLoading(true);
+    setProposedChanges([]);
+    setLinkedinModalOpen(true);
+    try {
+      const data = await apiPost('/api/cv/fetch-linkedin', { linkedin_access_token: token });
+      setProposedChanges(data.proposed_changes || []);
+      setSelectedChangeIds(new Set((data.proposed_changes || []).map((c) => c.id)));
+      if (!(data.proposed_changes || []).length) {
+        setLinkedinError('Aucune diff\u00e9rence entre ton CV et ton profil LinkedIn.');
+      }
+    } catch (e) {
+      const msg = e.message || '';
+      const isTokenError = msg.includes('invalide') || msg.includes('expir') || e.status === 400;
+      if (isTokenError) {
+        setLinkedinModalOpen(false);
+        setLinkedinLoading(false);
+        throw e;
+      }
+      setLinkedinError(msg || 'Impossible de r\u00e9cup\u00e9rer le profil LinkedIn.');
+      setProposedChanges([]);
+    } finally {
+      setLinkedinLoading(false);
+    }
+  }, []);
+
+  const handleImportLinkedInPhotoWithToken = useCallback(async (token) => {
+    setError('');
+    setMessage('');
+    setImportPhotoLoading(true);
+    try {
+      await apiPost('/api/cv/import-linkedin-photo', { linkedin_access_token: token });
+      const fresh = await apiGet('/api/cv');
+      setCv({ ...defaultCv(), ...fresh });
+      setMessage('Photo LinkedIn import\u00e9e et enregistr\u00e9e.');
+      onSaveSuccess?.();
+    } catch (e) {
+      setError(e.message || 'Impossible d\'importer la photo LinkedIn.');
+    } finally {
+      setImportPhotoLoading(false);
+    }
+  }, [onSaveSuccess]);
+
   useEffect(() => {
     if (!session?.provider_token || loading || linkedinAutoTriggeredRef.current) return;
     const syncPending = localStorage.getItem(LINKEDIN_SYNC_KEY);
@@ -219,23 +279,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
         handleImportLinkedInPhotoWithToken(session.provider_token);
       }
     }
-  }, [session?.provider_token, loading]);
-
-  // Auto-save : sauvegarde automatique après modification (debounce)
-  const saveToApi = useCallback(async () => {
-    setError('');
-    setSaving(true);
-    try {
-      await apiPut('/api/cv', { ...cv, template_id: templateId, template_options: templateOptions });
-      setMessage('Sauvegardé');
-      setTimeout(() => setMessage(''), 2000);
-      onSaveSuccess?.();
-    } catch (e) {
-      setError(e.message || 'Erreur lors de l’enregistrement.');
-    } finally {
-      setSaving(false);
-    }
-  }, [cv, templateId, templateOptions]);
+  }, [session?.provider_token, loading, fetchLinkedInWithToken, handleImportLinkedInPhotoWithToken]);
 
   useEffect(() => {
     if (loading) return;
@@ -245,7 +289,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
     }
     const t = setTimeout(() => saveToApi(), AUTO_SAVE_DELAY_MS);
     return () => clearTimeout(t);
-  }, [cv, loading]);
+  }, [cv, loading, saveToApi]);
 
   useEffect(() => {
     if (onTemplateIdChange) return;
@@ -493,50 +537,6 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
       localStorage.removeItem(pendingKey);
       setLinkedinError(linkErr.message || 'Erreur de connexion LinkedIn.');
       setLinkedinModalOpen(true);
-    }
-  };
-
-  const fetchLinkedInWithToken = async (token) => {
-    setLinkedinError('');
-    setLinkedinLoading(true);
-    setProposedChanges([]);
-    setLinkedinModalOpen(true);
-    try {
-      const data = await apiPost('/api/cv/fetch-linkedin', { linkedin_access_token: token });
-      setProposedChanges(data.proposed_changes || []);
-      setSelectedChangeIds(new Set((data.proposed_changes || []).map((c) => c.id)));
-      if (!(data.proposed_changes || []).length) {
-        setLinkedinError('Aucune diff\u00e9rence entre ton CV et ton profil LinkedIn.');
-      }
-    } catch (e) {
-      const msg = e.message || '';
-      const isTokenError = msg.includes('invalide') || msg.includes('expir') || e.status === 400;
-      if (isTokenError) {
-        setLinkedinModalOpen(false);
-        setLinkedinLoading(false);
-        throw e;
-      }
-      setLinkedinError(msg || 'Impossible de r\u00e9cup\u00e9rer le profil LinkedIn.');
-      setProposedChanges([]);
-    } finally {
-      setLinkedinLoading(false);
-    }
-  };
-
-  const handleImportLinkedInPhotoWithToken = async (token) => {
-    setError('');
-    setMessage('');
-    setImportPhotoLoading(true);
-    try {
-      await apiPost('/api/cv/import-linkedin-photo', { linkedin_access_token: token });
-      const fresh = await apiGet('/api/cv');
-      setCv({ ...defaultCv(), ...fresh });
-      setMessage('Photo LinkedIn import\u00e9e et enregistr\u00e9e.');
-      onSaveSuccess?.();
-    } catch (e) {
-      setError(e.message || 'Impossible d\'importer la photo LinkedIn.');
-    } finally {
-      setImportPhotoLoading(false);
     }
   };
 

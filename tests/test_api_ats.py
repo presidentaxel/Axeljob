@@ -110,7 +110,12 @@ class TestHandleScoreParsing(unittest.TestCase):
         body = ScoreParsingBody(template_id="demo")
         payload = handle_score_parsing(body)
         for rule in payload["rules"]:
-            self.assertEqual(set(rule), {"id", "label", "delta", "severity"})
+            self.assertEqual(
+                set(rule),
+                {"id", "label", "delta", "severity", "block_ids", "advice"},
+            )
+            self.assertIsInstance(rule["block_ids"], list)
+            self.assertIsInstance(rule["advice"], str)
 
 
 if __name__ == "__main__":

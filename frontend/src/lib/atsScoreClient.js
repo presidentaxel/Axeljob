@@ -105,11 +105,16 @@ function normalizeRule(rule) {
   if (!rule || typeof rule !== 'object') return null;
   const id = typeof rule.id === 'string' ? rule.id : null;
   if (!id) return null;
+  const blockIds = Array.isArray(rule.block_ids)
+    ? rule.block_ids.filter((bid) => typeof bid === 'string' && bid.trim())
+    : [];
   return {
     id,
     label: typeof rule.label === 'string' ? rule.label : id,
     delta: Number.isFinite(rule.delta) ? rule.delta : 0,
     severity: typeof rule.severity === 'string' ? rule.severity : 'info',
+    blockIds,
+    advice: typeof rule.advice === 'string' ? rule.advice : '',
   };
 }
 

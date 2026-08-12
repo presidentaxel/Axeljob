@@ -23,6 +23,8 @@ def rule_to_dict(rule: Rule) -> dict[str, Any]:
         "label": rule.label,
         "delta": rule.delta,
         "severity": rule.severity.value,
+        "block_ids": list(rule.block_ids),
+        "advice": rule.advice or rule.label,
     }
 
 

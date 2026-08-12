@@ -117,6 +117,10 @@ def rule_free_canvas_missing_profile_sections(
         label=f"Canvas libre : contenu du profil non affiche ({visible_missing}{suffix})",
         delta=delta,
         severity=RuleSeverity.ERROR if len(missing) >= 3 else RuleSeverity.WARNING,
+        advice=(
+            f"Des infos du profil ne sont pas sur le canvas ({visible_missing}{suffix}). "
+            "Ajoute les blocs manquants depuis la sidebar pour qu'ils soient scorés."
+        ),
     )
 
 
@@ -138,11 +142,20 @@ def rule_free_canvas_reading_order(cv: dict[str, Any], layout: dict[str, Any]) -
     if inversions == 0:
         return None
     delta = max(-9, -3 * inversions)
+    block_ids = tuple(
+        str(b["id"]) for b in ordered if isinstance(b.get("id"), str) and b["id"]
+    )
     return Rule(
         id="malus_free_canvas_reading_order",
         label=f"Canvas libre : ordre de lecture ambigu ({inversions} inversion(s))",
         delta=delta,
         severity=RuleSeverity.WARNING,
+        block_ids=block_ids[:6],
+        advice=(
+            "L'ordre de lecture machine (haut → bas) ne suit pas l'ordre "
+            "attendu des sections. Les parsers ATS peuvent mal enchaîner "
+            "identité, contact et expériences."
+        ),
     )
 
 
@@ -162,11 +175,22 @@ def rule_identity_not_first_in_reading(cv: dict[str, Any], layout: dict[str, Any
     first = min(blocks, key=_reading_position)
     if first.get("type") == "identity":
         return None
+    identity = identities[0]
+    ids: list[str] = []
+    for block in (identity, first):
+        bid = block.get("id")
+        if isinstance(bid, str) and bid and bid not in ids:
+            ids.append(bid)
     return Rule(
         id="malus_identity_not_first",
         label="Identite pas en tete de lecture (risque ATS)",
         delta=-5,
         severity=RuleSeverity.WARNING,
+        block_ids=tuple(ids),
+        advice=(
+            "Un autre bloc est lu avant l'identité. Place le nom / titre "
+            "en haut à gauche pour que les ATS le capturent en premier."
+        ),
     )
 
 
@@ -185,11 +209,21 @@ def rule_experiences_before_resume(cv: dict[str, Any], layout: dict[str, Any]) -
     resume_pos = min(_reading_position(b) for b in resume_blocks)
     exp_pos = min(_reading_position(b) for b in exp_blocks)
     if exp_pos < resume_pos:
+        ids: list[str] = []
+        for block in (*exp_blocks[:1], *resume_blocks[:1]):
+            bid = block.get("id")
+            if isinstance(bid, str) and bid and bid not in ids:
+                ids.append(bid)
         return Rule(
             id="malus_experiences_before_resume",
             label="Experiences placees avant le resume (ordre de lecture)",
             delta=-5,
             severity=RuleSeverity.WARNING,
+            block_ids=tuple(ids),
+            advice=(
+                "Les expériences sont placées avant le résumé. "
+                "Les ATS s'attendent souvent à une synthèse avant le détail."
+            ),
         )
     return None
 
@@ -214,10 +248,17 @@ def rule_contact_far_from_top(cv: dict[str, Any], layout: dict[str, Any]) -> Rul
         except (TypeError, ValueError):
             continue
         if y > threshold_mm:
+            bid = block.get("id")
+            block_ids = (str(bid),) if isinstance(bid, str) and bid else ()
             return Rule(
                 id="malus_contact_low_on_page",
                 label="Contact place trop bas sur la page",
                 delta=-3,
                 severity=RuleSeverity.WARNING,
+                block_ids=block_ids,
+                advice=(
+                    "Le contact est trop bas sur la page. Remonte-le dans "
+                    "le haut du CV pour qu'il soit lu par les parsers ATS."
+                ),
             )
     return None

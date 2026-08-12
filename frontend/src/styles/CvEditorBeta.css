@@ -717,24 +717,154 @@
   position: absolute;
   top: calc(100% + 0.4rem);
   right: 0;
-  width: 320px;
+  width: 380px;
   max-width: calc(100vw - 2rem);
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  background: var(--color-canvas, #ffffff);
+  border: 1px solid var(--color-hairline, #d9d9dd);
+  border-radius: 8px;
   z-index: 50;
   padding: 0.75rem;
   font-size: 0.8rem;
-  color: #1e293b;
+  color: var(--color-ink, #212121);
+}
+
+.ats-coach-panel-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.ats-coach-status {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--color-body-muted, #616161);
+  line-height: 1.35;
+}
+
+.ats-coach-mode {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.65rem;
+}
+
+.ats-coach-mode-btn {
+  flex: 1;
+  border: 1px solid var(--color-primary, #17171c);
+  background: transparent;
+  color: var(--color-primary, #17171c);
+  border-radius: 30px;
+  padding: 0.28rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.ats-coach-mode-btn.is-active {
+  background: var(--color-primary, #17171c);
+  color: var(--color-on-dark, #ffffff);
+}
+
+.ats-coach-list {
+  max-height: min(420px, 55vh);
+}
+
+.ats-coach-rule {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+  padding: 0.45rem 0.5rem;
+}
+
+.ats-coach-rule--tradeoff {
+  opacity: 0.92;
+  border: 1px dashed var(--color-hairline, #d9d9dd);
+}
+
+.ats-coach-rule-main {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.ats-coach-rule-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.ats-coach-rule-title {
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.ats-coach-rule-expl,
+.ats-coach-rule-note,
+.ats-coach-impact {
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--color-body-muted, #616161);
+}
+
+.ats-coach-impact {
+  color: var(--color-deep-green, #003c33);
+  font-weight: 500;
+}
+
+.ats-coach-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.ats-coach-action {
+  border: none;
+  background: transparent;
+  color: var(--color-action-blue, #1863dc);
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 0.15rem 0.25rem;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ats-coach-action--primary {
+  color: var(--color-primary, #17171c);
+}
+
+.ats-coach-action:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.ats-coach-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ats-coach-reset-ignored {
+  border: none;
+  background: none;
+  color: var(--color-action-blue, #1863dc);
+  font-size: 0.7rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  font-family: inherit;
 }
 
 .ats-badge-panel-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--color-card-border, #f2f2f2);
   margin-bottom: 0.5rem;
 }
 

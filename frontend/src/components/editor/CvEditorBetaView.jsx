@@ -147,7 +147,7 @@ function CvEditorBeta({
   const [showCanvasGrid, setShowCanvasGrid] = useState(false);
   const [canvasSnapEnabled, setCanvasSnapEnabled] = useState(true);
   const [imageEditBlockId, setImageEditBlockId] = useState(null);
-  const [sidebarSection, setSidebarSection] = useState('elements');
+  const [sidebarSection, setSidebarSection] = useState('sections');
   const [placementPreset, setPlacementPreset] = useState(null);
   const [startupPromptOpen, setStartupPromptOpen] = useState(false);
   const [pdfExportError, setPdfExportError] = useState('');
@@ -370,7 +370,7 @@ function CvEditorBeta({
 
   const handleChooseAtsSafeTemplate = useCallback(() => {
     setStartupPromptOpen(false);
-    setSidebarSection('models');
+    setSidebarSection('design');
   }, []);
 
   const handleGenerateStarterCanvas = useCallback(() => {

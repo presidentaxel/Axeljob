@@ -142,9 +142,7 @@ def rule_free_canvas_reading_order(cv: dict[str, Any], layout: dict[str, Any]) -
     if inversions == 0:
         return None
     delta = max(-9, -3 * inversions)
-    block_ids = tuple(
-        str(b["id"]) for b in ordered if isinstance(b.get("id"), str) and b["id"]
-    )
+    block_ids = tuple(str(b["id"]) for b in ordered if isinstance(b.get("id"), str) and b["id"])
     return Rule(
         id="malus_free_canvas_reading_order",
         label=f"Canvas libre : ordre de lecture ambigu ({inversions} inversion(s))",

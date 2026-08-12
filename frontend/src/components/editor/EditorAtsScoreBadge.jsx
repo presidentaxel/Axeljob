@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { scoreToneFor, fetchAtsScoreParsing } from '../../lib/atsScoreClient.js';
 import { useAtsScoreFetching } from '../../lib/useAtsScoreFetching.js';
@@ -95,32 +95,27 @@ export default function EditorAtsScoreBadge({
     setActionError('');
   }, [layout, data?.score, data?.version]);
 
-  const ignoreRule = useCallback((ruleId) => {
+  const ignoreRule = (ruleId) => {
     setIgnoredIds((prev) => {
       const next = new Set(prev);
       next.add(ruleId);
       persistIgnoredRuleIds(next);
       return next;
     });
-  }, []);
+  };
 
-  const clearIgnored = useCallback(() => {
+  const clearIgnored = () => {
     setIgnoredIds(new Set());
     persistIgnoredRuleIds(new Set());
-  }, []);
+  };
 
-  const visibleRules = useMemo(() => {
-    const rules = Array.isArray(data?.rules) ? data.rules : [];
-    const filtered = filterRulesForCoachMode(rules, coachMode)
-      .filter((rule) => !ignoredIds.has(rule.id));
-    return [...filtered].sort((a, b) => {
-      const da = Number(a.delta) || 0;
-      const db = Number(b.delta) || 0;
-      return da - db;
-    });
-  }, [data?.rules, coachMode, ignoredIds]);
+  const rules = Array.isArray(data?.rules) ? data.rules : [];
+  const visibleRules = filterRulesForCoachMode(rules, coachMode)
+    .filter((rule) => !ignoredIds.has(rule.id))
+    .slice()
+    .sort((a, b) => (Number(a.delta) || 0) - (Number(b.delta) || 0));
 
-  const handleSeeOnCanvas = useCallback((rule) => {
+  const handleSeeOnCanvas = (rule) => {
     const ids = Array.isArray(rule.blockIds) ? rule.blockIds : [];
     if (!ids.length || !onSelectBlock) return;
     if (ids.length === 1) {
@@ -129,9 +124,9 @@ export default function EditorAtsScoreBadge({
       onSelectBlock(null, { replaceIds: ids });
     }
     scrollBlockIntoView(ids[0]);
-  }, [onSelectBlock]);
+  };
 
-  const ensureImpactPreview = useCallback(async (rule) => {
+  const ensureImpactPreview = async (rule) => {
     if (!layout || !isAtsCoachRuleFixable(rule.id)) return null;
     if (previewByRule[rule.id]) return previewByRule[rule.id];
     const nextLayout = applyAtsCoachFix(layout, rule.id);
@@ -152,14 +147,14 @@ export default function EditorAtsScoreBadge({
     } finally {
       setPreviewLoadingId(null);
     }
-  }, [layout, cv, templateId, data?.score, previewByRule]);
+  };
 
-  const handleFix = useCallback(async (rule) => {
+  const handleFix = async (rule) => {
     if (!onApplyLayout || !layout) return;
     const impact = await ensureImpactPreview(rule);
     const nextLayout = impact?.nextLayout || applyAtsCoachFix(layout, rule.id);
     onApplyLayout(nextLayout, { groupKey: `ats:coach:${rule.id}` });
-  }, [onApplyLayout, layout, ensureImpactPreview]);
+  };
 
   if (status === 'idle') {
     return null;
@@ -168,9 +163,8 @@ export default function EditorAtsScoreBadge({
   const showScore = data && (status === 'ok' || status === 'loading' || (status === 'error' && stale));
   const score = showScore ? (data.score ?? 0) : null;
   const tone = score !== null ? scoreToneFor(score) : 'unknown';
-  const allRules = Array.isArray(data?.rules) ? data.rules : [];
   const statusLine = showScore
-    ? summarizeAtsCoachStatus(score, allRules.filter((r) => !ignoredIds.has(r.id)))
+    ? summarizeAtsCoachStatus(score, rules.filter((r) => !ignoredIds.has(r.id)))
     : '';
 
   if (status === 'loading' && !showScore) {

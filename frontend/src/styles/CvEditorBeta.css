@@ -501,6 +501,45 @@
   border-color: var(--color-slate);
 }
 
+.cv-editor-beta-desktop-hint {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--color-pale-blue, #f1f5ff);
+  border-bottom: 1px solid var(--color-hairline, #d9d9dd);
+  color: var(--color-ink, #212121);
+}
+
+.cv-editor-beta-desktop-hint__text {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--color-body-muted, #616161);
+}
+
+.cv-editor-beta-desktop-hint__dismiss {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--color-primary, #17171c);
+  border-radius: 30px;
+  background: transparent;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-primary, #17171c);
+  cursor: pointer;
+}
+
+.cv-editor-beta-desktop-hint__dismiss:hover {
+  background: var(--color-canvas, #fff);
+}
+
+.cv-editor-beta-desktop-hint__dismiss:focus-visible {
+  outline: 2px solid var(--color-focus-blue, #4c6ee6);
+  outline-offset: 2px;
+}
+
 .cv-editor-beta-semantic-note {
   display: flex;
   align-items: center;

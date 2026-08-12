@@ -421,6 +421,17 @@
   border-radius: 2px;
 }
 
+.free-canvas-block--interactive:focus {
+  outline: none;
+}
+
+.free-canvas-block--interactive:focus-visible::after {
+  inset: -1mm;
+  border: 2px solid var(--color-focus-blue, #4c6ee6);
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-focus-blue, #4c6ee6) 35%, transparent);
+}
+
 .free-canvas-block--interactive.free-canvas-block--dragging::after {
   inset: -0.5mm;
   border-color: var(--color-focus-blue, #4c6ee6);

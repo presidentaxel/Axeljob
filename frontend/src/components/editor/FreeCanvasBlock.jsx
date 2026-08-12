@@ -28,6 +28,7 @@ import {
 import { blockHasTypographyOverride, blockStyleToCss } from '../../lib/canvasBlockToolbar.js';
 import { MM_TO_PX } from '../../lib/freeCanvasScale.js';
 import { isAutoHeightBlockType, isNonSemanticBlockType } from '../../lib/cvLayoutModelV3.js';
+import { getBlockDisplayName } from '../../lib/blockInspectorSchema.js';
 import { useCanvasBlockAutoHeight } from '../../lib/useCanvasBlockAutoHeight.js';
 import { isFloatingToolbarTarget, placeCaretAtPoint } from '../../lib/canvasCaret.js';
 import { RESIZE_HANDLES } from '../../lib/freeCanvasResize.js';
@@ -790,6 +791,7 @@ export default function FreeCanvasBlock({
   onInnerBlur,
   onBlockElementRef,
   onBlockAutoHeight,
+  onSelect,
   locked = false,
 }) {
   const innerRef = useRef(null);
@@ -884,6 +886,33 @@ export default function FreeCanvasBlock({
     onInnerBlur(block.id, innerRef.current);
   };
 
+  const handleFocus = () => {
+    if (!interactable || editing) return;
+    if (typeof onSelect === 'function') onSelect(block.id);
+  };
+
+  const handleKeyDown = (e) => {
+    if (!interactable || editing) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if ((type === 'image' || type === 'photo') && typeof onImageEdit === 'function') {
+        onImageEdit(block.id);
+        return;
+      }
+      if (canEdit && typeof onDoubleClickEdit === 'function') {
+        onDoubleClickEdit(block.id);
+      }
+    }
+  };
+
+  const a11yName = getBlockDisplayName(block);
+  const a11yLabel = [
+    a11yName,
+    selected ? 'sélectionné' : null,
+    locked ? 'verrouillé' : null,
+    'Flèches pour déplacer, Suppr pour supprimer, Entrée pour éditer.',
+  ].filter(Boolean).join('. ');
+
   return (
     <div
       ref={(el) => {
@@ -892,6 +921,9 @@ export default function FreeCanvasBlock({
       className={blockClassName({ selected, dragging, resizing, interactable, editing, locked })}
       data-block-id={id}
       data-block-type={type}
+      tabIndex={interactable && !editing ? 0 : undefined}
+      aria-label={interactable ? a11yLabel : undefined}
+      aria-disabled={interactable && locked ? true : undefined}
       style={{
         left: `${x}mm`,
         top: `${y}mm`,
@@ -904,9 +936,11 @@ export default function FreeCanvasBlock({
         editing
           ? 'Mode texte - Échap pour quitter'
           : interactable
-            ? `${type} - double-clic pour éditer`
+            ? `${a11yName} - double-clic ou Entrée pour éditer`
             : type
       }
+      onFocus={interactable && !editing ? handleFocus : undefined}
+      onKeyDown={interactable && !editing ? handleKeyDown : undefined}
       onPointerDown={interactable && !editing ? handlePointerDown : undefined}
       onPointerMove={interactable && !editing && onPointerMove ? onPointerMove : undefined}
       onPointerUp={interactable && !editing && onPointerUp ? onPointerUp : undefined}

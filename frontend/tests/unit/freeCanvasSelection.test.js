@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import {
   nextOverlappingBlockId,
   selectableBlocksAtPoint,
+  canvasNudgeDeltaFromKey,
+  isCanvasTypingTarget,
 } from '../../src/lib/freeCanvasSelection.js';
 
 const blocks = [
@@ -33,4 +35,19 @@ test('nextOverlappingBlockId ignore les blocs verrouilles', () => {
 
 test('nextOverlappingBlockId ne change rien sans superposition', () => {
   assert.equal(nextOverlappingBlockId(blocks, { x: 12, y: 12 }, 'back'), null);
+});
+
+test('canvasNudgeDeltaFromKey : pas fin et Shift grand pas', () => {
+  assert.deepEqual(canvasNudgeDeltaFromKey('ArrowLeft'), { dx: -1, dy: 0 });
+  assert.deepEqual(canvasNudgeDeltaFromKey('ArrowRight', { shiftKey: true }), { dx: 5, dy: 0 });
+  assert.deepEqual(canvasNudgeDeltaFromKey('ArrowUp', { shiftKey: true }), { dx: 0, dy: -5 });
+  assert.deepEqual(canvasNudgeDeltaFromKey('ArrowDown'), { dx: 0, dy: 1 });
+  assert.equal(canvasNudgeDeltaFromKey('Enter'), null);
+});
+
+test('isCanvasTypingTarget : input et contenteditable', () => {
+  assert.equal(isCanvasTypingTarget(null), false);
+  assert.equal(isCanvasTypingTarget({ tagName: 'INPUT' }), true);
+  assert.equal(isCanvasTypingTarget({ tagName: 'DIV', isContentEditable: true }), true);
+  assert.equal(isCanvasTypingTarget({ tagName: 'DIV', isContentEditable: false, closest: () => null }), false);
 });

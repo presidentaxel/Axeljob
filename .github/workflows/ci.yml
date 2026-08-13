@@ -27,6 +27,14 @@ jobs:
         with:
           python-version: "3.12"
 
+      # WeasyPrint (verify-pdf / snapshots HTML→PDF, AXE-39)
+      - name: Install WeasyPrint system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 \
+            libffi-dev shared-mime-info fonts-dejavu-core
+
       - name: Create virtualenv and install dependencies
         run: |
           python -m venv .venv
@@ -58,6 +66,8 @@ jobs:
           pytest tests -v --tb=short \
             --cov=backend.services.cv_render_helpers \
             --cov=backend.cv_html_render \
+            --cov=backend.services.ats_parsing_check \
+            --cov=backend.api_ats \
             --cov-report=term-missing \
             --cov-fail-under=62
 

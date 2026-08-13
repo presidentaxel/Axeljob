@@ -344,6 +344,149 @@ class TestLayoutRenderer(unittest.TestCase):
         html = render_html(_sample_cv(), _main_blocks_layout())
         _assert_snapshot("layout_main_blocks.html", html)
 
+    def test_vector_shapes_export_svg(self):
+        layout = {
+            "version": 3,
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "c",
+                            "type": "shape:circle",
+                            "x": 10,
+                            "y": 10,
+                            "w": 20,
+                            "h": 20,
+                            "z": 1,
+                            "style": {"color": "#ff7759"},
+                        },
+                        {
+                            "id": "t",
+                            "type": "shape:triangle",
+                            "x": 40,
+                            "y": 10,
+                            "w": 20,
+                            "h": 20,
+                            "z": 2,
+                            "style": {"color": "#003c33"},
+                        },
+                        {
+                            "id": "line",
+                            "type": "shape:line",
+                            "x": 10,
+                            "y": 40,
+                            "w": 80,
+                            "h": 2,
+                            "z": 3,
+                            "style": {"color": "#17171c", "stroke_width": 0.8},
+                        },
+                    ],
+                }
+            ],
+        }
+        html = render_html(_sample_cv(), layout)
+        self.assertIn('data-type="shape:circle"', html)
+        self.assertIn("cv-layout-shape-svg", html)
+        self.assertIn("M50,5 L95,95 L5,95 Z", html)
+        self.assertIn("cv-layout-shape-line", html)
+        self.assertIn("height:0.8mm", html)
+
+    def test_identity_divider_and_photo_border(self):
+        layout = {
+            "version": 3,
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "id",
+                            "type": "identity",
+                            "x": 10,
+                            "y": 10,
+                            "w": 100,
+                            "h": 20,
+                            "z": 1,
+                            "style": {"identity_divider": True},
+                        },
+                        {
+                            "id": "ph",
+                            "type": "photo",
+                            "x": 120,
+                            "y": 10,
+                            "w": 30,
+                            "h": 30,
+                            "z": 2,
+                            "style": {
+                                "photo_border": 0.5,
+                                "image_border_color": "#111111",
+                            },
+                        },
+                    ],
+                }
+            ],
+        }
+        cv = _sample_cv()
+        cv["photo_url"] = "https://example.com/p.jpg"
+        html = render_html(cv, layout)
+        self.assertIn("cv-layout-identity-divider", html)
+        self.assertIn("border:0.5mm solid #111111", html)
+
+    def test_qrcode_remains_placeholder(self):
+        layout = {
+            "version": 3,
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "qr",
+                            "type": "qrcode",
+                            "target_url": "https://axeljob.example/cv",
+                            "x": 10,
+                            "y": 10,
+                            "w": 25,
+                            "h": 25,
+                            "z": 1,
+                            "style": {},
+                        }
+                    ],
+                }
+            ],
+        }
+        html = render_html(_sample_cv(), layout)
+        self.assertIn("cv-layout-qr", html)
+        self.assertIn("QR", html)
+        self.assertNotIn("<svg", html.split('data-type="qrcode"')[1][:400])
+
+    def test_section_title_style_classes(self):
+        layout = {
+            "version": 3,
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "exp",
+                            "type": "experiences",
+                            "x": 10,
+                            "y": 10,
+                            "w": 180,
+                            "h": 40,
+                            "z": 1,
+                            "style": {
+                                "section_label": "Parcours",
+                                "title_style": "pill",
+                            },
+                        }
+                    ],
+                }
+            ],
+        }
+        html = render_html(_sample_cv(), layout)
+        self.assertIn("cv-layout-section-title--pill", html)
+        self.assertIn(">Parcours<", html)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -21,6 +21,7 @@ Point d'entree de la documentation technique, securite et operations.
 | Utiliser les commandes ops courantes | `docs/ops-commands.md` |
 | Acceder a la version courte des commandes | `docs/COMMANDS.md` |
 | Comprendre la vision editeur L1->L3 et le scoring ATS | `docs/editor-vision.md` |
+| Matrice fidélité blocs canvas ↔ PDF (AXE-38) | [docs/pdf-block-fidelity.md](pdf-block-fidelity.md) |
 
 ## Regle de maintenance documentaire
 

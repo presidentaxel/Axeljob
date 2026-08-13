@@ -1,6 +1,6 @@
 /**
- * Fidélité aperçu canvas ↔ export PDF (AXE-30, P0).
- * `ok` = aligné pour les blocs principaux ; `partial` / `unsupported` = à signaler.
+ * Fidélité aperçu canvas ↔ export PDF (AXE-30 / AXE-38).
+ * Source de vérité documentaire : `docs/pdf-block-fidelity.md`.
  */
 
 import { isVectorShapeType } from './canvasShapePresets.js';
@@ -23,7 +23,36 @@ export const PDF_EXPORTED_ICON_NAMES = Object.freeze([
   'HiMapPin',
 ]);
 
+/** Formes vectorielles rendues en SVG côté PDF (AXE-38). */
+export const PDF_EXPORTED_SHAPE_TYPES = Object.freeze([
+  'shape:line',
+  'shape:rect',
+  'shape:circle',
+  'shape:ellipse',
+  'shape:triangle',
+  'shape:diamond',
+  'shape:star',
+  'shape:hexagon',
+  'shape:frame',
+  'shape:arrow-right',
+  'shape:arrow-left',
+  'shape:arrow-up',
+  'shape:arrow-down',
+  'shape:cross',
+  'shape:heart',
+]);
+
 const PDF_EXPORTED_ICON_SET = new Set(PDF_EXPORTED_ICON_NAMES);
+const PDF_EXPORTED_SHAPE_SET = new Set(PDF_EXPORTED_SHAPE_TYPES);
+
+/** Styles de titre de section encore simplifiés / partiels. */
+const PARTIAL_TITLE_STYLES = new Set([
+  'creative-main',
+  'executive-main',
+  'bold-main',
+  'elegant-section',
+  'minimal-section',
+]);
 
 /**
  * @typedef {'ok' | 'partial' | 'unsupported'} PdfFidelityLevel
@@ -48,7 +77,11 @@ export function getBlockPdfFidelity(block, _cv) {
       reason: 'Le QR code n’est pas encore généré dans le PDF (placeholder).',
     };
   }
+
   if (isVectorShapeType(type) || type === 'shape:frame') {
+    if (PDF_EXPORTED_SHAPE_SET.has(type)) {
+      return { level: 'ok', reason: '' };
+    }
     return {
       level: 'unsupported',
       reason: 'Cette forme vectorielle n’est pas encore exportée fidèlement en PDF.',
@@ -72,30 +105,6 @@ export function getBlockPdfFidelity(block, _cv) {
     };
   }
 
-  if (
-    (type === 'image' || type === 'photo')
-    && (style.photo_border || style.image_border_mm || style.image_border_color)
-  ) {
-    return {
-      level: 'partial',
-      reason: 'Bordure photo / image non reprise à l’identique dans le PDF.',
-    };
-  }
-
-  if (type === 'identity' && (style.identity_divider || style.title_accent)) {
-    return {
-      level: 'partial',
-      reason: 'Séparateur / accent titre identité : rendu PDF simplifié.',
-    };
-  }
-
-  if (type === 'contact' && (style.contact_divider || style.contact_uppercase)) {
-    return {
-      level: 'partial',
-      reason: 'Séparateurs / casse contact : rendu PDF simplifié.',
-    };
-  }
-
   if (type === 'experiences' && style.exp_style === 'bold') {
     return {
       level: 'partial',
@@ -103,10 +112,10 @@ export function getBlockPdfFidelity(block, _cv) {
     };
   }
 
-  if (style.title_style && ['underline-accent', 'pill', 'sidebar-bar'].includes(style.title_style)) {
+  if (style.title_style && PARTIAL_TITLE_STYLES.has(String(style.title_style))) {
     return {
       level: 'partial',
-      reason: 'Style de titre de section simplifié dans le PDF.',
+      reason: 'Style de titre de section template simplifié dans le PDF.',
     };
   }
 

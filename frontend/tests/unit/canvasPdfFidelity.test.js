@@ -14,9 +14,26 @@ test('getBlockPdfFidelity : blocs principaux standards = ok', () => {
   }
 });
 
-test('getBlockPdfFidelity : qrcode et formes vectorielles = unsupported', () => {
+test('getBlockPdfFidelity : qrcode = unsupported ; formes exportées = ok', () => {
   assert.equal(getBlockPdfFidelity({ id: 'q', type: 'qrcode' }).level, 'unsupported');
-  assert.equal(getBlockPdfFidelity({ id: 'c', type: 'shape:circle' }).level, 'unsupported');
+  assert.equal(getBlockPdfFidelity({ id: 'c', type: 'shape:circle' }).level, 'ok');
+  assert.equal(getBlockPdfFidelity({ id: 'l', type: 'shape:line' }).level, 'ok');
+  assert.equal(getBlockPdfFidelity({ id: 'r', type: 'shape:rect' }).level, 'ok');
+});
+
+test('getBlockPdfFidelity : identity divider / photo border = ok (AXE-38)', () => {
+  assert.equal(
+    getBlockPdfFidelity({ id: '1', type: 'identity', style: { identity_divider: true } }).level,
+    'ok',
+  );
+  assert.equal(
+    getBlockPdfFidelity({
+      id: '2',
+      type: 'photo',
+      style: { photo_border: 0.4, image_border_color: '#111' },
+    }).level,
+    'ok',
+  );
 });
 
 test('getBlockPdfFidelity : icône hors whitelist = partial', () => {

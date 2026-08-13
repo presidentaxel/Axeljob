@@ -129,6 +129,14 @@ Créés sous le projet Éditeur / milestone P4, parent [AXE-41](https://linear.a
 
 ---
 
+## Suivi nits review PR
+
+| Nit review PR | Suivi |
+|---------------|--------|
+| Duplication extracteurs `main.py` | Reporter dans AXE-324 (util partagé) |
+| Raison `structural_ok=False` | Champ `structural_reason` ajouté au probe |
+| Tests edge (extension / PDF vide) | Couvert dans `test_cv_import_probe.py` |
+
 ## Critères d'acceptation du spike — checklist
 
 - [x] Note faisabilité + risques + MVP (ce document)

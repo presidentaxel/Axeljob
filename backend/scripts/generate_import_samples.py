@@ -17,8 +17,17 @@ REPO = Path(__file__).resolve().parents[2]
 OUT = REPO / "tests" / "fixtures" / "import_samples"
 
 
+def _fitz():
+    """Import PyMuPDF compatible (pymupdf moderne ou alias fitz)."""
+    try:
+        import pymupdf as fitz
+    except ImportError:
+        import fitz
+    return fitz
+
+
 def _pdf_single_column() -> bytes:
-    import fitz
+    fitz = _fitz()
 
     doc = fitz.open()
     page = doc.new_page(width=595, height=842)
@@ -61,7 +70,7 @@ def _pdf_single_column() -> bytes:
 
 
 def _pdf_sidebar() -> bytes:
-    import fitz
+    fitz = _fitz()
 
     doc = fitz.open()
     page = doc.new_page(width=595, height=842)
@@ -99,7 +108,7 @@ def _pdf_sidebar() -> bytes:
 
 
 def _pdf_dense() -> bytes:
-    import fitz
+    fitz = _fitz()
 
     doc = fitz.open()
     page = doc.new_page(width=595, height=842)

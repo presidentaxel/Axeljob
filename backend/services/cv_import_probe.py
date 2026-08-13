@@ -129,6 +129,7 @@ def probe_pdf_import(file_bytes: bytes) -> dict[str, Any]:
     layout = None
     structural_ok = False
     block_count = 0
+    structural_reason: str | None = None
     try:
         layout = extract_layout_from_pdf(file_bytes)
         if isinstance(layout, dict):
@@ -136,8 +137,15 @@ def probe_pdf_import(file_bytes: bytes) -> dict[str, Any]:
             pages = layout.get("pages") or []
             if pages and isinstance(pages[0], dict):
                 block_count = len(pages[0].get("blocks") or [])
+        else:
+            # extract_layout_from_pdf renvoie None pour PDF scanné / illisible.
+            if sections["char_count"] <= 20:
+                structural_reason = "texte_non_extractible"
+            else:
+                structural_reason = "layout_structurel_indisponible"
     except Exception as err:  # noqa: BLE001 — spike : on capture pour le rapport
         layout = {"error": str(err)}
+        structural_reason = f"erreur:{err}"
 
     return {
         "kind": "pdf",
@@ -146,6 +154,7 @@ def probe_pdf_import(file_bytes: bytes) -> dict[str, Any]:
         "structural_ok": structural_ok,
         "structural_block_count": block_count,
         "structural_source": (layout or {}).get("source") if isinstance(layout, dict) else None,
+        "structural_reason": structural_reason,
     }
 
 
@@ -160,6 +169,7 @@ def probe_docx_import(file_bytes: bytes) -> dict[str, Any]:
         "structural_ok": False,
         "structural_block_count": 0,
         "structural_source": None,
+        "structural_reason": "docx_sans_layout_mm",
         "note": "Word n'a pas de reconstruction layout mm dans le MVP ; contenu seulement.",
     }
 

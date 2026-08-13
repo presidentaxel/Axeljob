@@ -123,5 +123,45 @@ class TestContactFarFromTop(unittest.TestCase):
         self.assertIsNone(fc_rules.rule_contact_far_from_top(cv, layout))
 
 
+class TestSpatialReorganizationImprovesScore(unittest.TestCase):
+    """AXE-37 : une réorganisation spatiale (y) doit lever les malus free_canvas."""
+
+    def test_score_increases_after_canonical_y_stack(self):
+        from backend.services.ats_score import score_parsing
+
+        cv = {
+            "prenom": "Alice",
+            "nom": "Martin",
+            "email": "alice@example.com",
+            "telephone": "0600000000",
+            "resume": "Profil",
+            "experiences": [{"poste": "Dev", "debut": "2020", "fin": "2024"}],
+        }
+        before = _free_layout(
+            [
+                {"id": "exp", "type": "experiences", "x": 10, "y": 10, "w": 180, "h": 40},
+                {"id": "contact", "type": "contact", "x": 10, "y": 160, "w": 180, "h": 10},
+                {"id": "resume", "type": "resume", "x": 10, "y": 60, "w": 180, "h": 20},
+                {"id": "id", "type": "identity", "x": 10, "y": 100, "w": 180, "h": 20},
+            ]
+        )
+        # Miroir de optimizeLayoutSpatialOrder (front) : empilement haut → bas.
+        after = _free_layout(
+            [
+                {"id": "id", "type": "identity", "x": 10, "y": 10, "w": 180, "h": 20},
+                {"id": "contact", "type": "contact", "x": 10, "y": 36, "w": 180, "h": 10},
+                {"id": "resume", "type": "resume", "x": 10, "y": 52, "w": 180, "h": 20},
+                {"id": "exp", "type": "experiences", "x": 10, "y": 78, "w": 180, "h": 40},
+            ]
+        )
+        before_score = score_parsing(cv, before).total
+        after_score = score_parsing(cv, after).total
+        self.assertGreater(after_score, before_score)
+        self.assertIsNone(fc_rules.rule_free_canvas_reading_order({}, after))
+        self.assertIsNone(fc_rules.rule_identity_not_first_in_reading({}, after))
+        self.assertIsNone(fc_rules.rule_experiences_before_resume({}, after))
+        self.assertIsNone(fc_rules.rule_contact_far_from_top(cv, after))
+
+
 if __name__ == "__main__":
     unittest.main()

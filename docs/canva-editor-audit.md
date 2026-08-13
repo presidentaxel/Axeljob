@@ -377,6 +377,8 @@ Critere de sortie :
 
 Objectif : importer un ancien CV et le convertir en CV Bot editable + score.
 
+> Spike AXE-41 (faisabilite + demos) : [`docs/axe-41-import-pipeline-spike.md`](axe-41-import-pipeline-spike.md).
+
 Pipeline cible :
 
 1. Upload PDF/Word.

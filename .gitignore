@@ -3,6 +3,7 @@
 
 # PDF générés
 *.pdf
+!tests/fixtures/import_samples/*.pdf
 
 # Python
 __pycache__/

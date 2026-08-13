@@ -165,6 +165,45 @@ body.cv-layout-body {
 .cv-layout-image { width: 100%; height: 100%; object-fit: cover; display: block; }
 .cv-layout-icon { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
 .cv-layout-icon svg { width: 100%; height: 100%; display: block; }
+.cv-layout-identity-divider {
+  margin-top: 1.5mm;
+  height: 0.35mm;
+  background: var(--layout-accent, #1e293b);
+  opacity: 0.55;
+  width: 100%;
+}
+.cv-layout-contact--uppercase {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cv-layout-contact--with-divider p {
+  border-bottom: 0.15mm solid rgba(30, 41, 59, 0.18);
+  padding-bottom: 0.6mm;
+  margin-bottom: 0.8mm;
+}
+.cv-layout-section-title--underline-accent {
+  border-bottom: 0.55mm solid var(--layout-accent, #1e293b);
+  padding-bottom: 0.6mm;
+}
+.cv-layout-section-title--pill {
+  display: inline-block;
+  border: none;
+  background: color-mix(in srgb, var(--layout-accent, #1e293b) 12%, #fff);
+  border-radius: 999px;
+  padding: 0.6mm 2.5mm;
+  letter-spacing: 0.02em;
+}
+.cv-layout-section-title--sidebar-bar {
+  border-bottom: none;
+  border-left: 0.9mm solid var(--layout-accent, #1e293b);
+  padding-left: 1.5mm;
+  padding-bottom: 0;
+}
+.cv-layout-shape-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
 .cv-layout-shape-line, .cv-layout-shape-rect { width: 100%; height: 100%; }
 .cv-layout-title {
   margin: 0;
@@ -174,6 +213,18 @@ body.cv-layout-body {
 }
 .cv-layout-text { margin: 0; }
 .cv-layout-placeholder { color: #94a3b8; font-style: italic; font-size: 8pt; }
+.cv-layout-qr {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0.25mm dashed #94a3b8;
+  color: #64748b;
+  font-size: 7pt;
+  text-align: center;
+  padding: 1mm;
+}
 """
 
 
@@ -277,14 +328,18 @@ def _render_semantic(cv: dict, block: dict) -> str:
             if title:
                 parts.append('<span class="cv-layout-identity-sep"> - </span>')
                 parts.append(f'<span class="cv-layout-identity-title">{_text(title)}</span>')
-            return (
+            body = (
                 f'<div class="cv-layout-identity cv-layout-identity--inline-title" '
                 f'style="text-align:{align}">{"".join(parts)}</div>'
             )
-        parts = [name_html]
-        if title:
-            parts.append(f'<div class="cv-layout-identity-title">{_text(title)}</div>')
-        return f'<div class="cv-layout-identity">{"".join(parts)}</div>'
+        else:
+            parts = [name_html]
+            if title:
+                parts.append(f'<div class="cv-layout-identity-title">{_text(title)}</div>')
+            body = f'<div class="cv-layout-identity">{"".join(parts)}</div>'
+        if style.get("identity_divider") or style.get("title_accent"):
+            body += '<div class="cv-layout-identity-divider" aria-hidden="true"></div>'
+        return body
 
     if btype == "photo":
         url = (cv.get("photo_url") or "").strip() if isinstance(cv, dict) else ""
@@ -367,6 +422,13 @@ def _render_contact(cv: dict, style: dict[str, Any]) -> str:
         return f'<div class="cv-layout-contact">{_placeholder("Contact")}</div>'
 
     header_bar = style.get("contact_layout") == "header-bar"
+    contact_classes = ["cv-layout-contact"]
+    if style.get("contact_uppercase"):
+        contact_classes.append("cv-layout-contact--uppercase")
+    if style.get("contact_divider") and not header_bar:
+        contact_classes.append("cv-layout-contact--with-divider")
+    class_attr = " ".join(contact_classes)
+
     if header_bar:
         segments = []
         for icon_name, val in values:
@@ -375,7 +437,9 @@ def _render_contact(cv: dict, style: dict[str, Any]) -> str:
                 f"{_icon_svg(icon_name)}</span>"
             )
             segments.append(f'<span class="cv-layout-contact-segment">{icon}{_text(val)}</span>')
-        body = f'<div class="cv-layout-contact cv-layout-contact--header-bar">{"".join(segments)}</div>'
+        body = (
+            f'<div class="{class_attr} cv-layout-contact--header-bar">' f'{"".join(segments)}</div>'
+        )
         return _section_with_style("contact", body, style, default_title=False)
 
     lines = []
@@ -385,7 +449,7 @@ def _render_contact(cv: dict, style: dict[str, Any]) -> str:
             f"{_icon_svg(icon_name)}</span>"
         )
         lines.append(f"<p>{icon}{_text(val)}</p>")
-    body = f'<div class="cv-layout-contact">{"".join(lines)}</div>'
+    body = f'<div class="{class_attr}">{"".join(lines)}</div>'
     return _section_with_style("contact", body, style, default_title=False)
 
 
@@ -513,14 +577,13 @@ def _render_non_semantic(block: dict) -> str:
         return f'<h3 class="cv-layout-title" style="{st}">{_text(content) or _placeholder("Titre")}</h3>'
 
     if btype == "shape:line":
-        color = _esc(str(style.get("color") or "#1e293b"))
-        return f'<div class="cv-layout-shape-line" style="background:{color};" role="presentation"></div>'
+        return _shape_line_html(block, style)
 
     if btype == "shape:rect":
-        bg = _esc(str(style.get("color") or style.get("bg") or "#e2e8f0"))
-        return (
-            f'<div class="cv-layout-shape-rect" style="background:{bg};" role="presentation"></div>'
-        )
+        return _shape_rect_html(style)
+
+    if btype in _SHAPE_SVG_PATHS:
+        return _shape_svg_html(btype, style)
 
     if btype == "image":
         src = block.get("image_src") if isinstance(block.get("image_src"), str) else ""
@@ -536,7 +599,12 @@ def _render_non_semantic(block: dict) -> str:
         return f'<div class="cv-layout-icon" style="color:{color};">{_icon_svg(icon_name)}</div>'
 
     if btype == "qrcode":
-        return '<div class="cv-layout-placeholder">QR</div>'
+        url = block.get("target_url") if isinstance(block.get("target_url"), str) else ""
+        hint = _esc((url or "QR").strip()[:42] or "QR")
+        return (
+            f'<div class="cv-layout-qr" role="img" aria-label="QR code non généré">'
+            f"QR<br/><span>{hint}</span></div>"
+        )
 
     return _placeholder(btype)
 
@@ -556,12 +624,16 @@ def _section_with_style(
     style = style or {}
     custom = str(style.get("section_label") or "").strip()
     category = str(style.get("sidebar_category") or "").strip()
+    title_style = str(style.get("title_style") or "").strip()
+    title_class = "cv-layout-section-title"
+    if title_style in {"underline-accent", "pill", "sidebar-bar"}:
+        title_class = f"{title_class} {title_class}--{title_style}"
     headings: list[str] = []
     if custom:
-        headings.append(f'<h3 class="cv-layout-section-title">{_esc(custom)}</h3>')
+        headings.append(f'<h3 class="{title_class}">{_esc(custom)}</h3>')
     elif default_title:
         title = SECTION_LABELS.get(key, key)
-        headings.append(f'<h3 class="cv-layout-section-title">{_esc(title)}</h3>')
+        headings.append(f'<h3 class="{title_class}">{_esc(title)}</h3>')
     if category and category != custom:
         headings.append(f'<p class="cv-layout-sidebar-category">{_esc(category)}</p>')
     if not headings:
@@ -644,6 +716,7 @@ def _image_frame_html(
         frame_style = (
             f"position:absolute;left:{left}mm;top:{top}mm;width:{side}mm;height:{side}mm;"
             f"border-radius:50%;overflow:hidden;opacity:{opacity};"
+            f"{_image_border_css(style)}"
         )
         return (
             f'<div class="cv-layout-image-frame" style="position:relative;width:100%;height:100%;">'
@@ -652,11 +725,110 @@ def _image_frame_html(
             f"</div></div>"
         )
     radius = _image_radius(style)
-    frame_style = f"border-radius:{radius};opacity:{opacity};"
+    frame_style = f"border-radius:{radius};opacity:{opacity};{_image_border_css(style)}"
     return (
         f'<div class="cv-layout-image-frame" style="{frame_style}">'
         f'<img class="{img_class}" src="{esc_src}" alt="" style="{image_style}"/>'
         f"</div>"
+    )
+
+
+def _image_border_css(style: dict[str, Any]) -> str:
+    border_mm = style.get("photo_border") or style.get("image_border_mm")
+    if border_mm is None or _num(border_mm) <= 0:
+        return ""
+    border_color = style.get("image_border_color") or style.get("photo_border_color") or "#1e293b"
+    return f"border:{_num(border_mm)}mm solid {_css_value(str(border_color))};"
+
+
+# Paths SVG alignés sur frontend/src/lib/canvasShapePresets.js (viewBox 0 0 100 100).
+_SHAPE_SVG_PATHS: dict[str, str] = {
+    "shape:circle": "M50,50 m-50,0 a50,50 0 1,0 100,0 a50,50 0 1,0 -100,0",
+    "shape:ellipse": "M50,50 m-50,0 a50,30 0 1,0 100,0 a50,30 0 1,0 -100,0",
+    "shape:triangle": "M50,5 L95,95 L5,95 Z",
+    "shape:diamond": "M50,2 L98,50 L50,98 L2,50 Z",
+    "shape:star": "M50,2 L61,38 L98,38 L67,60 L78,96 L50,74 L22,96 L33,60 L2,38 L39,38 Z",
+    "shape:hexagon": "M50,2 L93,27 L93,73 L50,98 L7,73 L7,27 Z",
+    "shape:frame": "M0,0 H100 V100 H0 Z",
+    "shape:arrow-right": "M2,50 H72 M72,50 L55,32 M72,50 L55,68",
+    "shape:arrow-left": "M98,50 H28 M28,50 L45,32 M28,50 L45,68",
+    "shape:arrow-up": "M50,98 V28 M50,28 L32,45 M50,28 L68,45",
+    "shape:arrow-down": "M50,2 V72 M50,72 L32,55 M50,72 L68,55",
+    "shape:cross": "M50,10 V90 M10,50 H90",
+    "shape:heart": (
+        "M50,88 C20,62 2,42 2,26 C2,12 14,2 28,2 C38,2 46,8 50,16 "
+        "C54,8 62,2 72,2 C86,2 98,12 98,26 C98,42 80,62 50,88 Z"
+    ),
+}
+
+_STROKE_ONLY_SHAPES = frozenset(
+    {
+        "shape:frame",
+        "shape:arrow-right",
+        "shape:arrow-left",
+        "shape:arrow-up",
+        "shape:arrow-down",
+        "shape:cross",
+    }
+)
+
+
+def _shape_line_html(block: dict, style: dict[str, Any]) -> str:
+    color = _esc(str(style.get("color") or "#1e293b"))
+    stroke = _num(style.get("stroke_width"), _num(block.get("h"), 0.6))
+    if stroke <= 0:
+        stroke = 0.6
+    opacity = _num(style.get("opacity"), 1)
+    w = _num(block.get("w"), 1)
+    h = _num(block.get("h"), stroke)
+    vertical = str(style.get("orientation") or "") == "vertical" or (w < h and w <= 2.5)
+    if vertical:
+        margin = max(0.0, (w - stroke) / 2)
+        return (
+            f'<div class="cv-layout-shape-line" role="presentation" '
+            f'style="background:{color};width:{stroke}mm;height:100%;'
+            f'margin-left:{margin}mm;opacity:{opacity};"></div>'
+        )
+    margin = max(0.0, (h - stroke) / 2)
+    return (
+        f'<div class="cv-layout-shape-line" role="presentation" '
+        f'style="background:{color};height:{stroke}mm;width:100%;'
+        f'margin-top:{margin}mm;opacity:{opacity};"></div>'
+    )
+
+
+def _shape_rect_html(style: dict[str, Any]) -> str:
+    bg = _esc(str(style.get("color") or style.get("bg") or "#e2e8f0"))
+    opacity = _num(style.get("opacity"), 1)
+    radius = style.get("border_radius_mm")
+    radius_css = f"{_num(radius)}mm" if radius is not None and _num(radius) > 0 else "0"
+    stroke_w = _num(style.get("stroke_width"), 0)
+    stroke_color = _esc(str(style.get("stroke_color") or style.get("color") or "#17171c"))
+    border = f"border:{stroke_w}mm solid {stroke_color};" if stroke_w > 0 else ""
+    return (
+        f'<div class="cv-layout-shape-rect" role="presentation" '
+        f'style="background:{bg};border-radius:{radius_css};opacity:{opacity};{border}"></div>'
+    )
+
+
+def _shape_svg_html(btype: str, style: dict[str, Any]) -> str:
+    path = _SHAPE_SVG_PATHS.get(btype)
+    if not path:
+        return _placeholder(btype)
+    fill = _esc(str(style.get("color") or style.get("bg") or "#eeece7"))
+    stroke = _esc(str(style.get("stroke_color") or style.get("color") or "#17171c"))
+    stroke_w = _num(style.get("stroke_width"), 0)
+    opacity = _num(style.get("opacity"), 1)
+    stroke_only = btype in _STROKE_ONLY_SHAPES
+    fill_attr = "none" if stroke_only else fill
+    # Approximation front CanvasShapeSvg : stroke * 6 dans viewBox 0..100
+    svg_stroke = max(1.5, stroke_w * 8) if stroke_only else (stroke_w * 6 if stroke_w > 0 else 0)
+    return (
+        f'<svg class="cv-layout-shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none" '
+        f'aria-hidden="true" style="opacity:{opacity}">'
+        f'<path d="{path}" fill="{fill_attr}" stroke="{stroke}" '
+        f'stroke-width="{svg_stroke}" stroke-linecap="round" stroke-linejoin="round" '
+        f'vector-effect="non-scaling-stroke"/></svg>'
     )
 
 

@@ -1714,7 +1714,9 @@ def api_render_html(request: Request, body: RenderHtmlBody):
 
 
 from backend.api_ats import ScoreParsingBody as _AtsScoreParsingBody
+from backend.api_ats import VerifyPdfBody as _AtsVerifyPdfBody
 from backend.api_ats import handle_score_parsing as _ats_handle_score_parsing
+from backend.api_ats import handle_verify_pdf as _ats_handle_verify_pdf
 
 
 @app.post("/api/ats/score-parsing")
@@ -1728,6 +1730,18 @@ def api_ats_score_parsing(request: Request, body: _AtsScoreParsingBody):
     user_id = _get_user_id(request)
     check_rate_limit(user_id, 60, scope="ats_score")
     return _ats_handle_score_parsing(body)
+
+
+@app.post("/api/ats/verify-pdf")
+def api_ats_verify_pdf(request: Request, body: _AtsVerifyPdfBody):
+    """Ground truth ATS : score JSON vs score apres extraction du PDF reel.
+
+    Genere le PDF (layout free-canvas ou template) sauf si ``pdf_base64`` est
+    fourni, puis compare les scores et retourne l'ecart / blocs divergents.
+    """
+    user_id = _get_user_id(request)
+    check_rate_limit(user_id, 20, scope="ats_verify_pdf")
+    return _ats_handle_verify_pdf(body)
 
 
 FREE_ADAPTATIONS_LIMIT = 3

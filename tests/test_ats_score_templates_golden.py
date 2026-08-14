@@ -42,7 +42,7 @@ def _load_template_meta(template_id: str) -> dict:
     return _load_json(TEMPLATES_DIR / template_id / "meta.json")
 
 
-# Snapshot des scores attendus pour SCORING_VERSION="2026.05".
+# Snapshot des scores attendus pour SCORING_VERSION="2026.08".
 # Recalibrer ces valeurs **uniquement** en bumpant SCORING_VERSION dans
 # ``backend/services/ats_score/version.py`` et en commitant ensemble.
 EXPECTED: dict[str, dict] = {

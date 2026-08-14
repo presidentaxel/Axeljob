@@ -26,6 +26,7 @@ parsing_rules: tuple = (
     layout.rule_multi_column,
     layout.rule_sidebar_present,
     layout.rule_free_canvas_text_positions,
+    free_canvas.rule_free_canvas_no_semantic_blocks,
     free_canvas.rule_free_canvas_missing_profile_sections,
     free_canvas.rule_free_canvas_reading_order,
     free_canvas.rule_identity_not_first_in_reading,
@@ -33,6 +34,12 @@ parsing_rules: tuple = (
     free_canvas.rule_contact_far_from_top,
     typography.rule_exotic_font,
     typography.rule_body_font_size_out_of_range,
+    # --- Completude semantique (JSON cv, dual-key)
+    content.rule_missing_identity,
+    content.rule_missing_contact,
+    content.rule_missing_experiences,
+    content.rule_missing_formations,
+    content.rule_missing_skills,
     # --- Penalites legeres
     meta.rule_photo_present,
     content.rule_inconsistent_dates,

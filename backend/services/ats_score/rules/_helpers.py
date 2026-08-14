@@ -188,3 +188,82 @@ def normalize_font_name(raw: Any) -> str:
     if not isinstance(raw, str):
         return ""
     return raw.strip().strip("'\"")
+
+
+def cv_nonempty_str(value: Any) -> str:
+    """Retourne une chaine strippee si non vide, sinon ``\"\"``."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    return str(value).strip()
+
+
+def cv_first_text(cv: dict[str, Any], *keys: str) -> str:
+    """Premier champ texte non vide parmi ``keys`` (dual-key FR/EN)."""
+    for key in keys:
+        text = cv_nonempty_str(cv.get(key))
+        if text:
+            return text
+    return ""
+
+
+def cv_has_identity(cv: dict[str, Any]) -> bool:
+    """Vrai si prenom/first_name ou nom/last_name est renseigne."""
+    return bool(cv_first_text(cv, "prenom", "first_name") or cv_first_text(cv, "nom", "last_name"))
+
+
+def cv_has_contact(cv: dict[str, Any]) -> bool:
+    """Vrai si email ou telephone/phone est renseigne."""
+    return bool(cv_first_text(cv, "email") or cv_first_text(cv, "telephone", "phone"))
+
+
+def cv_has_experiences(cv: dict[str, Any]) -> bool:
+    """Vrai si au moins une experience a un contenu utile (pas un shell vide)."""
+    for exp in cv.get("experiences", []) or []:
+        if not isinstance(exp, dict):
+            continue
+        if cv_first_text(exp, "poste", "title") or cv_first_text(exp, "entreprise", "company"):
+            return True
+        bullets = exp.get("bullet_points") or []
+        if any(cv_nonempty_str(b) for b in bullets):
+            return True
+    return False
+
+
+def cv_has_formations(cv: dict[str, Any]) -> bool:
+    """Vrai si au moins une formation a un diplome / etablissement."""
+    for form in cv.get("formations", []) or []:
+        if not isinstance(form, dict):
+            continue
+        if cv_first_text(form, "diplome", "degree") or cv_first_text(
+            form, "etablissement", "school"
+        ):
+            return True
+    return False
+
+
+def cv_has_skills(cv: dict[str, Any]) -> bool:
+    """Vrai si competences techniques/logiciels/autres non vides."""
+    competences = cv.get("competences") or {}
+    if not isinstance(competences, dict):
+        return False
+    for list_key in ("techniques", "logiciels", "autres"):
+        items = competences.get(list_key) or []
+        if any(cv_nonempty_str(x) for x in items):
+            return True
+    return False
+
+
+def cv_has_languages(cv: dict[str, Any]) -> bool:
+    """Vrai si au moins une langue non vide est declaree."""
+    competences = cv.get("competences") or {}
+    if not isinstance(competences, dict):
+        return False
+    for item in competences.get("langues") or []:
+        if isinstance(item, dict):
+            if cv_nonempty_str(item.get("langue")):
+                return True
+        elif cv_nonempty_str(item):
+            return True
+    return False

@@ -464,6 +464,19 @@ Base : **100**. Plancher : **0**. Plafond : **100**.
 | Émojis dans le texte | −2 | Regex Unicode |
 | Liens en image plutôt qu'en texte | −1 | `block.type == "image" && block.target_url` |
 
+#### 9.2.3bis Complétude sémantique (`cv`) — AXE-338
+
+Un CV pauvre ne doit plus rester ~100. Voir aussi `docs/ats-score-cv-vs-layout.md`.
+
+| Règle | Delta | Détection |
+| --- | --- | --- |
+| Identité absente | −25 | ni `prenom`/`first_name` ni `nom`/`last_name` |
+| Contact absent | −20 | ni email ni téléphone |
+| Aucune expérience utile | −25 | pas de poste/entreprise/bullets (ignore shells vides) |
+| Aucune formation | −12 | pas de diplôme/établissement |
+| Compétences absentes | −12 | techniques/logiciels/autres vides |
+| Canvas libre sans bloc sémantique | −20 | `grid == "free"` et aucun type section standard |
+
 #### 9.2.4 Bonus (design ATS-friendly)
 
 | Règle | Delta | Détection |

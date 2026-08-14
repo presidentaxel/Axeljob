@@ -1,0 +1,15 @@
+{
+  "_doc": "AXE-338 — CV minimal (identité seule, dual-key EN) : score bas, pas ~90+.",
+  "first_name": "Jean",
+  "last_name": "Dupont",
+  "email": "",
+  "telephone": "",
+  "experiences": [],
+  "formations": [],
+  "competences": {
+    "techniques": [],
+    "logiciels": [],
+    "langues": [],
+    "autres": []
+  }
+}

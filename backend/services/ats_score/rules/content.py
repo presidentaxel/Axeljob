@@ -11,6 +11,12 @@ import re
 from typing import Any
 
 from backend.services.ats_score.rules._helpers import (
+    cv_has_contact,
+    cv_has_experiences,
+    cv_has_formations,
+    cv_has_identity,
+    cv_has_languages,
+    cv_has_skills,
     free_canvas_block_types,
     get_grid,
     get_pages,
@@ -26,6 +32,14 @@ STANDARD_SECTIONS: frozenset[str] = frozenset(
     {"identity", "experiences", "formations", "skills", "languages"}
 )
 STANDARD_SECTIONS_BONUS_CAP: int = 3
+
+# Completude semantique (AXE-338) : un CV pauvre ne doit plus rester ~100.
+# Les deltas sont calibre pour : vide/minimal clairement bas ; riche + ATS-safe haut.
+MALUS_MISSING_IDENTITY: int = -25
+MALUS_MISSING_CONTACT: int = -20
+MALUS_MISSING_EXPERIENCES: int = -25
+MALUS_MISSING_FORMATIONS: int = -12
+MALUS_MISSING_SKILLS: int = -12
 
 # Formats de dates "propres" reconnaissables. On verifie que **toutes** les
 # dates suivent un meme format pour donner le bonus, et on identifie les
@@ -69,6 +83,76 @@ def _classify_date(raw: str) -> str:
     return "exotic"
 
 
+def rule_missing_identity(cv: dict[str, Any], layout: dict[str, Any]) -> Rule | None:
+    """Penalite si aucune identite semantique (dual-key FR/EN)."""
+    del layout
+    if cv_has_identity(cv):
+        return None
+    return Rule(
+        id="malus_missing_identity",
+        label="Identite absente (prenom/nom)",
+        delta=MALUS_MISSING_IDENTITY,
+        severity=RuleSeverity.ERROR,
+        advice="Ajoute prenom et nom (ou first_name / last_name) pour que les ATS te reconnaissent.",
+    )
+
+
+def rule_missing_contact(cv: dict[str, Any], layout: dict[str, Any]) -> Rule | None:
+    """Penalite si aucun moyen de contact exploitable."""
+    del layout
+    if cv_has_contact(cv):
+        return None
+    return Rule(
+        id="malus_missing_contact",
+        label="Contact absent (email/telephone)",
+        delta=MALUS_MISSING_CONTACT,
+        severity=RuleSeverity.ERROR,
+        advice="Ajoute un email ou un telephone : les ATS et recruteurs en ont besoin.",
+    )
+
+
+def rule_missing_experiences(cv: dict[str, Any], layout: dict[str, Any]) -> Rule | None:
+    """Penalite si aucune experience avec contenu utile (ignore les shells vides)."""
+    del layout
+    if cv_has_experiences(cv):
+        return None
+    return Rule(
+        id="malus_missing_experiences",
+        label="Aucune experience renseignee",
+        delta=MALUS_MISSING_EXPERIENCES,
+        severity=RuleSeverity.ERROR,
+        advice="Renseigne au moins une experience (poste, entreprise ou bullets).",
+    )
+
+
+def rule_missing_formations(cv: dict[str, Any], layout: dict[str, Any]) -> Rule | None:
+    """Penalite si aucune formation renseignee."""
+    del layout
+    if cv_has_formations(cv):
+        return None
+    return Rule(
+        id="malus_missing_formations",
+        label="Aucune formation renseignee",
+        delta=MALUS_MISSING_FORMATIONS,
+        severity=RuleSeverity.WARNING,
+        advice="Ajoute au moins une formation (diplome ou etablissement).",
+    )
+
+
+def rule_missing_skills(cv: dict[str, Any], layout: dict[str, Any]) -> Rule | None:
+    """Penalite si aucune competence technique/logiciel exploitable."""
+    del layout
+    if cv_has_skills(cv):
+        return None
+    return Rule(
+        id="malus_missing_skills",
+        label="Competences absentes",
+        delta=MALUS_MISSING_SKILLS,
+        severity=RuleSeverity.WARNING,
+        advice="Ajoute des competences (techniques ou logiciels) dans le profil.",
+    )
+
+
 def rule_standard_section_titles(cv: dict[str, Any], layout: dict[str, Any]) -> Rule | None:
     """Bonus +1 par section standard visible (plafond +5).
 
@@ -87,18 +171,16 @@ def rule_standard_section_titles(cv: dict[str, Any], layout: dict[str, Any]) -> 
         visible_ids = free_canvas_block_types(layout) & STANDARD_SECTIONS
     else:
         visible_ids = set()
-        if cv.get("prenom") or cv.get("nom"):
+        if cv_has_identity(cv):
             visible_ids.add("identity")
-        if any((e or {}).get("poste") for e in cv.get("experiences", []) or []):
+        if cv_has_experiences(cv):
             visible_ids.add("experiences")
-        if any((f or {}).get("diplome") for f in cv.get("formations", []) or []):
+        if cv_has_formations(cv):
             visible_ids.add("formations")
-        comp = cv.get("competences") or {}
-        if isinstance(comp, dict):
-            if any(comp.get("techniques") or []):
-                visible_ids.add("skills")
-            if any(comp.get("langues") or []):
-                visible_ids.add("languages")
+        if cv_has_skills(cv):
+            visible_ids.add("skills")
+        if cv_has_languages(cv):
+            visible_ids.add("languages")
     bonus = min(len(visible_ids), STANDARD_SECTIONS_BONUS_CAP)
     if bonus <= 0:
         return None
@@ -118,9 +200,9 @@ def rule_contact_top_of_page(cv: dict[str, Any], layout: dict[str, Any]) -> Rule
     Pour un layout ``free``, on inspecte la position ``y`` des blocs
     ``identity`` / ``contact``.
     """
-    has_email = bool((cv.get("email") or "").strip())
-    has_phone = bool((cv.get("telephone") or "").strip())
-    if not (has_email or has_phone):
+    # Dual-key via cv_has_contact (strip avant or) — un telephone=" " ne doit
+    # pas masquer un phone valide (Bugbot PR #100).
+    if not cv_has_contact(cv):
         return None
 
     sections = get_sections_order(layout)

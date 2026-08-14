@@ -64,6 +64,14 @@ class TestContactTopOfPage(unittest.TestCase):
     def test_no_contact_no_bonus(self):
         self.assertIsNone(content_rules.rule_contact_top_of_page({}, {}))
 
+    def test_whitespace_telephone_does_not_block_phone_dual_key(self):
+        # Bugbot PR #100 : telephone=" " ne doit pas masquer phone.
+        cv = {"telephone": "   ", "phone": "+33 6 00 00 00 00"}
+        layout = {"sections_order": [{"id": "identity", "visible": True, "in": "header"}]}
+        rule = content_rules.rule_contact_top_of_page(cv, layout)
+        self.assertIsNotNone(rule)
+        self.assertEqual(rule.delta, 5)
+
     def test_sections_order_identity_in_header_gives_bonus(self):
         cv = {"email": "a@b.fr"}
         layout = {"sections_order": [{"id": "identity", "visible": True, "in": "header"}]}

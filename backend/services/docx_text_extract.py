@@ -12,9 +12,15 @@ DOC_LEGACY_REFUSAL_DETAIL = (
 
 # Compound File Binary Format (OLE) — signature des .doc legacy.
 _OLE_MAGIC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
+# OOXML (.docx) is a ZIP package.
+_ZIP_MAGIC = b"PK"
 
 _DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 _MSWORD_CONTENT_TYPE = "application/msword"
+
+
+def _looks_like_ooxml(file_bytes: bytes | None) -> bool:
+    return bool(file_bytes) and file_bytes[:2] == _ZIP_MAGIC
 
 
 def is_legacy_doc(
@@ -23,46 +29,56 @@ def is_legacy_doc(
     content_type: str | None = None,
     file_bytes: bytes | None = None,
 ) -> bool:
-    """True si l'upload ressemble a un Word .doc legacy (a refuser)."""
+    """True si l'upload ressemble a un Word .doc legacy (a refuser).
+
+    Ne refuse pas un vrai ``.docx`` mal etiquete ``application/msword``
+    (extension ``.docx`` ou magic ZIP/OOXML).
+    """
     name = (filename or "").strip().lower()
     ctype = (content_type or "").strip().lower()
-    if name.endswith(".doc") and not name.endswith(".docx"):
-        return True
-    if ctype == _MSWORD_CONTENT_TYPE:
+
+    # Preuve OOXML → jamais legacy (meme si MIME msword).
+    if name.endswith(".docx") or _looks_like_ooxml(file_bytes):
+        return False
+
+    if name.endswith(".doc"):
         return True
     if file_bytes and len(file_bytes) >= 8 and file_bytes[:8] == _OLE_MAGIC:
+        return True
+    # MIME msword sans preuve OOXML → legacy.
+    if ctype == _MSWORD_CONTENT_TYPE:
         return True
     return False
 
 
-def is_docx_upload(*, filename: str | None = None, content_type: str | None = None) -> bool:
-    """True si l'upload est un .docx (extension ou content-type OOXML)."""
+def is_docx_upload(
+    *,
+    filename: str | None = None,
+    content_type: str | None = None,
+    file_bytes: bytes | None = None,
+) -> bool:
+    """True si l'upload est un .docx (extension, content-type OOXML, ou ZIP + MIME Word)."""
     name = (filename or "").strip().lower()
     ctype = (content_type or "").strip().lower()
     if name.endswith(".docx"):
         return True
-    return ctype == _DOCX_CONTENT_TYPE
+    if ctype == _DOCX_CONTENT_TYPE:
+        return True
+    # Clients qui envoient encore application/msword pour un vrai .docx.
+    if _looks_like_ooxml(file_bytes) and ctype in (
+        _MSWORD_CONTENT_TYPE,
+        "application/octet-stream",
+        "",
+    ):
+        return True
+    return False
 
 
 def _paragraph_plain_text(paragraph) -> str:
-    """Texte d'un paragraphe via runs (tabs / soft breaks → texte lineaire)."""
-    from docx.oxml.ns import qn
-
-    chunks: list[str] = []
-    for run in paragraph.runs:
-        for child in run._element:
-            tag = child.tag
-            if tag == qn("w:t"):
-                chunks.append(child.text or "")
-            elif tag == qn("w:tab"):
-                chunks.append("\t")
-            elif tag in (qn("w:br"), qn("w:cr")):
-                chunks.append("\n")
-    text = "".join(chunks)
-    if not text.strip():
-        # Hyperliens / champs : repli sur l'API python-docx.
-        text = paragraph.text or ""
-    return text.strip()
+    """Texte d'un paragraphe (inclut hyperliens / soft breaks via python-docx)."""
+    # ``paragraph.text`` parcourt aussi les runs sous ``w:hyperlink`` ;
+    # un walk de ``paragraph.runs`` seul les omet.
+    return (paragraph.text or "").strip()
 
 
 def _table_to_text(table) -> str:

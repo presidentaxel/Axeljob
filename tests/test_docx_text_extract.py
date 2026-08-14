@@ -39,13 +39,53 @@ def _docx_with_table_and_soft_break() -> bytes:
     return buf.getvalue()
 
 
+def _docx_with_hyperlink_and_contact() -> bytes:
+    """Paragraphe avec texte + hyperlien (email) — cas Bugbot."""
+    from docx import Document
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    doc = Document()
+    p = doc.add_paragraph()
+    p.add_run("Contact : ")
+
+    # Relation hyperlien + element w:hyperlink (texte non present dans paragraph.runs).
+    part = p.part
+    r_id = part.relate_to(
+        "mailto:camille@example.fr",
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",
+        is_external=True,
+    )
+    hyperlink = OxmlElement("w:hyperlink")
+    hyperlink.set(qn("r:id"), r_id)
+    run = OxmlElement("w:r")
+    text = OxmlElement("w:t")
+    text.text = "camille@example.fr"
+    run.append(text)
+    hyperlink.append(run)
+    p._p.append(hyperlink)
+    p.add_run(" | Lyon")
+
+    buf = BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
 class TestLegacyDocDetection(unittest.TestCase):
     def test_extension_doc(self):
         self.assertTrue(is_legacy_doc(filename="cv.doc"))
         self.assertFalse(is_legacy_doc(filename="cv.docx"))
 
-    def test_content_type_msword(self):
+    def test_content_type_msword_alone_is_legacy(self):
         self.assertTrue(is_legacy_doc(content_type="application/msword"))
+
+    def test_msword_mime_with_docx_filename_not_legacy(self):
+        self.assertFalse(is_legacy_doc(filename="cv.docx", content_type="application/msword"))
+
+    def test_msword_mime_with_zip_bytes_not_legacy(self):
+        self.assertFalse(
+            is_legacy_doc(content_type="application/msword", file_bytes=b"PK\x03\x04fake")
+        )
 
     def test_ole_magic(self):
         ole = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 32
@@ -71,6 +111,14 @@ class TestDocxUploadDetection(unittest.TestCase):
         )
         self.assertFalse(is_docx_upload(filename="x.doc"))
 
+    def test_msword_mime_with_zip_accepted_as_docx(self):
+        self.assertTrue(
+            is_docx_upload(
+                content_type="application/msword",
+                file_bytes=b"PK\x03\x04fake",
+            )
+        )
+
 
 class TestExtractDocxTablesAndRuns(unittest.TestCase):
     def test_includes_table_cells_in_body_order(self):
@@ -84,6 +132,12 @@ class TestExtractDocxTablesAndRuns(unittest.TestCase):
         # Table content must not be lost (paragraphs-only extraction would miss it)
         before_table_only = "Avant tableau"
         self.assertNotEqual(text.strip(), before_table_only)
+
+    def test_includes_hyperlink_text_with_surrounding_runs(self):
+        text = extract_text_from_docx_bytes(_docx_with_hyperlink_and_contact())
+        self.assertIn("Contact :", text)
+        self.assertIn("camille@example.fr", text)
+        self.assertIn("Lyon", text)
 
 
 class TestApiCvImportRefusesDoc(unittest.TestCase):

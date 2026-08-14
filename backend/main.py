@@ -1492,7 +1492,7 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
 
     if content_type == "application/pdf" or (file.filename or "").lower().endswith(".pdf"):
         text = _extract_text_from_pdf(file_bytes)
-    elif is_docx_upload(filename=file.filename, content_type=content_type):
+    elif is_docx_upload(filename=file.filename, content_type=content_type, file_bytes=file_bytes):
         text = _extract_text_from_docx(file_bytes)
     else:
         try:

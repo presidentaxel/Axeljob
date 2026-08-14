@@ -205,6 +205,7 @@ export default function EditorCanvaSidebar({
   onShowGridChange,
   onSnapEnabledChange,
   onBeginPlacement,
+  onOpenHeaderComposer,
   onCancelPlacement,
   onSelectBlock,
   onBlockPatch,
@@ -384,7 +385,21 @@ export default function EditorCanvaSidebar({
             <>
               <h3 className="editor-canva-drawer__title">Sections CV</h3>
               <p className="editor-canva-drawer__hint editor-canva-drawer__hint--subtle">
-                Blocs liés à ton CV de base (contenu partagé avec le mode Stable). Clique puis place sur le canevas.
+                Commence par un composer guidé, ou place un bloc libre ensuite.
+              </p>
+              <button
+                type="button"
+                className="editor-canva-composer-cta"
+                disabled={disabled}
+                onClick={() => onOpenHeaderComposer?.()}
+              >
+                <span className="editor-canva-composer-cta__label">Composer l’en-tête</span>
+                <span className="editor-canva-composer-cta__hint">
+                  Design + champs + inputs — puis free-edit
+                </span>
+              </button>
+              <p className="editor-canva-drawer__hint editor-canva-drawer__hint--subtle">
+                Blocs individuels (avancé) — liés à ton CV de base.
               </p>
               <div className="editor-canva-drawer__grid editor-canva-drawer__grid--sections">
                 {CV_SECTION_ITEMS.map((item) => {

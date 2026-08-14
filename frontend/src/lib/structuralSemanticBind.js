@@ -49,16 +49,32 @@ const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
 const PHONE_RE = /(?:\+?\d[\d\s().-]{7,}\d)/;
 
 export function decodeStructuralText(content) {
-  return String(content || '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
-    .replace(/\s+/g, ' ')
-    .trim();
+  // Une seule passe : éviter le double-unescape CodeQL
+  // (`&amp;lt;` ne doit pas devenir `<`).
+  const decoded = String(content || '').replace(
+    /&(#(?:x[0-9a-f]+|\d+)|[a-z]+);/gi,
+    (entity) => {
+      const lower = entity.toLowerCase();
+      if (lower === '&nbsp;') return ' ';
+      if (lower === '&amp;') return '&';
+      if (lower === '&lt;') return '<';
+      if (lower === '&gt;') return '>';
+      if (lower === '&quot;') return '"';
+      if (lower === '&#39;' || lower === '&apos;') return "'";
+      const dec = /^&#(\d+);$/.exec(entity);
+      if (dec) {
+        const code = Number(dec[1]);
+        if (code > 0 && code < 0x110000) return String.fromCharCode(code);
+      }
+      const hex = /^&#x([0-9a-f]+);$/i.exec(entity);
+      if (hex) {
+        const code = parseInt(hex[1], 16);
+        if (code > 0 && code < 0x110000) return String.fromCharCode(code);
+      }
+      return entity;
+    },
+  );
+  return decoded.replace(/\s+/g, ' ').trim();
 }
 
 function sameColumn(a, b) {

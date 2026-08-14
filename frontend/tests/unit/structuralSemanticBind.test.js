@@ -12,6 +12,8 @@ import {
 test('decodeStructuralText décode entités HTML', () => {
   assert.equal(decodeStructuralText('A &amp; B'), 'A & B');
   assert.equal(decodeStructuralText('  Exp&#233;rience  '), 'Expérience');
+  // Pas de double-unescape : &amp;lt; reste &lt; littéral après une passe.
+  assert.equal(decodeStructuralText('&amp;lt;'), '&lt;');
 });
 
 test('classifyStructuralTextBlock : titre expérience haute confiance', () => {

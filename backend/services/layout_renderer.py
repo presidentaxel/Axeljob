@@ -422,20 +422,28 @@ def _render_contact(cv: dict, style: dict[str, Any]) -> str:
         return f'<div class="cv-layout-contact">{_placeholder("Contact")}</div>'
 
     header_bar = style.get("contact_layout") == "header-bar"
+    show_icons = bool(style.get("contact_icons"))
     contact_classes = ["cv-layout-contact"]
     if style.get("contact_uppercase"):
         contact_classes.append("cv-layout-contact--uppercase")
     if style.get("contact_divider") and not header_bar:
         contact_classes.append("cv-layout-contact--with-divider")
+    if show_icons:
+        contact_classes.append("cv-layout-contact--icons")
     class_attr = " ".join(contact_classes)
+
+    def _icon_html(icon_name: str) -> str:
+        if not show_icons:
+            return ""
+        return (
+            f'<span class="cv-layout-contact-icon" aria-hidden="true">'
+            f"{_icon_svg(icon_name)}</span>"
+        )
 
     if header_bar:
         segments = []
         for icon_name, val in values:
-            icon = (
-                f'<span class="cv-layout-contact-icon" aria-hidden="true">'
-                f"{_icon_svg(icon_name)}</span>"
-            )
+            icon = _icon_html(icon_name)
             segments.append(f'<span class="cv-layout-contact-segment">{icon}{_text(val)}</span>')
         body = (
             f'<div class="{class_attr} cv-layout-contact--header-bar">' f'{"".join(segments)}</div>'
@@ -444,10 +452,7 @@ def _render_contact(cv: dict, style: dict[str, Any]) -> str:
 
     lines = []
     for icon_name, val in values:
-        icon = (
-            f'<span class="cv-layout-contact-icon" aria-hidden="true">'
-            f"{_icon_svg(icon_name)}</span>"
-        )
+        icon = _icon_html(icon_name)
         lines.append(f"<p>{icon}{_text(val)}</p>")
     body = f'<div class="{class_attr}">{"".join(lines)}</div>'
     return _section_with_style("contact", body, style, default_title=False)

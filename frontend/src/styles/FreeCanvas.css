@@ -844,6 +844,12 @@
   font-size: 8pt;
 }
 
+.free-canvas-block__field-placeholder {
+  color: #94a3b8;
+  font-style: italic;
+  opacity: 0.85;
+}
+
 .free-canvas-block__empty {
   opacity: 0.35;
 }

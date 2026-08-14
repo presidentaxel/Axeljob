@@ -122,13 +122,16 @@ function SemanticBlockBody({ block, cv, editing = false }) {
           </BlockText>
         )
       ) : null;
-      const titleEl = showTitle && (editing || title) ? (
+      // Slot titre toujours visible si bindé (placeholder si vide) — pas besoin de double-clic.
+      const titleEl = showTitle ? (
         editing ? (
           <CanvasEditableField path="titre_professionnel" editing>
             {title || 'Titre professionnel'}
           </CanvasEditableField>
-        ) : (
+        ) : title ? (
           <BlockText>{title}</BlockText>
+        ) : (
+          <span className="free-canvas-block__field-placeholder">Titre professionnel</span>
         )
       ) : null;
       if (inlineTitle) {
@@ -195,51 +198,52 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       const tel = showTel ? getFieldDisplayValue(cv, 'telephone') : '';
       const email = showEmail ? getFieldDisplayValue(cv, 'email') : '';
       const linkedin = showLinkedin ? getFieldDisplayValue(cv, 'linkedin') : '';
+      const showIcons = Boolean(style.contact_icons);
       const contactCls = [
         'free-canvas-block__contact',
         style.contact_divider ? 'free-canvas-block__contact--divider' : '',
         style.contact_uppercase ? 'free-canvas-block__contact--uppercase' : '',
-        style.contact_icons ? 'free-canvas-block__contact--icons' : '',
+        showIcons ? 'free-canvas-block__contact--icons' : '',
         style.contact_layout === 'header-bar' ? 'free-canvas-block__contact--header-bar' : '',
       ].filter(Boolean).join(' ');
+
+      const renderContactValue = (path, value, placeholder) => {
+        if (editing) {
+          return <CanvasEditableField path={path} editing>{value || placeholder}</CanvasEditableField>;
+        }
+        if (value) return <BlockText>{value}</BlockText>;
+        return <span className="free-canvas-block__field-placeholder">{placeholder}</span>;
+      };
+      const maybeIcon = (Icon) => (
+        showIcons ? <Icon size={12} className="free-canvas-block__contact-icon" aria-hidden /> : null
+      );
+
       if (style.contact_layout === 'header-bar') {
         const segments = [];
-        if (showTel && (editing || tel)) {
+        if (showTel) {
           segments.push(
             <span key="tel" className="free-canvas-block__contact-segment">
-              <HiPhone size={12} className="free-canvas-block__contact-icon" aria-hidden />
-              {' '}
-              {editing ? (
-                <CanvasEditableField path="telephone" editing>{tel || 'Téléphone'}</CanvasEditableField>
-              ) : (
-                <BlockText>{tel}</BlockText>
-              )}
+              {maybeIcon(HiPhone)}
+              {showIcons ? ' ' : null}
+              {renderContactValue('telephone', tel, 'Téléphone')}
             </span>,
           );
         }
-        if (showEmail && (editing || email)) {
+        if (showEmail) {
           segments.push(
             <span key="email" className="free-canvas-block__contact-segment">
-              <HiEnvelope size={12} className="free-canvas-block__contact-icon" aria-hidden />
-              {' '}
-              {editing ? (
-                <CanvasEditableField path="email" editing>{email || 'Email'}</CanvasEditableField>
-              ) : (
-                <BlockText>{email}</BlockText>
-              )}
+              {maybeIcon(HiEnvelope)}
+              {showIcons ? ' ' : null}
+              {renderContactValue('email', email, 'Email')}
             </span>,
           );
         }
-        if (showLinkedin && (editing || linkedin)) {
+        if (showLinkedin) {
           segments.push(
             <span key="linkedin" className="free-canvas-block__contact-segment">
-              <HiLink size={12} className="free-canvas-block__contact-icon" aria-hidden />
-              {' '}
-              {editing ? (
-                <CanvasEditableField path="linkedin" editing>{linkedin || 'LinkedIn'}</CanvasEditableField>
-              ) : (
-                <BlockText>{linkedin}</BlockText>
-              )}
+              {maybeIcon(HiLink)}
+              {showIcons ? ' ' : null}
+              {renderContactValue('linkedin', linkedin, 'LinkedIn')}
             </span>,
           );
         }
@@ -259,59 +263,55 @@ function SemanticBlockBody({ block, cv, editing = false }) {
           {style.section_label ? (
             <SectionHeading label={style.section_label} titleStyle={style.title_style} zone={style.zone} />
           ) : null}
-          {showTel && (editing || tel) ? (
+          {showTel ? (
             <p>
-              <HiPhone size={12} className="free-canvas-block__contact-icon" aria-hidden />
-              {' '}
-              {editing ? (
-                <CanvasEditableField path="telephone" editing>{tel || 'Téléphone'}</CanvasEditableField>
-              ) : (
-                <BlockText>{tel}</BlockText>
-              )}
+              {maybeIcon(HiPhone)}
+              {showIcons ? ' ' : null}
+              {renderContactValue('telephone', tel, 'Téléphone')}
             </p>
           ) : null}
-          {showEmail && (editing || email) ? (
+          {showEmail ? (
             <p>
-              <HiEnvelope size={12} className="free-canvas-block__contact-icon" aria-hidden />
-              {' '}
-              {editing ? (
-                <CanvasEditableField path="email" editing>{email || 'Email'}</CanvasEditableField>
-              ) : (
-                <BlockText>{email}</BlockText>
-              )}
+              {maybeIcon(HiEnvelope)}
+              {showIcons ? ' ' : null}
+              {renderContactValue('email', email, 'Email')}
             </p>
           ) : null}
-          {showLinkedin && (editing || linkedin) ? (
+          {showLinkedin ? (
             <p>
-              <HiLink size={12} className="free-canvas-block__contact-icon" aria-hidden />
-              {' '}
-              {editing ? (
-                <CanvasEditableField path="linkedin" editing>{linkedin || 'LinkedIn'}</CanvasEditableField>
-              ) : (
-                <BlockText>{linkedin}</BlockText>
-              )}
+              {maybeIcon(HiLink)}
+              {showIcons ? ' ' : null}
+              {renderContactValue('linkedin', linkedin, 'LinkedIn')}
             </p>
           ) : null}
         </div>
       );
     }
-    case 'resume':
+    case 'resume': {
+      const resumeBind = bind?.length ? bind : 'resume';
+      const resumePath = Array.isArray(resumeBind) ? (resumeBind[0] || 'resume') : resumeBind;
+      const resumeText = resolveBoundText(cv, resumeBind);
       return (
         <div className="free-canvas-block__section-list">
-          {style.section_label ? (
-            <SectionHeading label={style.section_label} titleStyle={style.title_style} zone={style.zone} />
-          ) : null}
+          <SectionHeading
+            label={style.section_label || 'PROFIL'}
+            titleStyle={style.title_style}
+            zone={style.zone}
+          />
           <p className="free-canvas-block__resume">
-          {editing ? (
-            <CanvasEditableField path={bind?.length ? bind[0] : 'resume'} editing tag="span">
-              {resolveBoundText(cv, bind.length ? bind : 'resume') || 'Résumé professionnel'}
-            </CanvasEditableField>
-          ) : (
-            <BlockText>{resolveBoundText(cv, bind.length ? bind : 'resume')}</BlockText>
-          )}
+            {editing ? (
+              <CanvasEditableField path={resumePath} editing tag="span">
+                {resumeText || 'Résumé professionnel'}
+              </CanvasEditableField>
+            ) : resumeText ? (
+              <BlockText>{resumeText}</BlockText>
+            ) : (
+              <span className="free-canvas-block__field-placeholder">Résumé professionnel</span>
+            )}
           </p>
         </div>
       );
+    }
     case 'experiences': {
       const items = resolveExperiences(cv, limit);
       if (items.length === 0) return <p className="free-canvas-block__placeholder">Expériences</p>;

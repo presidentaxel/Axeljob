@@ -33,6 +33,7 @@ import { listAllBlocks } from '../../lib/cvLayoutModelV3.js';
 import CanvasShapeSvg from './CanvasShapeSvg.jsx';
 import {
   EditorCanvaColorPanel,
+  EditorCanvaContactPanel,
   EditorCanvaEffectsPanel,
   EditorCanvaFontPanel,
   EditorCanvaShapePanel,
@@ -419,6 +420,12 @@ export default function EditorCanvaSidebar({
                   );
                 })}
               </div>
+              {selectedBlock?.type === 'contact' && onBlockStylePatch && (
+                <EditorCanvaContactPanel
+                  block={selectedBlock}
+                  onBlockStylePatch={onBlockStylePatch}
+                />
+              )}
             </>
           )}
 

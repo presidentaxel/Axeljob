@@ -6,7 +6,6 @@ from backend.services.cv_import_semantic import (
     split_cv_text_into_sections,
 )
 
-
 SAMPLE_TEXT = """
 Ada Lovelace
 ada@example.com

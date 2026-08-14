@@ -47,6 +47,16 @@ class TestImportSamplesExtract(unittest.TestCase):
         self.assertIn("experience", sec["headings_found"])
         self.assertFalse(report["structural_ok"])
 
+    def test_docx_table_sample_includes_cell_text(self):
+        path = SAMPLES / "05_with_table.docx"
+        self.assertTrue(path.is_file(), "Régénérer via generate_import_samples.py")
+        report = probe_import_file(path)
+        preview = report["text_preview"]
+        self.assertEqual(report["kind"], "docx")
+        self.assertIn("Analyste — BlueCo", preview)
+        self.assertIn("2021 - Aujourd'hui", preview)
+        self.assertGreater(report["sections"]["char_count"], 80)
+
 
 if __name__ == "__main__":
     unittest.main()

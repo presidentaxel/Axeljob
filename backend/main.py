@@ -1386,10 +1386,9 @@ def _extract_text_from_pdf(file_bytes: bytes) -> str:
 
 def _extract_text_from_docx(file_bytes: bytes) -> str:
     try:
-        from docx import Document
+        from backend.services.docx_text_extract import extract_text_from_docx_bytes
 
-        doc = Document(BytesIO(file_bytes))
-        return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+        return extract_text_from_docx_bytes(file_bytes)
     except Exception as e:
         logger.warning("DOCX extraction error: %s", e)
         raise HTTPException(status_code=400, detail="Impossible de lire le fichier Word.")
@@ -1482,19 +1481,26 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
     if not file_bytes:
         raise HTTPException(status_code=400, detail="Fichier vide.")
 
+    from backend.services.docx_text_extract import (
+        DOC_LEGACY_REFUSAL_DETAIL,
+        is_docx_upload,
+        is_legacy_doc,
+    )
+
+    if is_legacy_doc(filename=file.filename, content_type=content_type, file_bytes=file_bytes):
+        raise HTTPException(status_code=400, detail=DOC_LEGACY_REFUSAL_DETAIL)
+
     if content_type == "application/pdf" or (file.filename or "").lower().endswith(".pdf"):
         text = _extract_text_from_pdf(file_bytes)
-    elif content_type in (
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "application/msword",
-    ) or (file.filename or "").lower().endswith((".docx", ".doc")):
+    elif is_docx_upload(filename=file.filename, content_type=content_type):
         text = _extract_text_from_docx(file_bytes)
     else:
         try:
             text = file_bytes.decode("utf-8")
         except UnicodeDecodeError:
             raise HTTPException(
-                status_code=400, detail="Format non reconnu. Envoie un PDF, Word ou fichier texte."
+                status_code=400,
+                detail="Format non reconnu. Envoie un PDF, un .docx ou un fichier texte.",
             )
 
     if len(text.strip()) < 50:

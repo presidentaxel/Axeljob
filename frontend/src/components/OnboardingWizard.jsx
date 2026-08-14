@@ -167,7 +167,7 @@ export default function OnboardingWizard({ session, onComplete }) {
             <input
               ref={fileRef}
               type="file"
-              accept=".pdf,.doc,.docx"
+              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
               className="onb-file-hidden"
               onChange={handleFileUpload}
             />

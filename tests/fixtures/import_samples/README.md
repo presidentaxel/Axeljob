@@ -8,6 +8,7 @@ Samples **anonymisés / fictifs** pour la démo spike et les tests CI.
 | `02_sidebar.pdf` | PDF natif | Sidebar colorée + texte |
 | `03_dense_multisection.pdf` | PDF natif | Dense (XP, projets, certifs…) |
 | `04_single_column.docx` | Word | Parité contenu sans layout mm |
+| `05_with_table.docx` | Word | Contenu en tableau + soft break (AXE-327) |
 
 Régénération :
 

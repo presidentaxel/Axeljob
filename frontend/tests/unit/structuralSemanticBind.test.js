@@ -16,6 +16,19 @@ test('decodeStructuralText décode entités HTML', () => {
   assert.equal(decodeStructuralText('&amp;lt;'), '&lt;');
 });
 
+test('classifyStructuralTextBlock : corps avec mot-clé → null (pas faux titre)', () => {
+  const hit = classifyStructuralTextBlock({
+    type: 'text',
+    content: 'Mon expérience récente chez NovaSoft',
+    x: 20,
+    y: 100,
+    w: 120,
+    h: 5,
+    style: { font_size: 10 },
+  });
+  assert.equal(hit, null);
+});
+
 test('classifyStructuralTextBlock : titre expérience haute confiance', () => {
   const hit = classifyStructuralTextBlock({
     type: 'text',
@@ -176,11 +189,81 @@ test('bindStructuralTextToSemanticBlocks : heading + corps → experiences, free
   const form = blocks.find((b) => b.type === 'formations');
   assert.ok(exp);
   assert.equal(exp.bind, 'experiences');
-  assert.ok(exp.h >= 18);
+  // Hauteur = bbox freeform (pas preset 80mm) pour éviter le chevauchement.
+  assert.ok(exp.h >= 18 && exp.h < 40, `h inattendu: ${exp.h}`);
   assert.ok(form);
   assert.equal(form.bind, 'formations');
   assert.equal(blocks.some((b) => b.id === 'b1'), false);
   assert.equal(blocks.some((b) => b.type === 'text' && b.content === 'Product Manager — NovaSoft'), false);
+});
+
+test('bindStructuralTextToSemanticBlocks : ignore sidebar d\'une autre colonne', () => {
+  const layout = sanitizeLayoutV3({
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    freeform: true,
+    pages: [{
+      id: 'p1',
+      blocks: [
+        {
+          id: 'h1',
+          type: 'text',
+          content: 'Expérience professionnelle',
+          x: 70,
+          y: 40,
+          w: 110,
+          h: 6,
+          z: 2,
+          style: { bold: true, font_size: 12 },
+        },
+        {
+          id: 'main1',
+          type: 'text',
+          content: 'PM — NovaSoft',
+          x: 70,
+          y: 50,
+          w: 100,
+          h: 5,
+          z: 2,
+          style: {},
+        },
+        {
+          id: 'side1',
+          type: 'text',
+          content: 'SQL, Python',
+          x: 8,
+          y: 52,
+          w: 50,
+          h: 5,
+          z: 2,
+          style: {},
+        },
+        {
+          id: 'hSide',
+          type: 'text',
+          content: 'Compétences',
+          x: 8,
+          y: 40,
+          w: 50,
+          h: 6,
+          z: 2,
+          style: { bold: true, font_size: 11 },
+        },
+      ],
+    }],
+  });
+  const { layout: out } = bindStructuralTextToSemanticBlocks(layout, {});
+  const blocks = out.pages[0].blocks;
+  const exp = blocks.find((b) => b.type === 'experiences');
+  const skills = blocks.find((b) => b.type === 'skills');
+  assert.ok(exp);
+  assert.ok(skills);
+  // Sidebar non avalée par le titre main.
+  assert.ok(exp.w < 130);
+  assert.equal(blocks.some((b) => b.id === 'side1'), false);
+  assert.ok((skills.h || 0) >= 10);
 });
 
 test('bindStructuralTextToSemanticBlocks : confiance basse → freeform inchangé', () => {

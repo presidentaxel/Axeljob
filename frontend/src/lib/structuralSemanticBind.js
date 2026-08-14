@@ -9,39 +9,39 @@ import { createCvSectionBlockPreset } from './canvasCvSectionPresets.js';
 
 export const MIN_SEMANTIC_CONFIDENCE = 0.75;
 
-/** Patterns titres (alignés sur `cv_import_probe.SECTION_HEADING_PATTERNS`). */
+/** Patterns titres : ligne entière ≈ libellé de section (évite faux positifs corps). */
 const SECTION_HEADING_RULES = Object.freeze([
   {
     type: 'experiences',
-    re: /(?:^|[\s|/·•\-–—])(exp[ée]riences?(?:\s+professionnelles?)?|experience|work\s+history|employment)\b/i,
+    re: /^(?:[\s|/·•\-–—]*)(exp[ée]riences?(?:\s+professionnelles?)?|experience|work\s+history|employment)\s*$/i,
   },
   {
     type: 'formations',
-    re: /(?:^|[\s|/·•\-–—])(formations?|education|études|etudes|dipl[oô]mes?)\b/i,
+    re: /^(?:[\s|/·•\-–—]*)(formations?|education|études|etudes|dipl[oô]mes?)\s*$/i,
   },
   {
     type: 'skills',
-    re: /(?:^|[\s|/·•\-–—])(comp[ée]tences?|skills?|technologies?|outils?)\b/i,
+    re: /^(?:[\s|/·•\-–—]*)(comp[ée]tences?|skills?|technologies?|outils?)\s*$/i,
   },
   {
     type: 'languages',
-    re: /(?:^|[\s|/·•\-–—])(langues?|languages?)\b/i,
+    re: /^(?:[\s|/·•\-–—]*)(langues?|languages?)\s*$/i,
   },
   {
     type: 'certifications',
-    re: /(?:^|[\s|/·•\-–—])(certifications?|accreditations?)\b/i,
+    re: /^(?:[\s|/·•\-–—]*)(certifications?|accreditations?)\s*$/i,
   },
   {
     type: 'projets',
-    re: /(?:^|[\s|/·•\-–—])(projets?|projects?|réalisations?|realisations?)\b/i,
+    re: /^(?:[\s|/·•\-–—]*)(projets?|projects?|réalisations?|realisations?)\s*$/i,
   },
   {
     type: 'resume',
-    re: /(?:^|[\s|/·•\-–—])(profil|r[ée]sum[ée]|summary|about|à propos|a propos)\b/i,
+    re: /^(?:[\s|/·•\-–—]*)(profil|r[ée]sum[ée]|summary|about|à propos|a propos)\s*$/i,
   },
   {
     type: 'contact',
-    re: /(?:^|[\s|/·•\-–—])(contact|coordonn[ée]es)\b/i,
+    re: /^(?:[\s|/·•\-–—]*)(contact|coordonn[ée]es)\s*$/i,
   },
 ]);
 
@@ -77,16 +77,18 @@ export function decodeStructuralText(content) {
   return decoded.replace(/\s+/g, ' ').trim();
 }
 
-function sameColumn(a, b) {
-  const ax = Number(a.x) || 0;
-  const aw = Number(a.w) || 0;
-  const bx = Number(b.x) || 0;
-  const bw = Number(b.w) || 0;
-  const left = Math.max(ax, bx);
-  const right = Math.min(ax + aw, bx + bw);
+function sameColumn(head, body) {
+  // Corps majoritairement sous la bande du titre, sans démarrer à gauche (sidebar).
+  const hx = Number(head.x) || 0;
+  const hw = Number(head.w) || 0;
+  const bx = Number(body.x) || 0;
+  const bw = Number(body.w) || 0;
+  if (bx < hx - 5) return false;
+  if (bx > hx + hw + 5) return false;
+  const left = Math.max(hx, bx);
+  const right = Math.min(hx + hw, bx + bw);
   const overlap = Math.max(0, right - left);
-  const minW = Math.max(1, Math.min(aw, bw));
-  return overlap / minW >= 0.35;
+  return overlap / Math.max(1, bw) >= 0.5;
 }
 
 function unionBox(blocks) {
@@ -123,23 +125,22 @@ export function classifyStructuralTextBlock(block, cv = {}, { pageHeightMm = 297
   const text = decodeStructuralText(block.content);
   if (!text) return null;
 
-  // Titres de section (courts).
-  if (text.length <= 80) {
-    const hay = ` ${text}`;
+  // Titres : ligne entière = libellé (pas un mot-clé dans une phrase corps).
+  if (text.length <= 48) {
     for (const rule of SECTION_HEADING_RULES) {
-      if (rule.re.test(hay)) {
-        const bold = Boolean(block.style?.bold);
-        const fontSize = Number(block.style?.font_size) || 0;
-        let confidence = 0.82;
-        if (bold || fontSize >= 11) confidence += 0.1;
-        if (text.length <= 40) confidence += 0.05;
-        return {
-          type: rule.type,
-          confidence: Math.min(1, confidence),
-          kind: 'heading',
-          sectionLabel: text.toUpperCase(),
-        };
-      }
+      if (!rule.re.test(text)) continue;
+      const bold = Boolean(block.style?.bold);
+      const fontSize = Number(block.style?.font_size) || 0;
+      let confidence = 0.55;
+      if (bold) confidence += 0.2;
+      if (fontSize >= 11) confidence += 0.15;
+      if (text.length <= 32) confidence += 0.1;
+      return {
+        type: rule.type,
+        confidence: Math.min(1, confidence),
+        kind: 'heading',
+        sectionLabel: text.toUpperCase(),
+      };
     }
   }
 
@@ -192,13 +193,15 @@ function toSemanticBlock(baseBlock, classification, regionBlocks) {
   if (classification.sectionLabel) {
     style.section_label = classification.sectionLabel;
   }
+  // Hauteur = bbox freeform uniquement (pas preset.h) pour ne pas chevaucher
+  // les sections suivantes en layout freeform sans reflow.
   const out = {
     id: baseBlock.id,
     type: preset.type,
     x: box.x,
     y: box.y,
     w: box.w,
-    h: Math.max(box.h, Number(preset.h) || 12),
+    h: box.h,
     z: box.z,
     style,
   };
@@ -255,9 +258,11 @@ export function bindStructuralTextToSemanticBlocks(layout, cv = {}, {
       for (let j = i + 1; j < textBlocks.length; j += 1) {
         const next = textBlocks[j];
         if (consumed.has(next.id)) continue;
-        const nextCls = classifications.get(next.id);
-        if (nextCls?.kind === 'heading') break;
+        // Autre colonne : ignorer (ne pas stopper la région).
         if (!sameColumn(head, next)) continue;
+        const nextCls = classifications.get(next.id);
+        // Prochain titre *dans la même colonne* → fin de région.
+        if (nextCls?.kind === 'heading') break;
         // Trop loin verticalement → autre zone.
         const gap = (Number(next.y) || 0) - ((Number(region[region.length - 1].y) || 0)
           + (Number(region[region.length - 1].h) || 0));

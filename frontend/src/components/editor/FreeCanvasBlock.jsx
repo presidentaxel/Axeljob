@@ -17,6 +17,7 @@ import {
 } from '../../lib/editableFieldBehavior.js';
 import {
   bindIncludesPath,
+  identityNameEmptyLabel,
   resolveCompetenceList,
   resolveBoundText,
   resolveCertifications,
@@ -116,7 +117,9 @@ function SemanticBlockBody({ block, cv, editing = false }) {
             ) : null}
           </>
         ) : (
-          <BlockText>{resolveBoundText(cv, nameBind) || 'Prénom Nom'}</BlockText>
+          <BlockText>
+            {resolveBoundText(cv, nameBind) || identityNameEmptyLabel(bind)}
+          </BlockText>
         )
       ) : null;
       const titleEl = showTitle && (editing || title) ? (

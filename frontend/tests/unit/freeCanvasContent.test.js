@@ -5,6 +5,7 @@ import {
   getByPath,
   normalizeBind,
   bindIncludesPath,
+  identityNameEmptyLabel,
   resolveBoundText,
   resolveBoundStringList,
   resolveCompetenceList,
@@ -44,6 +45,13 @@ test('bindIncludesPath : legacy vide = tout ; sinon filtre', () => {
   assert.equal(bindIncludesPath(['prenom', 'nom'], 'titre_professionnel'), false);
   assert.equal(bindIncludesPath('email', 'email'), true);
   assert.equal(bindIncludesPath('email', 'telephone'), false);
+});
+
+test('identityNameEmptyLabel suit le bind (pas de label hors champs)', () => {
+  assert.equal(identityNameEmptyLabel(['prenom', 'nom']), 'Prénom Nom');
+  assert.equal(identityNameEmptyLabel(['prenom']), 'Prénom');
+  assert.equal(identityNameEmptyLabel(['nom']), 'Nom');
+  assert.equal(identityNameEmptyLabel(['titre_professionnel']), '');
 });
 
 test('resolveBoundText : identity', () => {

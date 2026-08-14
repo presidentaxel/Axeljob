@@ -79,9 +79,7 @@ def _count_inversions(ranks: list[int]) -> int:
     return inv
 
 
-def rule_free_canvas_no_semantic_blocks(
-    cv: dict[str, Any], layout: dict[str, Any]
-) -> Rule | None:
+def rule_free_canvas_no_semantic_blocks(cv: dict[str, Any], layout: dict[str, Any]) -> Rule | None:
     """Penalise un canvas libre sans aucun bloc semantique affiche."""
     del cv
     if get_grid(layout) != "free":

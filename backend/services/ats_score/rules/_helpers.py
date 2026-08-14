@@ -210,9 +210,7 @@ def cv_first_text(cv: dict[str, Any], *keys: str) -> str:
 
 def cv_has_identity(cv: dict[str, Any]) -> bool:
     """Vrai si prenom/first_name ou nom/last_name est renseigne."""
-    return bool(
-        cv_first_text(cv, "prenom", "first_name") or cv_first_text(cv, "nom", "last_name")
-    )
+    return bool(cv_first_text(cv, "prenom", "first_name") or cv_first_text(cv, "nom", "last_name"))
 
 
 def cv_has_contact(cv: dict[str, Any]) -> bool:

@@ -39,7 +39,7 @@ export default function EditorCvImportModal({
           <input
             ref={fileRef}
             type="file"
-            accept=".pdf,.doc,.docx"
+            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             className="editor-cv-import-file-input"
             onChange={handleFileChange}
             disabled={loading}
@@ -56,7 +56,7 @@ export default function EditorCvImportModal({
               <line x1="12" y1="3" x2="12" y2="15" />
             </svg>
             <strong>Choisir un fichier</strong>
-            <span>PDF, DOC ou DOCX - extraction + adaptation canvas en quelques secondes</span>
+            <span>PDF ou DOCX — extraction + adaptation canvas en quelques secondes (.doc non supporté)</span>
           </button>
         </div>
 

@@ -78,11 +78,12 @@ def extract_text_from_pdf_bytes(file_bytes: bytes) -> str:
 
 
 def extract_text_from_docx_bytes(file_bytes: bytes) -> str:
-    """Extraction texte DOCX via python-docx (paragraphes)."""
-    from docx import Document
+    """Extraction texte DOCX (paragraphes + tables, ordre du corps)."""
+    from backend.services.docx_text_extract import (
+        extract_text_from_docx_bytes as _extract,
+    )
 
-    doc = Document(BytesIO(file_bytes))
-    return "\n".join(p.text for p in doc.paragraphs if p.text and p.text.strip())
+    return _extract(file_bytes)
 
 
 def detect_sections_offline(text: str) -> dict[str, Any]:

@@ -176,6 +176,34 @@ def _docx_single_column() -> bytes:
     return buf.getvalue()
 
 
+def _docx_with_table() -> bytes:
+    """CV Word avec tableau (AXE-327) — contenu hors paragraphes top-level."""
+    from docx import Document
+    from docx.oxml import OxmlElement
+
+    doc = Document()
+    doc.add_heading("Jordan Leroy", level=1)
+    doc.add_paragraph("Analyste fonctionnel")
+    doc.add_paragraph("jordan.leroy@example.fr | +33 6 22 33 44 55 | Nantes")
+    doc.add_heading("Experience professionnelle", level=2)
+    table = doc.add_table(rows=3, cols=2)
+    table.cell(0, 0).text = "Poste"
+    table.cell(0, 1).text = "Periode"
+    table.cell(1, 0).text = "Analyste — BlueCo"
+    table.cell(1, 1).text = "2021 - Aujourd'hui"
+    table.cell(2, 0).text = "Assistant — GreenLab"
+    table.cell(2, 1).text = "2019 - 2021"
+    doc.add_heading("Competences", level=2)
+    p = doc.add_paragraph()
+    run = p.add_run("SQL")
+    br = OxmlElement("w:br")
+    run._r.append(br)
+    p.add_run("Jira")
+    buf = BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     mapping = {
@@ -183,6 +211,7 @@ def main() -> None:
         "02_sidebar.pdf": _pdf_sidebar(),
         "03_dense_multisection.pdf": _pdf_dense(),
         "04_single_column.docx": _docx_single_column(),
+        "05_with_table.docx": _docx_with_table(),
     }
     for name, payload in mapping.items():
         path = OUT / name

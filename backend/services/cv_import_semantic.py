@@ -10,20 +10,14 @@ from typing import Any
 
 from backend.gemini_usage import GeminiQuotaExceeded
 from backend.services.cv_semantic_schema import build_semantic_meta, sync_dual_keys
+from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
 GenerateFn = Callable[[str, str | None], dict]
 
 # Exceptions fatales : ne jamais avaler (429 / 5xx côté API).
-try:
-    from fastapi import HTTPException as _HTTPException
-except ImportError:  # pragma: no cover
-    _HTTPException = ()  # type: ignore[assignment, misc]
-
-_FATAL_EXC: tuple[type[BaseException], ...] = (GeminiQuotaExceeded,)
-if _HTTPException:
-    _FATAL_EXC = (*_FATAL_EXC, _HTTPException)
+_FATAL_EXC: tuple[type[BaseException], ...] = (GeminiQuotaExceeded, HTTPException)
 
 # Découpe heuristique du texte brut avant passes LLM focalisées.
 # « Profil / Profile » → résumé (aligné FE structuralSemanticBind), pas identité.

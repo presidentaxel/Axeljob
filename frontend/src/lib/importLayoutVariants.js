@@ -7,7 +7,7 @@
  * Sortie :
  *   `{ variants: [{ id, label, layout, recommendedTemplateId, importSource, blockCount }] }`
  *
- * Pas d'UI (AXE-326) ni de scoring (AXE-325) ici.
+ * Pas d'UI (AXE-326) ni de scoring inline — voir `scoreImportLayoutVariants.js` (AXE-325).
  */
 
 import { applyAtsLayoutOptimizations } from './atsLayoutOptimize.js';

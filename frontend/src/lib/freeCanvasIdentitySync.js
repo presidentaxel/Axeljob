@@ -4,6 +4,7 @@
  */
 
 import { syncCvDualKeys } from './cvDualKey.js';
+import { decodeStructuralText } from './structuralSemanticBind.js';
 
 export const IDENTITY_APPLY_CONFIDENCE = 0.75;
 export const IDENTITY_HINT_CONFIDENCE = 0.55;
@@ -17,17 +18,12 @@ function nonempty(value) {
   return String(value ?? '').trim();
 }
 
-/** HTML / rich text → texte plat une ligne. */
+/** HTML / rich text → texte plat une ligne (decode 1 passe, anti CodeQL). */
 export function plainTextFromContent(content) {
-  return String(content ?? '')
+  const stripped = String(content ?? '')
     .replace(/<br\s*\/?>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/\s+/g, ' ')
-    .trim();
+    .replace(/<[^>]+>/g, ' ');
+  return decodeStructuralText(stripped);
 }
 
 /**

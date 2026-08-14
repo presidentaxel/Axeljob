@@ -120,7 +120,7 @@ Créés sous le projet Éditeur / milestone P4, parent [AXE-41](https://linear.a
 
 | Ticket | Titre | Priorité |
 |--------|-------|----------|
-| [AXE-324](https://linear.app/axel-project/issue/AXE-324) | Feat: Générer 3 variantes layout à l'import (ATS-safe / structurel / mix) | High |
+| [AXE-324](https://linear.app/axel-project/issue/AXE-324) | Feat: Générer 3 variantes layout à l'import (ATS-safe / structurel / mix) | High — service FE `frontend/src/lib/importLayoutVariants.js` |
 | [AXE-325](https://linear.app/axel-project/issue/AXE-325) | Feat: Scorer les 3 sorties d'import (`ats_score` + delta) | High |
 | [AXE-326](https://linear.app/axel-project/issue/AXE-326) | Feat: UI chooser import Beta (preview + score + confirmation) | High |
 | [AXE-327](https://linear.app/axel-project/issue/AXE-327) | Improve: Durcir Word (tables/runs) + refus `.doc` explicite | Medium |

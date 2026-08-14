@@ -33,6 +33,7 @@ import {
   resolvePhotoUrl,
   resolveProjets,
 } from './freeCanvasContent.js';
+import { bindStructuralTextToSemanticBlocks } from './structuralSemanticBind.js';
 
 const DECORATIVE_TYPES = new Set(['shape:rect', 'shape:line']);
 
@@ -1022,7 +1023,9 @@ export function buildStructuralImportLayout(cv, structuralLayout, { templateId =
   // `freeform` : positions absolues figées (cf. reflow/pagination) → copie
   // fidèle du PDF, jamais ré-empilée en colonnes par l'auto-height.
   const sanitized = sanitizeLayoutV3({ ...structuralLayout, freeform: true });
-  const layout = applyLayoutPagination(sanitized);
+  // AXE-329 : titres / identité / contact → blocs sémantiques si confiance haute.
+  const { layout: boundLayout } = bindStructuralTextToSemanticBlocks(sanitized, cv);
+  const layout = applyLayoutPagination(boundLayout);
   // Python extrait les couleurs thème directement depuis page.get_drawings()
   // (fiable quel que soit le chemin de rendu). Le JS n'intervient qu'en
   // fallback pour les couleurs que Python n'a pas trouvées.

@@ -127,6 +127,16 @@ Module : `backend/services/pdf_import_policy.py`.
 
 ---
 
+## Binding sémantique freeform (AXE-329)
+
+Sur `buildStructuralImportLayout`, après sanitize :
+
+- Heuristique FE (`structuralSemanticBind.js`) : titres FR/EN, identité (nom CV + haut de page), contact (email/tél).
+- Confiance ≥ 0.75 → bloc sémantique + `bind` (région titre→prochain titre) ; sinon reste `text` freeform.
+- `layout.freeform` reste `true` (pas de reflow colonne).
+
+---
+
 ## Backlog d'implémentation (tickets enfants)
 
 Créés sous le projet Éditeur / milestone P4, parent [AXE-41](https://linear.app/axel-project/issue/AXE-41) :
@@ -138,7 +148,7 @@ Créés sous le projet Éditeur / milestone P4, parent [AXE-41](https://linear.a
 | [AXE-326](https://linear.app/axel-project/issue/AXE-326) | Feat: UI chooser import Beta (preview + score + confirmation) | High — `EditorImportLayoutChooserModal` |
 | [AXE-327](https://linear.app/axel-project/issue/AXE-327) | Improve: Durcir Word (tables/runs) + refus `.doc` explicite | Medium |
 | [AXE-328](https://linear.app/axel-project/issue/AXE-328) | Improve: Policy PDF scanné — message UX, pas d'OCR MVP | Medium |
-| [AXE-329](https://linear.app/axel-project/issue/AXE-329) | Improve: Lier freeform structurel → blocs sémantiques éditables | Low |
+| [AXE-329](https://linear.app/axel-project/issue/AXE-329) | Improve: Lier freeform structurel → blocs sémantiques éditables | Low — `frontend/src/lib/structuralSemanticBind.js` |
 
 ---
 

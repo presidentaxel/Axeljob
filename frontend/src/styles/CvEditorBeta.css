@@ -656,6 +656,40 @@
   line-height: 1.45;
 }
 
+.cv-editor-beta-semantic-note--identity-hint {
+  background: var(--color-pale-blue, #f1f5ff);
+  color: var(--color-dark-navy, #071829);
+}
+
+.cv-editor-beta-semantic-note__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.cv-editor-beta-semantic-note__apply {
+  flex-shrink: 0;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--color-on-dark, #fff);
+  background: var(--color-primary, #17171c);
+  border: 1px solid var(--color-primary, #17171c);
+  border-radius: 30px;
+  cursor: pointer;
+}
+
+.cv-editor-beta-semantic-note__apply:hover {
+  opacity: 0.9;
+}
+
+.cv-editor-beta-semantic-note__apply:focus-visible {
+  outline: 2px solid var(--color-focus-blue, #4c6ee6);
+  outline-offset: 2px;
+}
+
 .cv-editor-beta-semantic-note__dismiss {
   flex-shrink: 0;
   padding: 0.3rem 0.75rem;

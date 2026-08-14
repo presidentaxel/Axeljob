@@ -37,6 +37,11 @@ import {
   applyCvFieldsFromRoot,
   readBlockContentFromRoot,
 } from '../../lib/canvasInlineEdit.js';
+import {
+  applyIdentitySyncPatch,
+  suggestFreeformCvSync,
+} from '../../lib/freeCanvasIdentitySync.js';
+import { syncCvDualKeys } from '../../lib/cvDualKey.js';
 import { resolveCanvasImageSrcForLayout } from '../../lib/uploadCanvasAsset.js';
 import {
   applyAtsLayoutOptimizations,
@@ -213,6 +218,8 @@ function CvEditorBeta({
   const [importToast, setImportToast] = useState('');
   const [editHintOpen, setEditHintOpen] = useState(false);
   const [semanticEditNoteOpen, setSemanticEditNoteOpen] = useState(false);
+  /** Hint discret AXE-339 : freeform ressemble à identité/contact. */
+  const [identitySyncHint, setIdentitySyncHint] = useState(null);
   const [narrowViewport, setNarrowViewport] = useState(false);
   const [desktopHintDismissed, setDesktopHintDismissed] = useState(() => isCanvasDesktopHintDismissed());
   const importCleanupRef = useRef(null);
@@ -409,8 +416,9 @@ function CvEditorBeta({
 
   const handleCvChange = useCallback((nextCv) => {
     if (profileLoadError || !nextCv) return;
-    setCv(nextCv);
-    autoSave.schedule(nextCv);
+    const synced = syncCvDualKeys(nextCv);
+    setCv(synced);
+    autoSave.schedule(synced);
   }, [autoSave, profileLoadError]);
 
   const handleRetry = useCallback(() => {
@@ -811,6 +819,23 @@ function CvEditorBeta({
     dismissSemanticEditNote();
     setSemanticEditNoteOpen(false);
   }, []);
+
+  const handleDismissIdentitySyncHint = useCallback(() => {
+    setIdentitySyncHint(null);
+  }, []);
+
+  const handleApplyIdentitySyncHint = useCallback(() => {
+    if (!identitySyncHint?.patch) {
+      setIdentitySyncHint(null);
+      return;
+    }
+    const nextCv = applyIdentitySyncPatch(cv, identitySyncHint.patch);
+    handleCvChange(nextCv);
+    setIdentitySyncHint(null);
+    if (!isSemanticEditNoteDismissed()) {
+      setSemanticEditNoteOpen(true);
+    }
+  }, [cv, handleCvChange, identitySyncHint]);
 
   const closeEditHintIfOpen = useCallback(() => {
     if (!editHintOpen) return;
@@ -1227,11 +1252,32 @@ function CvEditorBeta({
       setEditingBlockId(null);
       return;
     }
-    const { block } = found;
+    const { block, pageIndex } = found;
     if (block.type === 'text' || block.type === 'title') {
       const content = readBlockContentFromRoot(rootEl, block.type);
       const next = updateBlock(layout, blockId, { content });
       commitLayout(next);
+      // AXE-339 : freeform → profil sémantique (auto ou hint), sans wizard.
+      const page = layout.pages?.[pageIndex];
+      const suggestion = suggestFreeformCvSync({
+        content,
+        block: { ...block, content },
+        page,
+        cv,
+      });
+      if (suggestion.action === 'apply' && suggestion.patch) {
+        handleCvChange(applyIdentitySyncPatch(cv, suggestion.patch));
+        setIdentitySyncHint(null);
+        if (!isSemanticEditNoteDismissed()) {
+          setSemanticEditNoteOpen(true);
+        }
+      } else if (suggestion.action === 'hint' && suggestion.patch) {
+        setIdentitySyncHint({
+          message: suggestion.message,
+          patch: suggestion.patch,
+          kind: suggestion.kind,
+        });
+      }
     } else if (cv && rootEl) {
       const nextCv = applyCvFieldsFromRoot(cv, rootEl);
       handleCvChange(nextCv);
@@ -1772,6 +1818,33 @@ function CvEditorBeta({
             >
               Compris
             </button>
+          </div>
+        )}
+        {identitySyncHint && (
+          <div
+            className="cv-editor-beta-semantic-note cv-editor-beta-semantic-note--identity-hint"
+            role="status"
+            aria-live="polite"
+          >
+            <span className="cv-editor-beta-semantic-note__text">
+              {identitySyncHint.message || 'Mettre à jour le profil avec ce texte ?'}
+            </span>
+            <div className="cv-editor-beta-semantic-note__actions">
+              <button
+                type="button"
+                className="cv-editor-beta-semantic-note__apply"
+                onClick={handleApplyIdentitySyncHint}
+              >
+                Utiliser
+              </button>
+              <button
+                type="button"
+                className="cv-editor-beta-semantic-note__dismiss"
+                onClick={handleDismissIdentitySyncHint}
+              >
+                Ignorer
+              </button>
+            </div>
           </div>
         )}
       </div>

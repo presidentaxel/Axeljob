@@ -115,6 +115,12 @@ import EditorImageEditPopover from './EditorImageEditPopover.jsx';
 import EditorCanvaTransferModal from './EditorCanvaTransferModal.jsx';
 import EditorCvImportModal from './EditorCvImportModal.jsx';
 import EditorOnboardingTour from './EditorOnboardingTour.jsx';
+import HeaderComposerModal from './HeaderComposerModal.jsx';
+import {
+  applyHeaderComposerToLayout,
+  mergeHeaderComposerCv,
+} from '../../lib/headerComposerPresets.js';
+import '../../styles/HeaderComposerModal.css';
 
 import {
   buildCanvasPdfFilename,
@@ -178,6 +184,7 @@ function CvEditorBeta({
   const [canvasSnapEnabled, setCanvasSnapEnabled] = useState(true);
   const [imageEditBlockId, setImageEditBlockId] = useState(null);
   const [sidebarSection, setSidebarSection] = useState('sections');
+  const [headerComposerOpen, setHeaderComposerOpen] = useState(false);
   const [placementPreset, setPlacementPreset] = useState(null);
   const [startupPromptOpen, setStartupPromptOpen] = useState(false);
   const [onboardingDismissed, setOnboardingDismissed] = useState(() => isEditorOnboardingDismissed());
@@ -424,11 +431,37 @@ function CvEditorBeta({
 
   const handleEmptyAddSection = useCallback(() => {
     setSidebarSection('sections');
+    setHeaderComposerOpen(true);
   }, []);
 
   const handleEmptyChooseTemplate = useCallback(() => {
     setSidebarSection('design');
   }, []);
+
+  const handleOpenHeaderComposer = useCallback(() => {
+    setSidebarSection('sections');
+    setHeaderComposerOpen(true);
+  }, []);
+
+  const handleHeaderComposerConfirm = useCallback((payload) => {
+    if (!layout || !payload || profileLoadError) return;
+    const nextCv = mergeHeaderComposerCv(cv, payload.values, payload.fields);
+    handleCvChange(nextCv);
+    const { layout: nextLayout, placedIds } = applyHeaderComposerToLayout(layout, 0, {
+      variantId: payload.variantId,
+      fields: payload.fields,
+    });
+    commitLayout(nextLayout);
+    // Persister cv + layout ensemble (évite un flush avec l’ancien cv).
+    if (nextCv) autoSave.schedule({ ...nextCv, layout: nextLayout });
+    if (placedIds.length) {
+      setSelectedBlockIds(placedIds);
+      setEditingBlockId(null);
+      setImageEditBlockId(null);
+    }
+    setHeaderComposerOpen(false);
+    setStartupPromptOpen(false);
+  }, [layout, cv, handleCvChange, commitLayout, autoSave, profileLoadError]);
 
   const handleDismissOnboarding = useCallback(() => {
     dismissEditorOnboarding();
@@ -1763,6 +1796,7 @@ function CvEditorBeta({
           onShowGridChange={setShowCanvasGrid}
           onSnapEnabledChange={setCanvasSnapEnabled}
           onBeginPlacement={handleBeginPlacement}
+          onOpenHeaderComposer={handleOpenHeaderComposer}
           onCancelPlacement={handleCancelPlacement}
           onSelectBlock={handleSelectBlock}
           onBlockPatch={handleBlockPatchById}
@@ -1849,27 +1883,13 @@ function CvEditorBeta({
                   <span className="cv-editor-beta-start-panel__eyebrow">Démarrer en Beta</span>
                   <h2>Comment veux-tu commencer ?</h2>
                   <p>
-                    Ton profil est chargé, mais aucune mise en page canvas n&apos;est encore
-                    enregistrée. Choisis une option pour ne pas rester sur une page vide.
+                    Ne reste pas sur une page vide : importe ton CV, pars d’un modèle,
+                    ou génère une mise en page depuis ton profil.
                   </p>
                   <div className="cv-editor-beta-start-panel__actions">
                     <button
                       type="button"
                       className="cv-editor-beta-start-panel__primary"
-                      onClick={handleGenerateStarterCanvas}
-                    >
-                      Générer depuis mon profil
-                    </button>
-                    <button
-                      type="button"
-                      className="cv-editor-beta-start-panel__secondary"
-                      onClick={handleChooseAtsSafeTemplate}
-                    >
-                      Choisir un modèle ATS-safe
-                    </button>
-                    <button
-                      type="button"
-                      className="cv-editor-beta-start-panel__import"
                       onClick={() => {
                         clearCanvasSelection();
                         setImportError('');
@@ -1880,6 +1900,20 @@ function CvEditorBeta({
                     </button>
                     <button
                       type="button"
+                      className="cv-editor-beta-start-panel__secondary"
+                      onClick={handleChooseAtsSafeTemplate}
+                    >
+                      Choisir un modèle
+                    </button>
+                    <button
+                      type="button"
+                      className="cv-editor-beta-start-panel__import"
+                      onClick={handleGenerateStarterCanvas}
+                    >
+                      Générer depuis mon profil
+                    </button>
+                    <button
+                      type="button"
                       className="cv-editor-beta-start-panel__advanced"
                       onClick={handlePickBlankCanvas}
                     >
@@ -1887,8 +1921,9 @@ function CvEditorBeta({
                     </button>
                   </div>
                   <p className="cv-editor-beta-start-panel__hint">
-                    « Générer depuis mon profil » crée une mise en page ATS-safe à partir de
-                    tes données. « Page blanche » efface le layout serveur (reload → canvas vide).
+                    Après démarrage, utilise « Composer l’en-tête » dans Sections pour
+                    poser identité + contact avec un design soigné. La page blanche
+                    est réservée aux utilisateurs avancés.
                   </p>
                 </div>
               </section>
@@ -1957,6 +1992,13 @@ function CvEditorBeta({
         confirming={importChooserConfirming}
         onConfirm={handleImportChooserConfirm}
         onCancel={handleImportChooserCancel}
+      />
+
+      <HeaderComposerModal
+        open={headerComposerOpen}
+        cv={cv}
+        onConfirm={handleHeaderComposerConfirm}
+        onCancel={() => setHeaderComposerOpen(false)}
       />
 
     </div>

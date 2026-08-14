@@ -866,7 +866,7 @@ export default function FreeCanvas({
                   <div className="free-canvas-page-empty" role="status">
                     <p className="free-canvas-page-empty__title">Cette page est vide</p>
                     <p className="free-canvas-page-empty__text">
-                      Ajoute une section CV ou pars d’un modèle pour démarrer.
+                      Compose ton en-tête ou pars d’un modèle pour démarrer.
                     </p>
                     <div className="free-canvas-page-empty__actions">
                       <button
@@ -877,7 +877,7 @@ export default function FreeCanvas({
                           onEmptyAddSection?.();
                         }}
                       >
-                        Ajouter une section
+                        Composer l’en-tête
                       </button>
                       <button
                         type="button"

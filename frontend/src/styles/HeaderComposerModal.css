@@ -1,0 +1,280 @@
+.header-composer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(7, 24, 41, 0.55);
+}
+
+.header-composer-modal {
+  width: min(640px, 100%);
+  max-height: min(92vh, 860px);
+  overflow: auto;
+  background: var(--color-canvas, #fff);
+  border-radius: 16px;
+  border: 1px solid var(--color-hairline, #d9d9dd);
+  padding: 1.25rem 1.35rem 1.35rem;
+  font-family: var(--app-font-family);
+}
+
+.header-composer-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.header-composer-eyebrow {
+  display: inline-flex;
+  margin-bottom: 0.35rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 30px;
+  background: var(--color-pale-green, #edfce9);
+  color: var(--color-deep-green, #003c33);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.header-composer-head h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: var(--color-ink, #212121);
+}
+
+.header-composer-head p {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--color-body-muted, #616161);
+}
+
+.header-composer-close {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--color-hairline, #d9d9dd);
+  border-radius: 8px;
+  background: var(--color-canvas, #fff);
+  color: var(--color-ink, #212121);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.header-composer-close:hover {
+  background: var(--color-soft-stone, #eeece7);
+}
+
+.header-composer-section {
+  margin-bottom: 1rem;
+}
+
+.header-composer-section__title {
+  margin: 0 0 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-slate, #75758a);
+}
+
+.header-composer-variants {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.header-composer-variant {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.55rem;
+  border: 1px solid var(--color-hairline, #d9d9dd);
+  border-radius: 8px;
+  background: var(--color-canvas, #fff);
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--color-ink, #212121);
+}
+
+.header-composer-variant:hover {
+  background: var(--color-soft-stone, #eeece7);
+}
+
+.header-composer-variant.is-selected {
+  border-color: var(--color-primary, #17171c);
+  background: var(--color-pale-blue, #f1f5ff);
+}
+
+.header-composer-variant strong {
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.header-composer-variant > span:last-child {
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--color-body-muted, #616161);
+}
+
+.header-composer-variant__preview {
+  display: block;
+  height: 44px;
+  border-radius: 4px;
+  background: var(--color-soft-stone, #eeece7);
+  margin-bottom: 0.2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.header-composer-variant__preview--stacked::before,
+.header-composer-variant__preview--stacked::after,
+.header-composer-variant__preview--inline_title::before,
+.header-composer-variant__preview--inline_title::after,
+.header-composer-variant__preview--header_bar::before,
+.header-composer-variant__preview--header_bar::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  border-radius: 2px;
+  background: var(--color-ink, #212121);
+}
+
+.header-composer-variant__preview--stacked::before {
+  top: 10px;
+  height: 6px;
+  right: 28px;
+}
+
+.header-composer-variant__preview--stacked::after {
+  top: 22px;
+  height: 4px;
+  background: var(--color-muted, #93939f);
+}
+
+.header-composer-variant__preview--inline_title::before {
+  top: 14px;
+  height: 6px;
+  right: 40%;
+}
+
+.header-composer-variant__preview--inline_title::after {
+  top: 14px;
+  left: 62%;
+  height: 6px;
+  background: var(--color-action-blue, #1863dc);
+}
+
+.header-composer-variant__preview--header_bar::before {
+  top: 8px;
+  height: 6px;
+  right: 24px;
+}
+
+.header-composer-variant__preview--header_bar::after {
+  top: 24px;
+  height: 8px;
+  background: var(--color-dark-navy, #071829);
+  opacity: 0.85;
+}
+
+.header-composer-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.header-composer-field {
+  display: grid;
+  grid-template-columns: minmax(140px, 180px) 1fr;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.header-composer-field__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.84rem;
+  color: var(--color-ink, #212121);
+  cursor: pointer;
+}
+
+.header-composer-field__input {
+  width: 100%;
+  min-height: 36px;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--color-hairline, #d9d9dd);
+  border-radius: 8px;
+  background: var(--color-canvas, #fff);
+  color: var(--color-ink, #212121);
+  font: inherit;
+  font-size: 0.88rem;
+}
+
+.header-composer-field__input:focus {
+  outline: none;
+  border-color: var(--color-form-focus, #9b60aa);
+}
+
+.header-composer-field__hint {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--color-muted, #93939f);
+}
+
+.header-composer-warn {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  color: var(--color-error, #b30000);
+}
+
+.header-composer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  padding-top: 0.35rem;
+}
+
+.header-composer-actions button {
+  min-height: 40px;
+  padding: 0.45rem 1rem;
+  border-radius: 32px;
+  border: 1px solid var(--color-hairline, #d9d9dd);
+  background: var(--color-canvas, #fff);
+  color: var(--color-ink, #212121);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.header-composer-primary {
+  border-color: var(--color-primary, #17171c) !important;
+  background: var(--color-primary, #17171c) !important;
+  color: var(--color-on-dark, #fff) !important;
+}
+
+.header-composer-primary:disabled,
+.header-composer-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .header-composer-variants {
+    grid-template-columns: 1fr;
+  }
+
+  .header-composer-field {
+    grid-template-columns: 1fr;
+  }
+}

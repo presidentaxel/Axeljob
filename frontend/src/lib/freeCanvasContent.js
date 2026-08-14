@@ -27,6 +27,34 @@ export function normalizeBind(bind) {
 }
 
 /**
+ * true si le chemin est affiché pour ce bind.
+ * Bind vide / absent = legacy : tout afficher.
+ * @param {string|string[]|null|undefined} bind
+ * @param {string} path
+ */
+export function bindIncludesPath(bind, path) {
+  if (typeof path !== 'string' || !path) return false;
+  const paths = normalizeBind(bind);
+  if (!paths.length) return true;
+  return paths.includes(path);
+}
+
+/**
+ * Placeholder nom affiché quand les champs bindés sont vides
+ * (ne jamais mentionner un champ hors bind).
+ * @param {string|string[]|null|undefined} bind
+ * @returns {string}
+ */
+export function identityNameEmptyLabel(bind) {
+  const showPrenom = bindIncludesPath(bind, 'prenom');
+  const showNom = bindIncludesPath(bind, 'nom');
+  if (showPrenom && showNom) return 'Prénom Nom';
+  if (showPrenom) return 'Prénom';
+  if (showNom) return 'Nom';
+  return '';
+}
+
+/**
  * Concatene les champs lies (ex. prenom + nom) avec un separateur.
  */
 export function resolveBoundText(cv, bind, { separator = ' ' } = {}) {

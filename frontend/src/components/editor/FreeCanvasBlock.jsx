@@ -16,6 +16,7 @@ import {
   getEditableFieldConfig,
 } from '../../lib/editableFieldBehavior.js';
 import {
+  bindIncludesPath,
   resolveCompetenceList,
   resolveBoundText,
   resolveCertifications,
@@ -91,24 +92,34 @@ function SemanticBlockBody({ block, cv, editing = false }) {
 
   switch (type) {
     case 'identity': {
-      const prenom = getFieldDisplayValue(cv, 'prenom');
-      const nom = getFieldDisplayValue(cv, 'nom');
-      const title = getFieldDisplayValue(cv, 'titre_professionnel');
+      const showPrenom = bindIncludesPath(bind, 'prenom');
+      const showNom = bindIncludesPath(bind, 'nom');
+      const showTitle = bindIncludesPath(bind, 'titre_professionnel');
+      const prenom = showPrenom ? getFieldDisplayValue(cv, 'prenom') : '';
+      const nom = showNom ? getFieldDisplayValue(cv, 'nom') : '';
+      const title = showTitle ? getFieldDisplayValue(cv, 'titre_professionnel') : '';
       const inlineTitle = style.header_layout === 'inline-title';
-      const nameEl = editing ? (
-        <>
-          <CanvasEditableField path="prenom" editing className="free-canvas-block__inline-name">
-            {prenom || 'Prénom'}
-          </CanvasEditableField>
-          {' '}
-          <CanvasEditableField path="nom" editing className="free-canvas-block__inline-name">
-            {nom || 'Nom'}
-          </CanvasEditableField>
-        </>
-      ) : (
-        <BlockText>{resolveBoundText(cv, ['prenom', 'nom']) || 'Prénom Nom'}</BlockText>
-      );
-      const titleEl = (editing || title) ? (
+      const nameBind = ['prenom', 'nom'].filter((p) => bindIncludesPath(bind, p));
+      const nameEl = (showPrenom || showNom) ? (
+        editing ? (
+          <>
+            {showPrenom ? (
+              <CanvasEditableField path="prenom" editing className="free-canvas-block__inline-name">
+                {prenom || 'Prénom'}
+              </CanvasEditableField>
+            ) : null}
+            {showPrenom && showNom ? ' ' : null}
+            {showNom ? (
+              <CanvasEditableField path="nom" editing className="free-canvas-block__inline-name">
+                {nom || 'Nom'}
+              </CanvasEditableField>
+            ) : null}
+          </>
+        ) : (
+          <BlockText>{resolveBoundText(cv, nameBind) || 'Prénom Nom'}</BlockText>
+        )
+      ) : null;
+      const titleEl = showTitle && (editing || title) ? (
         editing ? (
           <CanvasEditableField path="titre_professionnel" editing>
             {title || 'Titre professionnel'}
@@ -126,23 +137,25 @@ function SemanticBlockBody({ block, cv, editing = false }) {
               style.identity_divider ? 'free-canvas-block__identity--divider' : '',
             ].filter(Boolean).join(' ')}
           >
-            <span className="free-canvas-block__identity-name">{nameEl}</span>
+            {nameEl ? <span className="free-canvas-block__identity-name">{nameEl}</span> : null}
+            {nameEl && titleEl ? (
+              <span className="free-canvas-block__identity-sep"> - </span>
+            ) : null}
             {titleEl ? (
-              <>
-                <span className="free-canvas-block__identity-sep"> - </span>
-                <span className="free-canvas-block__identity-title free-canvas-block__identity-title--accent">
-                  {titleEl}
-                </span>
-              </>
+              <span className="free-canvas-block__identity-title free-canvas-block__identity-title--accent">
+                {titleEl}
+              </span>
             ) : null}
           </h1>
         );
       }
       return (
         <div className={`free-canvas-block__identity${style.identity_divider ? ' free-canvas-block__identity--divider' : ''}`}>
-          <div className="free-canvas-block__identity-name" style={{ textAlign: style.align || 'left' }}>
-            {nameEl}
-          </div>
+          {nameEl ? (
+            <div className="free-canvas-block__identity-name" style={{ textAlign: style.align || 'left' }}>
+              {nameEl}
+            </div>
+          ) : null}
           {titleEl ? (
             <div
               className={
@@ -173,9 +186,12 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       );
     }
     case 'contact': {
-      const tel = getFieldDisplayValue(cv, 'telephone');
-      const email = getFieldDisplayValue(cv, 'email');
-      const linkedin = getFieldDisplayValue(cv, 'linkedin');
+      const showTel = bindIncludesPath(bind, 'telephone');
+      const showEmail = bindIncludesPath(bind, 'email');
+      const showLinkedin = bindIncludesPath(bind, 'linkedin');
+      const tel = showTel ? getFieldDisplayValue(cv, 'telephone') : '';
+      const email = showEmail ? getFieldDisplayValue(cv, 'email') : '';
+      const linkedin = showLinkedin ? getFieldDisplayValue(cv, 'linkedin') : '';
       const contactCls = [
         'free-canvas-block__contact',
         style.contact_divider ? 'free-canvas-block__contact--divider' : '',
@@ -185,7 +201,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       ].filter(Boolean).join(' ');
       if (style.contact_layout === 'header-bar') {
         const segments = [];
-        if (editing || tel) {
+        if (showTel && (editing || tel)) {
           segments.push(
             <span key="tel" className="free-canvas-block__contact-segment">
               <HiPhone size={12} className="free-canvas-block__contact-icon" aria-hidden />
@@ -198,7 +214,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
             </span>,
           );
         }
-        if (editing || email) {
+        if (showEmail && (editing || email)) {
           segments.push(
             <span key="email" className="free-canvas-block__contact-segment">
               <HiEnvelope size={12} className="free-canvas-block__contact-icon" aria-hidden />
@@ -211,7 +227,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
             </span>,
           );
         }
-        if (editing || linkedin) {
+        if (showLinkedin && (editing || linkedin)) {
           segments.push(
             <span key="linkedin" className="free-canvas-block__contact-segment">
               <HiLink size={12} className="free-canvas-block__contact-icon" aria-hidden />
@@ -240,7 +256,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
           {style.section_label ? (
             <SectionHeading label={style.section_label} titleStyle={style.title_style} zone={style.zone} />
           ) : null}
-          {(editing || tel) ? (
+          {showTel && (editing || tel) ? (
             <p>
               <HiPhone size={12} className="free-canvas-block__contact-icon" aria-hidden />
               {' '}
@@ -251,7 +267,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
               )}
             </p>
           ) : null}
-          {(editing || email) ? (
+          {showEmail && (editing || email) ? (
             <p>
               <HiEnvelope size={12} className="free-canvas-block__contact-icon" aria-hidden />
               {' '}
@@ -262,7 +278,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
               )}
             </p>
           ) : null}
-          {(editing || linkedin) ? (
+          {showLinkedin && (editing || linkedin) ? (
             <p>
               <HiLink size={12} className="free-canvas-block__contact-icon" aria-hidden />
               {' '}

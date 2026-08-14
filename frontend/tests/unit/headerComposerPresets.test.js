@@ -81,6 +81,25 @@ test('merges checked fields into cv with dual-key sync (does not clear unchecked
   assert.equal(next.telephone, '010203');
 });
 
+test('clearing FR name also clears EN dual-key (no resurrection)', () => {
+  const next = mergeHeaderComposerCv(
+    { prenom: 'Ada', first_name: 'Ada', nom: 'Lovelace', last_name: 'Lovelace' },
+    { prenom: '', nom: 'Lovelace' },
+    {
+      prenom: true,
+      nom: true,
+      titre_professionnel: false,
+      email: false,
+      telephone: false,
+      linkedin: false,
+    },
+  );
+  assert.equal(next.prenom, '');
+  assert.equal(next.first_name, '');
+  assert.equal(next.nom, 'Lovelace');
+  assert.equal(next.last_name, 'Lovelace');
+});
+
 test('replaces existing identity/contact (one instance) when applying', () => {
   const layout = createBlankLayoutV3();
   const first = applyHeaderComposerToLayout(layout, 0, {

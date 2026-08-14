@@ -27,6 +27,19 @@ export function normalizeBind(bind) {
 }
 
 /**
+ * true si le chemin est affiché pour ce bind.
+ * Bind vide / absent = legacy : tout afficher.
+ * @param {string|string[]|null|undefined} bind
+ * @param {string} path
+ */
+export function bindIncludesPath(bind, path) {
+  if (typeof path !== 'string' || !path) return false;
+  const paths = normalizeBind(bind);
+  if (!paths.length) return true;
+  return paths.includes(path);
+}
+
+/**
  * Concatene les champs lies (ex. prenom + nom) avec un separateur.
  */
 export function resolveBoundText(cv, bind, { separator = ' ' } = {}) {

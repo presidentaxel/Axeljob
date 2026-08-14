@@ -135,7 +135,12 @@ export function mergeHeaderComposerCv(cv, values, fields) {
   const next = cv && typeof cv === 'object' ? { ...cv } : {};
   for (const key of HEADER_COMPOSER_FIELD_KEYS) {
     if (!fields?.[key]) continue;
-    next[key] = String(values?.[key] ?? '').trim();
+    const val = String(values?.[key] ?? '').trim();
+    next[key] = val;
+    // Écrire les miroirs EN en même temps pour que syncCvDualKeys
+    // ne ressuscite pas un ancien first_name/last_name après clear FR.
+    if (key === 'prenom') next.first_name = val;
+    if (key === 'nom') next.last_name = val;
   }
   return syncCvDualKeys(next);
 }

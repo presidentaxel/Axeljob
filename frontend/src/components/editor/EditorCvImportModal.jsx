@@ -27,9 +27,10 @@ export default function EditorCvImportModal({
             <span className="editor-cv-import-eyebrow">Import intelligent</span>
             <h2 id="editor-cv-import-title">Importer un CV</h2>
             <p>
-              PDF natif (texte sélectionnable) : mise en page recopiée en blocs éditables
-              (texte, couleurs, formes, photo). Word et PDF scanné : extraction du contenu
-              puis adaptation automatique - le rendu peut différer de l&apos;original.
+              PDF natif (texte sélectionnable) : mise en page recopiée en blocs éditables.
+              Word (.docx) : contenu extrait puis adapté. Les PDF scannés (image sans texte)
+              ne sont pas supportés — pas d&apos;OCR pour l&apos;instant ; exporte un PDF texte,
+              un .docx, ou colle le texte.
             </p>
           </div>
           <button type="button" className="editor-cv-import-close" onClick={onClose} aria-label="Fermer">×</button>
@@ -56,7 +57,7 @@ export default function EditorCvImportModal({
               <line x1="12" y1="3" x2="12" y2="15" />
             </svg>
             <strong>Choisir un fichier</strong>
-            <span>PDF ou DOCX — extraction + adaptation canvas en quelques secondes (.doc non supporté)</span>
+            <span>PDF texte ou DOCX — pas de PDF scanné (OCR hors MVP)</span>
           </button>
         </div>
 

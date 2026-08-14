@@ -55,6 +55,16 @@
   color: var(--color-body-muted, #616161);
 }
 
+.editor-import-chooser-policy {
+  margin: 0.55rem 0 0 !important;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-hairline, #d9d9dd);
+  background: var(--color-pale-blue, #f1f5ff);
+  color: var(--color-dark-navy, #071829) !important;
+  font-size: 0.8rem !important;
+}
+
 .editor-import-chooser-close {
   flex-shrink: 0;
   width: 2rem;

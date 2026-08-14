@@ -477,6 +477,7 @@ function CvEditorBeta({
     layoutHints = {},
     visionLayout = null,
     visionMeta = {},
+    importPolicy = null,
     chosenVariant = null,
   } = {}) => {
     const templates = templatesList || [];
@@ -557,6 +558,8 @@ function CvEditorBeta({
         sourceNote = ' · analyse visuelle PDF';
       } else if (visionMeta?.source === 'gemini_vision') {
         sourceNote = ' · vision partielle';
+      } else if (importPolicy?.layout_fallback) {
+        sourceNote = ' · contenu adapté (pas de copie layout PDF)';
       }
       if (importSource === 'structural') {
         setImportToast(`${blockCount} éléments importés${sourceNote}`);
@@ -594,6 +597,7 @@ function CvEditorBeta({
         layoutHints,
         visionLayout,
         visionMeta,
+        importPolicy,
       } = extractImportApiResponse(result);
       const nextCv = cvFromImportPayload(rawCv);
       const templates = templatesList || [];
@@ -619,7 +623,12 @@ function CvEditorBeta({
         mergeBuiltAndScoredVariants(built, scoredRows),
       );
       if (merged.length === 0) {
-        await applyImportedCvToCanvas(nextCv, { layoutHints, visionLayout, visionMeta });
+        await applyImportedCvToCanvas(nextCv, {
+          layoutHints,
+          visionLayout,
+          visionMeta,
+          importPolicy,
+        });
         return;
       }
       setImportChooser({
@@ -627,6 +636,7 @@ function CvEditorBeta({
         variants: merged,
         bestTotal,
         selectedId: defaultImportVariantId(merged),
+        importPolicy,
       });
     } catch (err) {
       setImportError(err?.message || 'Erreur lors de l\'import.');
@@ -644,7 +654,10 @@ function CvEditorBeta({
     if (!importChooser?.cv || !variant?.layout) return;
     setImportChooserConfirming(true);
     try {
-      await applyImportedCvToCanvas(importChooser.cv, { chosenVariant: variant });
+      await applyImportedCvToCanvas(importChooser.cv, {
+        chosenVariant: variant,
+        importPolicy: importChooser.importPolicy,
+      });
     } finally {
       setImportChooserConfirming(false);
     }
@@ -664,6 +677,7 @@ function CvEditorBeta({
       if (designOrDefault?.layout) {
         await applyImportedCvToCanvas(importChooser.cv, {
           chosenVariant: designOrDefault,
+          importPolicy: importChooser.importPolicy,
         });
       } else {
         setImportChooser(null);
@@ -1931,6 +1945,7 @@ function CvEditorBeta({
         variants={importChooser?.variants || []}
         bestTotal={importChooser?.bestTotal}
         initialSelectedId={importChooser?.selectedId || ''}
+        policyNotice={importChooser?.importPolicy?.message || ''}
         confirming={importChooserConfirming}
         onConfirm={handleImportChooserConfirm}
         onCancel={handleImportChooserCancel}

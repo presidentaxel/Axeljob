@@ -81,7 +81,7 @@ Module : `backend/services/cv_import_probe.py` (offline, sans Gemini).
 | PDF natif mono-colonne | **Haute** | Structurel + texte cohérents |
 | PDF natif sidebar / formes | **Moyenne–haute** | Blocs déplaçables ; sémantique sections encore IA |
 | PDF dense multi-sections | **Moyenne** | Ordre lecture OK ; édition fine = freeform text |
-| PDF scanné / image | **Basse** | Structurel → `None` ; vision seule ; OCR hors MVP |
+| PDF scanné / image | **Refus** | Texte non extractible → 400 UX ; **pas d'OCR** (AXE-328) |
 | DOCX | **Contenu haute / layout nulle** | Pas de positions mm ; sortir (a) ou preset |
 | `.doc` binaire | **Nulle** | Refuser ou convertir avant upload |
 
@@ -106,11 +106,24 @@ Risque produit principal : l’utilisateur attend un clone Canva du PDF ; il fau
 1. Générer les 3 variantes layout à partir d’un import réussi.
 2. Scorer chacune (`score_parsing` ; optionnel `verify-pdf` sur (a)/(c)).
 3. UI chooser Beta (cartes avant / score / « Continuer avec… »).
-4. Refus clair `.doc` + scanned sans OCR (« texte non extractible »).
+4. Refus clair `.doc` + PDF scanné sans OCR (messages UX dédiés).
 
 **Out (V2)**
 
 - OCR, import `.doc`, reconstruction Word mm, mapping freeform → blocs sémantiques complets.
+
+---
+
+## Policy PDF scanné (AXE-328)
+
+| Situation | Comportement MVP |
+|-----------|------------------|
+| PDF sans texte sélectionnable (scanné / image) | **400** + message : pas d'OCR ; demander PDF texte, `.docx`, ou collage texte |
+| PDF avec texte mais `extract_layout_from_pdf` → `None` | **Fallback** : parse IA du texte + vision/preset (pas de copie mm) ; `import_policy.layout_fallback` |
+| PDF natif structurel OK | Copie layout mm (`pdf_structural`) |
+
+Champ API : `import_policy` (`ocr: false`, `layout_mode`, `message` optionnel).  
+Module : `backend/services/pdf_import_policy.py`.
 
 ---
 

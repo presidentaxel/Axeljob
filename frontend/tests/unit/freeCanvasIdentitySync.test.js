@@ -65,6 +65,26 @@ describe('freeCanvasIdentitySync', () => {
     assert.equal(suggestion.patch.nom, 'Dupont');
   });
 
+  it('suggestFreeformCvSync hint (pas apply) pour 2 mots capitalisés hors en-tête', () => {
+    const suggestion = suggestFreeformCvSync({
+      content: 'Product Manager',
+      block: { type: 'text', y: 180, style: {} },
+      page: { height_mm: 297 },
+      cv: { prenom: '', nom: '' },
+    });
+    assert.notEqual(suggestion.action, 'apply');
+    assert.ok(['hint', 'none'].includes(suggestion.action));
+    if (suggestion.action === 'hint') {
+      assert.ok(suggestion.options?.some((o) => o.label === 'Titre pro'));
+    }
+  });
+
+  it('parseIdentityCandidate : 2 mots capitalisés restent sous seuil apply sans layout', () => {
+    const hit = parseIdentityCandidate('Jean Dupont');
+    assert.ok(hit);
+    assert.ok(hit.confidence < IDENTITY_APPLY_CONFIDENCE);
+  });
+
   it('suggestFreeformCvSync hint si confiance moyenne', () => {
     const suggestion = suggestFreeformCvSync({
       content: 'jean dupont',

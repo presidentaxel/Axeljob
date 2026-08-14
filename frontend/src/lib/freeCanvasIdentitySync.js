@@ -43,11 +43,13 @@ export function parseIdentityCandidate(content) {
 
   const prenom = parts[0];
   const nom = parts.slice(1).join(' ');
+  // Base volontairement sous IDENTITY_APPLY_CONFIDENCE :
+  // l’auto-apply exige un boost layout (haut de page / titre / bold).
   let confidence = 0.5;
-  if (parts.length === 2) confidence += 0.15;
-  if (parts.length === 3) confidence += 0.08;
+  if (parts.length === 2) confidence += 0.1;
+  if (parts.length === 3) confidence += 0.06;
   const capitalized = parts.filter((p) => /^[\p{Lu}]/u.test(p)).length;
-  if (capitalized >= 2) confidence += 0.12;
+  if (capitalized >= 2) confidence += 0.08;
   else if (capitalized === 1) confidence += 0.04;
 
   return {

@@ -95,7 +95,7 @@ def _main_blocks_layout() -> dict:
                         "w": 190,
                         "h": 10,
                         "z": 1,
-                        "style": {"contact_layout": "header-bar"},
+                        "style": {"contact_layout": "header-bar", "contact_icons": True},
                     },
                     {
                         "id": "b-resume",
@@ -343,6 +343,23 @@ class TestLayoutRenderer(unittest.TestCase):
     def test_main_blocks_html_snapshot(self):
         html = render_html(_sample_cv(), _main_blocks_layout())
         _assert_snapshot("layout_main_blocks.html", html)
+
+    def test_contact_icons_respect_style_flag(self):
+        """AXE-339 : contact_icons=false → pas d'icônes dans le fragment contact (PDF)."""
+        layout = _main_blocks_layout()
+        for page in layout["pages"]:
+            for block in page.get("blocks") or []:
+                if block.get("type") == "contact":
+                    block["style"] = {"contact_layout": "header-bar", "contact_icons": False}
+        html = render_html(_sample_cv(), layout)
+        # Le CSS peut encore mentionner la classe ; le markup contact ne doit pas
+        # embarquer de spans icônes.
+        self.assertNotIn('class="cv-layout-contact-icon"', html)
+        self.assertIn("0601020304", html)
+
+        layout_on = _main_blocks_layout()
+        html_on = render_html(_sample_cv(), layout_on)
+        self.assertIn('class="cv-layout-contact-icon"', html_on)
 
     def test_vector_shapes_export_svg(self):
         layout = {

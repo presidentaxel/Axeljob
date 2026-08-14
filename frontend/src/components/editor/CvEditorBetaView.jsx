@@ -1279,6 +1279,9 @@ function CvEditorBeta({
           kind: suggestion.kind,
           options: suggestion.options || null,
         });
+      } else {
+        // action none (ou hint inutile) → ne pas laisser un hint obsolète.
+        setIdentitySyncHint(null);
       }
     } else if (cv && rootEl) {
       const nextCv = applyCvFieldsFromRoot(cv, rootEl);

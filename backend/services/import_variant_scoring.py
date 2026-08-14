@@ -22,7 +22,7 @@ def attach_delta_vs_best(
     totals: list[int] = []
     for row in scored:
         total = row.get("score_json", {}).get("total")
-        totals.append(int(total) if isinstance(total, (int, float)) else 0)
+        totals.append(int(total) if isinstance(total, int | float) else 0)
     best = max(totals) if totals else 0
     out: list[dict[str, Any]] = []
     for row, total in zip(scored, totals, strict=True):

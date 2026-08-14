@@ -155,9 +155,57 @@ test('buildStructuralImportLayout : copie fidèle, aucun preset', () => {
   assert.equal(title.style.bold, true);
 });
 
-test('buildStructuralImportLayout : marque le layout freeform (pas de reflow)', () => {
-  const result = buildStructuralImportLayout(DENSE_CV, STRUCTURAL_LAYOUT, { templateId: '' });
+test('buildStructuralImportLayout : lie titres freeform → blocs sémantiques (AXE-329)', () => {
+  const structural = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    source: 'pdf_structural',
+    pages: [{
+      id: 'page_1',
+      blocks: [
+        {
+          type: 'text',
+          content: 'Marie Martin',
+          x: 20,
+          y: 16,
+          w: 90,
+          h: 8,
+          z: 3,
+          style: { font_size: 18, bold: true },
+        },
+        {
+          type: 'text',
+          content: 'Expérience professionnelle',
+          x: 20,
+          y: 70,
+          w: 100,
+          h: 6,
+          z: 3,
+          style: { font_size: 12, bold: true },
+        },
+        {
+          type: 'text',
+          content: 'Head of Growth — ScaleUp',
+          x: 20,
+          y: 80,
+          w: 110,
+          h: 5,
+          z: 3,
+          style: {},
+        },
+      ],
+    }],
+    theme: { template_id: 'imported' },
+  };
+  const result = buildStructuralImportLayout(DENSE_CV, structural, { templateId: 'minimal' });
+  assert.equal(result.importSource, 'structural');
   assert.equal(result.layout.freeform, true);
+  const blocks = result.layout.pages[0].blocks;
+  assert.ok(blocks.some((b) => b.type === 'identity' && Array.isArray(b.bind)));
+  assert.ok(blocks.some((b) => b.type === 'experiences' && b.bind === 'experiences'));
+  assert.equal(blocks.some((b) => b.type === 'text' && String(b.content || '').includes('Head of Growth')), false);
 });
 
 test('applyImportedRoundImageShapes : anneau vectoriel → image en cercle', () => {

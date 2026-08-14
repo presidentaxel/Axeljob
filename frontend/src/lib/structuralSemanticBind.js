@@ -13,35 +13,35 @@ export const MIN_SEMANTIC_CONFIDENCE = 0.75;
 const SECTION_HEADING_RULES = Object.freeze([
   {
     type: 'experiences',
-    re: /^(?:[\s|/·•\-–—]*)(exp[ée]riences?(?:\s+professionnelles?)?|experience|work\s+history|employment)\s*$/i,
+    re: /^(?:[\s|/·•\-–—]*)((?:work|professional)\s+experiences?|exp[ée]riences?(?:\s+professionnelles?)?|work\s+history|employment)\s*[:.]?\s*$/i,
   },
   {
     type: 'formations',
-    re: /^(?:[\s|/·•\-–—]*)(formations?|education|études|etudes|dipl[oô]mes?)\s*$/i,
+    re: /^(?:[\s|/·•\-–—]*)(formations?|education|études|etudes|dipl[oô]mes?)\s*[:.]?\s*$/i,
   },
   {
     type: 'skills',
-    re: /^(?:[\s|/·•\-–—]*)(comp[ée]tences?|skills?|technologies?|outils?)\s*$/i,
+    re: /^(?:[\s|/·•\-–—]*)(comp[ée]tences?|skills?|technologies?|outils?)\s*[:.]?\s*$/i,
   },
   {
     type: 'languages',
-    re: /^(?:[\s|/·•\-–—]*)(langues?|languages?)\s*$/i,
+    re: /^(?:[\s|/·•\-–—]*)(langues?|languages?)\s*[:.]?\s*$/i,
   },
   {
     type: 'certifications',
-    re: /^(?:[\s|/·•\-–—]*)(certifications?|accreditations?)\s*$/i,
+    re: /^(?:[\s|/·•\-–—]*)(certifications?|accreditations?)\s*[:.]?\s*$/i,
   },
   {
     type: 'projets',
-    re: /^(?:[\s|/·•\-–—]*)(projets?|projects?|réalisations?|realisations?)\s*$/i,
+    re: /^(?:[\s|/·•\-–—]*)(projets?|projects?|réalisations?|realisations?)\s*[:.]?\s*$/i,
   },
   {
     type: 'resume',
-    re: /^(?:[\s|/·•\-–—]*)(profil|r[ée]sum[ée]|summary|about|à propos|a propos)\s*$/i,
+    re: /^(?:[\s|/·•\-–—]*)(profil|r[ée]sum[ée]|summary|about|à propos|a propos)\s*[:.]?\s*$/i,
   },
   {
     type: 'contact',
-    re: /^(?:[\s|/·•\-–—]*)(contact|coordonn[ée]es)\s*$/i,
+    re: /^(?:[\s|/·•\-–—]*)(contact|coordonn[ée]es)\s*[:.]?\s*$/i,
   },
 ]);
 
@@ -78,17 +78,14 @@ export function decodeStructuralText(content) {
 }
 
 function sameColumn(head, body) {
-  // Corps majoritairement sous la bande du titre, sans démarrer à gauche (sidebar).
+  // Les titres PDF ont souvent un `w` = largeur glyphes (ex. « Formation » ~35mm)
+  // alors que le corps est plus large : on aligne sur le bord gauche, pas sur `w`.
   const hx = Number(head.x) || 0;
-  const hw = Number(head.w) || 0;
   const bx = Number(body.x) || 0;
-  const bw = Number(body.w) || 0;
-  if (bx < hx - 5) return false;
-  if (bx > hx + hw + 5) return false;
-  const left = Math.max(hx, bx);
-  const right = Math.min(hx + hw, bx + bw);
-  const overlap = Math.max(0, right - left);
-  return overlap / Math.max(1, bw) >= 0.5;
+  // Sidebar : démarre nettement à gauche du titre.
+  if (bx < hx - 8) return false;
+  // Même colonne : bords gauches proches, ou corps légèrement indenté sous le titre.
+  return Math.abs(bx - hx) <= 14 || (bx >= hx - 2 && bx <= hx + 28);
 }
 
 function unionBox(blocks) {

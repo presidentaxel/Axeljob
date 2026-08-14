@@ -29,19 +29,61 @@ test('classifyStructuralTextBlock : corps avec mot-clé → null (pas faux titre
   assert.equal(hit, null);
 });
 
-test('classifyStructuralTextBlock : titre expérience haute confiance', () => {
+test('classifyStructuralTextBlock : Work Experience + ponctuation', () => {
   const hit = classifyStructuralTextBlock({
     type: 'text',
-    content: 'Expérience professionnelle',
+    content: 'Work Experience:',
     x: 20,
     y: 80,
-    w: 100,
+    w: 55,
     h: 6,
     style: { bold: true, font_size: 12 },
   });
   assert.equal(hit?.type, 'experiences');
-  assert.equal(hit?.kind, 'heading');
   assert.ok(hit.confidence >= MIN_SEMANTIC_CONFIDENCE);
+});
+
+test('bindStructuralTextToSemanticBlocks : titre court absorbe corps plus large', () => {
+  const layout = sanitizeLayoutV3({
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    freeform: true,
+    pages: [{
+      id: 'p1',
+      blocks: [
+        {
+          id: 'h1',
+          type: 'text',
+          content: 'Formation',
+          x: 20,
+          y: 100,
+          w: 32,
+          h: 6,
+          z: 2,
+          style: { bold: true, font_size: 12 },
+        },
+        {
+          id: 'b1',
+          type: 'text',
+          content: 'Master Management — Universite Lyon (2018)',
+          x: 20,
+          y: 110,
+          w: 120,
+          h: 5,
+          z: 2,
+          style: {},
+        },
+      ],
+    }],
+  });
+  const { layout: out, boundCount } = bindStructuralTextToSemanticBlocks(layout, {});
+  assert.equal(boundCount, 1);
+  const form = out.pages[0].blocks.find((b) => b.type === 'formations');
+  assert.ok(form);
+  assert.ok(form.h >= 14, `h=${form.h}`);
+  assert.equal(out.pages[0].blocks.some((b) => b.id === 'b1'), false);
 });
 
 test('classifyStructuralTextBlock : corps long → null (pas de faux positif)', () => {

@@ -479,6 +479,7 @@ function CvEditorBeta({
     visionMeta = {},
     importPolicy = null,
     chosenVariant = null,
+    annotations = null,
   } = {}) => {
     const templates = templatesList || [];
     let finalLayout;
@@ -505,6 +506,7 @@ function CvEditorBeta({
         layoutHints,
         visionLayout,
         visionMeta,
+        annotations,
       }));
     }
 
@@ -598,6 +600,8 @@ function CvEditorBeta({
         visionLayout,
         visionMeta,
         importPolicy,
+        blockAnnotations,
+        semanticMeta,
       } = extractImportApiResponse(result);
       const nextCv = cvFromImportPayload(rawCv);
       const templates = templatesList || [];
@@ -606,6 +610,7 @@ function CvEditorBeta({
         layoutHints,
         visionLayout,
         visionMeta,
+        annotations: blockAnnotations,
       });
       let scoredRows = [];
       let bestTotal = null;
@@ -628,6 +633,7 @@ function CvEditorBeta({
           visionLayout,
           visionMeta,
           importPolicy,
+          annotations: blockAnnotations,
         });
         return;
       }
@@ -637,6 +643,8 @@ function CvEditorBeta({
         bestTotal,
         selectedId: defaultImportVariantId(merged),
         importPolicy,
+        semanticMeta,
+        blockAnnotations,
       });
     } catch (err) {
       setImportError(err?.message || 'Erreur lors de l\'import.');

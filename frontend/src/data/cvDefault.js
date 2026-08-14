@@ -2,6 +2,8 @@
 export const defaultCv = () => ({
   prenom: '',
   nom: '',
+  first_name: '',
+  last_name: '',
   email: '',
   telephone: '',
   linkedin: '',

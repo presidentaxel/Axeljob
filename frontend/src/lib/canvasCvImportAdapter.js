@@ -1018,13 +1018,20 @@ function inferThemeColorsFromStructuralBlocks(layout) {
  * PDF (texte, formes, images positionnés). Aucun preset, aucune IA - juste un
  * nettoyage défensif via sanitizeLayoutV3.
  */
-export function buildStructuralImportLayout(cv, structuralLayout, { templateId = '' } = {}) {
+export function buildStructuralImportLayout(cv, structuralLayout, {
+  templateId = '',
+  annotations = null,
+} = {}) {
   const analysis = analyzeCvProfile(cv);
   // `freeform` : positions absolues figées (cf. reflow/pagination) → copie
   // fidèle du PDF, jamais ré-empilée en colonnes par l'auto-height.
   const sanitized = sanitizeLayoutV3({ ...structuralLayout, freeform: true });
-  // AXE-329 : titres / identité / contact → blocs sémantiques si confiance haute.
-  const { layout: boundLayout } = bindStructuralTextToSemanticBlocks(sanitized, cv);
+  // AXE-329 / AXE-332 : annotations API > heuristiques locales.
+  const { layout: boundLayout } = bindStructuralTextToSemanticBlocks(sanitized, cv, {
+    annotations: annotations
+      ?? structuralLayout?.semantic_annotations
+      ?? null,
+  });
   const layout = applyLayoutPagination(boundLayout);
   // Python extrait les couleurs thème directement depuis page.get_drawings()
   // (fiable quel que soit le chemin de rendu). Le JS n'intervient qu'en
@@ -1068,10 +1075,14 @@ export function buildFullCanvasImportLayout(cv, templatesList = [], {
   layoutHints = {},
   visionLayout = null,
   visionMeta = {},
+  annotations = null,
 } = {}) {
   // Priorité absolue : reconstruction structurelle (copie fidèle du PDF natif).
   if (isStructuralLayout(visionLayout)) {
-    return buildStructuralImportLayout(cv, visionLayout, { templateId });
+    return buildStructuralImportLayout(cv, visionLayout, {
+      templateId,
+      annotations: annotations ?? visionLayout?.semantic_annotations ?? null,
+    });
   }
 
   const confidence = Number(visionMeta?.confidence ?? 0);

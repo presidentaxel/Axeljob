@@ -2,6 +2,7 @@
  * Utilitaires partagés pour l'import CV (fichier / texte).
  */
 import { defaultCv } from '../data/cvDefault.js';
+import { syncCvDualKeys } from './cvDualKey.js';
 
 export const CV_IMPORT_SCALAR_KEYS = [
   { key: 'prenom', label: 'Prénom' },
@@ -139,6 +140,8 @@ export function extractImportApiResponse(result) {
       visionLayout: null,
       visionMeta: {},
       importPolicy: null,
+      semanticMeta: null,
+      blockAnnotations: [],
     };
   }
   const cv = result.cv && typeof result.cv === 'object' ? result.cv : result;
@@ -154,7 +157,23 @@ export function extractImportApiResponse(result) {
   const importPolicy = result.import_policy && typeof result.import_policy === 'object'
     ? result.import_policy
     : null;
-  return { cv, layoutHints, visionLayout, visionMeta, importPolicy };
+  const semanticMeta = result.semantic_meta && typeof result.semantic_meta === 'object'
+    ? result.semantic_meta
+    : null;
+  const blockAnnotations = Array.isArray(result.block_annotations)
+    ? result.block_annotations
+    : (Array.isArray(visionLayout?.semantic_annotations)
+      ? visionLayout.semantic_annotations
+      : []);
+  return {
+    cv,
+    layoutHints,
+    visionLayout,
+    visionMeta,
+    importPolicy,
+    semanticMeta,
+    blockAnnotations,
+  };
 }
 
 /**
@@ -170,10 +189,15 @@ export function cvFromImportPayload(parsed) {
     ? src.competences
     : {};
 
-  return {
+  const prenom = String(src.prenom ?? src.first_name ?? '').trim();
+  const nom = String(src.nom ?? src.last_name ?? '').trim();
+
+  return syncCvDualKeys({
     ...base,
-    prenom: String(src.prenom ?? '').trim(),
-    nom: String(src.nom ?? '').trim(),
+    prenom,
+    nom,
+    first_name: String(src.first_name ?? prenom).trim() || prenom,
+    last_name: String(src.last_name ?? nom).trim() || nom,
     email: String(src.email ?? '').trim(),
     telephone: String(src.telephone ?? '').trim(),
     linkedin: String(src.linkedin ?? '').trim(),
@@ -191,7 +215,7 @@ export function cvFromImportPayload(parsed) {
       langues: Array.isArray(competences.langues) ? competences.langues : [],
       autres: Array.isArray(competences.autres) ? competences.autres : [],
     },
-  };
+  });
 }
 
 export function startImportLoadingAnimation(setImportStepIndex, options = {}) {

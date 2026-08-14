@@ -15,6 +15,7 @@ import {
   buildAdaptedCanvasLayoutForCv,
   buildFullCanvasImportLayout,
 } from './canvasCvImportAdapter.js';
+import { applyLayoutPagination } from './layoutPagination.js';
 
 export const IMPORT_VARIANT_IDS = Object.freeze(['ats-safe', 'design', 'mix']);
 
@@ -112,9 +113,11 @@ export function buildImportLayoutVariants(cv, templatesList = [], options = {}) 
     visionMeta,
   });
 
-  // Mix = clone du layout design (même source / hints), puis optimisations ATS.
-  // Évite de reconstruire un structurel sans layoutHints/visionMeta.
-  const mixLayout = applyAtsLayoutOptimizations(cloneLayout(designResult.layout));
+  // Mix = clone du layout design (même source / hints), puis ATS + pagination.
+  // Le restack ATS empile avec un gap fixe et peut dépasser A4 ; sans spill
+  // les blocs clipperaient / se chevaucheraient au clamp UI.
+  let mixLayout = applyAtsLayoutOptimizations(cloneLayout(designResult.layout));
+  mixLayout = applyLayoutPagination(mixLayout);
   const mixVariant = toVariant('mix', designResult, {
     layout: mixLayout,
     importSource: 'mix',

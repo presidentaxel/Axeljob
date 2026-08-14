@@ -7,6 +7,13 @@ import {
   pickAtsSafeTemplate,
 } from '../../src/lib/importLayoutVariants.js';
 import { isStructuralLayout } from '../../src/lib/canvasCvImportAdapter.js';
+import {
+  applyAtsLayoutOptimizations,
+} from '../../src/lib/atsLayoutOptimize.js';
+import {
+  applyLayoutPagination,
+  layoutHasPageOverflow,
+} from '../../src/lib/layoutPagination.js';
 
 const DENSE_CV = {
   prenom: 'Marie',
@@ -189,4 +196,34 @@ test('sans structurel : design tombe en preset, mix reste disponible', () => {
   assert.equal(design.importSource, 'preset');
   assert.equal(mix.importSource, 'mix');
   assert.ok(mix.layout?.pages?.length >= 1);
+});
+
+test('mix paginate après restack ATS (pas d overflow A4)', () => {
+  // Beaucoup de blocs texte hauts : le restack ATS dépasse 297 mm sans spill.
+  const denseBlocks = Array.from({ length: 12 }, (_, i) => ({
+    id: `t${i}`,
+    type: 'text',
+    content: `Bloc ${i}`,
+    x: 14,
+    y: 20 + i * 8,
+    w: 180,
+    h: 28,
+    z: 3,
+    style: { font_size: 10 },
+  }));
+  const tallStructural = {
+    ...STRUCTURAL_LAYOUT,
+    pages: [{ id: 'page_1', blocks: denseBlocks }],
+  };
+  const atsOnly = applyAtsLayoutOptimizations(structuredClone(tallStructural));
+  assert.equal(layoutHasPageOverflow(atsOnly), true);
+
+  const { variants } = buildImportLayoutVariants(DENSE_CV, TEMPLATES, {
+    visionLayout: tallStructural,
+  });
+  const mix = variants.find((v) => v.id === 'mix');
+  assert.equal(layoutHasPageOverflow(mix.layout), false);
+  assert.ok(mix.layout.pages.length >= 2);
+  // Contrôle : pagination seule suffit aussi (régression ordre ATS→paginate).
+  assert.equal(layoutHasPageOverflow(applyLayoutPagination(atsOnly)), false);
 });

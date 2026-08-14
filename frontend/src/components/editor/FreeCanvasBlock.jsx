@@ -287,23 +287,31 @@ function SemanticBlockBody({ block, cv, editing = false }) {
         </div>
       );
     }
-    case 'resume':
+    case 'resume': {
+      const resumeBind = bind?.length ? bind : 'resume';
+      const resumePath = Array.isArray(resumeBind) ? (resumeBind[0] || 'resume') : resumeBind;
+      const resumeText = resolveBoundText(cv, resumeBind);
       return (
         <div className="free-canvas-block__section-list">
-          {style.section_label ? (
-            <SectionHeading label={style.section_label} titleStyle={style.title_style} zone={style.zone} />
-          ) : null}
+          <SectionHeading
+            label={style.section_label || 'PROFIL'}
+            titleStyle={style.title_style}
+            zone={style.zone}
+          />
           <p className="free-canvas-block__resume">
-          {editing ? (
-            <CanvasEditableField path={bind?.length ? bind[0] : 'resume'} editing tag="span">
-              {resolveBoundText(cv, bind.length ? bind : 'resume') || 'Résumé professionnel'}
-            </CanvasEditableField>
-          ) : (
-            <BlockText>{resolveBoundText(cv, bind.length ? bind : 'resume')}</BlockText>
-          )}
+            {editing ? (
+              <CanvasEditableField path={resumePath} editing tag="span">
+                {resumeText || 'Résumé professionnel'}
+              </CanvasEditableField>
+            ) : resumeText ? (
+              <BlockText>{resumeText}</BlockText>
+            ) : (
+              <span className="free-canvas-block__field-placeholder">Résumé professionnel</span>
+            )}
           </p>
         </div>
       );
+    }
     case 'experiences': {
       const items = resolveExperiences(cv, limit);
       if (items.length === 0) return <p className="free-canvas-block__placeholder">Expériences</p>;

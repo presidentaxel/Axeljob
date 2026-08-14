@@ -88,7 +88,7 @@ const PRESETS_BY_TYPE = Object.freeze({
     type: 'resume',
     bind: 'resume',
     w: W,
-    h: 24,
+    h: 28,
     style: { section_label: 'PROFIL' },
   },
   experiences: {

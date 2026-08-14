@@ -14,8 +14,6 @@ import { applyAtsLayoutOptimizations } from './atsLayoutOptimize.js';
 import {
   buildAdaptedCanvasLayoutForCv,
   buildFullCanvasImportLayout,
-  buildStructuralImportLayout,
-  isStructuralLayout,
 } from './canvasCvImportAdapter.js';
 
 export const IMPORT_VARIANT_IDS = Object.freeze(['ats-safe', 'design', 'mix']);
@@ -37,18 +35,29 @@ function cloneLayout(layout) {
 }
 
 /**
- * Choisit le template ATS-safe (minimal / tags ats-safe|single-column).
+ * Choisit le template ATS-safe pour la variante import.
+ *
+ * Important : presque tous les templates livrés portent le tag `ats-safe`,
+ * donc on ne peut pas se fier au premier match par tag (sinon `bold` gagne
+ * alphabétiquement). Ordre :
+ *   1. id === `minimal`
+ *   2. single-column / no-sidebar (sans sidebar*)
+ *   3. stub minimal
+ *
  * @param {Array<object>} templatesList
  */
 export function pickAtsSafeTemplate(templatesList = []) {
   const list = Array.isArray(templatesList) ? templatesList : [];
-  const byTag = list.find(
-    (t) => Array.isArray(t?.tags)
-      && (t.tags.includes('ats-safe') || t.tags.includes('single-column')),
-  );
-  if (byTag) return byTag;
   const minimal = list.find((t) => t?.id === 'minimal');
   if (minimal) return minimal;
+
+  const singleColumn = list.find((t) => {
+    const tags = Array.isArray(t?.tags) ? t.tags : [];
+    if (tags.includes('sidebar') || tags.includes('sidebar-left')) return false;
+    return tags.includes('single-column') || tags.includes('no-sidebar');
+  });
+  if (singleColumn) return singleColumn;
+
   return { id: 'minimal', name: 'Minimal', tags: ['ats-safe', 'single-column', 'no-sidebar'] };
 }
 
@@ -103,23 +112,14 @@ export function buildImportLayoutVariants(cv, templatesList = [], options = {}) 
     visionMeta,
   });
 
-  let mixVariant;
-  if (isStructuralLayout(visionLayout)) {
-    const structural = buildStructuralImportLayout(cv, visionLayout, { templateId });
-    const mixLayout = applyAtsLayoutOptimizations(cloneLayout(structural.layout));
-    mixVariant = toVariant('mix', structural, {
-      layout: mixLayout,
-      importSource: 'mix',
-      blockCount: countBlocks(mixLayout),
-    });
-  } else {
-    const mixLayout = applyAtsLayoutOptimizations(cloneLayout(designResult.layout));
-    mixVariant = toVariant('mix', designResult, {
-      layout: mixLayout,
-      importSource: 'mix',
-      blockCount: countBlocks(mixLayout),
-    });
-  }
+  // Mix = clone du layout design (même source / hints), puis optimisations ATS.
+  // Évite de reconstruire un structurel sans layoutHints/visionMeta.
+  const mixLayout = applyAtsLayoutOptimizations(cloneLayout(designResult.layout));
+  const mixVariant = toVariant('mix', designResult, {
+    layout: mixLayout,
+    importSource: 'mix',
+    blockCount: countBlocks(mixLayout),
+  });
 
   return {
     variants: [

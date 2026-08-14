@@ -106,9 +106,29 @@ const STRUCTURAL_LAYOUT = {
   theme: { template_id: 'imported', color_body: '#1a1a1a' },
 };
 
-test('pickAtsSafeTemplate privilégie tags ats-safe / single-column', () => {
+test('pickAtsSafeTemplate privilégie id minimal', () => {
   const picked = pickAtsSafeTemplate(TEMPLATES);
   assert.equal(picked.id, 'minimal');
+});
+
+test('pickAtsSafeTemplate ignore le premier ats-safe alphabétique (bold)', () => {
+  // Tous les templates livrés portent `ats-safe` ; /api/templates liste
+  // alphabétiquement → bold en premier. On doit quand même forcer minimal.
+  const shippedLike = [
+    { id: 'bold', name: 'Bold', tags: ['ats-safe', 'sidebar', 'photo', 'bold'] },
+    { id: 'classic', name: 'Classic', tags: ['ats-safe', 'sidebar', 'photo'] },
+    { id: 'elegant', name: 'Elegant', tags: ['ats-safe', 'single-column', 'no-sidebar'] },
+    { id: 'minimal', name: 'Minimal', tags: ['ats-safe', 'single-column', 'no-sidebar', 'minimal'] },
+  ];
+  assert.equal(pickAtsSafeTemplate(shippedLike).id, 'minimal');
+});
+
+test('pickAtsSafeTemplate sans minimal : single-column / no-sidebar', () => {
+  const picked = pickAtsSafeTemplate([
+    { id: 'bold', tags: ['ats-safe', 'sidebar'] },
+    { id: 'elegant', tags: ['ats-safe', 'single-column', 'no-sidebar'] },
+  ]);
+  assert.equal(picked.id, 'elegant');
 });
 
 test('pickAtsSafeTemplate fallback minimal synthétique', () => {

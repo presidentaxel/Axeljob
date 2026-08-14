@@ -8,9 +8,10 @@ from collections.abc import Callable
 from copy import deepcopy
 from typing import Any
 
+from fastapi import HTTPException
+
 from backend.gemini_usage import GeminiQuotaExceeded
 from backend.services.cv_semantic_schema import build_semantic_meta, sync_dual_keys
-from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 

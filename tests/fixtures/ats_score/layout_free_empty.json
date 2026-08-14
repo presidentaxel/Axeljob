@@ -1,0 +1,6 @@
+{
+  "_doc": "AXE-338 — Canvas libre vide (aucun bloc).",
+  "version": 3,
+  "grid": "free",
+  "pages": [{ "id": "p1", "blocks": [] }]
+}

@@ -10,7 +10,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.services.ats_score.rules._helpers import get_grid, iter_blocks
+from backend.services.ats_score.rules._helpers import (
+    cv_has_contact,
+    cv_has_experiences,
+    cv_has_formations,
+    cv_has_identity,
+    cv_has_languages,
+    cv_has_skills,
+    get_grid,
+    iter_blocks,
+)
 from backend.services.ats_score.types import Rule, RuleSeverity
 
 # Ordre canonique recommande pour un CV ATS (sections semantiques).
@@ -37,6 +46,11 @@ _MISSING_SECTION_LABELS: dict[str, str] = {
     "skills": "competences",
     "languages": "langues",
 }
+
+# Canvas libre sans aucun bloc semantique : score bas meme si le JSON est vide
+# (sinon aucune regle free_canvas ne matchait → ~100 trompeur).
+MALUS_FREE_CANVAS_NO_SEMANTIC: int = -20
+_SEMANTIC_BLOCK_TYPES: frozenset[str] = frozenset(_CANONICAL_READ_ORDER)
 
 
 def _reading_position(block: dict[str, Any]) -> tuple[float, float]:
@@ -65,17 +79,26 @@ def _count_inversions(ranks: list[int]) -> int:
     return inv
 
 
-def _cv_has_identity(cv: dict[str, Any]) -> bool:
-    return bool((cv.get("prenom") or "").strip() or (cv.get("nom") or "").strip())
-
-
-def _cv_has_contact(cv: dict[str, Any]) -> bool:
-    return bool((cv.get("email") or "").strip() or (cv.get("telephone") or "").strip())
-
-
-def _cv_has_skills(cv: dict[str, Any], key: str) -> bool:
-    competences = cv.get("competences") or {}
-    return isinstance(competences, dict) and bool(competences.get(key) or [])
+def rule_free_canvas_no_semantic_blocks(
+    cv: dict[str, Any], layout: dict[str, Any]
+) -> Rule | None:
+    """Penalise un canvas libre sans aucun bloc semantique affiche."""
+    del cv
+    if get_grid(layout) != "free":
+        return None
+    displayed = {str(block.get("type")) for block in iter_blocks(layout) if block.get("type")}
+    if displayed & _SEMANTIC_BLOCK_TYPES:
+        return None
+    return Rule(
+        id="malus_free_canvas_no_semantic_blocks",
+        label="Canvas libre : aucun bloc semantique affiche",
+        delta=MALUS_FREE_CANVAS_NO_SEMANTIC,
+        severity=RuleSeverity.ERROR,
+        advice=(
+            "Le canvas n'affiche aucune section reconnue (identite, contact, "
+            "experiences…). Ajoute des blocs sémantiques pour un score ATS crédible."
+        ),
+    )
 
 
 def rule_free_canvas_missing_profile_sections(
@@ -86,22 +109,25 @@ def rule_free_canvas_missing_profile_sections(
     En mode libre, le score doit juger le CV réellement visible, pas les champs
     stockes dans le profil. Une page blanche doit donc perdre des points pour
     contenu non affiche, pas pour une photo ou des dates qui n'apparaissent pas.
+
+    Ne compte que le contenu **rempli** du JSON (ignore les shells vides du
+    profil par defaut) — dual-key FR/EN inclus.
     """
     if get_grid(layout) != "free":
         return None
     displayed_types = {str(block.get("type")) for block in iter_blocks(layout) if block.get("type")}
     expected: list[str] = []
-    if _cv_has_identity(cv):
+    if cv_has_identity(cv):
         expected.append("identity")
-    if _cv_has_contact(cv):
+    if cv_has_contact(cv):
         expected.append("contact")
-    if any(isinstance(exp, dict) for exp in cv.get("experiences", []) or []):
+    if cv_has_experiences(cv):
         expected.append("experiences")
-    if any(isinstance(form, dict) for form in cv.get("formations", []) or []):
+    if cv_has_formations(cv):
         expected.append("formations")
-    if _cv_has_skills(cv, "techniques"):
+    if cv_has_skills(cv):
         expected.append("skills")
-    if _cv_has_skills(cv, "langues"):
+    if cv_has_languages(cv):
         expected.append("languages")
 
     missing = [section for section in expected if section not in displayed_types]
@@ -234,8 +260,7 @@ def rule_contact_far_from_top(cv: dict[str, Any], layout: dict[str, Any]) -> Rul
     """
     if get_grid(layout) != "free":
         return None
-    has_contact = bool((cv.get("email") or "").strip() or (cv.get("telephone") or "").strip())
-    if not has_contact:
+    if not cv_has_contact(cv):
         return None
     threshold_mm = 89.1
     for block in iter_blocks(layout):

@@ -1,0 +1,17 @@
+{
+  "_doc": "AXE-338 — CV sémantique vide : le score parsing doit être clairement bas.",
+  "prenom": "",
+  "nom": "",
+  "first_name": "",
+  "last_name": "",
+  "email": "",
+  "telephone": "",
+  "experiences": [],
+  "formations": [],
+  "competences": {
+    "techniques": [],
+    "logiciels": [],
+    "langues": [],
+    "autres": []
+  }
+}

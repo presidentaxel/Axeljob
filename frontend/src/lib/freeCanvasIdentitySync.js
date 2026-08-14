@@ -43,7 +43,7 @@ export function parseIdentityCandidate(content) {
 
   const parts = text.split(' ').filter(Boolean);
   if (parts.length < 2 || parts.length > 4) return null;
-  if (!parts.every((p) => /^[\p{L}'’\-]+$/u.test(p))) return null;
+  if (!parts.every((p) => /^[\p{L}'’-]+$/u.test(p))) return null;
 
   const prenom = parts[0];
   const nom = parts.slice(1).join(' ');

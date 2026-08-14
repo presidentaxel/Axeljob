@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react';
 import { scoreToneFor } from '../../lib/atsScoreClient.js';
 import {
   defaultImportVariantId,
+  isBestAtsVariant,
   resolveImportVariant,
+  variantHasAtsScore,
 } from '../../lib/importLayoutChooser.js';
 import ImportLayoutMiniPreview from './ImportLayoutMiniPreview.jsx';
 import '../../styles/EditorImportLayoutChooserModal.css';
@@ -78,9 +80,10 @@ export default function EditorImportLayoutChooserModal({
         <div className="editor-import-chooser-grid" role="listbox" aria-label="Variantes d'import">
           {variants.map((variant) => {
             const score = variant?.score_json?.total;
+            const hasScore = variantHasAtsScore(variant);
             const tone = scoreToneFor(score);
             const isSelected = variant.id === selectedId;
-            const isBest = variant.delta_vs_best === 0;
+            const isBest = isBestAtsVariant(variant);
             return (
               <button
                 key={variant.id}
@@ -95,15 +98,14 @@ export default function EditorImportLayoutChooserModal({
                 <div className="editor-import-chooser-card__meta">
                   <strong>{variant.label || variant.id}</strong>
                   <span className={`editor-import-chooser-score tone-${tone}`}>
-                    {Number.isFinite(score) ? score : '—'}
-                    {Number.isFinite(bestTotal) && Number.isFinite(score) ? (
+                    {hasScore ? score : '—'}
+                    {Number.isFinite(bestTotal) && hasScore ? (
                       <small>{formatDelta(variant.delta_vs_best)}</small>
                     ) : null}
                   </span>
                   <span className="editor-import-chooser-card__sub">
                     {variant.blockCount || 0} blocs
                     {isBest ? ' · meilleur ATS' : ''}
-                    {variant.importSource ? ` · ${variant.importSource}` : ''}
                   </span>
                 </div>
               </button>

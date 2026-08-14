@@ -265,3 +265,78 @@ def test_layout_hints_pass_when_sections_succeed():
     assert "layout_hints" in meta["section_passes"]
     assert hints.get("layout_style") == "sidebar-left"
     assert hints.get("accent_color") == "#1863dc"
+
+
+def test_profil_only_heading_still_triggers_fallback_full():
+    """Profil seul ne doit pas bloquer le full parse (corps après = expériences)."""
+    text = """Ada Lovelace
+ada@example.com
+
+Profil
+Ingénieure passionnée.
+Software Engineer — Analytical Engines 2020-2024
+Built early algorithms
+"""
+    fallback_calls: list[str] = []
+
+    def fake_generate(prompt: str, _uid: str | None) -> dict:
+        low = prompt.lower()
+        if "mise en page" in low:
+            return {}
+        if "résumé" in low or "resume" in low or "accroche" in low:
+            return {"resume": "Ingénieure passionnée."}
+        if "identité" in low or "contact" in low:
+            return {"prenom": "Ada", "nom": "Lovelace", "email": "ada@example.com"}
+        return {}
+
+    def fake_full(full_text: str, _uid: str | None) -> dict:
+        fallback_calls.append(full_text[:30])
+        return {
+            "cv": {
+                "prenom": "Ada",
+                "nom": "Lovelace",
+                "email": "ada@example.com",
+                "resume": "Ingénieure passionnée.",
+                "experiences": [
+                    {
+                        "id": "exp_1",
+                        "poste": "Software Engineer",
+                        "entreprise": "Analytical Engines",
+                    }
+                ],
+            },
+            "layout_hints": {"layout_style": "single-column"},
+        }
+
+    cv, _hints, meta = parse_cv_by_sections(text, "user-1", fake_generate, fallback_full=fake_full)
+    assert fallback_calls, "Profil-only heading must call fallback_full"
+    assert "fallback_full" in meta["section_passes"]
+    assert len(cv.get("experiences") or []) >= 1
+
+
+def test_layout_hints_quota_does_not_abort_parsed_cv():
+    from backend.gemini_usage import GeminiQuotaExceeded
+
+    def fake_generate(prompt: str, _uid: str | None) -> dict:
+        low = prompt.lower()
+        if "mise en page" in low:
+            raise GeminiQuotaExceeded()
+        if "identité" in low or "contact" in low:
+            return {"prenom": "Ada", "nom": "Lovelace", "email": "ada@example.com"}
+        if "expériences" in low or "experiences" in low:
+            return {
+                "experiences": [
+                    {"id": "exp_1", "poste": "Software Engineer", "entreprise": "Engines"}
+                ]
+            }
+        if "formations" in low:
+            return {"formations": [{"id": "form_1", "diplome": "Mathematics"}]}
+        if "compétences" in low or "competences" in low:
+            return {"competences": {"techniques": ["Python"]}}
+        return {}
+
+    cv, hints, meta = parse_cv_by_sections(SAMPLE_TEXT, "user-1", fake_generate)
+    assert cv["prenom"] == "Ada"
+    assert len(cv.get("experiences") or []) >= 1
+    assert hints == {}
+    assert "layout_hints" not in meta["section_passes"]

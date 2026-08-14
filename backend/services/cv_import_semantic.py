@@ -76,9 +76,10 @@ _SECTION_MARKERS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ),
 )
 
-_CONTENT_SECTION_KEYS = frozenset(
+# Titres « métier » : resume/profil seul ne compte pas (sinon le corps après Profil
+# est mangé par la passe résumé et le fallback full ne part jamais).
+_STRUCTURAL_SECTION_KEYS = frozenset(
     {
-        "resume",
         "experiences",
         "formations",
         "skills",
@@ -260,7 +261,11 @@ def _cv_has_minimum(cv: dict[str, Any]) -> bool:
 
 
 def _cv_has_content_sections(cv: dict[str, Any]) -> bool:
-    """True si le CV a au moins une section métier (expériences, formations, …)."""
+    """True si le CV a au moins une section métier (expériences, formations, …).
+
+    Un ``resume`` seul ne suffit pas : un bloc Profil/Summary peut contenir
+    (ou précéder) le reste du CV sans titres Expériences/Formations.
+    """
     for key in ("experiences", "formations", "certifications", "projets"):
         val = cv.get(key)
         if isinstance(val, list) and len(val) >= 1:
@@ -271,14 +276,12 @@ def _cv_has_content_sections(cv: dict[str, Any]) -> bool:
             val = comps.get(key)
             if isinstance(val, list) and len(val) >= 1:
                 return True
-    if (cv.get("resume") or "").strip():
-        return True
     return False
 
 
 def _sections_look_headingless(sections: dict[str, str]) -> bool:
-    """Sans titres métier, tout le texte tombe dans identity → full parse requis."""
-    return not any(key in sections for key in _CONTENT_SECTION_KEYS)
+    """Sans titres structurels, full parse requis (Profil/résumé seul ≠ structure)."""
+    return not any(key in sections for key in _STRUCTURAL_SECTION_KEYS)
 
 
 def parse_cv_by_sections(
@@ -354,7 +357,7 @@ def parse_cv_by_sections(
         except Exception as exc:
             logger.warning("cv_import_semantic: fallback_full failed: %s", exc)
 
-    # Passe légère dédiée si le parse sectionné n'a pas fourni de hints.
+    # Passe cosmétique : soft-fail même sur quota/HTTP — ne pas perdre un CV déjà parsé.
     if not layout_hints and text.strip():
         try:
             hints_parsed = generate_json(_LAYOUT_HINTS_PROMPT + text.strip()[:4000], user_id)
@@ -379,8 +382,6 @@ def parse_cv_by_sections(
                     }
                     if layout_hints:
                         used_passes.append("layout_hints")
-        except _FATAL_EXC:
-            raise
         except Exception as exc:
             logger.warning("cv_import_semantic: layout_hints pass failed: %s", exc)
 

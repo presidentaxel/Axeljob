@@ -129,7 +129,7 @@ export default function OnboardingWizard({ session, onComplete }) {
                   </svg>
                 </div>
                 <span className="onb-method-title">Importer un CV</span>
-                <span className="onb-method-desc">PDF ou Word - on extrait tout automatiquement</span>
+                <span className="onb-method-desc">PDF texte ou Word (.docx) — pas de PDF scanné</span>
               </button>
 
               <button type="button" className="onb-method-card" onClick={handleManual} disabled={loading}>

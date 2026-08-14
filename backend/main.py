@@ -1486,11 +1486,18 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
         is_docx_upload,
         is_legacy_doc,
     )
+    from backend.services.pdf_import_policy import (
+        PDF_SCANNED_REFUSAL_DETAIL,
+        build_pdf_import_policy,
+        is_insufficient_import_text,
+    )
 
     if is_legacy_doc(filename=file.filename, content_type=content_type, file_bytes=file_bytes):
         raise HTTPException(status_code=400, detail=DOC_LEGACY_REFUSAL_DETAIL)
 
-    if content_type == "application/pdf" or (file.filename or "").lower().endswith(".pdf"):
+    is_pdf = content_type == "application/pdf" or (file.filename or "").lower().endswith(".pdf")
+
+    if is_pdf:
         text = _extract_text_from_pdf(file_bytes)
     elif is_docx_upload(filename=file.filename, content_type=content_type, file_bytes=file_bytes):
         text = _extract_text_from_docx(file_bytes)
@@ -1503,7 +1510,10 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
                 detail="Format non reconnu. Envoie un PDF, un .docx ou un fichier texte.",
             )
 
-    if len(text.strip()) < 50:
+    if is_insufficient_import_text(text):
+        # PDF scanné / image : message produit dédié (OCR hors MVP).
+        if is_pdf:
+            raise HTTPException(status_code=400, detail=PDF_SCANNED_REFUSAL_DETAIL)
         raise HTTPException(
             status_code=400, detail="Le fichier ne contient pas assez de texte pour un CV."
         )
@@ -1522,7 +1532,7 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
 
     vision_meta: dict[str, Any] = {}
     structural_layout: dict[str, Any] | None = None
-    is_pdf = content_type == "application/pdf" or (file.filename or "").lower().endswith(".pdf")
+    import_policy: dict[str, Any] | None = None
     if is_pdf:
         # Étape 1 (prioritaire) : reconstruction déterministe sans IA. Pour un PDF
         # natif (texte extractible), on copie la mise en page 1:1 - c'est le rendu
@@ -1535,8 +1545,7 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
             logger.warning("Import PDF: extraction structurelle échouée: %s", exc)
             structural_layout = None
 
-        # Étape 2 (repli) : seulement si le PDF n'est pas natif (scanné/illisible),
-        # on retombe sur la vision Gemini pour deviner un template + couleurs.
+        # Étape 2 (repli) : texte OK mais pas de layout mm → vision/preset (pas d'OCR).
         if structural_layout is None:
             from backend.services.cv_import_layout_vision import (
                 detection_to_layout_hints,
@@ -1558,6 +1567,11 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
                 else:
                     logger.warning("Import PDF: vision sans détection - repli preset")
 
+        import_policy = build_pdf_import_policy(
+            structural_layout=structural_layout,
+            vision_meta=vision_meta,
+        )
+
     structural_blocks = (
         sum(len(p.get("blocks", [])) for p in structural_layout.get("pages", []))
         if structural_layout
@@ -1578,14 +1592,19 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
             "vision_detection": bool(vision_meta),
             "vision_template": vision_meta.get("template_match"),
             "vision_confidence": vision_meta.get("confidence"),
+            "import_layout_mode": (import_policy or {}).get("layout_mode"),
+            "ocr": False,
         },
     )
-    return {
+    payload: dict[str, Any] = {
         "cv": cv,
         "layout_hints": layout_hints,
         "layout": structural_layout,
         "vision": vision_meta,
     }
+    if import_policy is not None:
+        payload["import_policy"] = import_policy
+    return payload
 
 
 @app.post("/api/cv/import-text")

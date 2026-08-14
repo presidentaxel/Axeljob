@@ -133,7 +133,13 @@ export function applyImportMergeChoices(cv, parsed, choices) {
 /** Extrait CV + layout + hints depuis la réponse API import. */
 export function extractImportApiResponse(result) {
   if (!result || typeof result !== 'object') {
-    return { cv: null, layoutHints: {}, visionLayout: null, visionMeta: {} };
+    return {
+      cv: null,
+      layoutHints: {},
+      visionLayout: null,
+      visionMeta: {},
+      importPolicy: null,
+    };
   }
   const cv = result.cv && typeof result.cv === 'object' ? result.cv : result;
   const layoutHints = result.layout_hints && typeof result.layout_hints === 'object'
@@ -145,7 +151,10 @@ export function extractImportApiResponse(result) {
   const visionMeta = result.vision && typeof result.vision === 'object'
     ? result.vision
     : {};
-  return { cv, layoutHints, visionLayout, visionMeta };
+  const importPolicy = result.import_policy && typeof result.import_policy === 'object'
+    ? result.import_policy
+    : null;
+  return { cv, layoutHints, visionLayout, visionMeta, importPolicy };
 }
 
 /**

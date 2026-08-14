@@ -20,6 +20,7 @@ export default function EditorImportLayoutChooserModal({
   variants = [],
   bestTotal = null,
   initialSelectedId = '',
+  policyNotice = '',
   onConfirm,
   onCancel,
   confirming = false,
@@ -65,6 +66,9 @@ export default function EditorImportLayoutChooserModal({
               éditable. Comparez le rendu approximatif et le score ATS, puis
               continuez avec la variante qui vous convient.
             </p>
+            {policyNotice ? (
+              <p className="editor-import-chooser-policy" role="note">{policyNotice}</p>
+            ) : null}
           </div>
           <button
             type="button"

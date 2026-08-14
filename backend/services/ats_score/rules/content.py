@@ -200,9 +200,9 @@ def rule_contact_top_of_page(cv: dict[str, Any], layout: dict[str, Any]) -> Rule
     Pour un layout ``free``, on inspecte la position ``y`` des blocs
     ``identity`` / ``contact``.
     """
-    has_email = bool((cv.get("email") or "").strip())
-    has_phone = bool((cv.get("telephone") or cv.get("phone") or "").strip())
-    if not (has_email or has_phone):
+    # Dual-key via cv_has_contact (strip avant or) — un telephone=" " ne doit
+    # pas masquer un phone valide (Bugbot PR #100).
+    if not cv_has_contact(cv):
         return None
 
     sections = get_sections_order(layout)

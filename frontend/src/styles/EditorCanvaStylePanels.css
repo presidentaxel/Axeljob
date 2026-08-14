@@ -21,6 +21,21 @@
   letter-spacing: 0.06em;
 }
 
+.editor-style-panel__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--color-ink, #212121);
+  cursor: pointer;
+}
+
+.editor-style-panel__toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary, #17171c);
+}
+
 .editor-style-panel--font {
   display: flex;
   flex-direction: column;

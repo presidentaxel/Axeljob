@@ -74,8 +74,22 @@ describe('freeCanvasIdentitySync', () => {
     });
     assert.equal(suggestion.action, 'hint');
     assert.ok(suggestion.message);
-    assert.equal(suggestion.patch.prenom, 'jean');
-    assert.equal(suggestion.patch.nom, 'dupont');
+    assert.ok(Array.isArray(suggestion.options));
+    assert.ok(suggestion.options.some((o) => o.label === 'Nom complet'));
+    assert.ok(suggestion.options.some((o) => o.label === 'Titre pro'));
+  });
+
+  it('suggestFreeformCvSync ask pour un mot ambigu', () => {
+    const suggestion = suggestFreeformCvSync({
+      content: 'Développeur',
+      block: { type: 'title', y: 20, style: { bold: true } },
+      page: { height_mm: 297 },
+      cv: {},
+    });
+    assert.equal(suggestion.action, 'hint');
+    assert.equal(suggestion.kind, 'ask');
+    assert.ok(suggestion.options.some((o) => o.label === 'Titre pro'));
+    assert.ok(suggestion.options.some((o) => o.label === 'Prénom'));
   });
 
   it('suggestFreeformCvSync none si déjà synchronisé', () => {

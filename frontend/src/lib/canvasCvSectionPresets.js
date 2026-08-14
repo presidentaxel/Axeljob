@@ -68,7 +68,7 @@ const PRESETS_BY_TYPE = Object.freeze({
     type: 'identity',
     bind: ['prenom', 'nom', 'titre_professionnel'],
     w: W,
-    h: 22,
+    h: 28,
     style: { align: 'left' },
   },
   photo: {
@@ -81,8 +81,8 @@ const PRESETS_BY_TYPE = Object.freeze({
     type: 'contact',
     bind: ['email', 'telephone', 'linkedin'],
     w: W,
-    h: 12,
-    style: {},
+    h: 18,
+    style: { contact_icons: false },
   },
   resume: {
     type: 'resume',

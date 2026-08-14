@@ -824,12 +824,13 @@ function CvEditorBeta({
     setIdentitySyncHint(null);
   }, []);
 
-  const handleApplyIdentitySyncHint = useCallback(() => {
-    if (!identitySyncHint?.patch) {
+  const handleApplyIdentitySyncHint = useCallback((patchOverride = null) => {
+    const patch = patchOverride || identitySyncHint?.patch;
+    if (!patch) {
       setIdentitySyncHint(null);
       return;
     }
-    const nextCv = applyIdentitySyncPatch(cv, identitySyncHint.patch);
+    const nextCv = applyIdentitySyncPatch(cv, patch);
     handleCvChange(nextCv);
     setIdentitySyncHint(null);
     if (!isSemanticEditNoteDismissed()) {
@@ -1271,11 +1272,12 @@ function CvEditorBeta({
         if (!isSemanticEditNoteDismissed()) {
           setSemanticEditNoteOpen(true);
         }
-      } else if (suggestion.action === 'hint' && suggestion.patch) {
+      } else if (suggestion.action === 'hint' && (suggestion.patch || suggestion.options?.length)) {
         setIdentitySyncHint({
           message: suggestion.message,
-          patch: suggestion.patch,
+          patch: suggestion.patch || suggestion.options?.[0]?.patch,
           kind: suggestion.kind,
+          options: suggestion.options || null,
         });
       }
     } else if (cv && rootEl) {
@@ -1830,13 +1832,26 @@ function CvEditorBeta({
               {identitySyncHint.message || 'Mettre à jour le profil avec ce texte ?'}
             </span>
             <div className="cv-editor-beta-semantic-note__actions">
-              <button
-                type="button"
-                className="cv-editor-beta-semantic-note__apply"
-                onClick={handleApplyIdentitySyncHint}
-              >
-                Utiliser
-              </button>
+              {Array.isArray(identitySyncHint.options) && identitySyncHint.options.length > 0 ? (
+                identitySyncHint.options.map((opt) => (
+                  <button
+                    key={opt.label}
+                    type="button"
+                    className="cv-editor-beta-semantic-note__apply"
+                    onClick={() => handleApplyIdentitySyncHint(opt.patch)}
+                  >
+                    {opt.label}
+                  </button>
+                ))
+              ) : (
+                <button
+                  type="button"
+                  className="cv-editor-beta-semantic-note__apply"
+                  onClick={() => handleApplyIdentitySyncHint()}
+                >
+                  Utiliser
+                </button>
+              )}
               <button
                 type="button"
                 className="cv-editor-beta-semantic-note__dismiss"

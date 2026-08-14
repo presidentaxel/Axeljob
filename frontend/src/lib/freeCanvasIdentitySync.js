@@ -120,6 +120,22 @@ function contactPatchDiffers(cv, patch) {
 }
 
 /**
+ * Phrase ambiguë (1–6 mots) : on demande plutôt que d'assumer.
+ * @returns {string|null}
+ */
+export function parseAmbiguousPhrase(content) {
+  const text = plainTextFromContent(content);
+  if (!text || text.length > 64) return null;
+  if (EMAIL_RE.test(text) || PHONE_RE.test(text) || /\d/.test(text)) return null;
+  if (SECTIONISH_RE.test(text)) return null;
+  if (/[,;|/·•]/.test(text)) return null;
+  const parts = text.split(' ').filter(Boolean);
+  if (parts.length < 1 || parts.length > 6) return null;
+  if (!parts.every((p) => /^[\p{L}'’-]+$/u.test(p))) return null;
+  return text;
+}
+
+/**
  * Applique un patch identité/contact + dual-key.
  * @param {object} cv
  * @param {object} patch
@@ -134,9 +150,10 @@ export function applyIdentitySyncPatch(cv, patch) {
  * Décide quoi faire après édition d'un bloc text/title.
  * @returns {{
  *   action: 'apply' | 'hint' | 'none',
- *   kind?: 'identity' | 'contact',
+ *   kind?: 'identity' | 'contact' | 'ask',
  *   confidence: number,
  *   patch?: object,
+ *   options?: Array<{ label: string, patch: object }>,
  *   message?: string,
  * }}
  */
@@ -168,25 +185,70 @@ export function suggestFreeformCvSync({ content, block, page, cv } = {}) {
   }
 
   const identity = parseIdentityCandidate(content);
-  if (!identity) return { action: 'none', confidence: 0 };
-
-  const confidence = boostConfidenceWithLayout(identity.confidence, block, page);
-  if (!identityPatchDiffers(cv, identity.prenom, identity.nom)) {
-    return { action: 'none', kind: 'identity', confidence };
+  if (identity) {
+    const confidence = boostConfidenceWithLayout(identity.confidence, block, page);
+    if (!identityPatchDiffers(cv, identity.prenom, identity.nom)) {
+      return { action: 'none', kind: 'identity', confidence };
+    }
+    const patch = { prenom: identity.prenom, nom: identity.nom };
+    const full = `${identity.prenom} ${identity.nom}`.trim();
+    if (confidence >= IDENTITY_APPLY_CONFIDENCE) {
+      return { action: 'apply', kind: 'identity', confidence, patch };
+    }
+    if (confidence >= IDENTITY_HINT_CONFIDENCE) {
+      return {
+        action: 'hint',
+        kind: 'ask',
+        confidence,
+        patch,
+        message: `« ${full} » — c’est quoi ?`,
+        options: [
+          { label: 'Nom complet', patch },
+          { label: 'Titre pro', patch: { titre_professionnel: full } },
+        ],
+      };
+    }
   }
 
-  const patch = { prenom: identity.prenom, nom: identity.nom };
-  if (confidence >= IDENTITY_APPLY_CONFIDENCE) {
-    return { action: 'apply', kind: 'identity', confidence, patch };
-  }
-  if (confidence >= IDENTITY_HINT_CONFIDENCE) {
+  // Pas un nom clair → demander (prénom seul, titre, etc.)
+  const phrase = parseAmbiguousPhrase(content);
+  if (phrase) {
+    const confidence = boostConfidenceWithLayout(0.58, block, page);
+    if (confidence < IDENTITY_HINT_CONFIDENCE) {
+      return { action: 'none', confidence };
+    }
+    const parts = phrase.split(' ').filter(Boolean);
+    const options = [];
+    if (parts.length === 1) {
+      const word = parts[0];
+      if (nonempty(cv?.prenom || cv?.first_name).toLowerCase() !== word.toLowerCase()) {
+        options.push({ label: 'Prénom', patch: { prenom: word } });
+      }
+      if (nonempty(cv?.nom || cv?.last_name).toLowerCase() !== word.toLowerCase()) {
+        options.push({ label: 'Nom', patch: { nom: word } });
+      }
+      if (nonempty(cv?.titre_professionnel).toLowerCase() !== word.toLowerCase()) {
+        options.push({ label: 'Titre pro', patch: { titre_professionnel: word } });
+      }
+    } else {
+      const namePatch = { prenom: parts[0], nom: parts.slice(1).join(' ') };
+      if (identityPatchDiffers(cv, namePatch.prenom, namePatch.nom)) {
+        options.push({ label: 'Nom complet', patch: namePatch });
+      }
+      if (nonempty(cv?.titre_professionnel).toLowerCase() !== phrase.toLowerCase()) {
+        options.push({ label: 'Titre pro', patch: { titre_professionnel: phrase } });
+      }
+    }
+    if (!options.length) return { action: 'none', confidence };
     return {
       action: 'hint',
-      kind: 'identity',
+      kind: 'ask',
       confidence,
-      patch,
-      message: `« ${identity.prenom} ${identity.nom} » ressemble à un nom — l’utiliser pour le profil ?`,
+      patch: options[0].patch,
+      message: `« ${phrase} » — c’est quoi ?`,
+      options,
     };
   }
-  return { action: 'none', kind: 'identity', confidence };
+
+  return { action: 'none', confidence: 0 };
 }

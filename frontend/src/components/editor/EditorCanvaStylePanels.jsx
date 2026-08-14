@@ -154,3 +154,24 @@ export function EditorCanvaShapePanel({ block, onBlockStylePatch }) {
     </div>
   );
 }
+
+/** Options spécifiques bloc Contact (icônes on/off). */
+export function EditorCanvaContactPanel({ block, onBlockStylePatch }) {
+  if (!block || block.type !== 'contact') return null;
+  const style = block.style || {};
+  const iconsOn = Boolean(style.contact_icons);
+
+  return (
+    <div className="editor-style-panel editor-style-panel--contact">
+      <h3 className="editor-style-panel__title">Contact</h3>
+      <label className="editor-style-panel__toggle">
+        <input
+          type="checkbox"
+          checked={iconsOn}
+          onChange={(e) => onBlockStylePatch?.({ contact_icons: e.target.checked })}
+        />
+        Afficher les icônes
+      </label>
+    </div>
+  );
+}

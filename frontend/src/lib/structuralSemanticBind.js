@@ -141,9 +141,9 @@ export function classifyStructuralTextBlock(block, cv = {}, { pageHeightMm = 297
     }
   }
 
-  // Identité : nom/prénom CV + haut de page + emphase.
-  const prenom = String(cv?.prenom || '').trim().toLowerCase();
-  const nom = String(cv?.nom || '').trim().toLowerCase();
+  // Identité : nom/prénom CV (+ dual-key EN) + haut de page + emphase.
+  const prenom = String(cv?.prenom || cv?.first_name || '').trim().toLowerCase();
+  const nom = String(cv?.nom || cv?.last_name || '').trim().toLowerCase();
   if (prenom || nom) {
     const lower = text.toLowerCase();
     const hasPrenom = prenom && lower.includes(prenom);
@@ -210,13 +210,25 @@ function toSemanticBlock(baseBlock, classification, regionBlocks) {
 
 /**
  * Applique le binding sémantique sur un layout structurel freeform.
+ * Si ``annotations`` (API AXE-332) est fourni, elles priment sur l'heuristique locale.
  * @returns {{ layout: object, boundCount: number, skippedLowConfidence: number }}
  */
 export function bindStructuralTextToSemanticBlocks(layout, cv = {}, {
   minConfidence = MIN_SEMANTIC_CONFIDENCE,
+  annotations = null,
 } = {}) {
   if (!layout || !Array.isArray(layout.pages)) {
     return { layout, boundCount: 0, skippedLowConfidence: 0 };
+  }
+
+  const annotationById = new Map();
+  const rawAnnotations = Array.isArray(annotations)
+    ? annotations
+    : (Array.isArray(layout.semantic_annotations) ? layout.semantic_annotations : []);
+  for (const ann of rawAnnotations) {
+    if (!ann?.block_id || !ann?.type) continue;
+    if (Number(ann.confidence) < minConfidence) continue;
+    annotationById.set(String(ann.block_id), ann);
   }
 
   let boundCount = 0;
@@ -231,6 +243,18 @@ export function bindStructuralTextToSemanticBlocks(layout, cv = {}, {
 
     const classifications = new Map();
     for (const block of textBlocks) {
+      const fromApi = annotationById.get(String(block.id));
+      if (fromApi) {
+        classifications.set(block.id, {
+          type: fromApi.type === 'skills' ? 'skills' : fromApi.type,
+          confidence: Number(fromApi.confidence) || 1,
+          kind: fromApi.kind || (fromApi.type === 'identity' || fromApi.type === 'contact'
+            ? fromApi.type
+            : 'heading'),
+          sectionLabel: fromApi.section_label || fromApi.sectionLabel,
+        });
+        continue;
+      }
       const hit = classifyStructuralTextBlock(block, cv);
       if (!hit) continue;
       if (hit.confidence < minConfidence) {
@@ -296,8 +320,14 @@ export function bindStructuralTextToSemanticBlocks(layout, cv = {}, {
     };
   });
 
+  const nextLayout = { ...layout, pages, freeform: true };
+  // annotations consommées — inutile de les repasser au canvas
+  if ('semantic_annotations' in nextLayout) {
+    delete nextLayout.semantic_annotations;
+  }
+
   return {
-    layout: { ...layout, pages, freeform: true },
+    layout: nextLayout,
     boundCount,
     skippedLowConfidence,
   };

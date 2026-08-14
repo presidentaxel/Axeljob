@@ -1287,6 +1287,8 @@ Retourne UNIQUEMENT un objet JSON valide avec cette structure exacte (pas de mar
   "cv": {
   "prenom": "",
   "nom": "",
+  "first_name": "",
+  "last_name": "",
   "email": "",
   "telephone": "",
   "linkedin": "",
@@ -1352,6 +1354,7 @@ Retourne UNIQUEMENT un objet JSON valide avec cette structure exacte (pas de mar
 Règles :
 - Numérote les ids : exp_1, exp_2… / form_1, form_2… / proj_1, proj_2…
 - Extrais TOUT ce qui est dans le CV, ne saute rien
+- Dual-key : prenom = first_name et nom = last_name (mêmes valeurs, toujours synchronisés)
 - Pour les dates : garde le format d'origine (ex. "01/2024", "2023", "Aujourd'hui")
 - Si une info n'est pas trouvée, laisse une chaîne vide ""
 - Les bullet_points : chaque réalisation/responsabilité = 1 bullet point
@@ -1396,13 +1399,15 @@ def _extract_text_from_docx(file_bytes: bytes) -> str:
 
 def _split_cv_import_payload(parsed: dict) -> tuple[dict, dict]:
     """Extrait le CV et les layout_hints (format enveloppe ou legacy plat)."""
+    from backend.services.cv_semantic_schema import sync_dual_keys
+
     if not isinstance(parsed, dict):
         return {}, {}
     if isinstance(parsed.get("cv"), dict):
-        cv = parsed["cv"]
+        cv = sync_dual_keys(parsed["cv"])
         hints = parsed.get("layout_hints")
         return cv, hints if isinstance(hints, dict) else {}
-    return parsed, {}
+    return sync_dual_keys(parsed), {}
 
 
 def _parse_cv_text_with_ai(text: str, user_id: str | None = None) -> dict:
@@ -1463,10 +1468,81 @@ def _parse_cv_text_with_ai(text: str, user_id: str | None = None) -> dict:
     return parsed
 
 
-def _parse_cv_import_with_ai(text: str, user_id: str | None = None) -> tuple[dict, dict]:
-    """Parse texte CV via Gemini ; retourne (cv, layout_hints)."""
-    parsed = _parse_cv_text_with_ai(text, user_id)
-    return _split_cv_import_payload(parsed)
+def _parse_cv_import_with_ai(text: str, user_id: str | None = None) -> tuple[dict, dict, dict]:
+    """Parse texte CV via Gemini (passes par sections) ; retourne (cv, layout_hints, semantic_meta)."""
+    from backend.services.cv_import_semantic import parse_cv_by_sections
+    from backend.services.cv_semantic_schema import build_semantic_meta, sync_dual_keys
+
+    def _generate_section(prompt: str, uid: str | None) -> dict:
+        """Appel Gemini focalisé (réutilise le client / modèles d'import)."""
+        import os
+        import time
+
+        ensure_budget(uid)
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise HTTPException(status_code=500, detail="GEMINI_API_KEY manquante.")
+        from google import genai
+        from google.genai import types
+
+        from backend.services.adapter import _extract_json
+
+        client = genai.Client(api_key=api_key)
+        cfg = types.GenerateContentConfig(temperature=0.1)
+        models_to_try = [GEMINI_MODEL_IMPORT]
+        if GEMINI_MODEL_IMPORT_FALLBACK and GEMINI_MODEL_IMPORT_FALLBACK != GEMINI_MODEL_IMPORT:
+            models_to_try.append(GEMINI_MODEL_IMPORT_FALLBACK)
+        r = None
+        for attempt, model_id in enumerate(models_to_try):
+            try:
+                r = client.models.generate_content(model=model_id, contents=prompt, config=cfg)
+            except Exception as exc:
+                logger.warning(
+                    "_parse_cv_import section generate: %s attempt %d: %s", model_id, attempt, exc
+                )
+                if attempt < len(models_to_try) - 1:
+                    time.sleep(0.35)
+                    continue
+                raise
+            if r and getattr(r, "text", None):
+                break
+            r = None
+            if attempt < len(models_to_try) - 1:
+                time.sleep(0.35)
+        if not r or not getattr(r, "text", None):
+            return {}
+        inp, out = usage_from_response(r)
+        if inp or out:
+            from backend.db import record_gemini_usage
+
+            record_gemini_usage(uid, "import_section", inp, out)
+        parsed = _extract_json(r.text)
+        return parsed if isinstance(parsed, dict) else {}
+
+    def _fallback_full(full_text: str, uid: str | None) -> dict:
+        parsed = _parse_cv_text_with_ai(full_text, uid)
+        cv_part, hints = _split_cv_import_payload(parsed)
+        return {"cv": cv_part, "layout_hints": hints}
+
+    try:
+        cv, layout_hints, semantic_meta = parse_cv_by_sections(
+            text,
+            user_id,
+            _generate_section,
+            fallback_full=_fallback_full,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("parse_cv_by_sections failed (%s) — fallback full", exc)
+        parsed = _parse_cv_text_with_ai(text, user_id)
+        cv, layout_hints = _split_cv_import_payload(parsed)
+        cv = sync_dual_keys(cv)
+        semantic_meta = build_semantic_meta(
+            cv, source="import_full_fallback", section_passes=["full"]
+        )
+
+    return sync_dual_keys(cv), layout_hints or {}, semantic_meta
 
 
 @app.post("/api/cv/import")
@@ -1524,7 +1600,7 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
 
     user_id = _get_user_id(request)
     try:
-        cv, layout_hints = _parse_cv_import_with_ai(text, user_id)
+        cv, layout_hints, semantic_meta = _parse_cv_import_with_ai(text, user_id)
     except GeminiQuotaExceeded:
         raise HTTPException(
             status_code=429, detail="Quota temporairement atteint. Réessaie plus tard."
@@ -1533,6 +1609,7 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
     vision_meta: dict[str, Any] = {}
     structural_layout: dict[str, Any] | None = None
     import_policy: dict[str, Any] | None = None
+    block_annotations: list[dict[str, Any]] = []
     if is_pdf:
         # Étape 1 (prioritaire) : reconstruction déterministe sans IA. Pour un PDF
         # natif (texte extractible), on copie la mise en page 1:1 - c'est le rendu
@@ -1572,6 +1649,15 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
             vision_meta=vision_meta,
         )
 
+        if structural_layout is not None:
+            from backend.services.cv_import_semantic import (
+                annotate_structural_blocks,
+                attach_annotations_to_layout,
+            )
+
+            block_annotations = annotate_structural_blocks(structural_layout, cv)
+            structural_layout = attach_annotations_to_layout(structural_layout, block_annotations)
+
     structural_blocks = (
         sum(len(p.get("blocks", [])) for p in structural_layout.get("pages", []))
         if structural_layout
@@ -1589,6 +1675,7 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
             "import_profile": cv_import_completeness(cv),
             "structural_layout": bool(structural_layout),
             "structural_blocks": structural_blocks,
+            "block_annotations": len(block_annotations),
             "vision_detection": bool(vision_meta),
             "vision_template": vision_meta.get("template_match"),
             "vision_confidence": vision_meta.get("confidence"),
@@ -1601,6 +1688,8 @@ def api_cv_import_file(request: Request, file: UploadFile = File(...)):
         "layout_hints": layout_hints,
         "layout": structural_layout,
         "vision": vision_meta,
+        "semantic_meta": semantic_meta,
+        "block_annotations": block_annotations,
     }
     if import_policy is not None:
         payload["import_policy"] = import_policy
@@ -1624,7 +1713,7 @@ def api_cv_import_text(request: Request, body: ImportTextBody):
 
     user_id = _get_user_id(request)
     try:
-        cv, layout_hints = _parse_cv_import_with_ai(text, user_id)
+        cv, layout_hints, semantic_meta = _parse_cv_import_with_ai(text, user_id)
     except GeminiQuotaExceeded:
         raise HTTPException(
             status_code=429, detail="Quota temporairement atteint. Réessaie plus tard."
@@ -1639,7 +1728,7 @@ def api_cv_import_text(request: Request, body: ImportTextBody):
             "import_profile": cv_import_completeness(cv),
         },
     )
-    return {"cv": cv, "layout_hints": layout_hints}
+    return {"cv": cv, "layout_hints": layout_hints, "semantic_meta": semantic_meta}
 
 
 def _render_empty_preview_html() -> str:

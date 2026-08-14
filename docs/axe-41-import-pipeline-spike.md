@@ -137,6 +137,15 @@ Sur `buildStructuralImportLayout`, après sanitize :
 
 ---
 
+## Import JSON sémantique complet (AXE-332)
+
+- Dual-key FR/EN : `prenom`↔`first_name`, `nom`↔`last_name` (`backend/services/cv_semantic_schema.py`, `frontend/src/lib/cvDualKey.js`).
+- Parse import **par sections** LLM + fallback full (`cv_import_semantic.parse_cv_by_sections`).
+- Payload API : `cv` + `semantic_meta` + `block_annotations` (aussi `layout.semantic_annotations`).
+- FE : annotations API priment sur les heuristiques locales.
+
+---
+
 ## Backlog d'implémentation (tickets enfants)
 
 Créés sous le projet Éditeur / milestone P4, parent [AXE-41](https://linear.app/axel-project/issue/AXE-41) :

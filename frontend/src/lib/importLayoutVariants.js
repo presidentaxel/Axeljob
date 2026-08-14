@@ -95,6 +95,7 @@ export function buildImportLayoutVariants(cv, templatesList = [], options = {}) 
     layoutHints = {},
     visionLayout = null,
     visionMeta = {},
+    annotations = null,
   } = options;
 
   const atsTemplate = pickAtsSafeTemplate(templatesList);
@@ -111,6 +112,7 @@ export function buildImportLayoutVariants(cv, templatesList = [], options = {}) 
     layoutHints,
     visionLayout,
     visionMeta,
+    annotations,
   });
 
   // Mix = clone du layout design (même source / hints), puis ATS + pagination.

@@ -22,6 +22,17 @@ import {
   recommendTemplateLabel,
   summarizeImportAdaptation,
 } from '../../lib/canvasCvImportAdapter.js';
+import { buildImportLayoutVariants } from '../../lib/importLayoutVariants.js';
+import { scoreImportLayoutVariants } from '../../lib/scoreImportLayoutVariants.js';
+import {
+  defaultImportVariantId,
+  importChooserToastMessage,
+  mergeBuiltAndScoredVariants,
+  resolveImportVariant,
+  sortImportVariantsForChooser,
+} from '../../lib/importLayoutChooser.js';
+import EditorImportLayoutChooserModal from './EditorImportLayoutChooserModal.jsx';
+import '../../styles/EditorImportLayoutChooserModal.css';
 import {
   applyCvFieldsFromRoot,
   readBlockContentFromRoot,
@@ -188,6 +199,8 @@ function CvEditorBeta({
   const [transferRequest, setTransferRequest] = useState(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
+  const [importChooser, setImportChooser] = useState(null);
+  const [importChooserConfirming, setImportChooserConfirming] = useState(false);
   const [importStepIndex, setImportStepIndex] = useState(0);
   const [importError, setImportError] = useState('');
   const [importToast, setImportToast] = useState('');
@@ -464,20 +477,36 @@ function CvEditorBeta({
     layoutHints = {},
     visionLayout = null,
     visionMeta = {},
+    chosenVariant = null,
   } = {}) => {
     const templates = templatesList || [];
-    const {
-      layout: finalLayout,
-      recommendedTemplateId,
-      analysis,
-      blockCount,
-      importSource,
-    } = buildFullCanvasImportLayout(nextCv, templates, {
-      templateId,
-      layoutHints,
-      visionLayout,
-      visionMeta,
-    });
+    let finalLayout;
+    let recommendedTemplateId;
+    let analysis = null;
+    let blockCount;
+    let importSource;
+
+    if (chosenVariant?.layout) {
+      finalLayout = chosenVariant.layout;
+      recommendedTemplateId = chosenVariant.recommendedTemplateId || '';
+      blockCount = chosenVariant.blockCount
+        || (finalLayout?.pages || []).reduce((n, p) => n + (p?.blocks?.length || 0), 0);
+      importSource = chosenVariant.importSource || chosenVariant.id || 'preset';
+    } else {
+      ({
+        layout: finalLayout,
+        recommendedTemplateId,
+        analysis,
+        blockCount,
+        importSource,
+      } = buildFullCanvasImportLayout(nextCv, templates, {
+        templateId,
+        layoutHints,
+        visionLayout,
+        visionMeta,
+      }));
+    }
+
     const recTemplate = templates.find((t) => t?.id === recommendedTemplateId) || templates[0];
     const contextKey = IMPORTED_CANVAS_CONTEXT_KEY;
     const nextTemplateOptions = recTemplate
@@ -492,6 +521,7 @@ function CvEditorBeta({
     setCv(nextCv);
     setStartupPromptOpen(false);
     setImportModalOpen(false);
+    setImportChooser(null);
     setImportError('');
     resetLayout(finalLayout);
     layoutRef.current = finalLayout;
@@ -516,21 +546,25 @@ function CvEditorBeta({
     } catch (err) {
       setLoadError(err?.message || 'Import réussi mais enregistrement échoué.');
     }
-    const label = recommendTemplateLabel(recTemplate?.id, templates);
-    let sourceNote = '';
-    if (importSource === 'structural') {
-      sourceNote = ' · copie fidèle du PDF';
-    } else if (importSource === 'vision-guided') {
-      sourceNote = ' · analyse visuelle PDF';
-    } else if (visionMeta?.source === 'gemini_vision') {
-      sourceNote = ' · vision partielle';
-    }
-    if (importSource === 'structural') {
-      setImportToast(`${blockCount} éléments importés${sourceNote}`);
+    if (chosenVariant) {
+      setImportToast(importChooserToastMessage(chosenVariant));
     } else {
-      setImportToast(`${summarizeImportAdaptation(analysis, label, blockCount, {
-        fromVision: importSource === 'vision-guided',
-      })}${sourceNote}`);
+      const label = recommendTemplateLabel(recTemplate?.id, templates);
+      let sourceNote = '';
+      if (importSource === 'structural') {
+        sourceNote = ' · copie fidèle du PDF';
+      } else if (importSource === 'vision-guided') {
+        sourceNote = ' · analyse visuelle PDF';
+      } else if (visionMeta?.source === 'gemini_vision') {
+        sourceNote = ' · vision partielle';
+      }
+      if (importSource === 'structural') {
+        setImportToast(`${blockCount} éléments importés${sourceNote}`);
+      } else {
+        setImportToast(`${summarizeImportAdaptation(analysis, label, blockCount, {
+          fromVision: importSource === 'vision-guided',
+        })}${sourceNote}`);
+      }
     }
   }, [
     templatesList,
@@ -546,6 +580,7 @@ function CvEditorBeta({
 
   const runCvImport = useCallback(async (importFn) => {
     setImportModalOpen(false);
+    setImportChooser(null);
     setImportLoading(true);
     setImportStepIndex(0);
     setImportError('');
@@ -561,7 +596,38 @@ function CvEditorBeta({
         visionMeta,
       } = extractImportApiResponse(result);
       const nextCv = cvFromImportPayload(rawCv);
-      await applyImportedCvToCanvas(nextCv, { layoutHints, visionLayout, visionMeta });
+      const templates = templatesList || [];
+      const { variants: built } = buildImportLayoutVariants(nextCv, templates, {
+        templateId,
+        layoutHints,
+        visionLayout,
+        visionMeta,
+      });
+      let scoredRows = [];
+      let bestTotal = null;
+      try {
+        const scored = await scoreImportLayoutVariants(built, nextCv, {
+          includeLayout: true,
+        });
+        scoredRows = scored.variants || [];
+        bestTotal = scored.best_total;
+      } catch {
+        // Scoring optionnel pour le chooser : on affiche quand même les 3 layouts.
+        scoredRows = [];
+      }
+      const merged = sortImportVariantsForChooser(
+        mergeBuiltAndScoredVariants(built, scoredRows),
+      );
+      if (merged.length === 0) {
+        await applyImportedCvToCanvas(nextCv, { layoutHints, visionLayout, visionMeta });
+        return;
+      }
+      setImportChooser({
+        cv: nextCv,
+        variants: merged,
+        bestTotal,
+        selectedId: defaultImportVariantId(merged),
+      });
     } catch (err) {
       setImportError(err?.message || 'Erreur lors de l\'import.');
       setImportModalOpen(true);
@@ -572,7 +638,40 @@ function CvEditorBeta({
         importCleanupRef.current = null;
       }
     }
-  }, [applyImportedCvToCanvas]);
+  }, [applyImportedCvToCanvas, templatesList, templateId]);
+
+  const handleImportChooserConfirm = useCallback(async (variant) => {
+    if (!importChooser?.cv || !variant?.layout) return;
+    setImportChooserConfirming(true);
+    try {
+      await applyImportedCvToCanvas(importChooser.cv, { chosenVariant: variant });
+    } finally {
+      setImportChooserConfirming(false);
+    }
+  }, [importChooser, applyImportedCvToCanvas]);
+
+  const handleImportChooserCancel = useCallback(async () => {
+    if (!importChooser?.cv) {
+      setImportChooser(null);
+      return;
+    }
+    const designOrDefault = resolveImportVariant(
+      importChooser.variants,
+      'design',
+    );
+    setImportChooserConfirming(true);
+    try {
+      if (designOrDefault?.layout) {
+        await applyImportedCvToCanvas(importChooser.cv, {
+          chosenVariant: designOrDefault,
+        });
+      } else {
+        setImportChooser(null);
+      }
+    } finally {
+      setImportChooserConfirming(false);
+    }
+  }, [importChooser, applyImportedCvToCanvas]);
 
   const handleImportFile = useCallback((file) => {
     if (!file) return;
@@ -1810,7 +1909,7 @@ function CvEditorBeta({
       </footer>
 
       <EditorCvImportModal
-        open={importModalOpen && !importLoading}
+        open={importModalOpen && !importLoading && !importChooser}
         onClose={() => {
           if (!importLoading) setImportModalOpen(false);
         }}
@@ -1826,6 +1925,16 @@ function CvEditorBeta({
           subtitle="Analyse en cours - cela peut prendre jusqu'à une minute pour un PDF complexe."
         />
       )}
+
+      <EditorImportLayoutChooserModal
+        open={Boolean(importChooser) && !importLoading}
+        variants={importChooser?.variants || []}
+        bestTotal={importChooser?.bestTotal}
+        initialSelectedId={importChooser?.selectedId || ''}
+        confirming={importChooserConfirming}
+        onConfirm={handleImportChooserConfirm}
+        onCancel={handleImportChooserCancel}
+      />
 
     </div>
   );

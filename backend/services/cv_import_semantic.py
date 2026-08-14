@@ -8,18 +8,30 @@ from collections.abc import Callable
 from copy import deepcopy
 from typing import Any
 
+from backend.gemini_usage import GeminiQuotaExceeded
 from backend.services.cv_semantic_schema import build_semantic_meta, sync_dual_keys
 
 logger = logging.getLogger(__name__)
 
 GenerateFn = Callable[[str, str | None], dict]
 
+# Exceptions fatales : ne jamais avaler (429 / 5xx côté API).
+try:
+    from fastapi import HTTPException as _HTTPException
+except ImportError:  # pragma: no cover
+    _HTTPException = ()  # type: ignore[assignment, misc]
+
+_FATAL_EXC: tuple[type[BaseException], ...] = (GeminiQuotaExceeded,)
+if _HTTPException:
+    _FATAL_EXC = (*_FATAL_EXC, _HTTPException)
+
 # Découpe heuristique du texte brut avant passes LLM focalisées.
+# « Profil / Profile » → résumé (aligné FE structuralSemanticBind), pas identité.
 _SECTION_MARKERS: tuple[tuple[str, re.Pattern[str]], ...] = (
     (
         "identity",
         re.compile(
-            r"^(?:identité|identity|profil|profile|coordonn[ée]es|contact)\s*[:.]?\s*$",
+            r"^(?:identité|identity|coordonn[ée]es|contact)\s*[:.]?\s*$",
             re.I,
         ),
     ),
@@ -63,10 +75,22 @@ _SECTION_MARKERS: tuple[tuple[str, re.Pattern[str]], ...] = (
     (
         "resume",
         re.compile(
-            r"^(?:r[ée]sum[ée]|summary|about|à propos|a propos)\s*[:.]?\s*$",
+            r"^(?:profil|profile|r[ée]sum[ée]|summary|about|à propos|a propos)\s*[:.]?\s*$",
             re.I,
         ),
     ),
+)
+
+_CONTENT_SECTION_KEYS = frozenset(
+    {
+        "resume",
+        "experiences",
+        "formations",
+        "skills",
+        "languages",
+        "certifications",
+        "projets",
+    }
 )
 
 _EMAIL_RE = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.I)
@@ -181,6 +205,21 @@ JSON : { "projets": [ {
 Texte :
 """
 
+_LAYOUT_HINTS_PROMPT = """Tu déduis UNIQUEMENT le style de mise en page probable du CV.
+Retourne UNIQUEMENT un JSON valide :
+{
+  "layout_hints": {
+    "layout_style": "sidebar-left|sidebar-right|single-column|header-band",
+    "accent_color": "#RRGGBB ou vide si inconnu",
+    "sidebar_color": "#RRGGBB ou vide",
+    "header_color": "#RRGGBB ou vide",
+    "sections_emphasis": ["experiences", "formations", "skills", "projets"]
+  }
+}
+sections_emphasis = sections les plus fournies (ordre d'importance).
+Texte :
+"""
+
 _SECTION_PROMPTS: dict[str, str] = {
     "identity": _IDENTITY_PROMPT,
     "resume": _RESUME_PROMPT,
@@ -225,6 +264,28 @@ def _cv_has_minimum(cv: dict[str, Any]) -> bool:
     return isinstance(exps, list) and len(exps) >= 1
 
 
+def _cv_has_content_sections(cv: dict[str, Any]) -> bool:
+    """True si le CV a au moins une section métier (expériences, formations, …)."""
+    for key in ("experiences", "formations", "certifications", "projets"):
+        val = cv.get(key)
+        if isinstance(val, list) and len(val) >= 1:
+            return True
+    comps = cv.get("competences")
+    if isinstance(comps, dict):
+        for key in ("techniques", "logiciels", "langues", "autres"):
+            val = comps.get(key)
+            if isinstance(val, list) and len(val) >= 1:
+                return True
+    if (cv.get("resume") or "").strip():
+        return True
+    return False
+
+
+def _sections_look_headingless(sections: dict[str, str]) -> bool:
+    """Sans titres métier, tout le texte tombe dans identity → full parse requis."""
+    return not any(key in sections for key in _CONTENT_SECTION_KEYS)
+
+
 def parse_cv_by_sections(
     text: str,
     user_id: str | None,
@@ -235,7 +296,7 @@ def parse_cv_by_sections(
     """Parse par sections LLM puis merge. Retourne (cv, layout_hints, semantic_meta).
 
     ``generate_json(prompt, user_id) -> dict`` doit appeler Gemini (ou un mock).
-    ``fallback_full`` : parse monolithique si résultat trop pauvre.
+    ``fallback_full`` : parse monolithique si résultat trop pauvre / sans titres.
     """
     sections = split_cv_text_into_sections(text)
     # identity : toujours inclure le début du doc si section vide
@@ -245,35 +306,42 @@ def parse_cv_by_sections(
     parts: list[dict[str, Any]] = []
     used_passes: list[str] = []
     layout_hints: dict[str, Any] = {}
+    headingless = _sections_look_headingless(sections)
 
-    for name in SECTION_ORDER:
-        chunk = sections.get(name)
-        if not chunk or name == "body":
-            continue
-        prompt_prefix = _SECTION_PROMPTS.get(name)
-        if not prompt_prefix:
-            continue
-        # Évite double call skills/languages
-        if name == "languages" and "skills" in used_passes and "skills" in sections:
-            continue
-        try:
-            parsed = generate_json(prompt_prefix + chunk[:6000], user_id)
-        except Exception as exc:
-            logger.warning("cv_import_semantic: section %s failed: %s", name, exc)
-            continue
-        if not isinstance(parsed, dict):
-            continue
-        hints = parsed.pop("layout_hints", None)
-        if isinstance(hints, dict) and hints:
-            layout_hints = {**layout_hints, **hints}
-        # Enveloppe éventuelle { "cv": {...} }
-        payload = parsed.get("cv") if isinstance(parsed.get("cv"), dict) else parsed
-        parts.append(payload)
-        used_passes.append(name)
+    # Sans titres métier, le texte entier est dans identity → full parse d'emblée.
+    skip_sections = headingless and fallback_full is not None
+
+    if not skip_sections:
+        for name in SECTION_ORDER:
+            chunk = sections.get(name)
+            if not chunk or name == "body":
+                continue
+            prompt_prefix = _SECTION_PROMPTS.get(name)
+            if not prompt_prefix:
+                continue
+            try:
+                parsed = generate_json(prompt_prefix + chunk[:6000], user_id)
+            except _FATAL_EXC:
+                raise
+            except Exception as exc:
+                logger.warning("cv_import_semantic: section %s failed: %s", name, exc)
+                continue
+            if not isinstance(parsed, dict):
+                continue
+            hints = parsed.pop("layout_hints", None)
+            if isinstance(hints, dict) and hints:
+                layout_hints = {**layout_hints, **hints}
+            # Enveloppe éventuelle { "cv": {...} }
+            payload = parsed.get("cv") if isinstance(parsed.get("cv"), dict) else parsed
+            parts.append(payload)
+            used_passes.append(name)
 
     cv = _merge_cv_parts(parts)
 
-    if (not _cv_has_minimum(cv)) and fallback_full is not None:
+    need_full = fallback_full is not None and (
+        headingless or (not _cv_has_minimum(cv)) or (not _cv_has_content_sections(cv))
+    )
+    if need_full and fallback_full is not None:
         try:
             full = fallback_full(text, user_id)
             if isinstance(full, dict):
@@ -281,12 +349,45 @@ def parse_cv_by_sections(
                 inner: dict[str, Any] = inner_raw if isinstance(inner_raw, dict) else {}
                 fb_hints_raw = full.get("layout_hints")
                 fb_hints: dict[str, Any] = fb_hints_raw if isinstance(fb_hints_raw, dict) else {}
+                # Full parse comble les trous ; clés déjà remplies en section gagnent.
                 cv = sync_dual_keys({**inner, **{k: v for k, v in cv.items() if v}})
                 if fb_hints:
                     layout_hints = {**fb_hints, **layout_hints}
                 used_passes.append("fallback_full")
+        except _FATAL_EXC:
+            raise
         except Exception as exc:
             logger.warning("cv_import_semantic: fallback_full failed: %s", exc)
+
+    # Passe légère dédiée si le parse sectionné n'a pas fourni de hints.
+    if not layout_hints and text.strip():
+        try:
+            hints_parsed = generate_json(_LAYOUT_HINTS_PROMPT + text.strip()[:4000], user_id)
+            if isinstance(hints_parsed, dict):
+                raw_hints = hints_parsed.get("layout_hints")
+                if isinstance(raw_hints, dict) and raw_hints:
+                    layout_hints = raw_hints
+                    used_passes.append("layout_hints")
+                elif any(
+                    k in hints_parsed for k in ("layout_style", "accent_color", "sections_emphasis")
+                ):
+                    layout_hints = {
+                        k: hints_parsed[k]
+                        for k in (
+                            "layout_style",
+                            "accent_color",
+                            "sidebar_color",
+                            "header_color",
+                            "sections_emphasis",
+                        )
+                        if k in hints_parsed
+                    }
+                    if layout_hints:
+                        used_passes.append("layout_hints")
+        except _FATAL_EXC:
+            raise
+        except Exception as exc:
+            logger.warning("cv_import_semantic: layout_hints pass failed: %s", exc)
 
     cv = sync_dual_keys(cv)
     meta = build_semantic_meta(cv, source="import_sectioned", section_passes=used_passes)

@@ -20,7 +20,9 @@ def test_sync_dual_keys_en_fills_fr():
 
 
 def test_sync_dual_keys_fr_wins_on_conflict():
-    out = sync_dual_keys({"prenom": "Ada", "first_name": "Other", "nom": "Lovelace", "last_name": "X"})
+    out = sync_dual_keys(
+        {"prenom": "Ada", "first_name": "Other", "nom": "Lovelace", "last_name": "X"}
+    )
     assert out["prenom"] == "Ada"
     assert out["first_name"] == "Ada"
     assert out["nom"] == "Lovelace"

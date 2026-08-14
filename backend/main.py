@@ -1538,7 +1538,9 @@ def _parse_cv_import_with_ai(text: str, user_id: str | None = None) -> tuple[dic
         parsed = _parse_cv_text_with_ai(text, user_id)
         cv, layout_hints = _split_cv_import_payload(parsed)
         cv = sync_dual_keys(cv)
-        semantic_meta = build_semantic_meta(cv, source="import_full_fallback", section_passes=["full"])
+        semantic_meta = build_semantic_meta(
+            cv, source="import_full_fallback", section_passes=["full"]
+        )
 
     return sync_dual_keys(cv), layout_hints or {}, semantic_meta
 

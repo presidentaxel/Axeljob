@@ -95,6 +95,7 @@ class TestFreeCanvasTextPositions(unittest.TestCase):
         }
         result = score_parsing(cv, layout)
         ids = {r.id for r in result.rules}
+        self.assertEqual(result.total, 100)
         self.assertNotIn("malus_free_canvas_text_blocks", ids)
 
 

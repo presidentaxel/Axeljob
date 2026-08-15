@@ -31,7 +31,7 @@ Dans `backend/services/ats_score/rules/content.py` :
   positions absolues (AXE-336). On score plutôt :
   - aucun bloc sémantique / profil non affiché
   - ordre de lecture ambigu, identité pas en tête, contact trop bas
-  - multi-colonnes détectées via clusters `x`
+  - multicolonnes détectées via clusters `x`
 - Verify-pdf reste le filet pour un export réellement illisible.
 
 Le JSON peut être riche **et** le canvas incomplet → malus « profil non

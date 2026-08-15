@@ -1378,20 +1378,12 @@ function CvEditorBeta({
       event.stopPropagation();
       handleCancelAtsOptimizePreview();
     };
-    const onPointerDown = (event) => {
-      const wrap = atsOptimizeWrapRef.current;
-      const panel = atsOptimizePanelRef.current;
-      const target = event.target;
-      if (wrap?.contains(target) || panel?.contains(target)) return;
-      // Capture + pointerdown : le canvas fait preventDefault sur pointerdown,
-      // ce qui empêche mousedown d’arriver (Bugbot PR #106).
-      handleCancelAtsOptimizePreview();
-    };
+    // Pas de dismiss document-level en pointerdown : ça démonte le backdrop
+    // avant le click et laisse le click « passer » sur Télécharger / etc. (Bugbot).
+    // Le backdrop plein écran ferme au click ; Esc reste ici.
     document.addEventListener('keydown', onKeyDown, true);
-    document.addEventListener('pointerdown', onPointerDown, true);
     return () => {
       document.removeEventListener('keydown', onKeyDown, true);
-      document.removeEventListener('pointerdown', onPointerDown, true);
     };
   }, [atsOptimizePreview, handleCancelAtsOptimizePreview]);
 

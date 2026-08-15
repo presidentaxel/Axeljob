@@ -147,8 +147,8 @@ export const SECTION_COMPOSER_VARIANTS = Object.freeze({
     { id: 'compact', label: 'Compact', description: 'Bloc court' },
   ]),
   certifications: Object.freeze([
-    { id: 'list', label: 'Liste', description: 'Lignes verticales' },
-    { id: 'classic', label: 'Classique', description: 'Format standard' },
+    { id: 'classic', label: 'Classique', description: 'Titre standard, bloc aéré' },
+    { id: 'underline', label: 'Souligné', description: 'Titre accent + hauteur compacte' },
   ]),
   projets: Object.freeze([
     { id: 'classic', label: 'Classique', description: 'Nom + description' },
@@ -341,13 +341,30 @@ export function collectSectionBlockIds(layout, blockType) {
 /**
  * @param {object|null|undefined} layout
  * @param {string} blockType
+ * @returns {{ pageIndex: number, x: number, y: number, w?: number }|null}
+ */
+function findExistingSectionPlacement(layout, blockType) {
+  if (!layout || !Array.isArray(layout.pages)) return null;
+  for (let pageIndex = 0; pageIndex < layout.pages.length; pageIndex += 1) {
+    const blocks = layout.pages[pageIndex]?.blocks || [];
+    for (const block of blocks) {
+      if (block?.type !== blockType) continue;
+      return {
+        pageIndex,
+        x: typeof block.x === 'number' ? block.x : PAGE_MARGIN_MM,
+        y: typeof block.y === 'number' ? block.y : PAGE_MARGIN_MM,
+        w: typeof block.w === 'number' ? block.w : undefined,
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * @param {object|null|undefined} layout
  * @param {number} fallbackH
  */
-function resolvePlacementY(layout, blockType, fallbackH = 24) {
-  const existing = listAllBlocks(layout).filter((b) => b?.type === blockType);
-  if (existing.length) {
-    return Math.min(...existing.map((b) => (typeof b.y === 'number' ? b.y : PAGE_MARGIN_MM)));
-  }
+function resolveAppendPlacementY(layout, fallbackH = 24) {
   const all = listAllBlocks(layout);
   if (!all.length) return PAGE_MARGIN_MM;
   const maxBottom = Math.max(
@@ -448,14 +465,15 @@ export function buildSectionComposerBlock(type, options = {}) {
   }
 
   if (type === 'certifications') {
+    const compact = variant.id === 'underline';
     return {
       type: 'certifications',
       bind: 'certifications',
       w: W,
-      h: 24,
+      h: compact ? 18 : 28,
       style: {
         section_label: 'CERTIFICATIONS',
-        list_format: variant.id === 'list' ? 'list' : undefined,
+        title_style: compact ? 'underline-accent' : 'classic-main',
       },
     };
   }
@@ -499,6 +517,7 @@ export function canPlaceSectionComposer(type, state) {
 
 /**
  * Remplace l’instance existante du type et place le nouveau bloc.
+ * Conserve x/y/page de l’instance précédente (1 instance, pas de jump).
  * @param {object} layout
  * @param {number} pageIndex
  * @param {SectionComposerType} type
@@ -506,20 +525,26 @@ export function canPlaceSectionComposer(type, state) {
  */
 export function applySectionComposerToLayout(layout, pageIndex, type, options = {}) {
   const partial = buildSectionComposerBlock(type, options);
-  let next = removeBlocks(layout, collectSectionBlockIds(layout, type));
   const placedIds = [];
-  if (!partial) return { layout: next, placedIds };
+  if (!partial) return { layout, placedIds };
 
-  const y = resolvePlacementY(next, type, partial.h || 24);
-  const safePage =
-    typeof pageIndex === 'number' && pageIndex >= 0 && pageIndex < (next?.pages?.length || 0)
-      ? pageIndex
-      : 0;
+  // Capturer la position AVANT remove — sinon resolvePlacementY ne voit plus le bloc.
+  const previous = findExistingSectionPlacement(layout, type);
+  let next = removeBlocks(layout, collectSectionBlockIds(layout, type));
+
+  const y = previous ? previous.y : resolveAppendPlacementY(next, partial.h || 24);
+  const x = previous ? previous.x : PAGE_MARGIN_MM;
+  const pageCount = next?.pages?.length || 0;
+  let safePage = previous ? previous.pageIndex : pageIndex;
+  if (typeof safePage !== 'number' || safePage < 0 || safePage >= pageCount) {
+    safePage = 0;
+  }
 
   next = addBlockToPage(next, safePage, {
     ...partial,
-    x: PAGE_MARGIN_MM,
+    x,
     y,
+    ...(typeof previous?.w === 'number' ? { w: previous.w } : {}),
   });
   const page = next.pages?.[safePage];
   const last = page?.blocks?.[page.blocks.length - 1];

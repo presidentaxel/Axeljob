@@ -69,18 +69,28 @@ test('resume + skills merge into cv without wiping other fields', () => {
 test('experiences: replaces existing block (one instance)', () => {
   let layout = createBlankLayoutV3();
   layout = applySectionComposerToLayout(layout, 0, 'experiences', { variantId: 'compact' }).layout;
-  const firstIds = layout.pages[0].blocks.filter((b) => b.type === 'experiences').map((b) => b.id);
-  assert.equal(firstIds.length, 1);
+  const first = layout.pages[0].blocks.find((b) => b.type === 'experiences');
+  assert.ok(first);
+  // Déplacer manuellement pour vérifier que le replace conserve x/y.
+  // x max = PAGE_WIDTH - w ; avec w pleine largeur, rester ≤ 20.
+  first.x = 15;
+  first.y = 64;
 
   const second = applySectionComposerToLayout(layout, 0, 'experiences', { variantId: 'detailed' });
-  const nextIds = second.layout.pages[0].blocks.filter((b) => b.type === 'experiences').map((b) => b.id);
-  assert.equal(nextIds.length, 1);
-  assert.notEqual(nextIds[0], firstIds[0]);
-  assert.equal(second.placedIds[0], nextIds[0]);
-  assert.equal(
-    second.layout.pages[0].blocks.find((b) => b.id === nextIds[0]).style.exp_style,
-    'bold',
-  );
+  const next = second.layout.pages[0].blocks.find((b) => b.type === 'experiences');
+  assert.ok(next);
+  assert.notEqual(next.id, first.id);
+  assert.equal(second.placedIds[0], next.id);
+  assert.equal(next.x, 15);
+  assert.equal(next.y, 64);
+  assert.equal(next.style.exp_style, 'bold');
+});
+
+test('certifications variants differ in height and title_style', () => {
+  const classic = buildSectionComposerBlock('certifications', { variantId: 'classic' });
+  const underline = buildSectionComposerBlock('certifications', { variantId: 'underline' });
+  assert.notEqual(classic.h, underline.h);
+  assert.notEqual(classic.style.title_style, underline.style.title_style);
 });
 
 test('canPlace requires at least one contact field', () => {

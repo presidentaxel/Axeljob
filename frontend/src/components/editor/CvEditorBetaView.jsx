@@ -1372,23 +1372,26 @@ function CvEditorBeta({
   useEffect(() => {
     if (!atsOptimizePreview) return undefined;
     const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        handleCancelAtsOptimizePreview();
-      }
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      // Empêche le handler canvas (window) de vider la sélection en même temps.
+      event.stopPropagation();
+      handleCancelAtsOptimizePreview();
     };
     const onPointerDown = (event) => {
       const wrap = atsOptimizeWrapRef.current;
       const panel = atsOptimizePanelRef.current;
       const target = event.target;
       if (wrap?.contains(target) || panel?.contains(target)) return;
+      // Capture + pointerdown : le canvas fait preventDefault sur pointerdown,
+      // ce qui empêche mousedown d’arriver (Bugbot PR #106).
       handleCancelAtsOptimizePreview();
     };
-    document.addEventListener('keydown', onKeyDown);
-    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown, true);
+    document.addEventListener('pointerdown', onPointerDown, true);
     return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown, true);
+      document.removeEventListener('pointerdown', onPointerDown, true);
     };
   }, [atsOptimizePreview, handleCancelAtsOptimizePreview]);
 
@@ -1815,7 +1818,13 @@ function CvEditorBeta({
                   ✕
                 </button>
               </div>
-              <p className="cv-editor-beta-ats-preview__impact" role="status">
+              <p
+                className={[
+                  'cv-editor-beta-ats-preview__impact',
+                  atsOptimizePreview.error ? 'cv-editor-beta-ats-preview__impact--error' : '',
+                ].filter(Boolean).join(' ')}
+                role="status"
+              >
                 {atsOptimizePreviewLoading && 'Calcul de l’impact score…'}
                 {!atsOptimizePreviewLoading && atsOptimizePreview.error && atsOptimizePreview.error}
                 {!atsOptimizePreviewLoading && !atsOptimizePreview.error && (

@@ -301,30 +301,35 @@
   font-weight: 500;
 }
 
-.cv-editor-beta-ats-toast {
-  display: flex;
+/* AXE-331 — Optimiser ATS : sheet flottant (portal fixed), jamais bande pleine largeur. */
+.cv-editor-beta-ats-optimize-wrap {
+  position: relative;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
 }
 
-.cv-editor-beta-ats-toast__undo {
+.cv-editor-beta-ats-preview-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1090;
   border: none;
-  background: transparent;
-  color: var(--color-action-blue);
-  font-weight: 500;
-  font-size: 0.82rem;
-  text-decoration: underline;
-  cursor: pointer;
-  font-family: inherit;
   padding: 0;
-  flex-shrink: 0;
+  margin: 0;
+  background: transparent;
+  cursor: default;
 }
 
 .cv-editor-beta-ats-preview {
-  border-bottom: 1px solid var(--color-hairline);
+  position: fixed;
+  z-index: 1100;
+  box-sizing: border-box;
+  width: 300px;
+  max-width: calc(100vw - 24px);
   background: var(--color-canvas);
-  padding: 0.75rem 1rem 0.85rem;
+  border: 1px solid var(--color-hairline);
+  border-radius: 8px;
+  padding: 0.7rem 0.8rem 0.8rem;
+  color: var(--color-ink);
 }
 
 .cv-editor-beta-ats-preview__header {
@@ -333,6 +338,11 @@
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.35rem;
+}
+
+.cv-editor-beta-ats-preview__header strong {
+  font-size: 0.82rem;
+  font-weight: 500;
 }
 
 .cv-editor-beta-ats-preview__close {
@@ -347,31 +357,36 @@
 
 .cv-editor-beta-ats-preview__impact {
   margin: 0 0 0.45rem;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   color: var(--color-deep-green);
   font-weight: 500;
+  line-height: 1.35;
+}
+
+.cv-editor-beta-ats-preview__impact--error {
+  color: var(--color-error);
 }
 
 .cv-editor-beta-ats-preview__changes {
   margin: 0 0 0.65rem;
-  padding-left: 1.1rem;
-  font-size: 0.78rem;
+  padding-left: 1.05rem;
+  font-size: 0.74rem;
   color: var(--color-body-muted);
   line-height: 1.4;
-  max-height: 7.5rem;
+  max-height: 5.5rem;
   overflow-y: auto;
 }
 
 .cv-editor-beta-ats-preview__empty {
   margin: 0 0 0.65rem;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   color: var(--color-muted);
 }
 
 .cv-editor-beta-ats-preview__actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
+  gap: 0.45rem;
 }
 
 .cv-editor-beta-ats-preview__btn {
@@ -379,8 +394,8 @@
   background: transparent;
   color: var(--color-primary);
   border-radius: 30px;
-  padding: 0.35rem 0.9rem;
-  font-size: 0.78rem;
+  padding: 0.32rem 0.85rem;
+  font-size: 0.74rem;
   font-weight: 500;
   cursor: pointer;
   font-family: inherit;
@@ -394,6 +409,39 @@
 .cv-editor-beta-ats-preview__btn:disabled {
   opacity: 0.55;
   cursor: wait;
+}
+
+.cv-editor-beta-ats-toast {
+  position: fixed;
+  z-index: 1100;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+  width: 300px;
+  max-width: calc(100vw - 24px);
+  padding: 0.65rem 0.8rem;
+  background: var(--color-pale-blue);
+  color: var(--color-action-blue);
+  border: 1px solid var(--color-hairline);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.cv-editor-beta-ats-toast__undo {
+  border: none;
+  background: transparent;
+  color: var(--color-action-blue);
+  font-weight: 500;
+  font-size: 0.78rem;
+  text-decoration: underline;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  flex-shrink: 0;
 }
 
 .cv-editor-beta-pdf-fidelity {

@@ -448,7 +448,7 @@ Base : **100**. Plancher : **0**. Plafond : **100**.
 | Contenu sémantique fractionné multi-colonnes | −5 supplémentaire | `experiences` réparti sur ≥ 2 colonnes |
 | Présence d'une sidebar | −5 | `sidebar_ratio > 0` |
 | Tableau pour le layout | −10 | `<table>` dans le HTML rendu |
-| Positions absolues d'éléments textuels (L3) | −2 par bloc texte (plafond −10) | `layout.grid == "free"` |
+| ~~Positions absolues d'éléments textuels (L3)~~ | ~~−2 / bloc (plafond −10)~~ | **Retiré AXE-336** — le free canvas n'est plus pénalisé pour le seul fait d'être libre ; voir règles `free_canvas.*` + verify-pdf |
 | Texte sur image de fond | −5 | `block.style.background_image` présent |
 | Bullets non standards (▪ ★ ➜) | −1 | Regex sur le texte rendu |
 | Dates au format exotique | −1 par occurrence (plafond −5) | Regex stricte sur `cv.experiences[].date_*` |

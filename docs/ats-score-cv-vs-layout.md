@@ -27,8 +27,12 @@ Dans `backend/services/ats_score/rules/content.py` :
 ## Règles layout / free canvas
 
 - Templates figés : colonnes, sidebar, photo, typo…
-- Canvas `grid == "free"` : blocs sémantiques absents, profil non affiché,
-  ordre de lecture, contact trop bas, positions texte libres…
+- Canvas `grid == "free"` : **pas** de malus pour le seul fait d'utiliser des
+  positions absolues (AXE-336). On score plutôt :
+  - aucun bloc sémantique / profil non affiché
+  - ordre de lecture ambigu, identité pas en tête, contact trop bas
+  - multi-colonnes détectées via clusters `x`
+- Verify-pdf reste le filet pour un export réellement illisible.
 
 Le JSON peut être riche **et** le canvas incomplet → malus « profil non
 affiché ». L’inverse (canvas + JSON vide) → malus contenu + « aucun bloc

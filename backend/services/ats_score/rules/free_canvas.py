@@ -1,9 +1,11 @@
 """Regles ATS specifiques au canvas libre (layout v3, ``grid == "free"``).
 
-Ces regles completent ``layout.rule_free_canvas_text_positions`` et
-``layout.rule_multi_column`` en ciblant l'ordre de lecture machine :
-les parsers ATS parcourent souvent la page de haut en bas, puis de
-gauche a droite, sans tenir compte du z-index visuel.
+Completent ``layout.rule_multi_column`` / ``rule_sidebar_present`` en ciblant
+l'ordre de lecture machine et la couverture sémantique affichee.
+
+AXE-336 : on ne penalise plus le simple fait d'utiliser des positions
+absolues (ancienne ``rule_free_canvas_text_positions``) — uniquement les
+vrais risques de lecture / contenu.
 """
 
 from __future__ import annotations

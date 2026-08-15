@@ -52,28 +52,50 @@ class TestSidebarPresent(unittest.TestCase):
 
 
 class TestFreeCanvasTextPositions(unittest.TestCase):
-    def test_only_applies_in_free_mode(self):
+    """AXE-336 : plus de pénalité systematique sur les positions libres."""
+
+    def test_disabled_even_with_many_text_blocks(self):
+        layout = {
+            "grid": "free",
+            "pages": [{"blocks": [{"type": "text", "x": i, "y": 10} for i in range(20)]}],
+        }
+        self.assertIsNone(layout_rules.rule_free_canvas_text_positions({}, layout))
+
+    def test_still_noop_outside_free_mode(self):
         layout = {
             "grid": "single-or-sidebar",
             "pages": [{"blocks": [{"type": "text", "x": 10, "y": 10}]}],
         }
         self.assertIsNone(layout_rules.rule_free_canvas_text_positions({}, layout))
 
-    def test_caps_penalty_at_minus_ten(self):
-        layout = {
-            "grid": "free",
-            "pages": [{"blocks": [{"type": "text", "x": i, "y": 10} for i in range(20)]}],
-        }
-        rule = layout_rules.rule_free_canvas_text_positions({}, layout)
-        self.assertIsNotNone(rule)
-        self.assertEqual(rule.delta, -10)
+    def test_score_parsing_does_not_emit_text_blocks_malus(self):
+        from backend.services.ats_score import score_parsing
 
-    def test_non_text_blocks_are_ignored(self):
+        cv = {
+            "prenom": "Alice",
+            "nom": "Martin",
+            "email": "a@b.fr",
+            "experiences": [{"poste": "Dev", "entreprise": "Acme"}],
+            "formations": [{"diplome": "Master"}],
+            "competences": {"techniques": ["Python"]},
+        }
         layout = {
             "grid": "free",
-            "pages": [{"blocks": [{"type": "shape:line", "x": 10, "y": 10}]}],
+            "pages": [
+                {
+                    "blocks": [
+                        {"type": "identity", "x": 10, "y": 10, "w": 80, "h": 20},
+                        {"type": "contact", "x": 10, "y": 35, "w": 80, "h": 15},
+                        {"type": "experiences", "x": 10, "y": 55, "w": 80, "h": 40},
+                        {"type": "formations", "x": 10, "y": 100, "w": 80, "h": 20},
+                        {"type": "skills", "x": 10, "y": 125, "w": 80, "h": 20},
+                    ]
+                }
+            ],
         }
-        self.assertIsNone(layout_rules.rule_free_canvas_text_positions({}, layout))
+        result = score_parsing(cv, layout)
+        ids = {r.id for r in result.rules}
+        self.assertNotIn("malus_free_canvas_text_blocks", ids)
 
 
 class TestTableLayout(unittest.TestCase):

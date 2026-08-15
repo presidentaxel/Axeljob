@@ -25,7 +25,8 @@ parsing_rules: tuple = (
     # --- Penalites moyennes (design risque)
     layout.rule_multi_column,
     layout.rule_sidebar_present,
-    layout.rule_free_canvas_text_positions,
+    # AXE-336 : plus de malus systematique « positions libres »
+    # (layout.rule_free_canvas_text_positions est un no-op conserve pour API).
     free_canvas.rule_free_canvas_no_semantic_blocks,
     free_canvas.rule_free_canvas_missing_profile_sections,
     free_canvas.rule_free_canvas_reading_order,

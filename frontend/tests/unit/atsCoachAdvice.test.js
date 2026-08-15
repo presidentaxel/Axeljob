@@ -1,5 +1,5 @@
 /**
- * Tests mapping rule → messages coach (AXE-36).
+ * Tests mapping rule → messages coach + corrections actionnables (AXE-36 / AXE-333).
  */
 
 import { test } from 'node:test';
@@ -12,12 +12,26 @@ import {
   isAtsCoachRuleFixable,
   summarizeAtsCoachStatus,
 } from '../../src/lib/atsCoachAdvice.js';
-import { applyAtsCoachFix, formatAtsScoreImpact } from '../../src/lib/atsCoachFixes.js';
+import {
+  applyAtsCoachFix,
+  didAtsCoachFixChangeLayout,
+  formatAtsScoreImpact,
+} from '../../src/lib/atsCoachFixes.js';
 
 test('chaque entrée ATS_COACH_ADVICE a title + explanation', () => {
   for (const [id, advice] of Object.entries(ATS_COACH_ADVICE)) {
     assert.ok(advice.title?.trim(), `title manquant pour ${id}`);
     assert.ok(advice.explanation?.trim(), `explanation manquante pour ${id}`);
+  }
+});
+
+test('chaque règle non fixable a une raison explicite', () => {
+  for (const [id, advice] of Object.entries(ATS_COACH_ADVICE)) {
+    if (advice.fixKind) continue;
+    assert.ok(
+      advice.notApplicableReason?.trim(),
+      `notApplicableReason manquant pour ${id}`,
+    );
   }
 });
 
@@ -44,10 +58,12 @@ test('getAtsCoachAdvice préfère advice API si fourni', () => {
   assert.equal(advice.explanation, 'Message backend prioritaire.');
 });
 
-test('isAtsCoachRuleFixable pour contact et ordre', () => {
+test('isAtsCoachRuleFixable pour contact, ordre, sections, photo', () => {
   assert.equal(isAtsCoachRuleFixable('malus_contact_low_on_page'), true);
   assert.equal(isAtsCoachRuleFixable('malus_identity_not_first'), true);
-  assert.equal(isAtsCoachRuleFixable('malus_photo_present'), false);
+  assert.equal(isAtsCoachRuleFixable('malus_free_canvas_missing_profile_sections'), true);
+  assert.equal(isAtsCoachRuleFixable('malus_photo_present'), true);
+  assert.equal(isAtsCoachRuleFixable('malus_missing_identity'), false);
 });
 
 test('filterRulesForCoachMode masque les bonus en mode design', () => {
@@ -91,4 +107,111 @@ test('applyAtsCoachFix remonte un contact trop bas', () => {
   };
   const next = applyAtsCoachFix(layout, 'malus_contact_low_on_page');
   assert.ok(next.pages[0].blocks[0].y <= 40);
+  assert.equal(didAtsCoachFixChangeLayout(layout, next), true);
+});
+
+test('applyAtsCoachFix reading-order empile identity avant experiences', () => {
+  const layout = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    theme: {},
+    pages: [{
+      id: 'page-1',
+      blocks: [
+        { id: 'exp', type: 'experiences', x: 10, y: 10, w: 180, h: 40, z: 2, style: {} },
+        { id: 'id', type: 'identity', x: 10, y: 80, w: 180, h: 20, z: 1, style: {} },
+      ],
+    }],
+  };
+  const next = applyAtsCoachFix(layout, 'malus_identity_not_first');
+  const identity = next.pages[0].blocks.find((b) => b.id === 'id');
+  const experiences = next.pages[0].blocks.find((b) => b.id === 'exp');
+  assert.ok(identity.y < experiences.y);
+});
+
+test('applyAtsCoachFix ajoute les sections manquantes du profil', () => {
+  const cv = {
+    prenom: 'Alice',
+    nom: 'Martin',
+    email: 'a@b.fr',
+    experiences: [{ poste: 'Dev', entreprise: 'Acme' }],
+  };
+  const layout = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    theme: {},
+    pages: [{ id: 'page-1', blocks: [] }],
+  };
+  const next = applyAtsCoachFix(layout, 'malus_free_canvas_missing_profile_sections', { cv });
+  const types = new Set(next.pages[0].blocks.map((b) => b.type));
+  assert.ok(types.has('identity'));
+  assert.ok(types.has('contact'));
+  assert.ok(types.has('experiences'));
+  assert.equal(didAtsCoachFixChangeLayout(layout, next), true);
+});
+
+test('applyAtsCoachFix no-semantic pose un starter même si CV vide', () => {
+  // Bugbot : ne plus no-op quand canvas vide + profil vide.
+  const layout = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    theme: {},
+    pages: [{ id: 'page-1', blocks: [] }],
+  };
+  const next = applyAtsCoachFix(layout, 'malus_free_canvas_no_semantic_blocks', { cv: {} });
+  const types = new Set(next.pages[0].blocks.map((b) => b.type));
+  assert.ok(types.has('identity'));
+  assert.ok(types.has('contact'));
+  assert.equal(didAtsCoachFixChangeLayout(layout, next), true);
+});
+
+test('applyAtsCoachFix hide-photo masque theme et retire le bloc', () => {
+  const layout = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    theme: { show_photo: true },
+    pages: [{
+      id: 'page-1',
+      blocks: [
+        { id: 'ph', type: 'photo', x: 10, y: 10, w: 28, h: 28, z: 1, style: {} },
+        { id: 'id', type: 'identity', x: 50, y: 10, w: 100, h: 20, z: 2, style: {} },
+      ],
+    }],
+  };
+  const next = applyAtsCoachFix(layout, 'malus_photo_present');
+  assert.equal(next.theme.show_photo, false);
+  assert.equal(next.pages[0].blocks.some((b) => b.type === 'photo'), false);
+});
+
+test('applyAtsCoachFix fix-font et body size changent le theme', () => {
+  const layout = {
+    version: 3,
+    grid: 'single-or-sidebar',
+    theme: { font_heading: 'Papyrus', font_body: 'Comic Sans', font_size_body: 7 },
+    pages: [{ id: 'p1', blocks: [] }],
+  };
+  const fonts = applyAtsCoachFix(layout, 'malus_exotic_font');
+  assert.equal(fonts.theme.font_heading, 'Arial');
+  assert.equal(fonts.theme.font_body, 'Arial');
+  const size = applyAtsCoachFix(layout, 'malus_body_font_size_out_of_range');
+  assert.equal(size.theme.font_size_body, 10);
+});
+
+test('applyAtsCoachFix single-column retire la sidebar template', () => {
+  const layout = {
+    grid: 'single-or-sidebar',
+    sidebar_ratio: 0.35,
+    theme: {},
+    pages: [{ id: 'p1', blocks: [] }],
+  };
+  const next = applyAtsCoachFix(layout, 'malus_sidebar_present');
+  assert.equal(next.sidebar_ratio, 0);
 });

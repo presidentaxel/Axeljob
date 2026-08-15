@@ -8,7 +8,7 @@ import {
   isAtsCoachRuleFixable,
   summarizeAtsCoachStatus,
 } from '../../lib/atsCoachAdvice.js';
-import { applyAtsCoachFix, formatAtsScoreImpact } from '../../lib/atsCoachFixes.js';
+import { applyAtsCoachFix, didAtsCoachFixChangeLayout, formatAtsScoreImpact } from '../../lib/atsCoachFixes.js';
 
 const IGNORED_STORAGE_KEY = 'axeljob.atsCoach.ignoredRules';
 
@@ -129,7 +129,11 @@ export default function EditorAtsScoreBadge({
   const ensureImpactPreview = async (rule) => {
     if (!layout || !isAtsCoachRuleFixable(rule.id)) return null;
     if (previewByRule[rule.id]) return previewByRule[rule.id];
-    const nextLayout = applyAtsCoachFix(layout, rule.id);
+    const nextLayout = applyAtsCoachFix(layout, rule.id, { cv });
+    if (!didAtsCoachFixChangeLayout(layout, nextLayout)) {
+      setActionError('Cette correction ne modifie pas le layout actuel.');
+      return null;
+    }
     setPreviewLoadingId(rule.id);
     setActionError('');
     try {
@@ -152,8 +156,8 @@ export default function EditorAtsScoreBadge({
   const handleFix = async (rule) => {
     if (!onApplyLayout || !layout) return;
     const impact = await ensureImpactPreview(rule);
-    const nextLayout = impact?.nextLayout || applyAtsCoachFix(layout, rule.id);
-    onApplyLayout(nextLayout, { groupKey: `ats:coach:${rule.id}` });
+    if (!impact?.nextLayout) return;
+    onApplyLayout(impact.nextLayout, { groupKey: `ats:coach:${rule.id}` });
   };
 
   if (status === 'idle') {
@@ -302,6 +306,9 @@ export default function EditorAtsScoreBadge({
                         <span className="ats-coach-rule-expl">{advice.explanation}</span>
                         {soft && (
                           <span className="ats-coach-rule-note">Choix design acceptable — impact ATS limité.</span>
+                        )}
+                        {!canFix && advice.notApplicableReason && (
+                          <span className="ats-coach-rule-note">{advice.notApplicableReason}</span>
                         )}
                         {preview && (
                           <span className="ats-coach-impact" role="status">

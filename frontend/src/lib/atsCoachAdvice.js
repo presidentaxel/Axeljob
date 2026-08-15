@@ -55,8 +55,9 @@ export const ATS_COACH_ADVICE = {
   malus_free_canvas_text_blocks: {
     title: 'Texte en positions libres',
     explanation:
-      'Beaucoup de blocs texte en absolu : les ATS peuvent les lire dans un ordre inattendu.',
-    fixKind: 'reading-order',
+      'Cette pénalité n’est plus appliquée (AXE-336) : le canvas libre est autorisé. ' +
+      'Seuls l’ordre de lecture, les sections manquantes ou un verify-PDF faible restent scorés.',
+    fixKind: null,
     designTradeoff: true,
   },
   malus_two_columns: {

@@ -19,9 +19,7 @@ from typing import Any
 
 from backend.services.ats_score.rules._helpers import (
     count_columns,
-    get_grid,
     get_sidebar_ratio,
-    iter_blocks,
 )
 from backend.services.ats_score.types import Rule, RuleSeverity
 
@@ -64,36 +62,20 @@ def rule_sidebar_present(cv: dict[str, Any], layout: dict[str, Any]) -> Rule | N
 
 
 def rule_free_canvas_text_positions(cv: dict[str, Any], layout: dict[str, Any]) -> Rule | None:
-    """Penalise les blocs textuels en positions absolues sur canvas libre.
+    """Ancienne penalite systematique « positions libres » — desactivee (AXE-336).
 
-    Ne s'applique que si ``grid == "free"``. Le total est plafonne a -10 pour
-    eviter qu'un CV avec beaucoup de blocs ne plonge sous zero a lui seul.
+    Le canvas libre est le produit Beta : pénaliser chaque bloc textuel en
+    absolu (-2, plafond -10) punissait tout design libre, y compris lisible.
+    Les garde-fous réels restent dans ``free_canvas.py`` (ordre de lecture,
+    identité en tête, sections manquantes, contact trop bas) + multi-colonnes
+    + verify-pdf.
+
+    La fonction reste exportée pour ne pas casser les imports / tests ; elle
+    ne retourne plus jamais de ``Rule``. Ne pas la réintroduire dans
+    ``parsing_rules`` sans bump ``SCORING_VERSION``.
     """
-    if get_grid(layout) != "free":
-        return None
-    text_like_types = {
-        "identity",
-        "contact",
-        "resume",
-        "experiences",
-        "formations",
-        "certifications",
-        "projets",
-        "skills",
-        "languages",
-        "text",
-        "title",
-    }
-    count = sum(1 for b in iter_blocks(layout) if b.get("type") in text_like_types)
-    if count == 0:
-        return None
-    delta = max(-10, -2 * count)
-    return Rule(
-        id="malus_free_canvas_text_blocks",
-        label=f"Canvas libre : {count} bloc(s) textuel(s) en position absolue",
-        delta=delta,
-        severity=RuleSeverity.WARNING,
-    )
+    del cv, layout
+    return None
 
 
 def rule_table_layout(cv: dict[str, Any], layout: dict[str, Any]) -> Rule | None:

@@ -69,8 +69,9 @@ class TestMonoColumnBonus(unittest.TestCase):
         self.assertIsNone(typo_rules.rule_mono_column_bonus({}, layout))
 
     def test_free_canvas_no_bonus_even_if_one_column(self):
-        # Regression : meme avec un seul bloc, free_canvas ne doit jamais
-        # gagner le bonus mono-colonne (positions absolues = risque ATS).
+        # Free canvas : pas de bonus mono-colonne (grille libre ≠ template 1-col).
+        # AXE-336 : on ne pénalise plus les positions libres seules, mais le
+        # bonus mono reste reservé aux templates figes.
         layout = {
             "grid": "free",
             "pages": [{"blocks": [{"type": "identity", "x": 10, "y": 10}]}],

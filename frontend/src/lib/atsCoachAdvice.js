@@ -1,11 +1,13 @@
 /**
- * Mapping règle ATS → messages coach (AXE-36).
+ * Mapping règle ATS → messages coach (AXE-36 / AXE-333).
  *
  * Les `label` API restent la source courte ; ce module fournit le texte
  * pédagogique stable (tests) + le type d'action « Corriger » possible.
  */
 
-/** @typedef {'reading-order' | 'contact-up' | null} AtsCoachFixKind */
+/**
+ * @typedef {'reading-order' | 'contact-up' | 'add-missing-sections' | 'hide-photo' | 'fix-font' | 'fix-body-font-size' | 'single-column' | null} AtsCoachFixKind
+ */
 
 /**
  * @typedef {object} AtsCoachAdvice
@@ -13,6 +15,7 @@
  * @property {string} explanation
  * @property {AtsCoachFixKind} fixKind
  * @property {boolean} designTradeoff - en mode design, conseil atténué
+ * @property {string} [notApplicableReason] - si fixKind null : pourquoi pas de Corriger
  */
 
 /** @type {Record<string, AtsCoachAdvice>} */
@@ -49,7 +52,14 @@ export const ATS_COACH_ADVICE = {
     title: 'Contenu du profil absent du canvas',
     explanation:
       'Des infos du profil ne sont pas affichées. Ajoute les blocs manquants depuis la sidebar.',
-    fixKind: null,
+    fixKind: 'add-missing-sections',
+    designTradeoff: false,
+  },
+  malus_free_canvas_no_semantic_blocks: {
+    title: 'Aucun bloc sémantique sur le canvas',
+    explanation:
+      'Ajoute au moins identité / contact / expériences pour qu’un ATS reconnaisse la structure.',
+    fixKind: 'add-missing-sections',
     designTradeoff: false,
   },
   malus_free_canvas_text_blocks: {
@@ -59,26 +69,27 @@ export const ATS_COACH_ADVICE = {
       'Seuls l’ordre de lecture, les sections manquantes ou un verify-PDF faible restent scorés.',
     fixKind: null,
     designTradeoff: true,
+    notApplicableReason: 'Non applicable — pénalité retirée (AXE-336).',
   },
   malus_two_columns: {
     title: 'Layout sur 2 colonnes',
     explanation:
       'Les colonnes perturbent souvent la lecture linéaire des ATS. Préfère une colonne pour une version ATS-safe.',
-    fixKind: null,
+    fixKind: 'single-column',
     designTradeoff: true,
   },
   malus_three_or_more_columns: {
     title: 'Trop de colonnes',
     explanation:
       'Plus de deux colonnes dégrade fortement la lecture machine. Simplifie la structure.',
-    fixKind: null,
+    fixKind: 'single-column',
     designTradeoff: true,
   },
   malus_sidebar_present: {
     title: 'Sidebar présente',
     explanation:
       'Une sidebar crée un ordre de lecture ambigu (gauche/droite). Utile en design, risqué pour les ATS.',
-    fixKind: null,
+    fixKind: 'single-column',
     designTradeoff: true,
   },
   malus_table_layout: {
@@ -87,26 +98,27 @@ export const ATS_COACH_ADVICE = {
       'Les tableaux sont souvent lus ligne par ligne et mélangent les colonnes pour les ATS.',
     fixKind: null,
     designTradeoff: false,
+    notApplicableReason: 'Non applicable auto — change de modèle ou de structure HTML.',
   },
   malus_photo_present: {
     title: 'Photo sur le CV',
     explanation:
       'Une photo n’améliore pas le score ATS et peut être ignorée. Choix design acceptable.',
-    fixKind: null,
+    fixKind: 'hide-photo',
     designTradeoff: true,
   },
   malus_exotic_font: {
     title: 'Police atypique',
     explanation:
       'Certaines polices se transforment mal chez les ATS. Préfère Arial, Calibri, Helvetica…',
-    fixKind: null,
+    fixKind: 'fix-font',
     designTradeoff: true,
   },
   malus_body_font_size_out_of_range: {
     title: 'Taille de corps hors plage',
     explanation:
       'Une taille trop petite ou trop grande nuit à l’extraction. Vise ~10–12 pt.',
-    fixKind: null,
+    fixKind: 'fix-body-font-size',
     designTradeoff: false,
   },
   malus_inconsistent_dates: {
@@ -115,30 +127,70 @@ export const ATS_COACH_ADVICE = {
       'Harmonise le format des dates (ex. MM/YYYY) pour faciliter le parsing.',
     fixKind: null,
     designTradeoff: false,
+    notApplicableReason: 'À corriger dans le contenu (dates des expériences / formations).',
+  },
+  malus_missing_identity: {
+    title: 'Identité absente',
+    explanation: 'Ajoute prénom et nom pour que les ATS te reconnaissent.',
+    fixKind: null,
+    designTradeoff: false,
+    notApplicableReason: 'À remplir dans le contenu du profil (identité).',
+  },
+  malus_missing_contact: {
+    title: 'Contact absent',
+    explanation: 'Ajoute un email ou un téléphone exploitable.',
+    fixKind: null,
+    designTradeoff: false,
+    notApplicableReason: 'À remplir dans le contenu du profil (contact).',
+  },
+  malus_missing_experiences: {
+    title: 'Aucune expérience renseignée',
+    explanation: 'Renseigne au moins une expérience avec poste ou entreprise.',
+    fixKind: null,
+    designTradeoff: false,
+    notApplicableReason: 'À remplir dans le contenu du profil (expériences).',
+  },
+  malus_missing_formations: {
+    title: 'Aucune formation renseignée',
+    explanation: 'Ajoute au moins une formation.',
+    fixKind: null,
+    designTradeoff: false,
+    notApplicableReason: 'À remplir dans le contenu du profil (formations).',
+  },
+  malus_missing_skills: {
+    title: 'Compétences absentes',
+    explanation: 'Ajoute des compétences techniques ou logiciels.',
+    fixKind: null,
+    designTradeoff: false,
+    notApplicableReason: 'À remplir dans le contenu du profil (compétences).',
   },
   bonus_mono_column: {
     title: 'Layout mono-colonne',
     explanation: 'Bonne pratique : une seule colonne facilite la lecture ATS.',
     fixKind: null,
     designTradeoff: false,
+    notApplicableReason: 'Bonus — rien à corriger.',
   },
   bonus_standard_section_titles: {
     title: 'Titres de sections standards',
     explanation: 'Les titres classiques aident les parsers à reconnaître les sections.',
     fixKind: null,
     designTradeoff: false,
+    notApplicableReason: 'Bonus — rien à corriger.',
   },
   bonus_contact_top_of_page: {
     title: 'Contact en haut de page',
     explanation: 'Le contact est bien placé pour la lecture machine.',
     fixKind: null,
     designTradeoff: false,
+    notApplicableReason: 'Bonus — rien à corriger.',
   },
   bonus_dates_format_consistent: {
     title: 'Dates cohérentes',
     explanation: 'Le format des dates est homogène — bon signal pour les ATS.',
     fixKind: null,
     designTradeoff: false,
+    notApplicableReason: 'Bonus — rien à corriger.',
   },
 };
 
@@ -168,6 +220,7 @@ export function getAtsCoachAdvice(rule) {
     explanation: advice,
     fixKind: null,
     designTradeoff: false,
+    notApplicableReason: 'Pas de correction auto pour cette règle.',
   };
 }
 

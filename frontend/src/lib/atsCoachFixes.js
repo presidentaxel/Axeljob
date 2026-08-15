@@ -1,10 +1,16 @@
 /**
- * Corrections ATS par règle (AXE-36) — pures, réversibles via undo layout.
+ * Corrections ATS par règle (AXE-36 / AXE-333) — pures, réversibles via undo layout.
  */
 
 import {
+  applyAtsLayoutOptimizations,
+  optimizeAddMissingProfileSections,
+  optimizeBodyFontSize,
   optimizeContactVerticalPosition,
-  optimizeLayoutSpatialOrder,
+  optimizeHidePhoto,
+  optimizeRemoveSidebar,
+  optimizeSafeFonts,
+  optimizeSingleColumnFreeCanvas,
 } from './atsLayoutOptimize.js';
 import { getAtsCoachAdvice } from './atsCoachAdvice.js';
 
@@ -12,18 +18,51 @@ import { getAtsCoachAdvice } from './atsCoachAdvice.js';
  * Applique la correction associée à une règle, ou retourne le layout inchangé.
  * @param {object} layout
  * @param {string} ruleId
+ * @param {{ cv?: object }} [options]
  * @returns {object}
  */
-export function applyAtsCoachFix(layout, ruleId) {
+export function applyAtsCoachFix(layout, ruleId, options = {}) {
   if (!layout) return layout;
   const { fixKind } = getAtsCoachAdvice({ id: ruleId });
   if (fixKind === 'contact-up') {
     return optimizeContactVerticalPosition(layout);
   }
   if (fixKind === 'reading-order') {
-    return optimizeLayoutSpatialOrder(layout);
+    return applyAtsLayoutOptimizations(layout);
+  }
+  if (fixKind === 'add-missing-sections') {
+    return optimizeAddMissingProfileSections(layout, options.cv);
+  }
+  if (fixKind === 'hide-photo') {
+    return optimizeHidePhoto(layout);
+  }
+  if (fixKind === 'fix-font') {
+    return optimizeSafeFonts(layout);
+  }
+  if (fixKind === 'fix-body-font-size') {
+    return optimizeBodyFontSize(layout);
+  }
+  if (fixKind === 'single-column') {
+    if (layout.grid === 'free') {
+      return optimizeSingleColumnFreeCanvas(layout);
+    }
+    return optimizeRemoveSidebar(layout);
   }
   return layout;
+}
+
+/**
+ * True si le layout a réellement changé (JSON stable).
+ * @param {object} before
+ * @param {object} after
+ */
+export function didAtsCoachFixChangeLayout(before, after) {
+  if (!before || !after || before === after) return false;
+  try {
+    return JSON.stringify(before) !== JSON.stringify(after);
+  } catch {
+    return before !== after;
+  }
 }
 
 /**

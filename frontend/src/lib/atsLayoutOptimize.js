@@ -9,8 +9,13 @@ import {
   listAllBlocks,
   PAGE_HEIGHT_MM,
   PAGE_MARGIN_MM,
+  PAGE_USABLE_WIDTH_MM,
+  addBlockToPage,
+  removeBlocks,
 } from './cvLayoutModelV3.js';
 import { isVectorShapeType } from './canvasShapePresets.js';
+import { createCvSectionBlockPreset } from './canvasCvSectionPresets.js';
+import { generateItemId } from './cvSectionOps.js';
 
 /** Ordre aligné sur `free_canvas._CANONICAL_READ_ORDER` (scorer ATS). */
 export const SEMANTIC_READ_ORDER = [
@@ -28,6 +33,8 @@ export const SEMANTIC_READ_ORDER = [
 
 const CONTENT_GAP_MM = 6;
 const CONTACT_TOP_Y_MM = 40;
+const ATS_SAFE_FALLBACK_FONT = 'Arial';
+const ATS_SAFE_BODY_FONT_SIZE = 10;
 
 function semanticRank(type) {
   const i = SEMANTIC_READ_ORDER.indexOf(type);
@@ -146,6 +153,181 @@ export function applyAtsLayoutOptimizations(layout) {
   next = optimizeLayoutSpatialOrder(next);
   next = optimizeLayoutReadingOrder(next);
   return next;
+}
+
+function cvText(value) {
+  if (value == null) return '';
+  return String(value).trim();
+}
+
+function cvHasIdentity(cv) {
+  return Boolean(
+    cvText(cv?.prenom) || cvText(cv?.first_name) || cvText(cv?.nom) || cvText(cv?.last_name),
+  );
+}
+
+function cvHasContact(cv) {
+  return Boolean(cvText(cv?.email) || cvText(cv?.telephone) || cvText(cv?.phone));
+}
+
+function cvHasExperiences(cv) {
+  for (const exp of cv?.experiences || []) {
+    if (!exp || typeof exp !== 'object') continue;
+    if (cvText(exp.poste) || cvText(exp.title) || cvText(exp.entreprise) || cvText(exp.company)) {
+      return true;
+    }
+    if ((exp.bullet_points || []).some((b) => cvText(b))) return true;
+  }
+  return false;
+}
+
+function cvHasFormations(cv) {
+  for (const form of cv?.formations || []) {
+    if (!form || typeof form !== 'object') continue;
+    if (cvText(form.diplome) || cvText(form.degree) || cvText(form.etablissement) || cvText(form.school)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function cvHasSkills(cv) {
+  const competences = cv?.competences;
+  if (!competences || typeof competences !== 'object') return false;
+  for (const key of ['techniques', 'logiciels', 'autres']) {
+    if ((competences[key] || []).some((x) => cvText(x))) return true;
+  }
+  return false;
+}
+
+function cvHasLanguages(cv) {
+  const langues = cv?.competences?.langues || [];
+  return langues.some((item) => {
+    if (item && typeof item === 'object') return Boolean(cvText(item.langue));
+    return Boolean(cvText(item));
+  });
+}
+
+/** Types de sections attendus sur le canvas d’après le JSON sémantique (miroir backend). */
+export function expectedProfileSectionTypesFromCv(cv) {
+  const expected = [];
+  if (cvHasIdentity(cv)) expected.push('identity');
+  if (cvHasContact(cv)) expected.push('contact');
+  if (cvHasExperiences(cv)) expected.push('experiences');
+  if (cvHasFormations(cv)) expected.push('formations');
+  if (cvHasSkills(cv)) expected.push('skills');
+  if (cvHasLanguages(cv)) expected.push('languages');
+  return expected;
+}
+
+/**
+ * Ajoute les blocs sémantiques manquants (profil non affiché) puis restacke.
+ * Free canvas uniquement.
+ */
+export function optimizeAddMissingProfileSections(layout, cv) {
+  if (!layout?.pages?.length || layout.grid !== 'free') return layout;
+  const expected = expectedProfileSectionTypesFromCv(cv || {});
+  if (expected.length === 0) return layout;
+  const displayed = new Set(
+    listAllBlocks(layout).map((b) => b?.type).filter(Boolean),
+  );
+  const missing = expected.filter((type) => !displayed.has(type));
+  if (missing.length === 0) return layout;
+
+  let next = layout;
+  const pageIndex = 0;
+  const existing = listAllBlocks(next);
+  let maxY = PAGE_MARGIN_MM;
+  for (const block of existing) {
+    const bottom = asNumber(block.y) + Math.max(asNumber(block.h, 10), 3);
+    if (bottom > maxY) maxY = bottom;
+  }
+  let cursorY = maxY + CONTENT_GAP_MM;
+
+  for (const type of missing) {
+    const preset = createCvSectionBlockPreset(type);
+    if (!preset) continue;
+    const partial = {
+      ...preset,
+      id: generateItemId(`ats_${type}`),
+      x: PAGE_MARGIN_MM,
+      y: cursorY,
+      w: preset.w || PAGE_USABLE_WIDTH_MM,
+      h: preset.h || 20,
+      z: existing.length + missing.indexOf(type) + 1,
+    };
+    next = addBlockToPage(next, pageIndex, partial);
+    cursorY += asNumber(partial.h, 20) + CONTENT_GAP_MM;
+  }
+
+  return applyAtsLayoutOptimizations(next);
+}
+
+/** Masque la photo (theme + retire les blocs photo). */
+export function optimizeHidePhoto(layout) {
+  if (!layout) return layout;
+  const photoIds = listAllBlocks(layout)
+    .filter((b) => b?.type === 'photo')
+    .map((b) => b.id)
+    .filter(Boolean);
+  let next = {
+    ...layout,
+    theme: { ...(layout.theme || {}), show_photo: false },
+  };
+  if (photoIds.length) {
+    next = removeBlocks(next, photoIds);
+  }
+  return next;
+}
+
+/** Remplace les polices exotiques par une police ATS-safe. */
+export function optimizeSafeFonts(layout) {
+  if (!layout) return layout;
+  return {
+    ...layout,
+    theme: {
+      ...(layout.theme || {}),
+      font_heading: ATS_SAFE_FALLBACK_FONT,
+      font_body: ATS_SAFE_FALLBACK_FONT,
+    },
+  };
+}
+
+/** Ramène la taille de corps dans la plage ATS (10 pt). */
+export function optimizeBodyFontSize(layout) {
+  if (!layout) return layout;
+  return {
+    ...layout,
+    theme: {
+      ...(layout.theme || {}),
+      font_size_body: ATS_SAFE_BODY_FONT_SIZE,
+    },
+  };
+}
+
+/** Force une seule colonne sur free canvas (même x) puis restacke. */
+export function optimizeSingleColumnFreeCanvas(layout) {
+  if (!layout?.pages?.length || layout.grid !== 'free') return layout;
+  const pages = layout.pages.map((page) => {
+    const blocks = (page.blocks || []).map((block) => {
+      if (!isAtsReadingContentBlock(block)) return block;
+      return {
+        ...block,
+        x: PAGE_MARGIN_MM,
+        w: Math.min(asNumber(block.w, PAGE_USABLE_WIDTH_MM), PAGE_USABLE_WIDTH_MM),
+      };
+    });
+    return { ...page, blocks };
+  });
+  return applyAtsLayoutOptimizations({ ...layout, pages });
+}
+
+/** Désactive la sidebar (templates figés) pour une lecture ATS linéaire. */
+export function optimizeRemoveSidebar(layout) {
+  if (!layout) return layout;
+  const ratio = Number(layout.sidebar_ratio);
+  if (!Number.isFinite(ratio) || ratio <= 0) return layout;
+  return { ...layout, sidebar_ratio: 0 };
 }
 
 /**

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import {
   apiGet,
@@ -201,6 +202,8 @@ function CvEditorBeta({
   const [atsOptimizeUndoAfter, setAtsOptimizeUndoAfter] = useState(null);
   const atsOptimizePreviewReqRef = useRef(0);
   const atsOptimizeWrapRef = useRef(null);
+  const atsOptimizePanelRef = useRef(null);
+  const [atsOptimizePanelPos, setAtsOptimizePanelPos] = useState({ top: 0, right: 12 });
   const autoHeightPendingRef = useRef(new Map());
   const autoHeightTimerRef = useRef(null);
   const suppressAutoHeightUntilRef = useRef(0);
@@ -1356,6 +1359,16 @@ function CvEditorBeta({
     setAtsOptimizePreviewLoading(false);
   }, []);
 
+  const updateAtsOptimizePanelPos = useCallback(() => {
+    const anchor = atsOptimizeWrapRef.current;
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    setAtsOptimizePanelPos({
+      top: Math.round(rect.bottom + 8),
+      right: Math.max(12, Math.round(window.innerWidth - rect.right)),
+    });
+  }, []);
+
   useEffect(() => {
     if (!atsOptimizePreview) return undefined;
     const onKeyDown = (event) => {
@@ -1365,10 +1378,11 @@ function CvEditorBeta({
       }
     };
     const onPointerDown = (event) => {
-      const root = atsOptimizeWrapRef.current;
-      if (root && !root.contains(event.target)) {
-        handleCancelAtsOptimizePreview();
-      }
+      const wrap = atsOptimizeWrapRef.current;
+      const panel = atsOptimizePanelRef.current;
+      const target = event.target;
+      if (wrap?.contains(target) || panel?.contains(target)) return;
+      handleCancelAtsOptimizePreview();
     };
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('mousedown', onPointerDown);
@@ -1420,6 +1434,21 @@ function CvEditorBeta({
   const atsOptimizeUndoVisible = Boolean(
     atsOptimizeUndoAfter && layout && sameLayout(layout, atsOptimizeUndoAfter),
   );
+
+  const atsOptimizeSheetOpen = Boolean(atsOptimizePreview);
+  const atsOptimizeToastOpen = Boolean(atsOptimizeMessage || atsOptimizeUndoVisible);
+
+  useLayoutEffect(() => {
+    if (!atsOptimizeSheetOpen && !atsOptimizeToastOpen) return undefined;
+    updateAtsOptimizePanelPos();
+    const onReposition = () => updateAtsOptimizePanelPos();
+    window.addEventListener('resize', onReposition);
+    window.addEventListener('scroll', onReposition, true);
+    return () => {
+      window.removeEventListener('resize', onReposition);
+      window.removeEventListener('scroll', onReposition, true);
+    };
+  }, [atsOptimizeSheetOpen, atsOptimizeToastOpen, updateAtsOptimizePanelPos]);
 
   useEffect(() => {
     if (!atsOptimizeMessage || atsOptimizeUndoVisible) return undefined;
@@ -1724,65 +1753,6 @@ function CvEditorBeta({
             >
               {atsOptimizePreviewLoading ? 'Analyse ATS…' : 'Optimiser ATS'}
             </button>
-            {atsOptimizePreview && (
-              <div
-                className="cv-editor-beta-ats-preview"
-                role="dialog"
-                aria-modal="true"
-                aria-label="Aperçu optimisation ATS"
-              >
-                <div className="cv-editor-beta-ats-preview__header">
-                  <strong>Optimiser ATS</strong>
-                  <button
-                    type="button"
-                    className="cv-editor-beta-ats-preview__close"
-                    onClick={handleCancelAtsOptimizePreview}
-                    aria-label="Fermer l’aperçu"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <p className="cv-editor-beta-ats-preview__impact" role="status">
-                  {atsOptimizePreviewLoading && 'Calcul de l’impact score…'}
-                  {!atsOptimizePreviewLoading && atsOptimizePreview.error && atsOptimizePreview.error}
-                  {!atsOptimizePreviewLoading && !atsOptimizePreview.error && (
-                    formatAtsScoreImpact(
-                      atsOptimizePreview.beforeScore,
-                      atsOptimizePreview.afterScore,
-                    )
-                  )}
-                </p>
-                {atsOptimizePreview.changes?.length > 0 ? (
-                  <ul className="cv-editor-beta-ats-preview__changes">
-                    {atsOptimizePreview.changes.slice(0, 5).map((change) => (
-                      <li key={change.id}>{change.label}</li>
-                    ))}
-                    {atsOptimizePreview.changes.length > 5 && (
-                      <li>+ {atsOptimizePreview.changes.length - 5} autre(s)</li>
-                    )}
-                  </ul>
-                ) : (
-                  <p className="cv-editor-beta-ats-preview__empty">Aucun déplacement détecté.</p>
-                )}
-                <div className="cv-editor-beta-ats-preview__actions">
-                  <button
-                    type="button"
-                    className="cv-editor-beta-ats-preview__btn"
-                    onClick={handleCancelAtsOptimizePreview}
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="button"
-                    className="cv-editor-beta-ats-preview__btn cv-editor-beta-ats-preview__btn--primary"
-                    onClick={handleApplyAtsOptimizePreview}
-                    disabled={atsOptimizePreviewLoading}
-                  >
-                    Appliquer
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
           <button
             type="button"
@@ -1813,20 +1783,105 @@ function CvEditorBeta({
           Survole le badge « PDF » sur le canvas pour le détail.
         </div>
       )}
-      {(atsOptimizeMessage || atsOptimizeUndoVisible) && (
-        <div className="cv-editor-beta-info cv-editor-beta-ats-toast" role="status">
-          <span>{atsOptimizeMessage || 'Réorganisation spatiale ATS appliquée.'}</span>
-          {atsOptimizeUndoVisible && (
+
+      {atsOptimizePreview
+        && createPortal(
+          <>
             <button
               type="button"
-              className="cv-editor-beta-ats-toast__undo"
-              onClick={handleUndoAtsOptimize}
+              className="cv-editor-beta-ats-preview-backdrop"
+              aria-label="Fermer l’aperçu ATS"
+              onClick={handleCancelAtsOptimizePreview}
+            />
+            <div
+              ref={atsOptimizePanelRef}
+              className="cv-editor-beta-ats-preview"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Aperçu optimisation ATS"
+              style={{
+                top: `${atsOptimizePanelPos.top}px`,
+                right: `${atsOptimizePanelPos.right}px`,
+              }}
             >
-              Annuler
-            </button>
-          )}
-        </div>
-      )}
+              <div className="cv-editor-beta-ats-preview__header">
+                <strong>Optimiser ATS</strong>
+                <button
+                  type="button"
+                  className="cv-editor-beta-ats-preview__close"
+                  onClick={handleCancelAtsOptimizePreview}
+                  aria-label="Fermer l’aperçu"
+                >
+                  ✕
+                </button>
+              </div>
+              <p className="cv-editor-beta-ats-preview__impact" role="status">
+                {atsOptimizePreviewLoading && 'Calcul de l’impact score…'}
+                {!atsOptimizePreviewLoading && atsOptimizePreview.error && atsOptimizePreview.error}
+                {!atsOptimizePreviewLoading && !atsOptimizePreview.error && (
+                  formatAtsScoreImpact(
+                    atsOptimizePreview.beforeScore,
+                    atsOptimizePreview.afterScore,
+                  )
+                )}
+              </p>
+              {atsOptimizePreview.changes?.length > 0 ? (
+                <ul className="cv-editor-beta-ats-preview__changes">
+                  {atsOptimizePreview.changes.slice(0, 5).map((change) => (
+                    <li key={change.id}>{change.label}</li>
+                  ))}
+                  {atsOptimizePreview.changes.length > 5 && (
+                    <li>+ {atsOptimizePreview.changes.length - 5} autre(s)</li>
+                  )}
+                </ul>
+              ) : (
+                <p className="cv-editor-beta-ats-preview__empty">Aucun déplacement détecté.</p>
+              )}
+              <div className="cv-editor-beta-ats-preview__actions">
+                <button
+                  type="button"
+                  className="cv-editor-beta-ats-preview__btn"
+                  onClick={handleCancelAtsOptimizePreview}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  className="cv-editor-beta-ats-preview__btn cv-editor-beta-ats-preview__btn--primary"
+                  onClick={handleApplyAtsOptimizePreview}
+                  disabled={atsOptimizePreviewLoading}
+                >
+                  Appliquer
+                </button>
+              </div>
+            </div>
+          </>,
+          document.body,
+        )}
+
+      {(atsOptimizeMessage || atsOptimizeUndoVisible)
+        && createPortal(
+          <div
+            className="cv-editor-beta-ats-toast"
+            role="status"
+            style={{
+              top: `${atsOptimizePanelPos.top}px`,
+              right: `${atsOptimizePanelPos.right}px`,
+            }}
+          >
+            <span>{atsOptimizeMessage || 'Réorganisation spatiale ATS appliquée.'}</span>
+            {atsOptimizeUndoVisible && (
+              <button
+                type="button"
+                className="cv-editor-beta-ats-toast__undo"
+                onClick={handleUndoAtsOptimize}
+              >
+                Annuler
+              </button>
+            )}
+          </div>,
+          document.body,
+        )}
 
       <div className="cv-editor-beta-subchrome">
         {editHintOpen && selectedBlock && blockSupportsEditHint(selectedBlock) && (

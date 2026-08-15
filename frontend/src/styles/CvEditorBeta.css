@@ -301,40 +301,30 @@
   font-weight: 500;
 }
 
-.cv-editor-beta-ats-toast {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.cv-editor-beta-ats-toast__undo {
-  border: none;
-  background: transparent;
-  color: var(--color-action-blue);
-  font-weight: 500;
-  font-size: 0.82rem;
-  text-decoration: underline;
-  cursor: pointer;
-  font-family: inherit;
-  padding: 0;
-  flex-shrink: 0;
-}
-
-/* AXE-331 — Optimiser ATS : popover compact ancré au bouton (pas bannière pleine largeur). */
+/* AXE-331 — Optimiser ATS : sheet flottant (portal fixed), jamais bande pleine largeur. */
 .cv-editor-beta-ats-optimize-wrap {
   position: relative;
   display: inline-flex;
   align-items: center;
 }
 
+.cv-editor-beta-ats-preview-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1090;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  cursor: default;
+}
+
 .cv-editor-beta-ats-preview {
-  position: absolute;
-  top: calc(100% + 0.4rem);
-  right: 0;
-  z-index: 60;
-  width: 320px;
-  max-width: min(320px, calc(100vw - 1.5rem));
+  position: fixed;
+  z-index: 1100;
+  box-sizing: border-box;
+  width: 300px;
+  max-width: calc(100vw - 24px);
   background: var(--color-canvas);
   border: 1px solid var(--color-hairline);
   border-radius: 8px;
@@ -415,6 +405,39 @@
 .cv-editor-beta-ats-preview__btn:disabled {
   opacity: 0.55;
   cursor: wait;
+}
+
+.cv-editor-beta-ats-toast {
+  position: fixed;
+  z-index: 1100;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+  width: 300px;
+  max-width: calc(100vw - 24px);
+  padding: 0.65rem 0.8rem;
+  background: var(--color-pale-blue);
+  color: var(--color-action-blue);
+  border: 1px solid var(--color-hairline);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.cv-editor-beta-ats-toast__undo {
+  border: none;
+  background: transparent;
+  color: var(--color-action-blue);
+  font-weight: 500;
+  font-size: 0.78rem;
+  text-decoration: underline;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  flex-shrink: 0;
 }
 
 .cv-editor-beta-pdf-fidelity {

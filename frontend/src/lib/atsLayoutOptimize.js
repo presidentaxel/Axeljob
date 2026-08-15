@@ -223,14 +223,22 @@ export function expectedProfileSectionTypesFromCv(cv) {
 /**
  * Ajoute les blocs sémantiques manquants (profil non affiché) puis restacke.
  * Free canvas uniquement.
+ *
+ * Si le CV n’a rien à afficher mais le canvas n’a aucun bloc sémantique
+ * (`malus_free_canvas_no_semantic_blocks`), on pose un starter identity+contact
+ * pour que « Corriger » change vraiment le layout (Bugbot AXE-333).
  */
 export function optimizeAddMissingProfileSections(layout, cv) {
   if (!layout?.pages?.length || layout.grid !== 'free') return layout;
-  const expected = expectedProfileSectionTypesFromCv(cv || {});
-  if (expected.length === 0) return layout;
   const displayed = new Set(
     listAllBlocks(layout).map((b) => b?.type).filter(Boolean),
   );
+  const hasSemantic = [...displayed].some((type) => SEMANTIC_READ_ORDER.includes(type));
+  let expected = expectedProfileSectionTypesFromCv(cv || {});
+  if (expected.length === 0) {
+    if (hasSemantic) return layout;
+    expected = ['identity', 'contact'];
+  }
   const missing = expected.filter((type) => !displayed.has(type));
   if (missing.length === 0) return layout;
 

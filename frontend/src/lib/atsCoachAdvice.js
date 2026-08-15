@@ -58,7 +58,8 @@ export const ATS_COACH_ADVICE = {
   malus_free_canvas_no_semantic_blocks: {
     title: 'Aucun bloc sémantique sur le canvas',
     explanation:
-      'Ajoute au moins identité / contact / expériences pour qu’un ATS reconnaisse la structure.',
+      'Ajoute au moins identité / contact pour qu’un ATS reconnaisse la structure. ' +
+      'Si le profil est vide, un starter identity+contact est posé ; complète ensuite le contenu.',
     fixKind: 'add-missing-sections',
     designTradeoff: false,
   },

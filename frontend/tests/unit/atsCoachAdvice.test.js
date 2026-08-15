@@ -154,6 +154,23 @@ test('applyAtsCoachFix ajoute les sections manquantes du profil', () => {
   assert.equal(didAtsCoachFixChangeLayout(layout, next), true);
 });
 
+test('applyAtsCoachFix no-semantic pose un starter même si CV vide', () => {
+  // Bugbot : ne plus no-op quand canvas vide + profil vide.
+  const layout = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    theme: {},
+    pages: [{ id: 'page-1', blocks: [] }],
+  };
+  const next = applyAtsCoachFix(layout, 'malus_free_canvas_no_semantic_blocks', { cv: {} });
+  const types = new Set(next.pages[0].blocks.map((b) => b.type));
+  assert.ok(types.has('identity'));
+  assert.ok(types.has('contact'));
+  assert.equal(didAtsCoachFixChangeLayout(layout, next), true);
+});
+
 test('applyAtsCoachFix hide-photo masque theme et retire le bloc', () => {
   const layout = {
     version: 3,

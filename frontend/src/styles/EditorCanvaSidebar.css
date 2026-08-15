@@ -183,6 +183,30 @@
   line-height: 1.35;
 }
 
+.editor-canva-composer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.editor-canva-composer-cta--compact {
+  margin: 0;
+  padding: 8px 10px;
+  border-color: var(--color-hairline, #d9d9dd);
+  background: var(--color-canvas, #fff);
+  color: var(--color-ink, #212121);
+}
+
+.editor-canva-composer-cta--compact:hover:not(:disabled) {
+  background: var(--color-soft-stone, #eeece7);
+  border-color: var(--color-primary, #17171c);
+}
+
+.editor-canva-composer-cta--compact .editor-canva-composer-cta__label {
+  font-size: 0.78rem;
+}
+
 .editor-canva-drawer__actions,
 .editor-canva-drawer__grid {
   display: flex;

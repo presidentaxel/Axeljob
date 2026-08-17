@@ -107,3 +107,13 @@ test('dismissDesignBridge suppresses future offers', () => {
   assert.equal(isDesignBridgeDismissed('stable_to_beta', 'minimal', storage), true);
   assert.equal(buildStableToBetaOffer(blank, 'minimal', templates, { storage }), null);
 });
+
+test('buildStableToBetaOffer force bypasses dismiss for explicit CTA', () => {
+  const storage = makeStorage();
+  const blank = createBlankLayoutV3();
+  dismissDesignBridge('stable_to_beta', 'minimal', storage);
+  assert.equal(buildStableToBetaOffer(blank, 'minimal', templates, { storage }), null);
+  const forced = buildStableToBetaOffer(blank, 'minimal', templates, { storage, force: true });
+  assert.ok(forced);
+  assert.equal(forced.templateId, 'minimal');
+});

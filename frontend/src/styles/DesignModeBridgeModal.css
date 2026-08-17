@@ -81,6 +81,17 @@
   line-height: 1.4;
 }
 
+.design-mode-bridge-modal__error {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-coral-soft, #ffad9b);
+  background: #fff7f5;
+  color: var(--color-error, #b30000);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 .design-mode-bridge-modal__actions {
   display: flex;
   justify-content: flex-end;

@@ -228,6 +228,9 @@ function CvEditorBeta({
   const [transferRequest, setTransferRequest] = useState(null);
   const [designBridgeOffer, setDesignBridgeOffer] = useState(null);
   const [designBridgeConfirming, setDesignBridgeConfirming] = useState(false);
+  const [designBridgeError, setDesignBridgeError] = useState('');
+  const profileTemplateIdRef = useRef('');
+  const designBridgeSeededRef = useRef(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
   const [importChooser, setImportChooser] = useState(null);
@@ -397,6 +400,9 @@ function CvEditorBeta({
     let aborted = false;
     setLoading(true);
     setProfileLoadError(null);
+    designBridgeSeededRef.current = false;
+    setDesignBridgeOffer(null);
+    setDesignBridgeError('');
     apiGet('/api/cv?profile=1')
       .then((data) => {
         if (aborted) return;
@@ -405,6 +411,8 @@ function CvEditorBeta({
         const baseCv = typeof defaultCv === 'function' ? defaultCv() : defaultCv;
         const mergedCv = { ...baseCv, ...cvPayload };
         setCv(mergedCv);
+        // Source de vérité pour le pont : template du profil API (pas localStorage).
+        profileTemplateIdRef.current = String(mergedCv.template_id || '').trim();
         const hydratedLayout = rawLayout
           ? migrateLayoutToV3(rawLayout)
           : createBlankLayoutV3();
@@ -420,12 +428,6 @@ function CvEditorBeta({
         }
         resetLayout(hydratedLayout);
         setStartupPromptOpen(!rawLayout);
-        const bridgeOffer = buildStableToBetaOffer(
-          hydratedLayout,
-          templateIdRef.current,
-          templatesListRef.current || [],
-        );
-        setDesignBridgeOffer(bridgeOffer);
         setLoading(false);
       })
       .catch((err) => {
@@ -443,6 +445,19 @@ function CvEditorBeta({
     if (loading || profileLoadError || !cv) return;
     setCanvasDrafts(listCanvasDrafts(templatesList));
   }, [templatesList, loading, profileLoadError, cv]);
+
+  // Recompute l’offre Stable→Beta quand templatesList arrive (souvent après le GET cv).
+  useEffect(() => {
+    if (loading || profileLoadError || !cv) return;
+    if (!Array.isArray(templatesList) || templatesList.length === 0) return;
+    if (designBridgeSeededRef.current) return;
+    const tid = String(
+      profileTemplateIdRef.current || cv.template_id || templateId || '',
+    ).trim();
+    const offer = buildStableToBetaOffer(layoutRef.current, tid, templatesList);
+    designBridgeSeededRef.current = true;
+    setDesignBridgeOffer(offer);
+  }, [loading, profileLoadError, cv, templatesList, templateId]);
 
   const handleCvChange = useCallback((nextCv) => {
     if (profileLoadError || !nextCv) return;
@@ -576,22 +591,34 @@ function CvEditorBeta({
   ]);
 
   const handleApplyStableDesignBridge = useCallback((offer) => {
-    const tid = offer?.templateId || templateId;
+    const tid = offer?.templateId
+      || profileTemplateIdRef.current
+      || templateId;
     const template = resolveTemplateFromList(templatesList || [], tid);
     if (!template || !cv) {
-      setDesignBridgeOffer(null);
+      setDesignBridgeError(
+        !cv
+          ? 'Profil non chargé — réessaie dans un instant.'
+          : 'Ce template Stable n’a pas de projection canvas. Choisis un autre modèle.',
+      );
       return;
     }
     setDesignBridgeConfirming(true);
+    setDesignBridgeError('');
     try {
       const applied = applyStableDesignToCanvas(cv, template, { templatesList });
       if (!applied.ok || !applied.layout) {
-        setDesignBridgeOffer(null);
+        setDesignBridgeError(
+          applied.reason === 'no_canvas_spec'
+            ? 'Ce template Stable n’a pas de projection canvas utilisable.'
+            : 'Impossible d’appliquer le design Stable sur le canvas.',
+        );
         return;
       }
       if (onTemplateIdChange) onTemplateIdChange(template.id);
       openCanvasContext(templateCanvasContextKey(template.id), applied.layout);
       setDesignBridgeOffer(null);
+      setDesignBridgeError('');
       setStartupPromptOpen(false);
     } finally {
       setDesignBridgeConfirming(false);
@@ -600,16 +627,25 @@ function CvEditorBeta({
 
   const handleDismissDesignBridge = useCallback(() => {
     setDesignBridgeOffer(null);
+    setDesignBridgeError('');
   }, []);
 
   const handleApplyStableFromStartup = useCallback(() => {
-    const template = resolveTemplateFromList(templatesList || [], templateId);
-    if (!template) {
+    const tid = String(
+      profileTemplateIdRef.current || templateId || '',
+    ).trim();
+    const offer = buildStableToBetaOffer(layoutRef.current, tid, templatesList || [], {
+      force: true,
+    });
+    if (!offer) {
       handleChooseAtsSafeTemplate();
       return;
     }
-    handleApplyStableDesignBridge({ templateId: template.id, templateLabel: template.name || template.id });
-  }, [templatesList, templateId, handleApplyStableDesignBridge, handleChooseAtsSafeTemplate]);
+    // Opt-in via modal (warnings + Garder tel quel) — pas d’apply direct.
+    setStartupPromptOpen(false);
+    setDesignBridgeError('');
+    setDesignBridgeOffer(offer);
+  }, [templatesList, templateId, handleChooseAtsSafeTemplate]);
 
   const applyImportedCvToCanvas = useCallback(async (nextCv, {
     layoutHints = {},
@@ -2171,7 +2207,12 @@ function CvEditorBeta({
                     >
                       Importer mon CV
                     </button>
-                    {canBuildCanvasForTemplate(resolveTemplateFromList(templatesList || [], templateId)) && (
+                    {canBuildCanvasForTemplate(
+                      resolveTemplateFromList(
+                        templatesList || [],
+                        String(cv?.template_id || profileTemplateIdRef.current || templateId || '').trim(),
+                      ),
+                    ) && (
                       <button
                         type="button"
                         className="cv-editor-beta-start-panel__secondary"
@@ -2214,6 +2255,7 @@ function CvEditorBeta({
               <DesignModeBridgeModal
                 offer={designBridgeOffer}
                 confirming={designBridgeConfirming}
+                error={designBridgeError}
                 onConfirm={handleApplyStableDesignBridge}
                 onDismiss={handleDismissDesignBridge}
               />

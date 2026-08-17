@@ -164,13 +164,15 @@ export function dismissDesignBridge(direction, templateId, storage) {
  * @param {object|null|undefined} layout
  * @param {string} templateId
  * @param {unknown[]} templatesList
- * @param {{ storage?: Storage|null }} [options]
+ * @param {{ storage?: Storage|null, force?: boolean }} [options]
  */
 export function buildStableToBetaOffer(layout, templateId, templatesList, options = {}) {
   const template = resolveTemplateFromList(templatesList, templateId);
   if (!template || !canBuildCanvasForTemplate(template)) return null;
   if (!isEmptyLayoutV3(layout)) return null;
-  if (isDesignBridgeDismissed('stable_to_beta', template.id, options.storage)) return null;
+  if (!options.force && isDesignBridgeDismissed('stable_to_beta', template.id, options.storage)) {
+    return null;
+  }
   return {
     direction: 'stable_to_beta',
     templateId: template.id,

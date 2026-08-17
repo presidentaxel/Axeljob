@@ -237,16 +237,25 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
     setDesignBridgeConfirming(true);
     setError('');
     try {
+      const templateChanged = offer.templateId !== templateId;
+      const nextOptions = templateChanged ? {} : (templateOptions || {});
       if (onTemplateIdChange) onTemplateIdChange(offer.templateId);
       else setLocalTemplateId(offer.templateId);
-      if (onTemplateOptionsChange) onTemplateOptionsChange({});
-      else setLocalTemplateOptions({});
+      // Ne wipe les options Stable que si le template change vraiment.
+      if (templateChanged) {
+        if (onTemplateOptionsChange) onTemplateOptionsChange({});
+        else setLocalTemplateOptions({});
+      }
       await apiPut('/api/cv', {
         ...cv,
         template_id: offer.templateId,
-        template_options: {},
+        template_options: nextOptions,
       });
-      setMessage(`Template Stable « ${offer.templateLabel || offer.templateId} » appliqué`);
+      setMessage(
+        templateChanged
+          ? `Template Stable « ${offer.templateLabel || offer.templateId} » appliqué`
+          : 'Préférences Stable conservées',
+      );
       setTimeout(() => setMessage(''), 2500);
       setDesignBridgeOffer(null);
       onSaveSuccess?.();
@@ -255,7 +264,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
     } finally {
       setDesignBridgeConfirming(false);
     }
-  }, [cv, onTemplateIdChange, onTemplateOptionsChange, onSaveSuccess]);
+  }, [cv, templateId, templateOptions, onTemplateIdChange, onTemplateOptionsChange, onSaveSuccess]);
 
   const handleDismissDesignBridge = useCallback(() => {
     setDesignBridgeOffer(null);

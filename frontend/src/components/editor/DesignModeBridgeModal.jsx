@@ -10,6 +10,7 @@ import '../../styles/DesignModeBridgeModal.css';
 export default function DesignModeBridgeModal({
   offer = null,
   confirming = false,
+  error = '',
   variant = 'editor',
   onConfirm,
   onDismiss,
@@ -53,6 +54,9 @@ export default function DesignModeBridgeModal({
             ))}
           </ul>
         )}
+        {error ? (
+          <p className="design-mode-bridge-modal__error" role="alert">{error}</p>
+        ) : null}
         <footer className="design-mode-bridge-modal__actions">
           <button type="button" onClick={() => handleDismiss(true)} disabled={confirming}>
             Garder tel quel

@@ -119,10 +119,17 @@ import EditorBlockChromeToolbar from './EditorBlockChromeToolbar.jsx';
 import EditorFloatingTextToolbar from './EditorFloatingTextToolbar.jsx';
 import EditorImageEditPopover from './EditorImageEditPopover.jsx';
 import EditorCanvaTransferModal from './EditorCanvaTransferModal.jsx';
+import DesignModeBridgeModal from './DesignModeBridgeModal.jsx';
 import EditorCvImportModal from './EditorCvImportModal.jsx';
 import EditorOnboardingTour from './EditorOnboardingTour.jsx';
 import HeaderComposerModal from './HeaderComposerModal.jsx';
 import SectionComposerModal from './SectionComposerModal.jsx';
+import {
+  applyStableDesignToCanvas,
+  buildStableToBetaOffer,
+  canBuildCanvasForTemplate,
+  resolveTemplateFromList,
+} from '../../lib/designModeBridge.js';
 import {
   applyHeaderComposerToLayout,
   mergeHeaderComposerCv,
@@ -219,6 +226,8 @@ function CvEditorBeta({
   const [activeLayoutContextKey, setActiveLayoutContextKey] = useState(() => getActiveCanvasContext());
   const [canvasDrafts, setCanvasDrafts] = useState(() => listCanvasDrafts(templatesList));
   const [transferRequest, setTransferRequest] = useState(null);
+  const [designBridgeOffer, setDesignBridgeOffer] = useState(null);
+  const [designBridgeConfirming, setDesignBridgeConfirming] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
   const [importChooser, setImportChooser] = useState(null);
@@ -236,11 +245,16 @@ function CvEditorBeta({
   const blocksClipboardRef = useRef([]);
   const [profileLoadAttempt, setProfileLoadAttempt] = useState(0);
   const templatesListRef = useRef(templatesList);
+  const templateIdRef = useRef(templateId);
   const blockHistoryShortcutsRef = useRef(false);
 
   useLayoutEffect(() => {
     templatesListRef.current = templatesList;
   }, [templatesList]);
+
+  useLayoutEffect(() => {
+    templateIdRef.current = templateId;
+  }, [templateId]);
 
   useLayoutEffect(() => {
     blockHistoryShortcutsRef.current = Boolean(editingBlockId);
@@ -406,6 +420,12 @@ function CvEditorBeta({
         }
         resetLayout(hydratedLayout);
         setStartupPromptOpen(!rawLayout);
+        const bridgeOffer = buildStableToBetaOffer(
+          hydratedLayout,
+          templateIdRef.current,
+          templatesListRef.current || [],
+        );
+        setDesignBridgeOffer(bridgeOffer);
         setLoading(false);
       })
       .catch((err) => {
@@ -554,6 +574,42 @@ function CvEditorBeta({
     openCanvasContext,
     buildTemplateCanvasLayout,
   ]);
+
+  const handleApplyStableDesignBridge = useCallback((offer) => {
+    const tid = offer?.templateId || templateId;
+    const template = resolveTemplateFromList(templatesList || [], tid);
+    if (!template || !cv) {
+      setDesignBridgeOffer(null);
+      return;
+    }
+    setDesignBridgeConfirming(true);
+    try {
+      const applied = applyStableDesignToCanvas(cv, template, { templatesList });
+      if (!applied.ok || !applied.layout) {
+        setDesignBridgeOffer(null);
+        return;
+      }
+      if (onTemplateIdChange) onTemplateIdChange(template.id);
+      openCanvasContext(templateCanvasContextKey(template.id), applied.layout);
+      setDesignBridgeOffer(null);
+      setStartupPromptOpen(false);
+    } finally {
+      setDesignBridgeConfirming(false);
+    }
+  }, [cv, templateId, templatesList, onTemplateIdChange, openCanvasContext]);
+
+  const handleDismissDesignBridge = useCallback(() => {
+    setDesignBridgeOffer(null);
+  }, []);
+
+  const handleApplyStableFromStartup = useCallback(() => {
+    const template = resolveTemplateFromList(templatesList || [], templateId);
+    if (!template) {
+      handleChooseAtsSafeTemplate();
+      return;
+    }
+    handleApplyStableDesignBridge({ templateId: template.id, templateLabel: template.name || template.id });
+  }, [templatesList, templateId, handleApplyStableDesignBridge, handleChooseAtsSafeTemplate]);
 
   const applyImportedCvToCanvas = useCallback(async (nextCv, {
     layoutHints = {},
@@ -2115,6 +2171,15 @@ function CvEditorBeta({
                     >
                       Importer mon CV
                     </button>
+                    {canBuildCanvasForTemplate(resolveTemplateFromList(templatesList || [], templateId)) && (
+                      <button
+                        type="button"
+                        className="cv-editor-beta-start-panel__secondary"
+                        onClick={handleApplyStableFromStartup}
+                      >
+                        Appliquer mon design Stable
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="cv-editor-beta-start-panel__secondary"
@@ -2144,6 +2209,14 @@ function CvEditorBeta({
                   </p>
                 </div>
               </section>
+            )}
+            {designBridgeOffer && !startupPromptOpen && (
+              <DesignModeBridgeModal
+                offer={designBridgeOffer}
+                confirming={designBridgeConfirming}
+                onConfirm={handleApplyStableDesignBridge}
+                onDismiss={handleDismissDesignBridge}
+              />
             )}
             {transferRequest && (
               <EditorCanvaTransferModal

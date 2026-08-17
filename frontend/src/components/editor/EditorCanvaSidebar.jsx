@@ -207,6 +207,7 @@ export default function EditorCanvaSidebar({
   onSnapEnabledChange,
   onBeginPlacement,
   onOpenHeaderComposer,
+  onOpenSectionComposer,
   onCancelPlacement,
   onSelectBlock,
   onBlockPatch,
@@ -399,6 +400,29 @@ export default function EditorCanvaSidebar({
                   Design + champs + inputs — puis free-edit
                 </span>
               </button>
+              <div className="editor-canva-composer-grid" role="group" aria-label="Composers de sections">
+                {[
+                  { type: 'contact', label: 'Contact' },
+                  { type: 'resume', label: 'Profil' },
+                  { type: 'experiences', label: 'Expériences' },
+                  { type: 'formations', label: 'Formations' },
+                  { type: 'skills', label: 'Compétences' },
+                  { type: 'languages', label: 'Langues' },
+                  { type: 'certifications', label: 'Certifications' },
+                  { type: 'projets', label: 'Projets' },
+                  { type: 'photo', label: 'Photo' },
+                ].map((item) => (
+                  <button
+                    key={item.type}
+                    type="button"
+                    className="editor-canva-composer-cta editor-canva-composer-cta--compact"
+                    disabled={disabled}
+                    onClick={() => onOpenSectionComposer?.(item.type)}
+                  >
+                    <span className="editor-canva-composer-cta__label">{item.label}</span>
+                  </button>
+                ))}
+              </div>
               <p className="editor-canva-drawer__hint editor-canva-drawer__hint--subtle">
                 Blocs individuels (avancé) — liés à ton CV de base.
               </p>

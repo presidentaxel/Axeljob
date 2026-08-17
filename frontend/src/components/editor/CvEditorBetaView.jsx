@@ -122,10 +122,15 @@ import EditorCanvaTransferModal from './EditorCanvaTransferModal.jsx';
 import EditorCvImportModal from './EditorCvImportModal.jsx';
 import EditorOnboardingTour from './EditorOnboardingTour.jsx';
 import HeaderComposerModal from './HeaderComposerModal.jsx';
+import SectionComposerModal from './SectionComposerModal.jsx';
 import {
   applyHeaderComposerToLayout,
   mergeHeaderComposerCv,
 } from '../../lib/headerComposerPresets.js';
+import {
+  applySectionComposerToLayout,
+  mergeSectionComposerCv,
+} from '../../lib/sectionComposerPresets.js';
 import '../../styles/HeaderComposerModal.css';
 
 import {
@@ -191,6 +196,7 @@ function CvEditorBeta({
   const [imageEditBlockId, setImageEditBlockId] = useState(null);
   const [sidebarSection, setSidebarSection] = useState('sections');
   const [headerComposerOpen, setHeaderComposerOpen] = useState(false);
+  const [sectionComposerType, setSectionComposerType] = useState(null);
   const [placementPreset, setPlacementPreset] = useState(null);
   const [startupPromptOpen, setStartupPromptOpen] = useState(false);
   const [onboardingDismissed, setOnboardingDismissed] = useState(() => isEditorOnboardingDismissed());
@@ -452,7 +458,14 @@ function CvEditorBeta({
 
   const handleOpenHeaderComposer = useCallback(() => {
     setSidebarSection('sections');
+    setSectionComposerType(null);
     setHeaderComposerOpen(true);
+  }, []);
+
+  const handleOpenSectionComposer = useCallback((type) => {
+    setSidebarSection('sections');
+    setHeaderComposerOpen(false);
+    setSectionComposerType(type || null);
   }, []);
 
   const handleHeaderComposerConfirm = useCallback((payload) => {
@@ -472,6 +485,30 @@ function CvEditorBeta({
       setImageEditBlockId(null);
     }
     setHeaderComposerOpen(false);
+    setStartupPromptOpen(false);
+  }, [layout, cv, handleCvChange, commitLayout, autoSave, profileLoadError]);
+
+  const handleSectionComposerConfirm = useCallback((payload) => {
+    if (!layout || !payload?.sectionType || profileLoadError) return;
+    const nextCv = mergeSectionComposerCv(payload.sectionType, cv, payload);
+    handleCvChange(nextCv);
+    const { layout: nextLayout, placedIds } = applySectionComposerToLayout(
+      layout,
+      0,
+      payload.sectionType,
+      {
+        variantId: payload.variantId,
+        fields: payload.fields,
+      },
+    );
+    commitLayout(nextLayout);
+    if (nextCv) autoSave.schedule({ ...nextCv, layout: nextLayout });
+    if (placedIds.length) {
+      setSelectedBlockIds(placedIds);
+      setEditingBlockId(null);
+      setImageEditBlockId(null);
+    }
+    setSectionComposerType(null);
     setStartupPromptOpen(false);
   }, [layout, cv, handleCvChange, commitLayout, autoSave, profileLoadError]);
 
@@ -1976,6 +2013,7 @@ function CvEditorBeta({
           onSnapEnabledChange={setCanvasSnapEnabled}
           onBeginPlacement={handleBeginPlacement}
           onOpenHeaderComposer={handleOpenHeaderComposer}
+          onOpenSectionComposer={handleOpenSectionComposer}
           onCancelPlacement={handleCancelPlacement}
           onSelectBlock={handleSelectBlock}
           onBlockPatch={handleBlockPatchById}
@@ -2178,6 +2216,14 @@ function CvEditorBeta({
         cv={cv}
         onConfirm={handleHeaderComposerConfirm}
         onCancel={() => setHeaderComposerOpen(false)}
+      />
+
+      <SectionComposerModal
+        open={Boolean(sectionComposerType)}
+        sectionType={sectionComposerType}
+        cv={cv}
+        onConfirm={handleSectionComposerConfirm}
+        onCancel={() => setSectionComposerType(null)}
       />
 
     </div>

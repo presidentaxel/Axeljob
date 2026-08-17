@@ -192,7 +192,10 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
           : (templateIdProp ?? localTemplateId);
         setDesignBridgeOffer(buildBetaToStableOffer(data?.layout, currentTid));
       })
-      .catch(() => setCv(defaultCv()))
+      .catch(() => {
+        setCv(defaultCv());
+        setDesignBridgeOffer(null);
+      })
       .finally(() => setLoading(false));
   }, [session?.user?.id, refreshKey]);
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   CONTACT_COMPOSER_FIELDS,
@@ -33,17 +33,24 @@ export default function SectionComposerModal({
   const [text, setText] = useState('');
   const [skillsText, setSkillsText] = useState('');
   const [items, setItems] = useState([]);
+  const cvRef = useRef(cv);
 
   useEffect(() => {
+    cvRef.current = cv;
+  }, [cv]);
+
+  // Prefill uniquement à l’ouverture / changement de section — pas à chaque
+  // sync CV (sinon la saisie en cours est écrasée).
+  useEffect(() => {
     if (!open || !sectionType) return;
-    const initial = defaultSectionComposerState(sectionType, cv);
+    const initial = defaultSectionComposerState(sectionType, cvRef.current);
     setVariantId(initial.variantId);
     setFields(initial.fields || {});
     setValues(initial.values || {});
     setText(initial.text || '');
     setSkillsText(initial.skillsText || '');
     setItems(Array.isArray(initial.items) ? initial.items : []);
-  }, [open, sectionType, cv]);
+  }, [open, sectionType]);
 
   if (!open || !sectionType || !meta) return null;
 

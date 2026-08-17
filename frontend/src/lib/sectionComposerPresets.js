@@ -5,6 +5,7 @@
 
 import { syncCvDualKeys } from './cvDualKey.js';
 import { generateItemId, findSectionSchema } from './cvSectionOps.js';
+import { suggestNewBlockPlacement } from './freeCanvasBlockPresets.js';
 import {
   PAGE_MARGIN_MM,
   PAGE_USABLE_WIDTH_MM,
@@ -296,7 +297,7 @@ export function mergeSectionComposerCv(type, cv, state) {
       .filter(Boolean);
     next.competences = {
       ...(next.competences && typeof next.competences === 'object' ? next.competences : {}),
-      techniques: lines.length ? lines : [''],
+      techniques: lines,
     };
     return syncCvDualKeys(next);
   }
@@ -362,15 +363,13 @@ function findExistingSectionPlacement(layout, blockType) {
 
 /**
  * @param {object|null|undefined} layout
+ * @param {number} pageIndex
  * @param {number} fallbackH
  */
-function resolveAppendPlacementY(layout, fallbackH = 24) {
-  const all = listAllBlocks(layout);
-  if (!all.length) return PAGE_MARGIN_MM;
-  const maxBottom = Math.max(
-    ...all.map((b) => (typeof b.y === 'number' ? b.y : 0) + (typeof b.h === 'number' ? b.h : fallbackH)),
-  );
-  return maxBottom + 4;
+function resolveAppendPlacementY(layout, pageIndex, fallbackH = 24) {
+  // Coordonnées y sont par page — ne pas mélanger les pages (Bugbot).
+  const suggested = suggestNewBlockPlacement(layout, pageIndex, { w: W, h: fallbackH });
+  return typeof suggested?.y === 'number' ? suggested.y : PAGE_MARGIN_MM;
 }
 
 /**
@@ -532,13 +531,16 @@ export function applySectionComposerToLayout(layout, pageIndex, type, options = 
   const previous = findExistingSectionPlacement(layout, type);
   let next = removeBlocks(layout, collectSectionBlockIds(layout, type));
 
-  const y = previous ? previous.y : resolveAppendPlacementY(next, partial.h || 24);
-  const x = previous ? previous.x : PAGE_MARGIN_MM;
   const pageCount = next?.pages?.length || 0;
   let safePage = previous ? previous.pageIndex : pageIndex;
   if (typeof safePage !== 'number' || safePage < 0 || safePage >= pageCount) {
     safePage = 0;
   }
+
+  const y = previous
+    ? previous.y
+    : resolveAppendPlacementY(next, safePage, partial.h || 24);
+  const x = previous ? previous.x : PAGE_MARGIN_MM;
 
   next = addBlockToPage(next, safePage, {
     ...partial,

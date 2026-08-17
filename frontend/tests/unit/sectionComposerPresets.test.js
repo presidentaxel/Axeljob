@@ -93,6 +93,41 @@ test('certifications variants differ in height and title_style', () => {
   assert.notEqual(classic.style.title_style, underline.style.title_style);
 });
 
+test('skills merge writes empty array when blank (not [""])', () => {
+  const next = mergeSectionComposerCv(
+    'skills',
+    { competences: { techniques: ['Old'], logiciels: ['Excel'] } },
+    { skillsText: '  \n  ' },
+  );
+  assert.deepEqual(next.competences.techniques, []);
+  assert.deepEqual(next.competences.logiciels, ['Excel']);
+});
+
+test('append placement uses only the target page y-coords', () => {
+  let layout = createBlankLayoutV3();
+  // Page 0 with a short block near the top.
+  layout = applySectionComposerToLayout(layout, 0, 'contact', {
+    variantId: 'stacked',
+    fields: { email: true, telephone: false, linkedin: false },
+  }).layout;
+  // Simulate content on page 2 with a high y (must not push page-0 append).
+  layout = {
+    ...layout,
+    pages: [
+      layout.pages[0],
+      { ...(layout.pages[0] || {}), blocks: [] },
+      {
+        ...(layout.pages[0] || {}),
+        blocks: [{ id: 'far', type: 'text', x: 10, y: 200, w: 40, h: 20, z: 1 }],
+      },
+    ],
+  };
+  const placed = applySectionComposerToLayout(layout, 0, 'resume', { variantId: 'classic' });
+  const resume = placed.layout.pages[0].blocks.find((b) => b.type === 'resume');
+  assert.ok(resume);
+  assert.ok(resume.y < 120, `expected page-0 append y, got ${resume.y}`);
+});
+
 test('canPlace requires at least one contact field', () => {
   assert.equal(canPlaceSectionComposer('contact', { fields: {} }), false);
   assert.equal(canPlaceSectionComposer('contact', { fields: { email: true } }), true);

@@ -89,6 +89,7 @@ import {
   createStarterLayoutV3,
   duplicateBlocks,
   findBlock,
+  isEmptyLayoutV3,
   layoutPayloadForPersist,
   migrateLayoutToV3,
   moveBlocksBy,
@@ -458,6 +459,14 @@ function CvEditorBeta({
     designBridgeSeededRef.current = true;
     setDesignBridgeOffer(offer);
   }, [loading, profileLoadError, cv, templatesList, templateId]);
+
+  // Si le canvas n’est plus vide (import / générer / template), retirer l’offre stale.
+  useEffect(() => {
+    if (!designBridgeOffer || designBridgeOffer.direction !== 'stable_to_beta') return;
+    if (isEmptyLayoutV3(layout)) return;
+    setDesignBridgeOffer(null);
+    setDesignBridgeError('');
+  }, [layout, designBridgeOffer]);
 
   const handleCvChange = useCallback((nextCv) => {
     if (profileLoadError || !nextCv) return;

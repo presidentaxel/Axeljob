@@ -239,18 +239,18 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
     try {
       const templateChanged = offer.templateId !== templateId;
       const nextOptions = templateChanged ? {} : (templateOptions || {});
-      if (onTemplateIdChange) onTemplateIdChange(offer.templateId);
-      else setLocalTemplateId(offer.templateId);
-      // Ne wipe les options Stable que si le template change vraiment.
-      if (templateChanged) {
-        if (onTemplateOptionsChange) onTemplateOptionsChange({});
-        else setLocalTemplateOptions({});
-      }
+      // Persister d’abord — ne mettre à jour l’UI locale qu’après succès API.
       await apiPut('/api/cv', {
         ...cv,
         template_id: offer.templateId,
         template_options: nextOptions,
       });
+      if (onTemplateIdChange) onTemplateIdChange(offer.templateId);
+      else setLocalTemplateId(offer.templateId);
+      if (templateChanged) {
+        if (onTemplateOptionsChange) onTemplateOptionsChange({});
+        else setLocalTemplateOptions({});
+      }
       setMessage(
         templateChanged
           ? `Template Stable « ${offer.templateLabel || offer.templateId} » appliqué`

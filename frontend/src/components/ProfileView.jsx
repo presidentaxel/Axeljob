@@ -16,10 +16,13 @@ import { supabase } from '../lib/supabase';
 import { defaultCv, newExpId, newFormId, newCertId, newProjId } from '../data/cvDefault';
 import TemplatePicker from './TemplatePicker';
 import ReauthModal from './ReauthModal';
+import DesignModeBridgeModal from './editor/DesignModeBridgeModal.jsx';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from '../lib/cvPreviewA4Pages';
+import { buildBetaToStableOffer } from '../lib/designModeBridge.js';
 import { HiArrowDownTray } from 'react-icons/hi2';
 import '../styles/ProfileView.css';
 import '../styles/TemplatePicker.css';
+import '../styles/DesignModeBridgeModal.css';
 
 /** Retourne un Blob JPEG recadré à partir de l’image et de la zone en pixels (pour react-easy-crop). */
 function getCroppedImg(imageSrc, pixelCrop) {
@@ -166,6 +169,8 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
   const importFinalisationTimerRef = useRef(null);
   const [cancelSubModalOpen, setCancelSubModalOpen] = useState(false);
   const [cancelSubLoading, setCancelSubLoading] = useState(false);
+  const [designBridgeOffer, setDesignBridgeOffer] = useState(null);
+  const [designBridgeConfirming, setDesignBridgeConfirming] = useState(false);
   const fileInputRef = useRef(null);
   const importFileRef = useRef(null);
   const skipNextAutoSaveRef = useRef(true);
@@ -182,8 +187,15 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
         setCv(merged);
         if (data?.template_id != null && onTemplateIdChange) onTemplateIdChange(data.template_id);
         if (data?.template_options != null && typeof data.template_options === 'object' && onTemplateOptionsChange) onTemplateOptionsChange(data.template_options);
+        const currentTid = data?.template_id != null
+          ? data.template_id
+          : (templateIdProp ?? localTemplateId);
+        setDesignBridgeOffer(buildBetaToStableOffer(data?.layout, currentTid));
       })
-      .catch(() => setCv(defaultCv()))
+      .catch(() => {
+        setCv(defaultCv());
+        setDesignBridgeOffer(null);
+      })
       .finally(() => setLoading(false));
   }, [session?.user?.id, refreshKey]);
 
@@ -219,6 +231,47 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
       setSaving(false);
     }
   }, [cv, templateId, templateOptions, onSaveSuccess]);
+
+  const handleConfirmDesignBridge = useCallback(async (offer) => {
+    if (!offer?.templateId) {
+      setDesignBridgeOffer(null);
+      return;
+    }
+    setDesignBridgeConfirming(true);
+    setError('');
+    try {
+      const templateChanged = offer.templateId !== templateId;
+      const nextOptions = templateChanged ? {} : (templateOptions || {});
+      // Persister d’abord — ne mettre à jour l’UI locale qu’après succès API.
+      await apiPut('/api/cv', {
+        ...cv,
+        template_id: offer.templateId,
+        template_options: nextOptions,
+      });
+      if (onTemplateIdChange) onTemplateIdChange(offer.templateId);
+      else setLocalTemplateId(offer.templateId);
+      if (templateChanged) {
+        if (onTemplateOptionsChange) onTemplateOptionsChange({});
+        else setLocalTemplateOptions({});
+      }
+      setMessage(
+        templateChanged
+          ? `Template Stable « ${offer.templateLabel || offer.templateId} » appliqué`
+          : 'Préférences Stable conservées',
+      );
+      setTimeout(() => setMessage(''), 2500);
+      setDesignBridgeOffer(null);
+      onSaveSuccess?.();
+    } catch (e) {
+      setError(e.message || 'Impossible d’appliquer le template Stable.');
+    } finally {
+      setDesignBridgeConfirming(false);
+    }
+  }, [cv, templateId, templateOptions, onTemplateIdChange, onTemplateOptionsChange, onSaveSuccess]);
+
+  const handleDismissDesignBridge = useCallback(() => {
+    setDesignBridgeOffer(null);
+  }, []);
 
   const fetchLinkedInWithToken = useCallback(async (token) => {
     setLinkedinError('');
@@ -1205,6 +1258,16 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
           </div>
         </div>
       </div>
+
+      {designBridgeOffer && (
+        <DesignModeBridgeModal
+          offer={designBridgeOffer}
+          confirming={designBridgeConfirming}
+          variant="profile"
+          onConfirm={handleConfirmDesignBridge}
+          onDismiss={handleDismissDesignBridge}
+        />
+      )}
 
       {linkedinModalOpen && (
         <div className="linkedin-sync-overlay" onClick={() => setLinkedinModalOpen(false)} role="dialog" aria-modal="true">

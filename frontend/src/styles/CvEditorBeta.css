@@ -164,6 +164,69 @@
   cursor: not-allowed;
 }
 
+.cv-editor-beta-export-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.cv-editor-beta-export-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 240px;
+  padding: 6px;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cv-editor-beta-export-menu__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--editor-font-family);
+  color: var(--color-ink);
+}
+
+.cv-editor-beta-export-menu__item:hover:not(:disabled) {
+  background: var(--color-soft-stone);
+}
+
+.cv-editor-beta-export-menu__item:focus-visible {
+  background: var(--color-soft-stone);
+  outline: 2px solid var(--color-focus-blue);
+  outline-offset: 2px;
+}
+
+.cv-editor-beta-export-menu__item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cv-editor-beta-export-menu__label {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.cv-editor-beta-export-menu__hint {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-body-muted);
+}
+
 .cv-editor-beta-delete-block-btn {
   border-color: #fecaca;
   color: var(--color-error);

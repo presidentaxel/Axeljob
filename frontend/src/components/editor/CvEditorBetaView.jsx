@@ -121,6 +121,7 @@ import EditorFloatingTextToolbar from './EditorFloatingTextToolbar.jsx';
 import EditorImageEditPopover from './EditorImageEditPopover.jsx';
 import EditorCanvaTransferModal from './EditorCanvaTransferModal.jsx';
 import DesignModeBridgeModal from './DesignModeBridgeModal.jsx';
+import DocxExportNoticeModal from './DocxExportNoticeModal.jsx';
 import EditorCvImportModal from './EditorCvImportModal.jsx';
 import EditorOnboardingTour from './EditorOnboardingTour.jsx';
 import HeaderComposerModal from './HeaderComposerModal.jsx';
@@ -142,8 +143,6 @@ import {
 import '../../styles/HeaderComposerModal.css';
 
 import {
-  buildCanvasPdfFilename,
-  formatPdfExportError,
   sameLayout,
   blockSupportsEditHint,
   dismissCanvasEditHint,
@@ -152,6 +151,13 @@ import {
   isCanvasEditHintDismissed,
   isSemanticEditNoteDismissed,
 } from '../../lib/canvasEditorUtils.js';
+import {
+  CANVAS_EXPORT_FORMATS,
+  buildCanvasExportFilename,
+  dismissDocxFidelityNotice,
+  formatCanvasExportError,
+  isDocxFidelityNoticeDismissed,
+} from '../../lib/canvasExportFormats.js';
 import {
   dismissEditorOnboarding,
   isEditorOnboardingDismissed,
@@ -209,6 +215,9 @@ function CvEditorBeta({
   const [startupPromptOpen, setStartupPromptOpen] = useState(false);
   const [onboardingDismissed, setOnboardingDismissed] = useState(() => isEditorOnboardingDismissed());
   const [pdfExportError, setPdfExportError] = useState('');
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [docxNoticeOpen, setDocxNoticeOpen] = useState(false);
+  const exportMenuRef = useRef(null);
   const [atsOptimizeMessage, setAtsOptimizeMessage] = useState('');
   const [atsOptimizePreview, setAtsOptimizePreview] = useState(null);
   const [atsOptimizePreviewLoading, setAtsOptimizePreviewLoading] = useState(false);
@@ -1596,30 +1605,74 @@ function CvEditorBeta({
     }
   }, [layout, atsOptimizeUndoAfter]);
 
-  const handleExportLayoutPdf = useCallback(async () => {
+  const handleExportFormat = useCallback(async (format) => {
     if (!cv || !layout || pdfExporting) return;
+    setExportMenuOpen(false);
+    setDocxNoticeOpen(false);
     setPdfExporting(true);
     setPdfExportError('');
     const preopenedWindow = prepareAppleDownloadWindow();
     try {
-      const { blob, filename } = await apiPostBlob('/api/pdf', {
+      const { blob, filename } = await apiPostBlob('/api/cv-export', {
         cv,
         template_id: templateId,
         layout,
+        format,
       });
       await saveBlobWithPreferredMethod(
         blob,
-        filename || buildCanvasPdfFilename(cv),
+        filename || buildCanvasExportFilename(cv, format),
         { preopenedWindow },
       );
     } catch (err) {
       if (preopenedWindow && !preopenedWindow.closed) preopenedWindow.close();
-      console.error('[cv-editor-beta] export PDF layout', err);
-      setPdfExportError(formatPdfExportError(err, getDownloadPermissionHint()));
+      console.error(`[cv-editor-beta] export ${format}`, err);
+      setPdfExportError(formatCanvasExportError(err, getDownloadPermissionHint(), format));
     } finally {
       setPdfExporting(false);
     }
   }, [cv, layout, templateId, pdfExporting]);
+
+  const requestExportFormat = useCallback((format) => {
+    if (!cv || !layout || pdfExporting) return;
+    setExportMenuOpen(false);
+    if (format === 'docx' && !isDocxFidelityNoticeDismissed()) {
+      setDocxNoticeOpen(true);
+      return;
+    }
+    void handleExportFormat(format);
+  }, [cv, layout, pdfExporting, handleExportFormat]);
+
+  const handleConfirmDocxNotice = useCallback(({ dontShowAgain = false } = {}) => {
+    if (dontShowAgain) dismissDocxFidelityNotice();
+    setDocxNoticeOpen(false);
+    void handleExportFormat('docx');
+  }, [handleExportFormat]);
+
+  const handleCancelDocxNotice = useCallback(() => {
+    setDocxNoticeOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!exportMenuOpen) return undefined;
+    const onPointerDown = (event) => {
+      const root = exportMenuRef.current;
+      if (root && !root.contains(event.target)) setExportMenuOpen(false);
+    };
+    const onKeyDown = (event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      // Empêche le handler canvas (window) de vider la sélection en même temps.
+      event.stopPropagation();
+      setExportMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown, true);
+    };
+  }, [exportMenuOpen]);
 
   const handleSaveLayoutProposal = useCallback((name) => {
     if (!layout) return;
@@ -1887,15 +1940,36 @@ function CvEditorBeta({
               {atsOptimizePreviewLoading ? 'Analyse ATS…' : 'Optimiser ATS'}
             </button>
           </div>
-          <button
-            type="button"
-            className="cv-editor-beta-history-btn"
-            onClick={handleExportLayoutPdf}
-            disabled={loading || !layout || pdfExporting}
-            title="Télécharger le CV Canva en PDF"
-          >
-            {pdfExporting ? 'Téléchargement…' : 'Télécharger'}
-          </button>
+          <div className="cv-editor-beta-export-wrap" ref={exportMenuRef}>
+            <button
+              type="button"
+              className="cv-editor-beta-history-btn"
+              onClick={() => setExportMenuOpen((open) => !open)}
+              disabled={loading || !layout || pdfExporting}
+              aria-expanded={exportMenuOpen}
+              aria-haspopup="menu"
+              title="Télécharger le CV (PDF, Word, HTML ou TXT)"
+            >
+              {pdfExporting ? 'Téléchargement…' : 'Télécharger'}
+            </button>
+            {exportMenuOpen && (
+              <div className="cv-editor-beta-export-menu" role="menu" aria-label="Formats d’export">
+                {CANVAS_EXPORT_FORMATS.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="menuitem"
+                    className="cv-editor-beta-export-menu__item"
+                    disabled={pdfExporting}
+                    onClick={() => requestExportFormat(item.id)}
+                  >
+                    <span className="cv-editor-beta-export-menu__label">{item.label}</span>
+                    <span className="cv-editor-beta-export-menu__hint">{item.hint}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -2269,6 +2343,11 @@ function CvEditorBeta({
                 onDismiss={handleDismissDesignBridge}
               />
             )}
+            <DocxExportNoticeModal
+              open={docxNoticeOpen}
+              onConfirm={handleConfirmDocxNotice}
+              onCancel={handleCancelDocxNotice}
+            />
             {transferRequest && (
               <EditorCanvaTransferModal
                 request={transferRequest}

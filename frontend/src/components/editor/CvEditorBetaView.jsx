@@ -142,8 +142,6 @@ import {
 import '../../styles/HeaderComposerModal.css';
 
 import {
-  buildCanvasPdfFilename,
-  formatPdfExportError,
   sameLayout,
   blockSupportsEditHint,
   dismissCanvasEditHint,
@@ -152,6 +150,11 @@ import {
   isCanvasEditHintDismissed,
   isSemanticEditNoteDismissed,
 } from '../../lib/canvasEditorUtils.js';
+import {
+  CANVAS_EXPORT_FORMATS,
+  buildCanvasExportFilename,
+  formatCanvasExportError,
+} from '../../lib/canvasExportFormats.js';
 import {
   dismissEditorOnboarding,
   isEditorOnboardingDismissed,
@@ -209,6 +212,8 @@ function CvEditorBeta({
   const [startupPromptOpen, setStartupPromptOpen] = useState(false);
   const [onboardingDismissed, setOnboardingDismissed] = useState(() => isEditorOnboardingDismissed());
   const [pdfExportError, setPdfExportError] = useState('');
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef(null);
   const [atsOptimizeMessage, setAtsOptimizeMessage] = useState('');
   const [atsOptimizePreview, setAtsOptimizePreview] = useState(null);
   const [atsOptimizePreviewLoading, setAtsOptimizePreviewLoading] = useState(false);
@@ -1596,30 +1601,49 @@ function CvEditorBeta({
     }
   }, [layout, atsOptimizeUndoAfter]);
 
-  const handleExportLayoutPdf = useCallback(async () => {
+  const handleExportFormat = useCallback(async (format) => {
     if (!cv || !layout || pdfExporting) return;
+    setExportMenuOpen(false);
     setPdfExporting(true);
     setPdfExportError('');
     const preopenedWindow = prepareAppleDownloadWindow();
     try {
-      const { blob, filename } = await apiPostBlob('/api/pdf', {
+      const { blob, filename } = await apiPostBlob('/api/cv-export', {
         cv,
         template_id: templateId,
         layout,
+        format,
       });
       await saveBlobWithPreferredMethod(
         blob,
-        filename || buildCanvasPdfFilename(cv),
+        filename || buildCanvasExportFilename(cv, format),
         { preopenedWindow },
       );
     } catch (err) {
       if (preopenedWindow && !preopenedWindow.closed) preopenedWindow.close();
-      console.error('[cv-editor-beta] export PDF layout', err);
-      setPdfExportError(formatPdfExportError(err, getDownloadPermissionHint()));
+      console.error(`[cv-editor-beta] export ${format}`, err);
+      setPdfExportError(formatCanvasExportError(err, getDownloadPermissionHint(), format));
     } finally {
       setPdfExporting(false);
     }
   }, [cv, layout, templateId, pdfExporting]);
+
+  useEffect(() => {
+    if (!exportMenuOpen) return undefined;
+    const onPointerDown = (event) => {
+      const root = exportMenuRef.current;
+      if (root && !root.contains(event.target)) setExportMenuOpen(false);
+    };
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setExportMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [exportMenuOpen]);
 
   const handleSaveLayoutProposal = useCallback((name) => {
     if (!layout) return;
@@ -1887,15 +1911,36 @@ function CvEditorBeta({
               {atsOptimizePreviewLoading ? 'Analyse ATS…' : 'Optimiser ATS'}
             </button>
           </div>
-          <button
-            type="button"
-            className="cv-editor-beta-history-btn"
-            onClick={handleExportLayoutPdf}
-            disabled={loading || !layout || pdfExporting}
-            title="Télécharger le CV Canva en PDF"
-          >
-            {pdfExporting ? 'Téléchargement…' : 'Télécharger'}
-          </button>
+          <div className="cv-editor-beta-export-wrap" ref={exportMenuRef}>
+            <button
+              type="button"
+              className="cv-editor-beta-history-btn"
+              onClick={() => setExportMenuOpen((open) => !open)}
+              disabled={loading || !layout || pdfExporting}
+              aria-expanded={exportMenuOpen}
+              aria-haspopup="menu"
+              title="Télécharger le CV (PDF, HTML ou TXT)"
+            >
+              {pdfExporting ? 'Téléchargement…' : 'Télécharger'}
+            </button>
+            {exportMenuOpen && (
+              <div className="cv-editor-beta-export-menu" role="menu" aria-label="Formats d’export">
+                {CANVAS_EXPORT_FORMATS.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="menuitem"
+                    className="cv-editor-beta-export-menu__item"
+                    disabled={pdfExporting}
+                    onClick={() => handleExportFormat(item.id)}
+                  >
+                    <span className="cv-editor-beta-export-menu__label">{item.label}</span>
+                    <span className="cv-editor-beta-export-menu__hint">{item.hint}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </header>
 

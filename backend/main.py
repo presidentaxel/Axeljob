@@ -366,6 +366,12 @@ class PdfBody(BaseModel):
     layout: dict | None = None
 
 
+class CvExportBody(PdfBody):
+    """Export multi-format (AXE-330) — mêmes champs que PdfBody + format."""
+
+    format: str = "pdf"
+
+
 class ExportDossierBody(BaseModel):
     cv: dict
     titre: str = ""
@@ -3726,6 +3732,113 @@ def api_pdf(request: Request, body: PdfBody):
             "X-CV-PDF-Engine": cv_pdf_engine(),
         },
     )
+
+
+def _cv_export_basename(cv: dict, offre: dict) -> str:
+    from backend.services.generator import _nom_fichier_pdf
+
+    pdf_name = _nom_fichier_pdf(cv or {}, offre or {})
+    return pdf_name[:-4] if pdf_name.lower().endswith(".pdf") else (pdf_name or "CV")
+
+
+@app.post("/api/cv-export")
+def api_cv_export(request: Request, body: CvExportBody):
+    """
+    Export CV multi-format (AXE-330) : pdf | html | txt.
+    PDF réutilise le même rendu que POST /api/pdf.
+    """
+    user_id = _get_user_id(request)
+    fmt = (body.format or "pdf").strip().lower()
+    if fmt not in ("pdf", "html", "txt"):
+        raise HTTPException(
+            status_code=400,
+            detail="Format non supporté. Formats disponibles : pdf, html, txt.",
+        )
+    check_rate_limit(user_id, 10, scope="cv_export")
+    if fmt in ("pdf", "html"):
+        _check_premium_template(user_id, body.template_id)
+        _check_custom_template_access(user_id, body.template_id)
+
+    cv = body.cv or {}
+    offre = {"titre": body.titre, "entreprise": body.entreprise}
+    basename = _cv_export_basename(cv, offre)
+
+    try:
+        if fmt == "pdf":
+            pdf_bytes, filename = _cv_pdf_bytes_same_as_download(request, body)
+            PDF_COUNT.inc()
+            _track_analytics(
+                request,
+                event_log.EVENT_PDF_GENERATED,
+                user_id,
+                {
+                    "titre": body.titre or "",
+                    "entreprise": body.entreprise or "",
+                    "template_id": body.template_id or DEFAULT_TEMPLATE_ID,
+                    "export_format": "pdf",
+                },
+            )
+            from backend.cv_pdf_dispatch import cv_pdf_engine
+
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{filename}"',
+                    "X-CV-PDF-Engine": cv_pdf_engine(),
+                },
+            )
+
+        if fmt == "html":
+            # Aligné sur le HTML du PDF (layout free-canvas ou template).
+            if USE_SUPABASE and user_id:
+                cv = _apply_user_photo_for_pdf(cv, user_id)
+            if isinstance(body.layout, dict) and body.layout:
+                from backend.services.layout_renderer import render_html as render_layout_html
+
+                html = render_layout_html(cv, body.layout, for_preview=False)
+            else:
+                html = _render_cv_html(
+                    cv,
+                    for_preview=False,
+                    for_pdf=False,
+                    template_id=body.template_id,
+                    template_options=body.template_options,
+                    selection_a4=body.selection_a4,
+                )
+            filename = f"{basename}.html"
+            return Response(
+                content=html.encode("utf-8"),
+                media_type="text/html; charset=utf-8",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            )
+
+        # txt
+        from backend.services.cv_text_export import cv_to_plain_text
+
+        text = cv_to_plain_text(cv)
+        if not text.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="Rien à exporter en texte : le CV sémantique est vide.",
+            )
+        filename = f"{basename}.txt"
+        return Response(
+            content=text.encode("utf-8"),
+            media_type="text/plain; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(e)
+        if IS_PRODUCTION:
+            raise HTTPException(
+                status_code=500,
+                detail="Erreur lors de l’export. Réessaie ou contacte le support.",
+            )
+        err_msg = str(e).strip() or repr(e)
+        raise HTTPException(status_code=500, detail=f"Erreur export ({fmt}): {err_msg}")
 
 
 @app.get("/api/export-default-dir")

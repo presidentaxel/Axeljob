@@ -2,15 +2,32 @@
  * Tests formats d’export canvas (AXE-330).
  */
 
-import { test } from 'node:test';
+import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
   CANVAS_EXPORT_FORMATS,
+  DOCX_FIDELITY_NOTICE_DISMISSED_KEY,
   buildCanvasExportFilename,
+  dismissDocxFidelityNotice,
   formatCanvasExportError,
   isCanvasExportFormat,
+  isDocxFidelityNoticeDismissed,
 } from '../../src/lib/canvasExportFormats.js';
+
+function installLocalStorage() {
+  const store = new Map();
+  globalThis.localStorage = {
+    getItem: (key) => (store.has(key) ? store.get(key) : null),
+    setItem: (key, value) => store.set(key, String(value)),
+    removeItem: (key) => store.delete(key),
+    clear: () => store.clear(),
+  };
+}
+
+beforeEach(() => {
+  installLocalStorage();
+});
 
 test('exposes pdf docx html txt', () => {
   assert.deepEqual(
@@ -36,4 +53,11 @@ test('formatCanvasExportError keeps API message', () => {
     formatCanvasExportError({ message: 'Format non supporté' }, '', 'docx'),
     /Format non supporté/,
   );
+});
+
+test('docx fidelity notice dismiss persists in localStorage', () => {
+  assert.equal(isDocxFidelityNoticeDismissed(), false);
+  dismissDocxFidelityNotice();
+  assert.equal(isDocxFidelityNoticeDismissed(), true);
+  assert.equal(localStorage.getItem(DOCX_FIDELITY_NOTICE_DISMISSED_KEY), '1');
 });

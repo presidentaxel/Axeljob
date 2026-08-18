@@ -6,6 +6,7 @@ import {
   CANVAS_EDIT_HINT_DISMISSED_KEY,
   SEMANTIC_EDIT_NOTE_DISMISSED_KEY,
 } from './canvasEditorUtils.js';
+import { DOCX_FIDELITY_NOTICE_DISMISSED_KEY } from './canvasExportFormats.js';
 
 const DRAFTS_KEY = 'cv_canvas_layout_drafts_v1';
 const DRAFT_PREFS_KEY = 'cv_canvas_layout_draft_prefs_v1';
@@ -36,6 +37,7 @@ export function resetEditorHints() {
   try {
     localStorage.removeItem(CANVAS_EDIT_HINT_DISMISSED_KEY);
     localStorage.removeItem(SEMANTIC_EDIT_NOTE_DISMISSED_KEY);
+    localStorage.removeItem(DOCX_FIDELITY_NOTICE_DISMISSED_KEY);
     return true;
   } catch {
     return false;

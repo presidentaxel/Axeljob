@@ -121,6 +121,7 @@ import EditorFloatingTextToolbar from './EditorFloatingTextToolbar.jsx';
 import EditorImageEditPopover from './EditorImageEditPopover.jsx';
 import EditorCanvaTransferModal from './EditorCanvaTransferModal.jsx';
 import DesignModeBridgeModal from './DesignModeBridgeModal.jsx';
+import DocxExportNoticeModal from './DocxExportNoticeModal.jsx';
 import EditorCvImportModal from './EditorCvImportModal.jsx';
 import EditorOnboardingTour from './EditorOnboardingTour.jsx';
 import HeaderComposerModal from './HeaderComposerModal.jsx';
@@ -153,7 +154,9 @@ import {
 import {
   CANVAS_EXPORT_FORMATS,
   buildCanvasExportFilename,
+  dismissDocxFidelityNotice,
   formatCanvasExportError,
+  isDocxFidelityNoticeDismissed,
 } from '../../lib/canvasExportFormats.js';
 import {
   dismissEditorOnboarding,
@@ -213,6 +216,7 @@ function CvEditorBeta({
   const [onboardingDismissed, setOnboardingDismissed] = useState(() => isEditorOnboardingDismissed());
   const [pdfExportError, setPdfExportError] = useState('');
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [docxNoticeOpen, setDocxNoticeOpen] = useState(false);
   const exportMenuRef = useRef(null);
   const [atsOptimizeMessage, setAtsOptimizeMessage] = useState('');
   const [atsOptimizePreview, setAtsOptimizePreview] = useState(null);
@@ -1604,6 +1608,7 @@ function CvEditorBeta({
   const handleExportFormat = useCallback(async (format) => {
     if (!cv || !layout || pdfExporting) return;
     setExportMenuOpen(false);
+    setDocxNoticeOpen(false);
     setPdfExporting(true);
     setPdfExportError('');
     const preopenedWindow = prepareAppleDownloadWindow();
@@ -1627,6 +1632,26 @@ function CvEditorBeta({
       setPdfExporting(false);
     }
   }, [cv, layout, templateId, pdfExporting]);
+
+  const requestExportFormat = useCallback((format) => {
+    if (!cv || !layout || pdfExporting) return;
+    setExportMenuOpen(false);
+    if (format === 'docx' && !isDocxFidelityNoticeDismissed()) {
+      setDocxNoticeOpen(true);
+      return;
+    }
+    void handleExportFormat(format);
+  }, [cv, layout, pdfExporting, handleExportFormat]);
+
+  const handleConfirmDocxNotice = useCallback(({ dontShowAgain = false } = {}) => {
+    if (dontShowAgain) dismissDocxFidelityNotice();
+    setDocxNoticeOpen(false);
+    void handleExportFormat('docx');
+  }, [handleExportFormat]);
+
+  const handleCancelDocxNotice = useCallback(() => {
+    setDocxNoticeOpen(false);
+  }, []);
 
   useEffect(() => {
     if (!exportMenuOpen) return undefined;
@@ -1936,7 +1961,7 @@ function CvEditorBeta({
                     role="menuitem"
                     className="cv-editor-beta-export-menu__item"
                     disabled={pdfExporting}
-                    onClick={() => handleExportFormat(item.id)}
+                    onClick={() => requestExportFormat(item.id)}
                   >
                     <span className="cv-editor-beta-export-menu__label">{item.label}</span>
                     <span className="cv-editor-beta-export-menu__hint">{item.hint}</span>
@@ -2318,6 +2343,11 @@ function CvEditorBeta({
                 onDismiss={handleDismissDesignBridge}
               />
             )}
+            <DocxExportNoticeModal
+              open={docxNoticeOpen}
+              onConfirm={handleConfirmDocxNotice}
+              onCancel={handleCancelDocxNotice}
+            />
             {transferRequest && (
               <EditorCanvaTransferModal
                 request={transferRequest}

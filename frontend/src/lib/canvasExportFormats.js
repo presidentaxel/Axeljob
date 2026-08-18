@@ -4,6 +4,8 @@
 
 /** @typedef {'pdf'|'html'|'txt'|'docx'} CanvasExportFormat */
 
+export const DOCX_FIDELITY_NOTICE_DISMISSED_KEY = 'cv_beta_docx_fidelity_notice_dismissed';
+
 /** @type {ReadonlyArray<{ id: CanvasExportFormat, label: string, hint: string }>} */
 export const CANVAS_EXPORT_FORMATS = Object.freeze([
   {
@@ -34,6 +36,28 @@ export const CANVAS_EXPORT_FORMATS = Object.freeze([
  */
 export function isCanvasExportFormat(format) {
   return CANVAS_EXPORT_FORMATS.some((item) => item.id === format);
+}
+
+/**
+ * @returns {boolean}
+ */
+export function isDocxFidelityNoticeDismissed() {
+  try {
+    return localStorage.getItem(DOCX_FIDELITY_NOTICE_DISMISSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Mémorise le choix « ne plus afficher » pour l’avertissement Word.
+ */
+export function dismissDocxFidelityNotice() {
+  try {
+    localStorage.setItem(DOCX_FIDELITY_NOTICE_DISMISSED_KEY, '1');
+  } catch {
+    /* ignore quota / mode privé */
+  }
 }
 
 /**

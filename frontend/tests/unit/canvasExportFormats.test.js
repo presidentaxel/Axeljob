@@ -12,13 +12,14 @@ import {
   isCanvasExportFormat,
 } from '../../src/lib/canvasExportFormats.js';
 
-test('exposes pdf html txt', () => {
+test('exposes pdf docx html txt', () => {
   assert.deepEqual(
     CANVAS_EXPORT_FORMATS.map((f) => f.id),
-    ['pdf', 'html', 'txt'],
+    ['pdf', 'docx', 'html', 'txt'],
   );
   assert.equal(isCanvasExportFormat('pdf'), true);
-  assert.equal(isCanvasExportFormat('docx'), false);
+  assert.equal(isCanvasExportFormat('docx'), true);
+  assert.equal(isCanvasExportFormat('png'), false);
 });
 
 test('buildCanvasExportFilename switches extension', () => {
@@ -26,6 +27,7 @@ test('buildCanvasExportFilename switches extension', () => {
   assert.match(buildCanvasExportFilename(cv, 'pdf'), /\.pdf$/);
   assert.match(buildCanvasExportFilename(cv, 'html'), /\.html$/);
   assert.match(buildCanvasExportFilename(cv, 'txt'), /\.txt$/);
+  assert.match(buildCanvasExportFilename(cv, 'docx'), /\.docx$/);
   assert.ok(buildCanvasExportFilename(cv, 'pdf').includes('Ada'));
 });
 

@@ -2,7 +2,7 @@
  * Formats d’export éditeur Beta (AXE-330).
  */
 
-/** @typedef {'pdf'|'html'|'txt'} CanvasExportFormat */
+/** @typedef {'pdf'|'html'|'txt'|'docx'} CanvasExportFormat */
 
 /** @type {ReadonlyArray<{ id: CanvasExportFormat, label: string, hint: string }>} */
 export const CANVAS_EXPORT_FORMATS = Object.freeze([
@@ -10,6 +10,11 @@ export const CANVAS_EXPORT_FORMATS = Object.freeze([
     id: 'pdf',
     label: 'PDF',
     hint: 'Mise en page fidèle — format principal',
+  },
+  {
+    id: 'docx',
+    label: 'Word',
+    hint: 'Contenu sémantique éditable (.docx) — idéal ATS',
   },
   {
     id: 'html',
@@ -43,7 +48,13 @@ export function buildCanvasExportFilename(cv, format) {
   const title = String(cv?.titre_professionnel || '').trim();
   const parts = ['CV', identity, title].filter(Boolean);
   const base = parts.join(' - ') || 'CV';
-  const ext = format === 'html' ? 'html' : format === 'txt' ? 'txt' : 'pdf';
+  const extByFormat = {
+    html: 'html',
+    txt: 'txt',
+    docx: 'docx',
+    pdf: 'pdf',
+  };
+  const ext = extByFormat[format] || 'pdf';
   return `${base}.${ext}`;
 }
 

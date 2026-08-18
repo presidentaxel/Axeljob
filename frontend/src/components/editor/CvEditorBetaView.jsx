@@ -1919,7 +1919,7 @@ function CvEditorBeta({
               disabled={loading || !layout || pdfExporting}
               aria-expanded={exportMenuOpen}
               aria-haspopup="menu"
-              title="Télécharger le CV (PDF, HTML ou TXT)"
+              title="Télécharger le CV (PDF, Word, HTML ou TXT)"
             >
               {pdfExporting ? 'Téléchargement…' : 'Télécharger'}
             </button>

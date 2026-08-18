@@ -3744,15 +3744,15 @@ def _cv_export_basename(cv: dict, offre: dict) -> str:
 @app.post("/api/cv-export")
 def api_cv_export(request: Request, body: CvExportBody):
     """
-    Export CV multi-format (AXE-330) : pdf | html | txt.
-    PDF réutilise le même rendu que POST /api/pdf.
+    Export CV multi-format (AXE-330) : pdf | html | txt | docx.
+    PDF/HTML réutilisent le rendu layout ; TXT/DOCX = contenu sémantique (ATS).
     """
     user_id = _get_user_id(request)
     fmt = (body.format or "pdf").strip().lower()
-    if fmt not in ("pdf", "html", "txt"):
+    if fmt not in ("pdf", "html", "txt", "docx"):
         raise HTTPException(
             status_code=400,
-            detail="Format non supporté. Formats disponibles : pdf, html, txt.",
+            detail="Format non supporté. Formats disponibles : pdf, html, txt, docx.",
         )
     check_rate_limit(user_id, 10, scope="cv_export")
     if fmt in ("pdf", "html"):
@@ -3810,6 +3810,25 @@ def api_cv_export(request: Request, body: CvExportBody):
             return Response(
                 content=html.encode("utf-8"),
                 media_type="text/html; charset=utf-8",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            )
+
+        if fmt == "docx":
+            from backend.services.cv_docx_export import cv_to_docx_bytes
+
+            try:
+                docx_bytes = cv_to_docx_bytes(cv)
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Rien à exporter en Word : le CV sémantique est vide.",
+                )
+            filename = f"{basename}.docx"
+            return Response(
+                content=docx_bytes,
+                media_type=(
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                ),
                 headers={"Content-Disposition": f'attachment; filename="{filename}"'},
             )
 

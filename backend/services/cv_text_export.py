@@ -27,10 +27,7 @@ def _list_skills(value: Any) -> list[str]:
             continue
         if isinstance(item, dict):
             s = _as_str(
-                item.get("name")
-                or item.get("label")
-                or item.get("value")
-                or item.get("text")
+                item.get("name") or item.get("label") or item.get("value") or item.get("text")
             )
             if s:
                 out.append(s)
@@ -107,9 +104,7 @@ def cv_to_plain_text(cv: dict | None) -> str:
     for row in data.get("formations") or []:
         if not isinstance(row, dict):
             continue
-        head = _join_nonempty(
-            [_as_str(row.get("diplome")), _as_str(row.get("etablissement"))]
-        )
+        head = _join_nonempty([_as_str(row.get("diplome")), _as_str(row.get("etablissement"))])
         date = _as_str(row.get("date"))
         block = [x for x in (head, date) if x]
         if block:

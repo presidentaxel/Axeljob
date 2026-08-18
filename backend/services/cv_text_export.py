@@ -92,7 +92,13 @@ def cv_to_plain_text(cv: dict | None) -> str:
         )
         lieu = _as_str(row.get("lieu"))
         desc = _as_str(row.get("description") or row.get("missions"))
-        block = [x for x in (head, dates, lieu, desc) if x]
+        raw_bullets = row.get("bullet_points")
+        bullets = (
+            [f"- {item.strip()}" for item in raw_bullets if isinstance(item, str) and item.strip()]
+            if isinstance(raw_bullets, list)
+            else []
+        )
+        block = [x for x in (head, dates, lieu, desc, *bullets) if x]
         if block:
             exp_lines.extend(block)
             exp_lines.append("")

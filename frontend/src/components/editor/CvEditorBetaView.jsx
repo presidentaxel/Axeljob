@@ -1635,13 +1635,17 @@ function CvEditorBeta({
       if (root && !root.contains(event.target)) setExportMenuOpen(false);
     };
     const onKeyDown = (event) => {
-      if (event.key === 'Escape') setExportMenuOpen(false);
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      // Empêche le handler canvas (window) de vider la sélection en même temps.
+      event.stopPropagation();
+      setExportMenuOpen(false);
     };
     document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keydown', onKeyDown, true);
     return () => {
       document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('keydown', onKeyDown, true);
     };
   }, [exportMenuOpen]);
 

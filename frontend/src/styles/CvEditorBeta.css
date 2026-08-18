@@ -200,10 +200,14 @@
   color: var(--color-ink);
 }
 
-.cv-editor-beta-export-menu__item:hover:not(:disabled),
+.cv-editor-beta-export-menu__item:hover:not(:disabled) {
+  background: var(--color-soft-stone);
+}
+
 .cv-editor-beta-export-menu__item:focus-visible {
   background: var(--color-soft-stone);
-  outline: none;
+  outline: 2px solid var(--color-focus-blue);
+  outline-offset: 2px;
 }
 
 .cv-editor-beta-export-menu__item:disabled {

@@ -30,6 +30,24 @@ def test_cv_to_plain_text_includes_identity_and_sections():
     assert "Maths" in text
 
 
+def test_cv_to_plain_text_includes_experience_bullet_points():
+    text = cv_to_plain_text(
+        {
+            "prenom": "Ada",
+            "nom": "Lovelace",
+            "experiences": [
+                {
+                    "poste": "Analyste",
+                    "entreprise": "Babbage",
+                    "bullet_points": ["Machine analytique", "  ", "Notes de traduction"],
+                }
+            ],
+        }
+    )
+    assert "- Machine analytique" in text
+    assert "- Notes de traduction" in text
+
+
 def test_cv_to_plain_text_empty_cv():
     assert cv_to_plain_text({}) == ""
     assert cv_to_plain_text(None) == ""

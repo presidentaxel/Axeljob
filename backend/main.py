@@ -3817,7 +3817,8 @@ def api_cv_export(request: Request, body: CvExportBody):
             from backend.services.cv_docx_export import cv_to_docx_bytes
 
             try:
-                docx_bytes = cv_to_docx_bytes(cv)
+                layout = body.layout if isinstance(body.layout, dict) else None
+                docx_bytes = cv_to_docx_bytes(cv, layout)
             except ValueError:
                 raise HTTPException(
                     status_code=400,

@@ -14,7 +14,7 @@ export const CANVAS_EXPORT_FORMATS = Object.freeze([
   {
     id: 'docx',
     label: 'Word',
-    hint: 'Contenu sémantique éditable (.docx) — idéal ATS',
+    hint: 'Mise en page approximative (colonnes + thème) — éditable / ATS',
   },
   {
     id: 'html',

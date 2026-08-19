@@ -549,5 +549,6 @@ test('AXE-344: structural import ne persiste pas template_id imported', () => {
   };
   const result = buildStructuralImportLayout(DENSE_CV, structural, { templateId: 'imported' });
   assert.notEqual(result.recommendedTemplateId, 'imported');
+  assert.equal(result.layout.theme?.template_id, result.recommendedTemplateId);
   assert.ok(result.contentBlockCount >= 1);
 });

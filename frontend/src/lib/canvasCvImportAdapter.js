@@ -1146,13 +1146,18 @@ export function buildStructuralImportLayout(cv, structuralLayout, {
     }
   }
   finalLayout = ensureImportLayoutHasContent(finalLayout, cv);
+  const persistedTemplateId = resolveImportPersistTemplateId(
+    templateId || finalLayout.theme?.template_id,
+    'minimal',
+  );
+  finalLayout = {
+    ...finalLayout,
+    theme: { ...(finalLayout.theme || {}), template_id: persistedTemplateId },
+  };
   return {
     layout: finalLayout,
     analysis,
-    recommendedTemplateId: resolveImportPersistTemplateId(
-      templateId || finalLayout.theme?.template_id,
-      'minimal',
-    ),
+    recommendedTemplateId: persistedTemplateId,
     removedBlockCount: 0,
     resizedBlockCount: 0,
     blockCount: countLayoutBlocks(finalLayout),

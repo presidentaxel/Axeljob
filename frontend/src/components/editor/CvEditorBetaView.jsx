@@ -392,7 +392,7 @@ function CvEditorBeta({
     return () => clearTimeout(id);
   }, [layout, activeLayoutContextKey, templatesList, refreshCanvasDrafts, cv, profileLoadError]);
 
-  const openCanvasContext = useCallback((contextKey, nextLayout) => {
+  const openCanvasContext = useCallback((contextKey, nextLayout, persistExtras = {}) => {
     const hydrated = migrateLayoutToV3(nextLayout || createCanvasLayoutBlank());
     layoutRef.current = hydrated;
     resetLayout(hydrated);
@@ -406,7 +406,11 @@ function CvEditorBeta({
     saveCanvasDraft(contextKey, hydrated, { label: canvasContextLabel(contextKey, templatesList) });
     refreshCanvasDrafts();
     if (cv) {
-      const payload = { ...cv, layout: layoutPayloadForPersist(hydrated) };
+      const payload = {
+        ...cv,
+        layout: layoutPayloadForPersist(hydrated),
+        ...persistExtras,
+      };
       autoSave.schedule(payload);
       // Flush immédiat pour Page blanche / génération (AXE-28) — ne pas
       // dépendre du debounce avant une navigation.
@@ -498,7 +502,9 @@ function CvEditorBeta({
         tid || 'minimal',
       );
       if (persistId && onTemplateIdChange) onTemplateIdChange(persistId);
-      openCanvasContext(IMPORTED_CANVAS_CONTEXT_KEY, seeded);
+      openCanvasContext(IMPORTED_CANVAS_CONTEXT_KEY, seeded, {
+        template_id: persistId,
+      });
       setImportToast('Canvas généré depuis ton profil');
     } catch {
       setStartupPromptOpen(true);

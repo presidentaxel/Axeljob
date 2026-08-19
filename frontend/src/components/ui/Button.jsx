@@ -4,7 +4,7 @@ import { buttonClassName } from '../../lib/buttonClassName.js';
  * Bouton design-system (variant × size × tone + états CSS).
  *
  * @param {object} props
- * @param {'primary' | 'secondary' | 'tertiary' | 'ghost' | 'link' | 'danger' | 'success' | 'outline'} [props.variant]
+ * @param {'primary' | 'secondary' | 'tertiary' | 'ghost' | 'link' | 'danger' | 'success'} [props.variant]
  * @param {'sm' | 'md' | 'lg'} [props.size]
  * @param {'default' | 'inverse'} [props.tone]
  * @param {boolean} [props.iconOnly]

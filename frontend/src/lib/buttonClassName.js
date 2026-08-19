@@ -13,7 +13,6 @@ export const BUTTON_VARIANTS = Object.freeze({
   link: 'ds-button--link',
   danger: 'ds-button--danger',
   success: 'ds-button--success',
-  outline: 'ds-button--secondary',
 });
 
 export const BUTTON_SIZES = Object.freeze({
@@ -35,7 +34,6 @@ const LEGACY_VARIANT = Object.freeze({
   link: '',
   danger: '',
   success: 'button-success',
-  outline: 'button-pill-outline',
 });
 
 const LEGACY_SIZE = Object.freeze({

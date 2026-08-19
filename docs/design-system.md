@@ -47,8 +47,8 @@ Axes séparés — la pill n’est **pas** une variante (`radius.action = 32px`)
 
 | Axe | Valeurs |
 |---|---|
-| variant | `primary` `secondary` `tertiary` `ghost` `link` `danger` (`success` produit) |
-| size | `sm` 32px · `md` 40px · `lg` 48px |
+| variant | `primary` `secondary` `tertiary` `ghost` `link` `danger` `success` |
+| size | `sm` 32px · `md` 40px · `lg` 48px — sous 768px, `sm` et `md` passent à `size.touch.min` (44px) |
 | tone | `default` · `inverse` (bande sombre) |
 | state | `:hover` `:active` `:focus-visible` `:disabled` `[aria-busy]` |
 | modifiers | `icon-only` `full-width` |
@@ -63,7 +63,17 @@ Axes séparés — la pill n’est **pas** une variante (`radius.action = 32px`)
 .ds-button.ds-button--primary.ds-button--md
 ```
 
-Un seul `primary` par zone. Alias transitoires : `button button-primary`.
+Un seul `primary` par zone.
+
+Pas de variant `outline` : le markup CSS `.button-pill-outline` reste un **alias de `secondary`**, pas une clé JS.
+
+## Alias CSS legacy — critère de suppression
+
+`buttonClassName` pose encore `button` + `button-primary` (ou l’équivalent variant) **en plus** des classes `ds-*`. Sans date de sortie, le double système devient permanent.
+
+Les alias sont retirés de `buttonClassName` (et les sélecteurs `.button-primary` / `.button-pill-outline` de `buttons.css`) quand **plus aucune occurrence de `.button-primary` ne subsiste dans `frontend/src/`**, hors le helper lui-même et les sélecteurs d’alias dans `frontend/src/styles/app/buttons.css`.
+
+Jusque-là : ne plus ajouter de markup `button-primary` ; passer par `<Button>` ou `buttonClassName()`.
 
 ## Input
 

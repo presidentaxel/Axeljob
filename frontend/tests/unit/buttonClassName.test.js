@@ -49,9 +49,18 @@ test('buttonClassName accepte size, tone et className extra', () => {
   assert.match(cls, /\bprofile-save-btn\b/);
 });
 
-test('outline est un alias de secondary', () => {
-  assert.equal(BUTTON_VARIANTS.outline, BUTTON_VARIANTS.secondary);
-  assert.match(buttonClassName({ variant: 'outline' }), /\bds-button--secondary\b/);
+test('API publique Button : 7 variants, pas outline', () => {
+  assert.deepEqual(Object.keys(BUTTON_VARIANTS), [
+    'primary',
+    'secondary',
+    'tertiary',
+    'ghost',
+    'link',
+    'danger',
+    'success',
+  ]);
+  assert.equal(BUTTON_VARIANTS.outline, undefined);
+  assert.throws(() => buttonClassName({ variant: 'outline' }), /Unknown button variant/);
 });
 
 test('buttonClassName refuse un variant, size ou tone inconnu', () => {
@@ -89,6 +98,12 @@ test('les tokens sémantiques se résolvent sans hex dans la référence', async
     !semanticAction.path.includes('neutral'),
     'semantic action token is not a primitive path',
   );
+});
+
+test('size.touch.min est consommé par ds-button--sm (mobile)', async () => {
+  const css = await readFile(path.join(SRC_ROOT, 'styles/app/buttons.css'), 'utf8');
+  assert.match(css, /--ds-size-touch-min/);
+  assert.match(css, /\.ds-button--sm/);
 });
 
 test('le CSS généré est à jour par rapport à tokens.json', async () => {

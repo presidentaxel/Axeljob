@@ -226,14 +226,22 @@
     flex-wrap: wrap;
   }
 
-  /* General buttons tighter on mobile */
+  /* General buttons tighter on mobile — min-height stays at size.touch.min (44px). */
   .button,
-  .btn {
+  .btn,
+  .ds-button {
     font-size: 0.82rem;
     padding: 0.45rem 0.75rem;
   }
 
-  .button--lg {
+  .ds-button:not(.ds-button--ghost):not(.ds-button--link),
+  .button:not(.button-ghost),
+  .btn:not(.btn-ghost) {
+    min-height: var(--ds-size-touch-min);
+  }
+
+  .button--lg,
+  .ds-button--lg {
     padding: 0.55rem 1rem;
     font-size: 0.88rem;
   }

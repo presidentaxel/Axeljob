@@ -40,8 +40,8 @@ Poids 400/500 seulement. Display : tracking négatif, `line-height: 1`.
 ```
 
 Classes : `ds-button ds-button--primary ds-button--md`.  
-Variantes : `primary` `secondary` `tertiary` `ghost` `link` `danger`.  
-Sizes : `sm` 32 / `md` 40 / `lg` 48. Tone : `default` | `inverse`.  
+Variantes (API publique, identique à `Button.jsx` / `docs/design-system.md`) : `primary` `secondary` `tertiary` `ghost` `link` `danger` `success`. Pas de `outline` (alias CSS de `secondary` seulement).  
+Sizes : `sm` 32 / `md` 40 / `lg` 48. Sous 768px, `sm` et `md` = `--ds-size-touch-min` (44px). Tone : `default` | `inverse`.  
 États via CSS (`:hover` `:active` `:focus-visible` `:disabled` `[aria-busy]`).  
 La pill = `--ds-radius-action` (32px), pas une variante.  
 Un seul primary par zone. Ne plus écrire `btn btn-primary`.

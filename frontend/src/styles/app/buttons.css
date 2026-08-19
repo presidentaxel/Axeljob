@@ -1,7 +1,7 @@
 /**
  * Bouton design-system — axes séparés :
  *   variant: primary | secondary | tertiary | ghost | link | danger | success
- *   size:    sm (32) | md (40) | lg (48)
+ *   size:    sm (32 / 44 tactile) | md (40 / 44 tactile) | lg (48)
  *   tone:    default | inverse
  *   state:   :hover :active :focus-visible :disabled [aria-busy]
  *
@@ -97,6 +97,28 @@ a.btn {
 .ds-button--icon-only.ds-button--lg {
   width: var(--ds-size-button-lg);
   min-width: var(--ds-size-button-lg);
+}
+
+/*
+ * Cible tactile WCAG : size.touch.min (44px).
+ * @media ne peut pas lire une custom property ; 767px = sous layout.breakpoint.large-mobile (768px).
+ * sm ET md : sinon sm (44) dépasserait md (40) sur mobile.
+ * ghost / link gardent min-height: auto (actions texte, pas CTA).
+ */
+@media (max-width: 767px) {
+  .ds-button:not(.ds-button--ghost):not(.ds-button--link),
+  .ds-button--sm,
+  .ds-button--md,
+  .button--sm,
+  .btn-sm {
+    min-height: var(--ds-size-touch-min);
+  }
+
+  .ds-button--icon-only.ds-button--sm,
+  .ds-button--icon-only.ds-button--md {
+    width: var(--ds-size-touch-min);
+    min-width: var(--ds-size-touch-min);
+  }
 }
 
 /* Primary */

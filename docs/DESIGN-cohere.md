@@ -345,7 +345,7 @@ Contrat AxeL : `docs/design-system.md`. Markup cible `ds-button ds-button--prima
 |---|---|---|
 | `button-primary` | `class="ds-button ds-button--primary"` | `buttonClassName({ variant: "primary" })` or `<Button variant="primary">` |
 | `button-secondary` | `class="ds-button ds-button--secondary"` | `variant="secondary"` |
-| `button-pill-outline` | alias de secondary | `variant="outline"` |
+| `button-pill-outline` | alias CSS de `secondary` (markup existant seulement) | `variant="secondary"` — pas de variant JS `outline` |
 
 Sizes: `ds-button--sm|md|lg`. Extra layout classes (`landing-cta-hero`, `profile-save-btn`) may be added **after** the canonical names.
 

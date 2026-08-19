@@ -826,7 +826,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             {importLoading ? 'Import…' : 'Importer un CV'}
           </button>
-          <button type="button" className="btn btn-primary profile-save-btn" onClick={handleSave} disabled={saving}>
+          <button type="button" className="button button-primary profile-save-btn" onClick={handleSave} disabled={saving}>
             {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
           </button>
         </div>
@@ -883,7 +883,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
               <span className="profile-photo-placeholder">Aucune photo</span>
             )}
           </div>
-          <button type="button" className="btn btn-secondary profile-photo-edit-btn" onClick={() => setPhotoModalOpen(true)}>
+          <button type="button" className="button button-secondary profile-photo-edit-btn" onClick={() => setPhotoModalOpen(true)}>
             Modifier la photo
           </button>
         </div>
@@ -899,13 +899,13 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                 onChange={(e) => { openCropModal(e); }}
                 aria-label="Choisir une image"
               />
-              <button type="button" className="btn btn-secondary profile-photo-modal-btn" onClick={() => { fileInputRef.current?.click(); }} disabled={uploadPhotoLoading}>
+              <button type="button" className="button button-secondary profile-photo-modal-btn" onClick={() => { fileInputRef.current?.click(); }} disabled={uploadPhotoLoading}>
                 {uploadPhotoLoading ? 'Import…' : 'Importer depuis mon PC'}
               </button>
               <button type="button" className="btn btn-linkedin-sync profile-photo-modal-btn" onClick={() => { handleImportLinkedInPhoto(); setPhotoModalOpen(false); }} disabled={importPhotoLoading}>
                 {importPhotoLoading ? 'Import…' : 'Importer la photo LinkedIn'}
               </button>
-              <button type="button" className="btn btn-tertiary profile-photo-modal-close" onClick={() => setPhotoModalOpen(false)}>Fermer</button>
+              <button type="button" className="button button-tertiary profile-photo-modal-close" onClick={() => setPhotoModalOpen(false)}>Fermer</button>
             </div>
           </div>
         )}
@@ -940,8 +940,8 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                 />
               </div>
               <div className="profile-crop-modal-actions">
-                <button type="button" className="btn btn-tertiary" onClick={closeCropModal}>Annuler</button>
-                <button type="button" className="btn btn-primary" onClick={handleConfirmCrop} disabled={uploadPhotoLoading || !croppedAreaPixels}>
+                <button type="button" className="button button-tertiary" onClick={closeCropModal}>Annuler</button>
+                <button type="button" className="button button-primary" onClick={handleConfirmCrop} disabled={uploadPhotoLoading || !croppedAreaPixels}>
                   {uploadPhotoLoading ? 'Import…' : 'Valider le cadrage'}
                 </button>
               </div>
@@ -1122,14 +1122,14 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                   <div className="profile-subscription-actions">
                     <button
                       type="button"
-                      className="btn btn-secondary profile-btn-cancel-sub"
+                      className="button button-secondary profile-btn-cancel-sub"
                       onClick={() => setCancelSubModalOpen(true)}
                       disabled={cancelSubLoading}
                     >
                       Résilier mon abonnement
                     </button>
                     {typeof onBillingPortalClick === 'function' && (
-                      <button type="button" className="btn btn-secondary" onClick={onBillingPortalClick}>
+                      <button type="button" className="button button-secondary" onClick={onBillingPortalClick}>
                         Facturation &amp; moyens de paiement (Stripe)
                       </button>
                     )}
@@ -1143,7 +1143,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                 Le détail Stripe n&apos;est pas disponible pour l&apos;instant (connexion ou synchronisation). Tu peux ouvrir le portail de facturation pour gérer ton abonnement.
               </p>
               {typeof onBillingPortalClick === 'function' && (
-                <button type="button" className="btn btn-secondary" onClick={onBillingPortalClick}>
+                <button type="button" className="button button-secondary" onClick={onBillingPortalClick}>
                   Ouvrir le portail de facturation
                 </button>
               )}
@@ -1166,7 +1166,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
             <div className="reauth-actions">
               <button
                 type="button"
-                className="btn btn-primary"
+                className="button button-primary"
                 disabled={cancelSubLoading}
                 onClick={async () => {
                   setCancelSubLoading(true);
@@ -1192,7 +1192,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
               >
                 {cancelSubLoading ? 'Traitement…' : 'Résilier mon abonnement'}
               </button>
-              <button type="button" className="btn btn-secondary" disabled={cancelSubLoading} onClick={() => setCancelSubModalOpen(false)}>
+              <button type="button" className="button button-secondary" disabled={cancelSubLoading} onClick={() => setCancelSubModalOpen(false)}>
                 Retour
               </button>
             </div>
@@ -1201,7 +1201,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
       )}
 
       <div className="profile-footer">
-        <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
+        <button type="button" className="button button-primary" onClick={handleSave} disabled={saving}>
           {saving ? 'Enregistrement…' : 'Enregistrer le CV'}
         </button>
       </div>
@@ -1293,17 +1293,17 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                   ))}
                 </ul>
                 <div className="linkedin-sync-actions">
-                  <button type="button" className="btn btn-primary" onClick={handleApplyLinkedInChanges} disabled={linkedinApplyLoading || selectedChangeIds.size === 0}>
+                  <button type="button" className="button button-primary" onClick={handleApplyLinkedInChanges} disabled={linkedinApplyLoading || selectedChangeIds.size === 0}>
                     {linkedinApplyLoading ? 'Application…' : `Appliquer ${selectedChangeIds.size} changement(s)`}
                   </button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setLinkedinModalOpen(false)}>Fermer</button>
+                  <button type="button" className="button button-secondary" onClick={() => setLinkedinModalOpen(false)}>Fermer</button>
                 </div>
               </>
             )}
             {!linkedinLoading && proposedChanges.length === 0 && (
               <>
                 {!linkedinError && <p>Aucune mise à jour proposée.</p>}
-                <button type="button" className="btn btn-secondary linkedin-sync-close" onClick={() => setLinkedinModalOpen(false)}>Fermer</button>
+                <button type="button" className="button button-secondary linkedin-sync-close" onClick={() => setLinkedinModalOpen(false)}>Fermer</button>
               </>
             )}
           </div>
@@ -1388,10 +1388,10 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
               })}
             </ul>
             <div className="linkedin-sync-actions import-merge-actions">
-              <button type="button" className="btn btn-primary" onClick={applyImportMerge}>
+              <button type="button" className="button button-primary" onClick={applyImportMerge}>
                 Appliquer les choix
               </button>
-              <button type="button" className="btn btn-secondary" onClick={() => { setImportMergeOpen(false); setImportMergeParsed(null); }}>Annuler</button>
+              <button type="button" className="button button-secondary" onClick={() => { setImportMergeOpen(false); setImportMergeParsed(null); }}>Annuler</button>
             </div>
           </div>
         </div>

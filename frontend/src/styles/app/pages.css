@@ -164,6 +164,7 @@
   flex-wrap: wrap;
 }
 
+.free-plan-banner .button,
 .free-plan-banner .btn {
   font-size: 0.78rem;
   padding: 0.3rem 0.75rem;

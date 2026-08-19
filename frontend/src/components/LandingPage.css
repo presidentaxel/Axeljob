@@ -140,13 +140,13 @@
   color: inherit;
 }
 
-.landing-mobile-cta.btn {
+.landing-mobile-cta.button {
   padding: 0.4rem 0.85rem;
   font-size: 0.8rem;
 }
 
 @media (min-width: 1024px) {
-  .landing-mobile-cta.btn {
+  .landing-mobile-cta.button {
     display: none;
   }
 }
@@ -316,7 +316,7 @@
   padding-top: 0.5rem;
 }
 
-.landing-nav-drawer-cta .btn {
+.landing-nav-drawer-cta .button {
   width: 100%;
   justify-content: center;
 }
@@ -365,7 +365,7 @@
   color: var(--color-body-muted);
 }
 
-/* CTA hero = btn-primary pill avec ombre légère */
+/* CTA hero = button-primary pill avec ombre légère */
 .landing-cta-hero {
   padding: 0.875rem 1.75rem;
   font-size: 1rem;
@@ -711,12 +711,12 @@
 }
 
 /* Boutons sur fond aubergine → blanc inverted */
-.landing-cta-bottom .btn-primary {
+.landing-cta-bottom .button-primary {
   background: var(--color-on-primary);
   color: var(--color-primary);
 }
 
-.landing-cta-bottom .btn-primary:hover:not(:disabled) {
+.landing-cta-bottom .button-primary:hover:not(:disabled) {
   background: var(--color-canvas-lavender);
 }
 
@@ -772,12 +772,12 @@
 }
 
 /* Bouton CTA dans la card Pro aubergine */
-.pricing-card--pro .btn-primary {
+.pricing-card--pro .button-primary {
   background: var(--color-on-primary);
   color: var(--color-primary);
 }
 
-.pricing-card--pro .btn-primary:hover:not(:disabled) {
+.pricing-card--pro .button-primary:hover:not(:disabled) {
   background: var(--color-canvas-lavender);
 }
 

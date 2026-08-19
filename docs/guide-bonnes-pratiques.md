@@ -66,6 +66,19 @@ Avant de modifier du code : identifier **ou** vit la regle (UI, API, SQL, templa
 - Toute variable exposee au navigateur doit commencer par `VITE_`.
 - Les secrets serveurs (service role, Stripe secret, tokens) ne doivent **jamais** etre exposes en frontend.
 
+### 2.5 Boutons (classes CSS)
+
+Les CTA produit portent le nom du token design system (`docs/DESIGN-cohere.md`) :
+
+- `button button-primary` — action principale (un seul par zone)
+- `button button-secondary` — action companion
+- `button button-pill-outline` — contour pill
+- tailles : `button--sm`, `button--lg`
+
+Helper : `frontend/src/lib/buttonClassName.js`. Composant : `frontend/src/components/ui/Button.jsx`.
+
+Ne plus ecrire `btn btn-primary` pour un CTA. Les controles metier (`btn-add`, `btn-icon`, `btn-remove`) restent hors de ce contrat.
+
 ---
 
 ## 3. API HTTP et auth (frontend <-> backend)

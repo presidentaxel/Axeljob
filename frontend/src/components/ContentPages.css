@@ -311,6 +311,7 @@ a.content-source:hover {
   color: rgba(255, 255, 255, 0.85);
 }
 
+.content-cta .button,
 .content-cta .btn {
   display: inline-flex;
   align-items: center;
@@ -327,6 +328,7 @@ a.content-source:hover {
   transition: transform 0.15s, box-shadow 0.15s;
 }
 
+.content-cta .button:hover,
 .content-cta .btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);

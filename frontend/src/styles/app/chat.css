@@ -358,7 +358,7 @@ button.ats-score-trigger {
   font-size: 0.875rem;
   color: var(--text);
 }
-.preview-cta-bar .btn-sm { flex-shrink: 0; }
+.preview-cta-bar .button--sm { flex-shrink: 0; }
 
 /* Overlay export dossier */
 .export-overlay { cursor: wait; }

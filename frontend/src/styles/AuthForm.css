@@ -212,6 +212,7 @@
   gap: 0.5rem;
   margin-top: 0.75rem;
 }
+.reauth-actions .button,
 .reauth-actions .btn { flex: 1; }
 
 /* Popup "Vous aviez déjà un compte" */

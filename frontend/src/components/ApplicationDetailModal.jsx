@@ -309,12 +309,12 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
                 <div className="detail-lettre-empty">
                   <p>Aucune lettre pour cette candidature.</p>
                   {letterGenEnabled ? (
-                    <button type="button" className="btn btn-primary" onClick={handleGenerateLetter} disabled={!applicationDetail.full_cv}>Générer la lettre</button>
+                    <button type="button" className="button button-primary" onClick={handleGenerateLetter} disabled={!applicationDetail.full_cv}>Générer la lettre</button>
                   ) : (
                     <div>
                       <p style={{ fontSize: '0.9rem', color: 'var(--muted)', marginTop: '0.5rem' }}>La génération de lettre par IA est réservée au plan Pro.</p>
                       {typeof onUpgradeClick === 'function' && (
-                        <button type="button" className="btn btn-primary" style={{ marginTop: '0.75rem' }} onClick={onUpgradeClick}>
+                        <button type="button" className="button button-primary" style={{ marginTop: '0.75rem' }} onClick={onUpgradeClick}>
                           Passer en Pro
                         </button>
                       )}

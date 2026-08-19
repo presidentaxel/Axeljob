@@ -184,7 +184,7 @@ export default function AtsPage({ onBack }) {
         <div className="content-cta-inner">
           <h2>Passe les filtres ATS à chaque candidature</h2>
           <p>Adapte ton CV en un clic à chaque offre. Essai gratuit, sans carte bancaire.</p>
-          <Link to="/login" className="btn">Essayer AxeL Job gratuitement</Link>
+          <Link to="/login" className="button button-primary">Essayer AxeL Job gratuitement</Link>
         </div>
       </section>
 

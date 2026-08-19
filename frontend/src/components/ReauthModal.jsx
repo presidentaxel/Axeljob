@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import '../styles/AuthForm.css';
+import Button from './ui/Button.jsx';
 
 /**
  * Modal de réauthentification : demande le mot de passe (ou ré-auth) avant une action sensible.
@@ -45,12 +46,12 @@ export default function ReauthModal({ title = 'Confirmer ton identité', message
           />
           {error && <div className="auth-error">{error}</div>}
           <div className="reauth-actions">
-            <button type="submit" className="btn btn-primary" disabled={loading}>
+            <Button type="submit" variant="primary" disabled={loading}>
               {loading ? '…' : 'Confirmer'}
-            </button>
-            <button type="button" className="btn btn-secondary" onClick={onCancel}>
+            </Button>
+            <Button type="button" variant="secondary" onClick={onCancel}>
               Annuler
-            </button>
+            </Button>
           </div>
         </form>
       </div>

@@ -35,7 +35,9 @@
     gap: 0.35rem;
   }
 
+  .page-header-actions .button,
   .page-header-actions .btn,
+  .dashboard-header-actions .button,
   .dashboard-header-actions .btn {
     font-size: 0.78rem;
     padding: 0.38rem 0.6rem;
@@ -225,12 +227,13 @@
   }
 
   /* General buttons tighter on mobile */
+  .button,
   .btn {
     font-size: 0.82rem;
     padding: 0.45rem 0.75rem;
   }
 
-  .btn-lg {
+  .button--lg {
     padding: 0.55rem 1rem;
     font-size: 0.88rem;
   }

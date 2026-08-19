@@ -106,6 +106,9 @@ full: 9999px - statuts ronds
 - Radius : `32px` (pill).
 - Padding : `12px 24px`.
 - Typo : Unica77, 14px, weight 500.
+- **Classe HTML obligatoire :** `button button-primary`.
+- Helper : `buttonClassName({ variant: 'primary' })` ou `<Button variant="primary">`.
+- Ne plus utiliser `btn btn-primary`.
 
 ### `button-secondary`
 - Pas de fond ; action texte souligné ou alignée sur règle.

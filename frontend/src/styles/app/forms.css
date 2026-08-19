@@ -40,7 +40,7 @@
   margin-bottom: 0;
 }
 
-.btn-success:hover {
+.button-success:hover:not(:disabled) {
   background: #0d9668;
 }
 

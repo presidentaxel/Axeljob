@@ -97,12 +97,12 @@ html{background:var(--bg)}
 *::-webkit-scrollbar-thumb{background:var(--border);border-radius:9999px}
 *::-webkit-scrollbar-thumb:hover{background:var(--muted)}
 body{margin:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-.btn{font-family:Inter,system-ui,-apple-system,sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;padding:.875rem 1.75rem;font-size:1rem;font-weight:700;border:none;border-radius:var(--radius-pill);cursor:pointer;transition:background .15s ease,box-shadow .15s ease,color .15s ease;letter-spacing:.012em;line-height:1.38;white-space:nowrap;text-decoration:none}
-a.btn{text-decoration:none}
-.btn-primary{background:#4a154b;color:#fff;box-shadow:rgba(0,0,0,.1) 0 5px 20px 0}
-.btn-primary:hover{background:#611f69}
-.btn-secondary{background:#f9f0ff;color:#1d1d1d;border:none}
-.btn-secondary:hover{background:#eddeff}
+.button,.btn{font-family:Inter,system-ui,-apple-system,sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;padding:.875rem 1.75rem;font-size:1rem;font-weight:700;border:none;border-radius:var(--radius-pill);cursor:pointer;transition:background .15s ease,box-shadow .15s ease,color .15s ease;letter-spacing:.012em;line-height:1.38;white-space:nowrap;text-decoration:none}
+a.button,a.btn{text-decoration:none}
+.button-primary,.btn-primary{background:#4a154b;color:#fff;box-shadow:rgba(0,0,0,.1) 0 5px 20px 0}
+.button-primary:hover,.btn-primary:hover{background:#611f69}
+.button-secondary,.btn-secondary{background:#f9f0ff;color:#1d1d1d;border:none}
+.button-secondary:hover,.btn-secondary:hover{background:#eddeff}
 .landing{min-height:100vh;width:100%;background:var(--bg);color:var(--text)}
 .landing-container{width:100%;max-width:1120px;margin:0 auto;padding-left:1.5rem;padding-right:1.5rem}
 @media (min-width:1024px){.landing-container{padding-left:2rem;padding-right:2rem}}
@@ -113,11 +113,11 @@ a.btn{text-decoration:none}
 .landing-nav{margin-left:auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:1rem 1.25rem}
 .landing-nav a{color:#1d1d1d;text-decoration:none;font-size:.875rem;font-weight:500;transition:color .15s}
 .landing-nav a:hover{color:#4a154b}
-.landing-nav a.btn{background:#4a154b;color:#fff}
+.landing-nav a.button,.landing-nav a.btn{background:#4a154b;color:#fff}
 .landing-cta-nav{padding:.45rem 1rem;font-size:.875rem}
 @media (max-width:767px){.landing-nav{display:none}}
-.landing-mobile-cta.btn{display:none;margin-left:auto;padding:.4rem .9rem;font-size:.8rem}
-@media (max-width:767px){.landing-mobile-cta.btn{display:inline-flex}}
+.landing-mobile-cta.button,.landing-mobile-cta.btn{display:none;margin-left:auto;padding:.4rem .9rem;font-size:.8rem}
+@media (max-width:767px){.landing-mobile-cta.button,.landing-mobile-cta.btn{display:inline-flex}}
 .landing-hero{width:100%;padding:5rem 0 4rem;background:radial-gradient(ellipse 70% 60% at 15% 40%,rgba(249,223,212,.55) 0%,transparent 70%),radial-gradient(ellipse 55% 50% at 80% 20%,rgba(233,216,255,.55) 0%,transparent 65%),radial-gradient(ellipse 45% 55% at 60% 80%,rgba(198,222,210,.35) 0%,transparent 60%),#f4ede4}
 .landing-hero-inner{display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center}
 @media (max-width:900px){.landing-hero-inner{grid-template-columns:1fr;gap:2.5rem}.landing-hero{padding:3rem 0 2.5rem}}
@@ -145,7 +145,7 @@ a.btn{text-decoration:none}
 .mockup-cv-line{height:6px;width:100%;background:var(--border);border-radius:2px}
 .mockup-cv-line--short{width:60%}.mockup-cv-line--highlight{background:#86efac}
 @media (max-width:600px){.mockup-body{grid-template-columns:1fr}.mockup-chat{border-right:none;border-bottom:1px solid var(--border)}}
-.landing-section{width:100%;padding:4.5rem 0}.landing-section:nth-child(even){background:#f4ede4}.landing-section-title{margin:0 0 2.5rem;font-size:clamp(1.375rem,2.5vw,2rem);font-weight:700;text-align:center;color:#1d1d1d;letter-spacing:-.025em}.landing-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem}@media (max-width:767px){.landing-steps{grid-template-columns:1fr}}.landing-step{background:#fff;border:1px solid var(--border);border-radius:16px;padding:2rem 1.5rem;transition:box-shadow .2s,transform .2s}.landing-step:hover{box-shadow:rgba(0,0,0,.1) 0 0 32px 0;transform:translateY(-2px)}.landing-step-icon{width:48px;height:48px;border-radius:12px;background:#f9f0ff;color:#4a154b;display:flex;align-items:center;justify-content:center;margin-bottom:1rem}.landing-step-num{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#4a154b;margin-bottom:.35rem;display:block}.landing-step-title{margin:0 0 .4rem;font-size:1rem;font-weight:600;color:#1d1d1d}.landing-step-desc{margin:0;font-size:.875rem;line-height:1.55;color:#696969}.landing-features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem}@media (max-width:767px){.landing-features-grid{grid-template-columns:1fr}}.landing-feature-card{background:#f4ede4;border:1px solid var(--border);border-radius:16px;padding:2rem;transition:box-shadow .2s}.landing-feature-card:hover{box-shadow:rgba(0,0,0,.08) 0 8px 24px 0}.landing-feature-title{margin:0 0 .4rem;font-size:1rem;font-weight:600;color:#1d1d1d}.landing-feature-desc{margin:0;font-size:.875rem;line-height:1.55;color:#696969}.landing-ats-link{display:inline-block;margin-top:.5rem;font-size:.85rem;color:#1264a3;text-decoration:none;font-weight:500}.landing-ats-link:hover{text-decoration:underline}.landing-section-subtitle{text-align:center;color:#696969;font-size:1rem;margin:-1.5rem 0 2.5rem}.landing-pricing{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;max-width:720px;margin:0 auto}@media (max-width:600px){.landing-pricing{grid-template-columns:1fr;max-width:400px}}.pricing-card{position:relative;background:#fff;border:1.5px solid var(--border);border-radius:16px;padding:2rem 1.5rem;display:flex;flex-direction:column;transition:all .2s}.pricing-card--pro{background:#4a154b;border-color:#4a154b;box-shadow:rgba(74,21,75,.25) 0 8px 28px 0}.pricing-card--pro .pricing-plan-name,.pricing-card--pro .pricing-amount,.pricing-card--pro .pricing-period,.pricing-card--pro .pricing-features li{color:#fff}.pricing-card--pro .pricing-features li svg{color:#d9bdde}.pricing-card--pro .btn-primary{background:#fff;color:#4a154b}.pricing-card--pro .btn-primary:hover{background:#f9f0ff}.pricing-badge{position:absolute;top:-.65rem;left:50%;transform:translateX(-50%);background:#f9f0ff;color:#4a154b;font-size:.7rem;font-weight:700;padding:.2rem .85rem;border-radius:100px;letter-spacing:.06em;text-transform:uppercase}.pricing-card-header{margin-bottom:1.5rem}.pricing-plan-name{margin:0 0 .5rem;font-size:1.1rem;font-weight:700;color:#1d1d1d}.pricing-price{display:flex;align-items:baseline;gap:.25rem}.pricing-amount{font-size:2.5rem;font-weight:800;color:#1d1d1d;letter-spacing:-.03em;line-height:1}.pricing-period{font-size:.9rem;color:#696969;font-weight:500}.pricing-features{list-style:none;padding:0;margin:0 0 1.5rem;display:flex;flex-direction:column;gap:.6rem;flex:1}.pricing-features li{display:flex;align-items:center;gap:.5rem;font-size:.875rem;color:#1d1d1d}.pricing-features li svg{flex-shrink:0;color:#4a154b}.pricing-cta{width:100%;padding:.65rem 1rem;font-size:.9rem}.landing-cta-bottom{width:100%;text-align:center;padding:5rem 1.5rem;background:#4a154b;border-top:none}.landing-cta-bottom h2{margin:0 0 .5rem;font-size:clamp(1.5rem,3vw,2.5rem);font-weight:700;color:#fff;letter-spacing:-.025em}.landing-cta-bottom p{margin:0 0 1.75rem;color:#d9bdde;font-size:1.05rem}.landing-cta-bottom .btn-primary{background:#fff;color:#4a154b}.landing-cta-bottom .btn-primary:hover{background:#f9f0ff}.landing-footer{width:100%;padding:1.5rem 0;font-size:.8rem;color:#d9bdde;border-top:none;background:#4a154b}.landing-footer-inner{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem}.landing-footer-inner p{margin:0}.landing-footer-links{display:flex;flex-wrap:wrap;gap:1.25rem;align-items:center}.landing-footer-sep{color:#592466;user-select:none}.landing-footer-links a{color:#d9bdde;text-decoration:none;font-size:.8rem;transition:color .15s}.landing-footer-links a:hover{color:#fff;text-decoration:underline}@media (max-width:600px){.landing-footer-inner{flex-direction:column;text-align:center}}
+.landing-section{width:100%;padding:4.5rem 0}.landing-section:nth-child(even){background:#f4ede4}.landing-section-title{margin:0 0 2.5rem;font-size:clamp(1.375rem,2.5vw,2rem);font-weight:700;text-align:center;color:#1d1d1d;letter-spacing:-.025em}.landing-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem}@media (max-width:767px){.landing-steps{grid-template-columns:1fr}}.landing-step{background:#fff;border:1px solid var(--border);border-radius:16px;padding:2rem 1.5rem;transition:box-shadow .2s,transform .2s}.landing-step:hover{box-shadow:rgba(0,0,0,.1) 0 0 32px 0;transform:translateY(-2px)}.landing-step-icon{width:48px;height:48px;border-radius:12px;background:#f9f0ff;color:#4a154b;display:flex;align-items:center;justify-content:center;margin-bottom:1rem}.landing-step-num{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#4a154b;margin-bottom:.35rem;display:block}.landing-step-title{margin:0 0 .4rem;font-size:1rem;font-weight:600;color:#1d1d1d}.landing-step-desc{margin:0;font-size:.875rem;line-height:1.55;color:#696969}.landing-features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem}@media (max-width:767px){.landing-features-grid{grid-template-columns:1fr}}.landing-feature-card{background:#f4ede4;border:1px solid var(--border);border-radius:16px;padding:2rem;transition:box-shadow .2s}.landing-feature-card:hover{box-shadow:rgba(0,0,0,.08) 0 8px 24px 0}.landing-feature-title{margin:0 0 .4rem;font-size:1rem;font-weight:600;color:#1d1d1d}.landing-feature-desc{margin:0;font-size:.875rem;line-height:1.55;color:#696969}.landing-ats-link{display:inline-block;margin-top:.5rem;font-size:.85rem;color:#1264a3;text-decoration:none;font-weight:500}.landing-ats-link:hover{text-decoration:underline}.landing-section-subtitle{text-align:center;color:#696969;font-size:1rem;margin:-1.5rem 0 2.5rem}.landing-pricing{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;max-width:720px;margin:0 auto}@media (max-width:600px){.landing-pricing{grid-template-columns:1fr;max-width:400px}}.pricing-card{position:relative;background:#fff;border:1.5px solid var(--border);border-radius:16px;padding:2rem 1.5rem;display:flex;flex-direction:column;transition:all .2s}.pricing-card--pro{background:#4a154b;border-color:#4a154b;box-shadow:rgba(74,21,75,.25) 0 8px 28px 0}.pricing-card--pro .pricing-plan-name,.pricing-card--pro .pricing-amount,.pricing-card--pro .pricing-period,.pricing-card--pro .pricing-features li{color:#fff}.pricing-card--pro .pricing-features li svg{color:#d9bdde}.pricing-card--pro .button-primary{background:#fff;color:#4a154b}.pricing-card--pro .button-primary:hover{background:#f9f0ff}.pricing-badge{position:absolute;top:-.65rem;left:50%;transform:translateX(-50%);background:#f9f0ff;color:#4a154b;font-size:.7rem;font-weight:700;padding:.2rem .85rem;border-radius:100px;letter-spacing:.06em;text-transform:uppercase}.pricing-card-header{margin-bottom:1.5rem}.pricing-plan-name{margin:0 0 .5rem;font-size:1.1rem;font-weight:700;color:#1d1d1d}.pricing-price{display:flex;align-items:baseline;gap:.25rem}.pricing-amount{font-size:2.5rem;font-weight:800;color:#1d1d1d;letter-spacing:-.03em;line-height:1}.pricing-period{font-size:.9rem;color:#696969;font-weight:500}.pricing-features{list-style:none;padding:0;margin:0 0 1.5rem;display:flex;flex-direction:column;gap:.6rem;flex:1}.pricing-features li{display:flex;align-items:center;gap:.5rem;font-size:.875rem;color:#1d1d1d}.pricing-features li svg{flex-shrink:0;color:#4a154b}.pricing-cta{width:100%;padding:.65rem 1rem;font-size:.9rem}.landing-cta-bottom{width:100%;text-align:center;padding:5rem 1.5rem;background:#4a154b;border-top:none}.landing-cta-bottom h2{margin:0 0 .5rem;font-size:clamp(1.5rem,3vw,2.5rem);font-weight:700;color:#fff;letter-spacing:-.025em}.landing-cta-bottom p{margin:0 0 1.75rem;color:#d9bdde;font-size:1.05rem}.landing-cta-bottom .button-primary{background:#fff;color:#4a154b}.landing-cta-bottom .button-primary:hover{background:#f9f0ff}.landing-footer{width:100%;padding:1.5rem 0;font-size:.8rem;color:#d9bdde;border-top:none;background:#4a154b}.landing-footer-inner{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem}.landing-footer-inner p{margin:0}.landing-footer-links{display:flex;flex-wrap:wrap;gap:1.25rem;align-items:center}.landing-footer-sep{color:#592466;user-select:none}.landing-footer-links a{color:#d9bdde;text-decoration:none;font-size:.8rem;transition:color .15s}.landing-footer-links a:hover{color:#fff;text-decoration:underline}@media (max-width:600px){.landing-footer-inner{flex-direction:column;text-align:center}}
     </style>
     <!-- Mise en page landing entière en critical CSS (évite CLS quand une feuille externe arrivait en différé). landing-static.css reste la référence pour aligner les changements. -->
     <style>.js-enabled #root .static-crawlable{display:none!important}</style>
@@ -192,9 +192,9 @@ a.btn{text-decoration:none}
                 <a href="/faq">FAQ</a>
                 <a href="/modeles-cv">Modèles CV</a>
                 <a href="/guide-cv">Guide CV</a>
-                <a href="/login" class="btn btn-primary landing-cta-nav">Essayer gratuitement</a>
+                <a href="/login" class="button button-primary landing-cta-nav">Essayer gratuitement</a>
               </nav>
-              <a href="/login" class="landing-mobile-cta btn btn-primary">Commencer</a>
+              <a href="/login" class="landing-mobile-cta button button-primary">Commencer</a>
             </div>
           </div>
         </header>
@@ -206,7 +206,7 @@ a.btn{text-decoration:none}
                   <h1 class="landing-hero-title">Passe les filtres automatiques. Décroche des entretiens en 1 clic.</h1>
                   <p class="landing-hero-subtitle">L'IA analyse l'offre d'emploi et adapte instantanément ton CV pour passer les filtres (ATS) et taper dans l'œil des recruteurs.</p>
                   <div class="landing-hero-ctas">
-                    <a href="/login" class="btn btn-primary landing-cta-hero">Essayer gratuitement</a>
+                    <a href="/login" class="button button-primary landing-cta-hero">Essayer gratuitement</a>
                     <span class="landing-hero-hint">3 adaptations offertes</span>
                   </div>
                 </div>
@@ -280,7 +280,7 @@ a.btn{text-decoration:none}
                     <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Suivi de candidatures</li>
                     <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Export PDF</li>
                   </ul>
-                  <a href="/login" class="btn btn-secondary pricing-cta">Commencer gratuitement</a>
+                  <a href="/login" class="button button-secondary pricing-cta">Commencer gratuitement</a>
                 </div>
                 <div class="pricing-card pricing-card--pro">
                   <div class="pricing-badge">Populaire</div>
@@ -296,7 +296,7 @@ a.btn{text-decoration:none}
                     <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Lettre de motivation IA</li>
                     <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Support prioritaire</li>
                   </ul>
-                  <a href="/login?plan=pro" class="btn btn-primary pricing-cta">Passer Pro</a>
+                  <a href="/login?plan=pro" class="button button-primary pricing-cta">Passer Pro</a>
                 </div>
               </div>
             </div>
@@ -344,7 +344,7 @@ a.btn{text-decoration:none}
             <div class="landing-container">
               <h2>Prêt à décrocher le job de tes rêves ?</h2>
               <p>Crée ton compte gratuit et teste 3 adaptations de CV.</p>
-              <a href="/login" class="btn btn-primary landing-cta-hero">Essayer gratuitement</a>
+              <a href="/login" class="button button-primary landing-cta-hero">Essayer gratuitement</a>
             </div>
           </section>
         </main>

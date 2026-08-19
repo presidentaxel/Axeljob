@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Button from './ui/Button.jsx';
 
 function setNoindexFollow() {
   if (typeof document === 'undefined') return;
@@ -31,12 +32,12 @@ export function NotFoundPage() {
           Cette adresse n&apos;existe pas ou a été déplacée. Vérifie l&apos;URL ou reviens à l&apos;accueil.
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', justifyContent: 'center', marginTop: '1.25rem' }}>
-          <button type="button" className="btn btn-primary" onClick={() => navigate('/')}>
+          <Button variant="primary" onClick={() => navigate('/')}>
             Accueil
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>
+          </Button>
+          <Button variant="secondary" onClick={() => navigate(-1)}>
             Page précédente
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -62,13 +63,13 @@ export function ServerErrorPage({ onRetry }) {
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', justifyContent: 'center', marginTop: '1.25rem' }}>
           {typeof onRetry === 'function' && (
-            <button type="button" className="btn btn-primary" onClick={onRetry}>
+            <Button variant="primary" onClick={onRetry}>
               Réessayer
-            </button>
+            </Button>
           )}
-          <button type="button" className="btn btn-secondary" onClick={() => window.location.assign('/')}>
+          <Button variant="secondary" onClick={() => window.location.assign('/')}>
             Recharger l&apos;accueil
-          </button>
+          </Button>
         </div>
       </div>
     </div>

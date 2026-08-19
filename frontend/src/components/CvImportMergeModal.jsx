@@ -161,10 +161,10 @@ export default function CvImportMergeModal({
           })}
         </ul>
         <div className="linkedin-sync-actions import-merge-actions">
-          <button type="button" className="btn btn-primary" onClick={onConfirm} disabled={confirming}>
+          <button type="button" className="button button-primary" onClick={onConfirm} disabled={confirming}>
             {confirming ? 'Application…' : 'Appliquer et générer le canvas'}
           </button>
-          <button type="button" className="btn btn-secondary" onClick={onCancel}>Annuler</button>
+          <button type="button" className="button button-secondary" onClick={onCancel}>Annuler</button>
         </div>
       </div>
     </div>

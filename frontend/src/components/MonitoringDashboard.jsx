@@ -123,7 +123,7 @@ export default function MonitoringDashboard({ usage }) {
               ))}
             </select>
           </label>
-          <button type="button" className="btn btn-secondary monitoring-refresh" onClick={load} disabled={loading}>
+          <button type="button" className="button button-secondary monitoring-refresh" onClick={load} disabled={loading}>
             {loading ? 'Chargement…' : 'Actualiser'}
           </button>
         </div>

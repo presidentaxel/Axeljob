@@ -1,67 +1,97 @@
 /**
- * Boutons globaux - Cohere 2026 (pill primary, outline secondary).
+ * Boutons globaux — noms canoniques = tokens docs/DESIGN-cohere.md.
+ *
+ * CTA produit :
+ *   .button.button-primary        action principale (un seul par zone)
+ *   .button.button-secondary      action companion (pill soft)
+ *   .button.button-pill-outline   contour
+ *   .button.button-tertiary       action texte / discrète
+ *   .button.button-ghost          action minimale (modales)
+ *   .button.button-success        action de succès (export)
+ *
+ * Tailles : .button--sm | .button--lg
+ *
+ * Alias .btn / .btn-* : contrôles métier (btn-add, btn-icon…) et rétrocompat.
+ * Ne plus écrire `btn btn-primary` pour un CTA — utiliser `button button-primary`
+ * ou <Button variant="primary" />.
  */
+.button,
 .btn {
   font-family: var(--app-font-family);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.875rem 1.75rem;    /* 14px 28px — Slacc pill over-padded */
+  padding: 0.875rem 1.75rem;
   font-size: 1rem;
   font-weight: 700;
   border: none;
-  border-radius: var(--radius-pill);   /* 90px */
+  border-radius: var(--radius-pill);
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
   letter-spacing: 0.012em;
   line-height: 1.38;
   white-space: nowrap;
+  text-decoration: none;
 }
 
+a.button,
+a.btn {
+  text-decoration: none;
+}
+
+.button:focus-visible,
 .btn:focus-visible {
   outline: none;
   box-shadow: rgb(97, 31, 105) 0 0 0 2px inset, 0 0 0 3px rgba(74, 21, 75, 0.35);
 }
 
-/* Primary — aubergine pill */
+/* Primary — CTA unique */
+.button-primary,
 .btn-primary {
   background: var(--color-primary);
   color: var(--color-on-primary);
 }
 
+.button-primary:hover:not(:disabled),
 .btn-primary:hover:not(:disabled) {
   background: var(--color-primary-press);
 }
 
+.button-primary:active:not(:disabled),
 .btn-primary:active:not(:disabled) {
   background: var(--color-primary-deep);
 }
 
+.button-primary:disabled,
 .btn-primary:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
-/* Secondary — lavender pill */
+/* Secondary — companion pill */
+.button-secondary,
 .btn-secondary {
   background: var(--color-canvas-lavender);
   color: var(--color-ink);
   border: none;
   border-radius: var(--radius-pill);
-  padding: 0.625rem 1.875rem;   /* 10px 30px */
+  padding: 0.625rem 1.875rem;
 }
 
+.button-secondary:hover:not(:disabled),
 .btn-secondary:hover:not(:disabled) {
   background: #eddeff;
 }
 
+.button-secondary:disabled,
 .btn-secondary:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
-/* Outline on white surface */
+/* Outline on white surface (token button-pill-outline) */
+.button-pill-outline,
 .btn-outline {
   background: var(--color-canvas);
   color: var(--color-primary);
@@ -69,11 +99,13 @@
   border-radius: var(--radius-pill);
 }
 
+.button-pill-outline:hover:not(:disabled),
 .btn-outline:hover:not(:disabled) {
   background: var(--color-canvas-lavender);
 }
 
-/* Outline on aubergine surface */
+/* Outline on dark / aubergine surface */
+.button-pill-outline-on-dark,
 .btn-outline-on-dark {
   background: transparent;
   color: var(--color-on-primary);
@@ -81,10 +113,12 @@
   border-radius: var(--radius-pill);
 }
 
+.button-pill-outline-on-dark:hover:not(:disabled),
 .btn-outline-on-dark:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.12);
 }
 
+.button-tertiary,
 .btn-tertiary {
   background: transparent;
   color: var(--color-muted);
@@ -94,27 +128,50 @@
   font-weight: 400;
 }
 
+.button-tertiary:hover:not(:disabled),
 .btn-tertiary:hover:not(:disabled) {
   color: var(--color-ink);
   background: var(--color-canvas-cream);
 }
 
+.button-tertiary:disabled,
 .btn-tertiary:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
+.button-ghost,
+.btn-ghost {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0.4rem 0.75rem;
+  font-family: inherit;
+  font-weight: 400;
+  border-radius: var(--radius-md);
+}
+
+.button-ghost:hover:not(:disabled),
+.btn-ghost:hover {
+  color: var(--text);
+}
+
+.button-success,
 .btn-success {
   background: var(--color-deep-green);
   color: var(--color-on-primary);
   margin-top: 0.5rem;
 }
 
+.button-success:hover:not(:disabled),
 .btn-success:hover:not(:disabled) {
   opacity: 0.9;
 }
 
 /* Tailles */
+.button--sm,
 .btn-sm {
   padding: 0.5rem 1.1rem;
   font-size: 0.8125rem;
@@ -122,7 +179,15 @@
   border-radius: var(--radius-pill);
 }
 
+.button--sm.button-secondary,
+.button--sm.button-pill-outline,
 .btn-sm.btn-secondary,
 .btn-sm.btn-outline {
   padding: 0.4rem 1rem;
+}
+
+.button--lg,
+.btn-lg {
+  padding: 0.7rem 1.75rem;
+  font-size: 0.95rem;
 }

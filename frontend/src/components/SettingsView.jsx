@@ -58,7 +58,7 @@ function SettingsListRow({ label, detail, onClear, disabled, actionLabel = 'Effa
         <strong>{label}</strong>
         {detail && <span>{detail}</span>}
       </div>
-      <button type="button" className="btn btn-tertiary btn-sm" onClick={onClear} disabled={disabled}>
+      <button type="button" className="button button-tertiary button--sm" onClick={onClear} disabled={disabled}>
         {actionLabel}
       </button>
     </div>
@@ -247,7 +247,7 @@ export default function SettingsView({
         <div className="settings-actions">
           <button
             type="button"
-            className="btn btn-secondary btn-sm"
+            className="button button-secondary button--sm"
             onClick={() => {
               setSetPasswordOpen(true);
               setSetPasswordNew('');
@@ -278,12 +278,12 @@ export default function SettingsView({
           </dl>
           <div className="settings-actions">
             {!isPro && typeof onUpgradeClick === 'function' && (
-              <button type="button" className="btn btn-primary btn-sm" onClick={onUpgradeClick}>
+              <button type="button" className="button button-primary button--sm" onClick={onUpgradeClick}>
                 Passer Pro
               </button>
             )}
             {isPro && usage.stripe_subscription && typeof onBillingPortalClick === 'function' && (
-              <button type="button" className="btn btn-secondary btn-sm" onClick={onBillingPortalClick}>
+              <button type="button" className="button button-secondary button--sm" onClick={onBillingPortalClick}>
                 Gérer l&apos;abonnement
               </button>
             )}
@@ -321,12 +321,12 @@ export default function SettingsView({
               <code>{profileLoading ? '…' : pdfExportFilenameExample}</code>
             </p>
             <div className="settings-actions">
-              <button type="button" className="btn btn-primary btn-sm" onClick={savePdfPattern}>
+              <button type="button" className="button button-primary button--sm" onClick={savePdfPattern}>
                 Enregistrer
               </button>
               <button
                 type="button"
-                className="btn btn-tertiary btn-sm"
+                className="button button-tertiary button--sm"
                 onClick={() => setPdfPattern(DEFAULT_PDF_EXPORT_FILENAME_PATTERN)}
               >
                 Réinitialiser
@@ -353,14 +353,14 @@ export default function SettingsView({
               </p>
             )}
             <div className="settings-actions">
-              <button type="button" className="btn btn-secondary btn-sm" onClick={saveExportDossier}>
+              <button type="button" className="button button-secondary button--sm" onClick={saveExportDossier}>
                 Enregistrer le dossier
               </button>
             </div>
             <hr className="settings-divider" />
             <button
               type="button"
-              className="btn btn-tertiary btn-sm"
+              className="button button-tertiary button--sm"
               onClick={() => {
                 try {
                   localStorage.removeItem(STORAGE_PRE_EXPORT_TEMPLATE_OPTIONS_DONE);
@@ -382,7 +382,7 @@ export default function SettingsView({
           <dd>{templateName}</dd>
         </dl>
         <div className="settings-actions">
-          <Link to="/app/profil" className="btn btn-secondary btn-sm">Ouvrir le profil CV</Link>
+          <Link to="/app/profil" className="button button-secondary button--sm">Ouvrir le profil CV</Link>
         </div>
       </SettingsSection>
 
@@ -455,7 +455,7 @@ export default function SettingsView({
       <SettingsSection id="settings-privacy-title" title="Confidentialité" lead="Préférences cookies et documents légaux.">
         {typeof onCookieSettingsClick === 'function' && (
           <div className="settings-actions settings-actions--spaced">
-            <button type="button" className="btn btn-secondary btn-sm" onClick={onCookieSettingsClick}>
+            <button type="button" className="button button-secondary button--sm" onClick={onCookieSettingsClick}>
               Paramètres cookies
             </button>
           </div>
@@ -532,7 +532,7 @@ export default function SettingsView({
               <div className="settings-modal__actions">
                 <button
                   type="submit"
-                  className="btn btn-primary btn-sm"
+                  className="button button-primary button--sm"
                   disabled={
                     setPasswordLoading
                     || setPasswordNew.length < 6
@@ -541,7 +541,7 @@ export default function SettingsView({
                 >
                   {setPasswordLoading ? '…' : 'Enregistrer'}
                 </button>
-                <button type="button" className="btn btn-tertiary btn-sm" onClick={() => setSetPasswordOpen(false)}>
+                <button type="button" className="button button-tertiary button--sm" onClick={() => setSetPasswordOpen(false)}>
                   Annuler
                 </button>
               </div>

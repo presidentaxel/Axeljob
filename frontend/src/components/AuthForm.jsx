@@ -159,7 +159,7 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
           <div className="auth-popup">
             <h2 id="auth-popup-title" className="auth-popup-title">Vous aviez déjà un compte</h2>
             <p className="auth-popup-message">Nous vous avons connecté(e).</p>
-            <button type="button" className="btn btn-primary auth-popup-ok" onClick={() => { setShowAlreadyHadAccountPopup(false); onSuccess?.(); }}>
+            <button type="button" className="button button-primary auth-popup-ok" onClick={() => { setShowAlreadyHadAccountPopup(false); onSuccess?.(); }}>
               OK
             </button>
           </div>
@@ -205,7 +205,7 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
       )}
       {error && <div className="auth-error">{error}</div>}
       {message && <div className="auth-message">{message}</div>}
-      <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
+      <button type="submit" className="button button-primary auth-submit" disabled={loading}>
         {loading ? '…' : resetMode ? 'Envoyer le lien' : isSignUp ? 'Créer un compte' : 'Se connecter'}
       </button>
       {!resetMode && (

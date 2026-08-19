@@ -128,7 +128,7 @@ export default function FaqPage({ onBack }) {
         <div className="content-cta-inner">
           <h2>Un CV adapté à chaque offre, en un clic</h2>
           <p>Essaie AxeL Job gratuitement. 3 adaptations offertes, sans carte bancaire.</p>
-          <Link to="/login" className="btn">Essayer gratuitement</Link>
+          <Link to="/login" className="button button-primary">Essayer gratuitement</Link>
         </div>
       </section>
 

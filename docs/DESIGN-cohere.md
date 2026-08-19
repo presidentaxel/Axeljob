@@ -333,6 +333,20 @@ Images are not decorative backdrops for text except in CTA bands. Most imagery s
 
 ## Components
 
+### HTML class names
+
+The token name **is** the CSS class. Product CTAs must carry these classes (never `btn-primary`):
+
+| Token | Markup | Helper |
+|---|---|---|
+| `button-primary` | `class="button button-primary"` | `buttonClassName({ variant: "primary" })` or `<Button variant="primary">` |
+| `button-secondary` | `class="button button-secondary"` | `variant="secondary"` |
+| `button-pill-outline` | `class="button button-pill-outline"` | `variant="outline"` |
+
+Sizes: `button--sm`, `button--lg`. Extra layout classes (`landing-cta-hero`, `profile-save-btn`) may be added **after** the canonical names.
+
+Source: `frontend/src/lib/buttonClassName.js`, styles in `frontend/src/styles/app/buttons.css`.
+
 ### **`button-primary`**
 
 Near-black or white pill CTA, depending on surface contrast. Uses 14px-16px Unica77, 12px 24px padding, and a 32px pill radius. This is the primary action style for "Request a demo", "Submit", and hero CTAs.

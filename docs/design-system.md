@@ -95,3 +95,5 @@ Motion fine au-delà de duration/easing, iconographie, gouvernance draft/beta/st
 ## Gouvernance
 
 Statut v1 : **beta**. Contribuer en étendant `tokens.json` (sémantique d’abord), puis `npm run tokens`.
+
+CI : `npm run tokens:check` échoue si `ds-tokens.generated.css` a divergé de `tokens.json`. `npm run lint:css-hex` refuse tout hex dans `frontend/src` (`*.css`) — exception permanente : le généré ; allowlist transitoire vidée par AXE-355.

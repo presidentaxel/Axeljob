@@ -80,6 +80,8 @@ if [[ "$SKIP_EXTRAS" -eq 0 ]]; then
 fi
 
 npm run lint
+npm run tokens:check
+npm run lint:css-hex
 npm run build
 
 phase "Frontend (tests unitaires node:test)"

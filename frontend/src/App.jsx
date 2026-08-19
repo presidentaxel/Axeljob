@@ -130,7 +130,7 @@ function MfaChallengeScreen({ onSuccess }) {
             autoComplete="one-time-code"
           />
           {error && <div className="auth-error">{error}</div>}
-          <button type="submit" className="btn btn-primary auth-submit" disabled={loading || code.length !== 6}>
+          <button type="submit" className="button button-primary auth-submit" disabled={loading || code.length !== 6}>
             {loading ? '…' : 'Vérifier'}
           </button>
         </form>
@@ -192,7 +192,7 @@ function RecoveryPasswordForm({ onDone }) {
             minLength={6}
           />
           {error && <div className="auth-error">{error}</div>}
-          <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
+          <button type="submit" className="button button-primary auth-submit" disabled={loading}>
             {loading ? '…' : 'Définir le mot de passe'}
           </button>
         </form>
@@ -264,8 +264,8 @@ function CvEditPanel({ cv, onSave, onClose }) {
           ))}
         </div>
         <div className="cv-edit-actions">
-          <button type="button" className="btn btn-primary" onClick={handleSave}>Enregistrer les modifications</button>
-          <button type="button" className="btn btn-secondary" onClick={onClose}>Annuler</button>
+          <button type="button" className="button button-primary" onClick={handleSave}>Enregistrer les modifications</button>
+          <button type="button" className="button button-secondary" onClick={onClose}>Annuler</button>
         </div>
       </div>
     </div>
@@ -527,7 +527,7 @@ function SupportTicketSection() {
             <p className="support-ticket-success">
               Ticket envoyé. Tu recevras une réponse par email à <strong>{ticketEmail}</strong>.
             </p>
-            <button type="button" className="btn btn-secondary support-ticket-another" onClick={sendAnother}>
+            <button type="button" className="button button-secondary support-ticket-another" onClick={sendAnother}>
               Envoyer un autre ticket
             </button>
           </>
@@ -556,7 +556,7 @@ function SupportTicketSection() {
                 required
               />
               {error && <p className="support-ticket-error">{error}</p>}
-              <button type="submit" className="btn btn-primary support-ticket-submit" disabled={loading}>
+              <button type="submit" className="button button-primary support-ticket-submit" disabled={loading}>
                 {loading ? 'Envoi…' : 'Envoyer le ticket'}
               </button>
             </form>
@@ -604,7 +604,7 @@ function SupportReplySection() {
         {success ? (
           <>
             <p className="support-ticket-success">Message envoyé.</p>
-            <button type="button" className="btn btn-secondary support-ticket-another" onClick={sendAnother}>
+            <button type="button" className="button button-secondary support-ticket-another" onClick={sendAnother}>
               Nouvelle réponse
             </button>
           </>
@@ -633,7 +633,7 @@ function SupportReplySection() {
                 required
               />
               {error && <p className="support-ticket-error">{error}</p>}
-              <button type="submit" className="btn btn-primary support-ticket-submit" disabled={loading}>
+              <button type="submit" className="button button-primary support-ticket-submit" disabled={loading}>
                 {loading ? 'Envoi…' : 'Envoyer'}
               </button>
             </form>
@@ -2995,12 +2995,12 @@ export default function App() {
               Pour adapter ton CV, l’aperçu et le suivi des candidatures, ça fonctionne <strong>beaucoup mieux sur ordinateur</strong> - repasse depuis un PC ou une grande tablette.
             </p>
             <div className="app-mobile-gate-actions">
-              <button type="button" className="btn btn-primary" onClick={() => navigate('/faq')}>
+              <button type="button" className="button button-primary" onClick={() => navigate('/faq')}>
                 Voir le site (FAQ, guides…)
               </button>
               <button
                 type="button"
-                className="btn btn-secondary"
+                className="button button-secondary"
                 onClick={async () => {
                   if (supabase) await supabase.auth.signOut();
                 }}
@@ -3017,12 +3017,12 @@ export default function App() {
             <h1 id="profile-load-err-title">Profil inaccessible</h1>
             <p className="app-mobile-gate-lead">{profileCvLoadError}</p>
             <div className="app-mobile-gate-actions">
-              <button type="button" className="btn btn-primary" onClick={() => setProfileRefreshKey((k) => k + 1)}>
+              <button type="button" className="button button-primary" onClick={() => setProfileRefreshKey((k) => k + 1)}>
                 Réessayer
               </button>
               <button
                 type="button"
-                className="btn btn-secondary"
+                className="button button-secondary"
                 onClick={async () => {
                   if (supabase) await supabase.auth.signOut();
                 }}
@@ -3082,7 +3082,7 @@ export default function App() {
               <div className="page-title-row-actions">
                 <button
                   type="button"
-                  className="btn btn-secondary btn-new-adapt-session"
+                  className="button button-secondary btn-new-adapt-session"
                   onClick={requestNewCandidatureWorkspace}
                   disabled={adapting}
                   title="Vider le chat et l’aperçu pour adapter ton CV à une autre offre (sans supprimer tes candidatures enregistrées)"
@@ -3091,7 +3091,7 @@ export default function App() {
                 </button>
                 <button
                   type="button"
-                  className="btn btn-secondary btn-new-adapt-session"
+                  className="button button-secondary btn-new-adapt-session"
                   onClick={async () => {
                     if (!lastAdaptRunConfig || adapting) return;
                     setChatMessages((prev) => [...prev, { role: 'user', content: 'Relancer la dernière adaptation' }]);
@@ -3116,7 +3116,7 @@ export default function App() {
                 const rem = usage.adaptations_quota_remaining ?? (usage.adaptations_limit - usage.adaptations_used);
                 return rem <= 0 ? 'Tes adaptations gratuites sont épuisées.' : `Il te reste ${rem} adaptation${rem > 1 ? 's' : ''} gratuite${rem > 1 ? 's' : ''}.`;
               })()}</span>
-              <button type="button" className="btn btn-primary btn-sm" onClick={handleUpgradeClick} disabled={checkoutLoading}>
+              <button type="button" className="button button-primary button--sm" onClick={handleUpgradeClick} disabled={checkoutLoading}>
                 {checkoutLoading ? '…' : 'Passer Pro - 10€/mois'}
               </button>
             </div>
@@ -3187,10 +3187,10 @@ export default function App() {
                           </div>
                           {!lastAdaptedCv && (
                             <div className="cv-chat-todo-actions">
-                              <button type="button" className="btn btn-primary btn-sm" onClick={handleRunTodoPlan} disabled={adapting}>
+                              <button type="button" className="button button-primary button--sm" onClick={handleRunTodoPlan} disabled={adapting}>
                                 Valider et lancer
                               </button>
-                              <button type="button" className="btn btn-secondary btn-sm" onClick={requestNewCandidatureWorkspace} disabled={adapting}>
+                              <button type="button" className="button button-secondary button--sm" onClick={requestNewCandidatureWorkspace} disabled={adapting}>
                                 Annuler
                               </button>
                             </div>
@@ -3534,8 +3534,8 @@ export default function App() {
                     </>
                   )}
                   <div className="cv-chat-export-btns">
-                    <button type="button" className="btn btn-success" onClick={handlePdf} disabled={exporting}>Télécharger le PDF</button>
-                    <button type="button" className="btn btn-secondary" onClick={handleExportDossier} disabled={exporting} aria-busy={exporting}>
+                    <button type="button" className="button button-success" onClick={handlePdf} disabled={exporting}>Télécharger le PDF</button>
+                    <button type="button" className="button button-secondary" onClick={handleExportDossier} disabled={exporting} aria-busy={exporting}>
                       {exporting ? (
                         <>
                           <span className="export-spinner" aria-hidden="true" />
@@ -3575,10 +3575,10 @@ export default function App() {
               <p className="page-subtitle">Suis toutes tes candidatures ici. Glisse les cartes pour changer le statut.</p>
             </div>
             <div className="dashboard-header-actions">
-              <button type="button" className="btn btn-tertiary btn-add-manual" onClick={() => setAddManualModalOpen(true)}>
+              <button type="button" className="button button-tertiary btn-add-manual" onClick={() => setAddManualModalOpen(true)}>
                 Ajouter une candidature (hors app)
               </button>
-              <button type="button" className="btn btn-primary btn-new-candidature" onClick={() => setSetupModalOpen(true)}>
+              <button type="button" className="button button-primary btn-new-candidature" onClick={() => setSetupModalOpen(true)}>
                 Nouvelle Candidature
               </button>
             </div>
@@ -3723,7 +3723,7 @@ export default function App() {
                 </svg>
                 <h3>Pas encore de candidature</h3>
                 <p>Adapte ton CV à une offre d'emploi pour créer ta première candidature.</p>
-                <button type="button" className="btn btn-primary btn-lg" onClick={() => setSetupModalOpen(true)}>
+                <button type="button" className="button button-primary button--lg" onClick={() => setSetupModalOpen(true)}>
                   Lancer ma première candidature
                 </button>
               </div>
@@ -3731,7 +3731,7 @@ export default function App() {
             {applicationSearchDebounced && filteredNonArchivedCount === 0 && applications.filter((a) => !a.archived).length > 0 && (
               <div className="applications-empty-state applications-search-empty">
                 <p>Aucun résultat pour « {applicationSearchDebounced} ».</p>
-                <button type="button" className="btn btn-secondary" onClick={() => setApplicationSearchQuery('')}>Effacer la recherche</button>
+                <button type="button" className="button button-secondary" onClick={() => setApplicationSearchQuery('')}>Effacer la recherche</button>
               </div>
             )}
             {showArchived && filteredArchived.length > 0 && (
@@ -3857,10 +3857,10 @@ export default function App() {
                   </label>
                 </div>
                 <div className="setup-modal-actions">
-                  <button type="submit" className="btn btn-primary" disabled={addManualSubmitting}>
+                  <button type="submit" className="button button-primary" disabled={addManualSubmitting}>
                     {addManualSubmitting ? 'Ajout…' : 'Ajouter'}
                   </button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setAddManualModalOpen(false)}>Annuler</button>
+                  <button type="button" className="button button-secondary" onClick={() => setAddManualModalOpen(false)}>Annuler</button>
                 </div>
               </form>
             </div>
@@ -3886,7 +3886,7 @@ export default function App() {
                 <textarea value={setupFiche} onChange={(e) => setSetupFiche(e.target.value)} placeholder="Colle le lien de l'annonce ou le texte de l'offre…" rows={6} />
               </label>
               <div className="setup-modal-actions">
-                <button type="button" className="btn btn-primary" onClick={async () => {
+                <button type="button" className="button button-primary" onClick={async () => {
                   const fiche = setupFiche.trim();
                   const ent = setupEntreprise.trim();
                   const pos = setupPoste.trim();
@@ -3976,7 +3976,7 @@ export default function App() {
                 }} disabled={!setupFiche.trim()}>
                   Démarrer l&apos;adaptation
                 </button>
-                <button type="button" className="btn btn-secondary" onClick={() => setSetupModalOpen(false)}>Annuler</button>
+                <button type="button" className="button button-secondary" onClick={() => setSetupModalOpen(false)}>Annuler</button>
               </div>
             </div>
           </div>
@@ -4092,13 +4092,13 @@ export default function App() {
               <label className="input-label">Précisions (texte libre)</label>
               <textarea className="input-field" value={refusRaison} onChange={(e) => setRefusRaison(e.target.value)} rows={3} placeholder="Optionnel" />
               <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
-                <button type="button" className="btn btn-primary" onClick={() => submitRefusModal(false)} disabled={statutModalSubmitting}>
+                <button type="button" className="button button-primary" onClick={() => submitRefusModal(false)} disabled={statutModalSubmitting}>
                   {statutModalSubmitting ? 'Enregistrement…' : 'Enregistrer'}
                 </button>
-                <button type="button" className="btn btn-secondary" onClick={() => submitRefusModal(true)} disabled={statutModalSubmitting}>
+                <button type="button" className="button button-secondary" onClick={() => submitRefusModal(true)} disabled={statutModalSubmitting}>
                   Passer (refus sans détail)
                 </button>
-                <button type="button" className="btn btn-secondary" onClick={() => { setStatutModalType(null); setStatutModalAppId(null); setStatutModalApp(null); }}>
+                <button type="button" className="button button-secondary" onClick={() => { setStatutModalType(null); setStatutModalAppId(null); setStatutModalApp(null); }}>
                   Annuler
                 </button>
               </div>
@@ -4119,10 +4119,10 @@ export default function App() {
                 <li>Lettre de motivation ciblée</li>
               </ul>
               <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
-                <button type="button" className="btn btn-primary" onClick={() => { setUpgradeModalVisible(false); handleStartCheckout(); }} disabled={checkoutLoading}>
+                <button type="button" className="button button-primary" onClick={() => { setUpgradeModalVisible(false); handleStartCheckout(); }} disabled={checkoutLoading}>
                   {checkoutLoading ? 'Redirection…' : 'Passer en Pro - 10€/mois'}
                 </button>
-                <button type="button" className="btn btn-secondary" onClick={() => setUpgradeModalVisible(false)}>
+                <button type="button" className="button button-secondary" onClick={() => setUpgradeModalVisible(false)}>
                   Plus tard
                 </button>
               </div>
@@ -4146,10 +4146,10 @@ export default function App() {
                     <li><span className="pro-check"><HiCheck size={14} strokeWidth={2.5} /></span>Lettre de motivation ciblée</li>
                   </ul>
                   <div className="linkedin-sync-actions" style={{ marginTop: '1rem', flexDirection: 'column', gap: '0.5rem' }}>
-                    <button type="button" className="btn btn-secondary" onClick={() => { setProModalVisible(false); handleManageSubscriptionClick(); }} disabled={checkoutLoading}>
+                    <button type="button" className="button button-secondary" onClick={() => { setProModalVisible(false); handleManageSubscriptionClick(); }} disabled={checkoutLoading}>
                       {checkoutLoading ? 'Redirection…' : 'Gérer mon abonnement / Annuler'}
                     </button>
-                    <button type="button" className="btn btn-ghost" onClick={() => setProModalVisible(false)}>
+                    <button type="button" className="button button-ghost" onClick={() => setProModalVisible(false)}>
                       Fermer
                     </button>
                   </div>
@@ -4180,10 +4180,10 @@ export default function App() {
                     </div>
                   </div>
                   <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
-                    <button type="button" className="btn btn-primary" onClick={() => { setProModalVisible(false); handleStartCheckout(); }} disabled={checkoutLoading}>
+                    <button type="button" className="button button-primary" onClick={() => { setProModalVisible(false); handleStartCheckout(); }} disabled={checkoutLoading}>
                       {checkoutLoading ? 'Redirection…' : 'Passer en Pro - 10€/mois'}
                     </button>
-                    <button type="button" className="btn btn-secondary" onClick={() => setProModalVisible(false)}>
+                    <button type="button" className="button button-secondary" onClick={() => setProModalVisible(false)}>
                       Plus tard
                     </button>
                   </div>
@@ -4199,8 +4199,8 @@ export default function App() {
               <h3 id="signout-confirm-title">Déconnexion</h3>
               <p className="profile-subtitle" style={{ marginTop: 0 }}>Tu es sûr de vouloir te déconnecter ?</p>
               <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
-                <button type="button" className="btn btn-primary" onClick={handleSignOut}>Oui, me déconnecter</button>
-                <button type="button" className="btn btn-secondary" onClick={() => setSignOutConfirmOpen(false)}>Annuler</button>
+                <button type="button" className="button button-primary" onClick={handleSignOut}>Oui, me déconnecter</button>
+                <button type="button" className="button button-secondary" onClick={() => setSignOutConfirmOpen(false)}>Annuler</button>
               </div>
             </div>
           </div>
@@ -4216,7 +4216,7 @@ export default function App() {
               <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
                 <button
                   type="button"
-                  className="btn btn-primary"
+                  className="button button-primary"
                   onClick={() => {
                     setFirstOfferNudgeOpen(false);
                     navigate('/app/cv');
@@ -4228,7 +4228,7 @@ export default function App() {
                 </button>
                 <button
                   type="button"
-                  className="btn btn-secondary"
+                  className="button button-secondary"
                   onClick={() => {
                     setFirstOfferNudgeOpen(false);
                     try {
@@ -4259,8 +4259,8 @@ export default function App() {
               <label className="input-label" style={{ display: 'block', marginTop: '0.75rem' }}>Commentaire (optionnel)</label>
               <textarea className="input-field" value={cancelReasonText} onChange={(e) => setCancelReasonText(e.target.value)} placeholder="Ton avis nous aide à nous améliorer…" rows={2} style={{ width: '100%', marginTop: '0.25rem', resize: 'vertical' }} />
               <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
-                <button type="button" className="btn btn-primary" onClick={handleManageSubscriptionConfirm} disabled={checkoutLoading}>{checkoutLoading ? 'Redirection…' : 'Accéder au portail'}</button>
-                <button type="button" className="btn btn-secondary" onClick={() => setManageSubscriptionModalOpen(false)}>Annuler</button>
+                <button type="button" className="button button-primary" onClick={handleManageSubscriptionConfirm} disabled={checkoutLoading}>{checkoutLoading ? 'Redirection…' : 'Accéder au portail'}</button>
+                <button type="button" className="button button-secondary" onClick={() => setManageSubscriptionModalOpen(false)}>Annuler</button>
               </div>
             </div>
           </div>
@@ -4285,10 +4285,10 @@ export default function App() {
               <label className="input-label">Date de l’entretien (optionnel)</label>
               <input type="date" className="input-field" value={interviewDate} onChange={(e) => setInterviewDate(e.target.value)} />
               <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
-                <button type="button" className="btn btn-primary" onClick={submitInterviewModal} disabled={statutModalSubmitting}>
+                <button type="button" className="button button-primary" onClick={submitInterviewModal} disabled={statutModalSubmitting}>
                   {statutModalSubmitting ? 'Enregistrement…' : 'Enregistrer'}
                 </button>
-                <button type="button" className="btn btn-secondary" onClick={() => { setStatutModalType(null); setStatutModalAppId(null); setStatutModalApp(null); }}>
+                <button type="button" className="button button-secondary" onClick={() => { setStatutModalType(null); setStatutModalAppId(null); setStatutModalApp(null); }}>
                   Annuler
                 </button>
               </div>
@@ -4381,10 +4381,10 @@ export default function App() {
                 </label>
               </fieldset>
               <div className="linkedin-sync-actions export-ats-block-actions">
-                <button type="button" className="btn btn-primary" onClick={confirmExportAtsBlockModal}>
+                <button type="button" className="button button-primary" onClick={confirmExportAtsBlockModal}>
                   Valider et continuer
                 </button>
-                <button type="button" className="btn btn-secondary" onClick={closeExportAtsBlockModal}>
+                <button type="button" className="button button-secondary" onClick={closeExportAtsBlockModal}>
                   Annuler
                 </button>
               </div>
@@ -4412,10 +4412,10 @@ export default function App() {
                 />
               </label>
               <div className="linkedin-sync-actions export-ats-block-actions" style={{ marginTop: '1.25rem' }}>
-                <button type="button" className="btn btn-primary" onClick={() => void confirmPdfEntrepriseModal()}>
+                <button type="button" className="button button-primary" onClick={() => void confirmPdfEntrepriseModal()}>
                   Télécharger le PDF
                 </button>
-                <button type="button" className="btn btn-secondary" onClick={closePdfEntrepriseModal}>
+                <button type="button" className="button button-secondary" onClick={closePdfEntrepriseModal}>
                   Annuler
                 </button>
               </div>
@@ -4439,7 +4439,7 @@ export default function App() {
                 ou du résultat de vos candidatures.
               </p>
               <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
-                <button type="button" className="btn btn-primary" onClick={() => {
+                <button type="button" className="button button-primary" onClick={() => {
                   setAtsDisclaimerVisible(false);
                   if (pendingPdfAction === 'pdf') {
                     const o = pendingExportTemplateOptionsRef.current;
@@ -4450,7 +4450,7 @@ export default function App() {
                 }}>
                   J'ai compris, télécharger
                 </button>
-                <button type="button" className="btn btn-secondary" onClick={() => { setAtsDisclaimerVisible(false); setPendingPdfAction(null); pendingExportTemplateOptionsRef.current = null; }}>
+                <button type="button" className="button button-secondary" onClick={() => { setAtsDisclaimerVisible(false); setPendingPdfAction(null); pendingExportTemplateOptionsRef.current = null; }}>
                   Annuler
                 </button>
               </div>

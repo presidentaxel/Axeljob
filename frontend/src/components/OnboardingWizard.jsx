@@ -155,7 +155,7 @@ export default function OnboardingWizard({ session, onComplete }) {
                 />
                 <button
                   type="button"
-                  className="btn btn-primary onb-btn-parse"
+                  className="button button-primary onb-btn-parse"
                   onClick={handleTextImport}
                   disabled={loading || !cvText.trim()}
                 >
@@ -236,7 +236,7 @@ export default function OnboardingWizard({ session, onComplete }) {
             </div>
 
             <div className="onb-actions">
-              <button type="button" className="btn btn-primary" onClick={handleConfirmProfile} disabled={loading}>
+              <button type="button" className="button button-primary" onClick={handleConfirmProfile} disabled={loading}>
                 {loading ? 'Sauvegarde…' : 'On continue'}
               </button>
             </div>
@@ -256,10 +256,10 @@ export default function OnboardingWizard({ session, onComplete }) {
               Colle une annonce et l'IA fera le reste.
             </p>
             <div className="onb-actions">
-              <button type="button" className="btn btn-primary btn-lg" onClick={handleLaunch}>
+              <button type="button" className="button button-primary button--lg" onClick={handleLaunch}>
                 Lancer ma première candidature
               </button>
-              <button type="button" className="btn btn-secondary" onClick={handleGoToProfile}>
+              <button type="button" className="button button-secondary" onClick={handleGoToProfile}>
                 Compléter mon profil d'abord
               </button>
             </div>

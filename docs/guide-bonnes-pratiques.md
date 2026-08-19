@@ -66,6 +66,16 @@ Avant de modifier du code : identifier **ou** vit la regle (UI, API, SQL, templa
 - Toute variable exposee au navigateur doit commencer par `VITE_`.
 - Les secrets serveurs (service role, Stripe secret, tokens) ne doivent **jamais** etre exposes en frontend.
 
+### 2.5 Design system (tokens + boutons)
+
+Contrat : `docs/design-system.md`. Tokens : `frontend/src/design/tokens.json` (`npm run tokens`).
+
+- Un composant ne reference jamais un hex ni une primitive (`color.neutral.900`).
+- CTA : `<Button variant="primary" size="md" />` → `ds-button ds-button--primary ds-button--md`.
+- Champs : `<Input invalid />` + `.ds-field-error`.
+- Alias transitoires `button button-primary` encore acceptes. Pas de `btn btn-primary`.
+- Controles metier (`btn-add`, `btn-icon`) hors contrat.
+
 ---
 
 ## 3. API HTTP et auth (frontend <-> backend)

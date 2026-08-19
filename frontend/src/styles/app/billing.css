@@ -88,20 +88,6 @@
   color: var(--color-primary);
 }
 
-.btn-ghost {
-  background: transparent;
-  border: none;
-  color: var(--muted);
-  font-size: 0.82rem;
-  cursor: pointer;
-  padding: 0.4rem 0.75rem;
-  font-family: inherit;
-}
-
-.btn-ghost:hover {
-  color: var(--text);
-}
-
 @media (max-width: 500px) {
   .pro-comparison {
     grid-template-columns: 1fr;

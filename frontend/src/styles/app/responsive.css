@@ -35,7 +35,9 @@
     gap: 0.35rem;
   }
 
+  .page-header-actions .button,
   .page-header-actions .btn,
+  .dashboard-header-actions .button,
   .dashboard-header-actions .btn {
     font-size: 0.78rem;
     padding: 0.38rem 0.6rem;
@@ -224,12 +226,22 @@
     flex-wrap: wrap;
   }
 
-  /* General buttons tighter on mobile */
-  .btn {
+  /* General buttons tighter on mobile — min-height stays at size.touch.min (44px). */
+  .button,
+  .btn,
+  .ds-button {
     font-size: 0.82rem;
     padding: 0.45rem 0.75rem;
   }
 
+  .ds-button:not(.ds-button--ghost):not(.ds-button--link),
+  .button:not(.button-ghost):not(.button-link),
+  .btn:not(.btn-ghost):not(.btn-link) {
+    min-height: var(--ds-size-touch-min);
+  }
+
+  .button--lg,
+  .ds-button--lg,
   .btn-lg {
     padding: 0.55rem 1rem;
     font-size: 0.88rem;

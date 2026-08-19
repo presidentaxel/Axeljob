@@ -28,7 +28,8 @@
   line-height: 1.5;
 }
 
-.applications-empty-state .btn-lg {
+.applications-empty-state .button--lg,
+.applications-empty-state .ds-button--lg {
   padding: 0.7rem 1.75rem;
   font-size: 0.95rem;
 }

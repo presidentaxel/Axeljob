@@ -7,8 +7,9 @@
     "node": ">=20.9.0"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "npm run build:brand-assets && vite build",
+    "dev": "npm run tokens && vite",
+    "build": "npm run tokens && npm run build:brand-assets && vite build",
+    "tokens": "node scripts/build-tokens.mjs",
     "build:brand-assets": "node scripts/generate-brand-assets.mjs",
     "build:favicon-webp": "node scripts/favicon-webp.mjs",
     "lint": "eslint .",

@@ -1,0 +1,70 @@
+/**
+ * Input design-system — états default / hover / focus / invalid / disabled.
+ */
+.ds-input,
+.input-field {
+  width: 100%;
+  min-height: var(--ds-size-button-md);
+  margin-bottom: var(--ds-space-sm);
+  padding: var(--ds-space-sm) var(--ds-space-md);
+  font-family: var(--ds-font-family-body);
+  font-size: var(--ds-font-size-label-md);
+  font-weight: var(--ds-font-weight-regular);
+  line-height: var(--ds-font-line-height-body);
+  color: var(--ds-color-text-default);
+  background: var(--ds-color-bg-default);
+  border: 1px solid var(--ds-color-border-default);
+  border-radius: var(--ds-radius-xs);
+  transition:
+    border-color var(--ds-motion-duration-fast) var(--ds-motion-easing-standard),
+    box-shadow var(--ds-motion-duration-fast) var(--ds-motion-easing-standard);
+}
+
+.ds-input:hover:not(:disabled):not(:focus):not([aria-invalid='true']),
+.input-field:hover:not(:disabled):not(:focus) {
+  border-color: var(--ds-color-text-muted);
+}
+
+.ds-input:focus,
+.ds-input:focus-visible,
+.input-field:focus,
+.input-field:focus-visible {
+  outline: 2px solid var(--ds-color-border-focus);
+  outline-offset: 2px;
+  border-color: var(--ds-color-border-input-focus);
+  box-shadow: none;
+}
+
+.ds-input[aria-invalid='true'],
+.ds-input.ds-input--invalid {
+  border-color: var(--ds-color-feedback-error);
+}
+
+.ds-input[aria-invalid='true']:focus,
+.ds-input[aria-invalid='true']:focus-visible {
+  outline-color: var(--ds-color-feedback-error);
+}
+
+.ds-input:disabled,
+.input-field:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: var(--ds-color-bg-subtle);
+}
+
+.ds-field-error {
+  margin: var(--ds-space-xxs) 0 0;
+  font-family: var(--ds-font-family-body);
+  font-size: var(--ds-font-size-label-sm);
+  line-height: var(--ds-font-line-height-body-lg);
+  color: var(--ds-color-text-danger);
+}
+
+.ds-field-label {
+  display: block;
+  margin-bottom: var(--ds-space-xs);
+  font-family: var(--ds-font-family-body);
+  font-size: var(--ds-font-size-label-sm);
+  font-weight: var(--ds-font-weight-medium);
+  color: var(--ds-color-text-default);
+}

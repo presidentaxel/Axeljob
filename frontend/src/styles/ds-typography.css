@@ -1,0 +1,92 @@
+/**
+ * Rôles typographiques — nommés par fonction, pas par emplacement.
+ * Consomme uniquement --ds-font-* (jamais de hex / px en dur).
+ */
+.ds-display-xl,
+.ds-display-lg,
+.ds-display-md {
+  font-family: var(--ds-font-family-display);
+  font-weight: var(--ds-font-weight-regular);
+  line-height: var(--ds-font-line-height-display);
+}
+
+.ds-display-xl {
+  font-size: var(--ds-font-size-display-xl);
+  letter-spacing: var(--ds-font-letter-spacing-display-xl);
+}
+
+.ds-display-lg {
+  font-size: var(--ds-font-size-display-lg);
+  letter-spacing: var(--ds-font-letter-spacing-display-lg);
+}
+
+.ds-display-md {
+  font-size: var(--ds-font-size-display-md);
+  letter-spacing: var(--ds-font-letter-spacing-display-md);
+}
+
+.ds-heading-xl,
+.ds-heading-lg,
+.ds-heading-md {
+  font-family: var(--ds-font-family-body);
+  font-weight: var(--ds-font-weight-regular);
+  line-height: var(--ds-font-line-height-heading);
+}
+
+.ds-heading-xl {
+  font-size: var(--ds-font-size-heading-xl);
+  letter-spacing: var(--ds-font-letter-spacing-heading-xl);
+}
+
+.ds-heading-lg {
+  font-size: var(--ds-font-size-heading-lg);
+  letter-spacing: var(--ds-font-letter-spacing-heading-lg);
+}
+
+.ds-heading-md {
+  font-size: var(--ds-font-size-heading-md);
+  line-height: var(--ds-font-line-height-feature);
+  letter-spacing: var(--ds-font-letter-spacing-none);
+}
+
+.ds-body-lg,
+.ds-body-md {
+  font-family: var(--ds-font-family-body);
+  font-weight: var(--ds-font-weight-regular);
+  letter-spacing: var(--ds-font-letter-spacing-none);
+}
+
+.ds-body-lg {
+  font-size: var(--ds-font-size-body-lg);
+  line-height: var(--ds-font-line-height-body-lg);
+}
+
+.ds-body-md {
+  font-size: var(--ds-font-size-body-md);
+  line-height: var(--ds-font-line-height-body);
+}
+
+.ds-label-md,
+.ds-label-sm {
+  font-family: var(--ds-font-family-body);
+  font-weight: var(--ds-font-weight-regular);
+  line-height: var(--ds-font-line-height-body-lg);
+  letter-spacing: var(--ds-font-letter-spacing-none);
+}
+
+.ds-label-md {
+  font-size: var(--ds-font-size-label-md);
+}
+
+.ds-label-sm {
+  font-size: var(--ds-font-size-label-sm);
+}
+
+.ds-mono-sm {
+  font-family: var(--ds-font-family-mono);
+  font-size: var(--ds-font-size-label-md);
+  font-weight: var(--ds-font-weight-regular);
+  line-height: var(--ds-font-line-height-body-lg);
+  letter-spacing: var(--ds-font-letter-spacing-mono);
+  text-transform: uppercase;
+}

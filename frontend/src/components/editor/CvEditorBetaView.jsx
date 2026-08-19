@@ -1831,7 +1831,7 @@ function CvEditorBeta({
           <p>{profileLoadError}</p>
           <button
             type="button"
-            className="btn btn-primary"
+            className="button button-primary"
             onClick={() => setProfileLoadAttempt((k) => k + 1)}
           >
             Réessayer

@@ -1,0 +1,56 @@
+/**
+ * Alias legacy → tokens sémantiques Cohere.
+ * Les composants existants (`--color-primary`, `--radius-pill`) consomment
+ * encore ces noms. Ne plus ajouter de hex ici : pointer vers --ds-*.
+ */
+:root {
+  --color-primary: var(--ds-color-action-primary-bg);
+  --color-primary-deep: var(--ds-color-action-primary-bg-active);
+  --color-primary-press: var(--ds-color-action-primary-bg-hover);
+  --color-primary-tint: var(--ds-color-text-default);
+  --color-on-primary: var(--ds-color-action-primary-fg);
+
+  --color-ink: var(--ds-color-text-default);
+  --color-body-muted: var(--ds-color-text-muted);
+  --color-muted: var(--ds-color-text-subtle);
+  --color-slate: var(--ds-color-text-subtle);
+  --color-on-dark: var(--ds-color-text-inverse);
+
+  --color-canvas: var(--ds-color-bg-default);
+  --color-canvas-cream: var(--ds-color-bg-subtle);
+  --color-canvas-lavender: var(--ds-color-bg-accent);
+  --color-soft-stone: var(--ds-color-bg-subtle);
+
+  --color-action-blue: var(--ds-color-text-link);
+  --color-focus-blue: var(--ds-color-border-focus);
+  --color-form-focus: var(--ds-color-border-input-focus);
+
+  --color-hairline: var(--ds-color-border-default);
+  --color-border-light: var(--ds-color-border-subtle);
+  --color-card-border: var(--ds-color-border-subtle);
+
+  --color-deep-green: var(--ds-color-bg-inverse);
+  --color-dark-navy: var(--ds-color-bg-inverse-alt);
+  --color-pale-green: var(--ds-color-feedback-success-subtle);
+  --color-pale-blue: var(--ds-color-bg-accent);
+  --color-coral: var(--ds-color-accent-editorial);
+  --color-coral-soft: var(--ds-color-accent-editorial-soft);
+  --color-error: var(--ds-color-feedback-error);
+
+  --radius-xs: var(--ds-radius-xs);
+  --radius-sm: var(--ds-radius-sm);
+  --radius-md: var(--ds-radius-md);
+  --radius-lg: var(--ds-radius-lg);
+  --radius-xl: var(--ds-radius-xl);
+  --radius-pill: var(--ds-radius-action);
+  --radius-full: var(--ds-radius-full);
+
+  --space-xs: var(--ds-space-xs);
+  --space-sm: var(--ds-space-sm);
+  --space-md: var(--ds-space-md);
+  --space-lg: var(--ds-space-lg);
+  --space-xl: var(--ds-space-xl);
+
+  --editor-drawer-width: 300px;
+  --editor-format-dock-height: 56px;
+}

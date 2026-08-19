@@ -3,6 +3,10 @@ version: alpha
 name: Cohere-design-analysis
 description: Cohere's 2026 web system is a controlled enterprise AI interface built from stark white editorial space, deep green-black product bands, soft mineral surfaces, rounded media cards, and a distinctive type split between monospaced-feeling display headlines and precise Unica77 UI text.
 
+# NOTE
+# Ceci est une analyse visuelle (planche d'inspiration).
+# Contrat de build AxeL Job : docs/design-system.md + frontend/src/design/tokens.json
+
 colors:
   primary: "#17171c"
   cohere-black: "#000000"
@@ -332,6 +336,20 @@ Cohere is mostly flat. Depth comes from surface alternation, media contrast, rou
 Images are not decorative backdrops for text except in CTA bands. Most imagery sits as rounded cards with visible corners: product videos, enterprise photography, article thumbnails, and abstract 3D renders. The dominant radii are 8px and 22px.
 
 ## Components
+
+### HTML class names
+
+Contrat AxeL : `docs/design-system.md`. Markup cible `ds-button ds-button--primary`. Alias transitoire ci-dessous.
+
+| Token | Markup | Helper |
+|---|---|---|
+| `button-primary` | `class="ds-button ds-button--primary"` | `buttonClassName({ variant: "primary" })` or `<Button variant="primary">` |
+| `button-secondary` | `class="ds-button ds-button--secondary"` | `variant="secondary"` |
+| `button-pill-outline` | alias CSS de `secondary` (markup existant seulement) | `variant="secondary"` — pas de variant JS `outline` |
+
+Sizes: `ds-button--sm|md|lg`. Extra layout classes (`landing-cta-hero`, `profile-save-btn`) may be added **after** the canonical names.
+
+Source: `frontend/src/lib/buttonClassName.js`, styles in `frontend/src/styles/app/buttons.css`.
 
 ### **`button-primary`**
 

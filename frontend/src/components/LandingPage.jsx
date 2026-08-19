@@ -126,7 +126,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
               <Link to="/faq">FAQ</Link>
               <Link to="/modeles-cv">Modèles CV</Link>
               <Link to="/guide-cv">Guide CV</Link>
-              <button type="button" className="btn btn-primary landing-cta-nav" onClick={onCtaClick}>
+              <button type="button" className="button button-primary landing-cta-nav" onClick={onCtaClick}>
                 Essayer gratuitement
               </button>
             </nav>
@@ -141,7 +141,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
               >
                 <BurgerIcon open={menuOpen} />
               </button>
-              <button type="button" className="landing-mobile-cta btn btn-primary" onClick={onCtaClick}>
+              <button type="button" className="landing-mobile-cta button button-primary" onClick={onCtaClick}>
                 Commencer
               </button>
             </div>
@@ -193,7 +193,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
                 <li><Link to="/cgu" onClick={closeMenu}>CGU</Link></li>
               </ul>
               <div className="landing-nav-drawer-cta">
-                <button type="button" className="btn btn-primary" onClick={() => { closeMenu(); onCtaClick(); }}>
+                <button type="button" className="button button-primary" onClick={() => { closeMenu(); onCtaClick(); }}>
                   Essayer gratuitement
                 </button>
               </div>
@@ -214,7 +214,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
                 {"L'IA analyse l'offre d'emploi et adapte instantanément ton CV pour passer les filtres (ATS) et taper dans l'œil des recruteurs."}
               </p>
               <div className="landing-hero-ctas">
-                <button type="button" className="btn btn-primary landing-cta-hero" onClick={onCtaClick}>
+                <button type="button" className="button button-primary landing-cta-hero" onClick={onCtaClick}>
                   Essayer gratuitement
                 </button>
                 <span className="landing-hero-hint">3 adaptations offertes</span>
@@ -303,7 +303,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
                   </li>
                 ))}
               </ul>
-              <button type="button" className="btn btn-secondary pricing-cta" onClick={onCtaClick}>
+              <button type="button" className="button button-secondary pricing-cta" onClick={onCtaClick}>
                 Commencer gratuitement
               </button>
             </div>
@@ -325,7 +325,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
                   </li>
                 ))}
               </ul>
-              <button type="button" className="btn btn-primary pricing-cta" onClick={onProClick || onCtaClick}>
+              <button type="button" className="button button-primary pricing-cta" onClick={onProClick || onCtaClick}>
                 Passer Pro
               </button>
             </div>
@@ -368,7 +368,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
         <div className="landing-container">
           <h2>Prêt à décrocher le job de tes rêves ?</h2>
           <p>Crée ton compte gratuit et teste 3 adaptations de CV.</p>
-          <button type="button" className="btn btn-primary landing-cta-hero" onClick={onCtaClick}>
+          <button type="button" className="button button-primary landing-cta-hero" onClick={onCtaClick}>
             Essayer gratuitement
           </button>
         </div>

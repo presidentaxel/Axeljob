@@ -62,6 +62,13 @@ test('buildStableToBetaOffer only when canvas empty + projectable template', () 
   assert.ok(offer);
   assert.equal(offer.direction, 'stable_to_beta');
   assert.equal(offer.templateId, 'minimal');
+  assert.equal(offer.title, 'Appliquer ce design ?');
+  assert.match(offer.copy, /contenu reste/i);
+  assert.deepEqual(offer.warnings, []);
+  assert.doesNotMatch(
+    `${offer.title} ${offer.copy}`,
+    /migration|projection|pixel-perfect|HTML/i,
+  );
 
   const filled = {
     ...blank,
@@ -80,6 +87,11 @@ test('buildBetaToStableOffer when theme template differs', () => {
   assert.ok(offer);
   assert.equal(offer.direction, 'beta_to_stable');
   assert.equal(offer.templateId, 'modern');
+  assert.equal(offer.title, 'Utiliser ce design ?');
+  assert.doesNotMatch(
+    `${offer.title} ${offer.copy} ${offer.warnings.join(' ')}`,
+    /migration|projection|pixel-perfect|HTML|mm\b/i,
+  );
 });
 
 test('suggestStableTemplateIdFromLayout reads theme', () => {

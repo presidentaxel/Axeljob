@@ -34,7 +34,7 @@ export default function DesignModeBridgeModal({
       <div className="design-mode-bridge-modal__card">
         <header className="design-mode-bridge-modal__head">
           <div>
-            <span className="design-mode-bridge-modal__eyebrow">Design Stable ↔ Beta</span>
+            <span className="design-mode-bridge-modal__eyebrow">Design</span>
             <h3 id="design-mode-bridge-title">{offer.title}</h3>
           </div>
           <button
@@ -59,7 +59,7 @@ export default function DesignModeBridgeModal({
         ) : null}
         <footer className="design-mode-bridge-modal__actions">
           <button type="button" onClick={() => handleDismiss(true)} disabled={confirming}>
-            Garder tel quel
+            Plus tard
           </button>
           <button
             type="button"
@@ -69,9 +69,7 @@ export default function DesignModeBridgeModal({
           >
             {confirming
               ? 'Application…'
-              : offer.direction === 'stable_to_beta'
-                ? `Appliquer « ${offer.templateLabel} »`
-                : `Utiliser « ${offer.templateLabel} »`}
+              : 'Appliquer'}
           </button>
         </footer>
       </div>

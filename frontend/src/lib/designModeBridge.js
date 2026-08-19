@@ -10,7 +10,7 @@ import { buildAdaptedCanvasLayoutForCv } from './canvasCvImportAdapter.js';
 import { buildTemplateBlocks } from './canvasTemplateSpecs.js';
 import { detectTransferCandidates } from './canvasLayoutTransfer.js';
 import { createCanvasLayoutForTemplate } from './layoutTemplatePresets.js';
-import { isEmptyLayoutV3, listAllBlocks } from './cvLayoutModelV3.js';
+import { isEmptyLayoutV3 } from './cvLayoutModelV3.js';
 
 export const DESIGN_BRIDGE_DISMISS_KEY = 'cv_bot_design_bridge_dismiss_v1';
 
@@ -85,7 +85,7 @@ export function assessCrossModeDiff(layout, targetTemplateId = '') {
   const freeform = layout.freeform === true;
   if (freeform) {
     warnings.push(
-      'Ce canvas est en disposition libre (import fidèle). Stable utilisera le template HTML, pas le placement libre mm.',
+      'La disposition libre ne sera pas reprise à l’identique.',
     );
   }
   const target = createCanvasLayoutForTemplate(
@@ -95,7 +95,7 @@ export function assessCrossModeDiff(layout, targetTemplateId = '') {
   const manualExtras = candidates.length;
   if (manualExtras > 0) {
     warnings.push(
-      `${manualExtras} élément(s) personnalisé(s) du canvas ne seront pas repris dans l’aperçu Stable.`,
+      `${manualExtras} élément(s) ajouté(s) à la main ne seront pas repris.`,
     );
   }
   const suggested = suggestStableTemplateIdFromLayout(layout);
@@ -103,7 +103,7 @@ export function assessCrossModeDiff(layout, targetTemplateId = '') {
   const templateMismatch = Boolean(suggested && targetId && suggested !== targetId);
   if (templateMismatch) {
     warnings.push(
-      `Le canvas est lié au template « ${suggested} », différent de « ${targetId} » actuellement en Stable.`,
+      'Un autre modèle est déjà sélectionné.',
     );
   }
   return { warnings, freeform, manualExtras, templateMismatch };
@@ -177,12 +177,9 @@ export function buildStableToBetaOffer(layout, templateId, templatesList, option
     direction: 'stable_to_beta',
     templateId: template.id,
     templateLabel: template.name || template.label || template.id,
-    title: 'Appliquer le design Stable ?',
-    copy:
-      'Ton contenu est déjà partagé. Tu peux reconstruire le canvas Beta à partir du template Stable — sans forcer une migration.',
-    warnings: [
-      'Le rendu Beta est une projection canvas du template (pas un clone pixel-perfect du HTML Stable).',
-    ],
+    title: 'Appliquer ce design ?',
+    copy: 'On pose ton modèle sur le canvas. Ton contenu reste.',
+    warnings: [],
   };
 }
 
@@ -204,16 +201,12 @@ export function buildBetaToStableOffer(layout, currentTemplateId, options = {}) 
     || diff.manualExtras > 0;
   if (!shouldOffer) return null;
   if (isDesignBridgeDismissed('beta_to_stable', suggested, options.storage)) return null;
-  const blocks = listAllBlocks(layout).length;
   return {
     direction: 'beta_to_stable',
     templateId: suggested,
     templateLabel: suggested,
-    title: 'Utiliser ce template en Stable ?',
-    copy:
-      blocks > 0
-        ? `Le canvas Beta référence « ${suggested} ». Stable affichera le template HTML correspondant (contenu inchangé).`
-        : `Appliquer « ${suggested} » comme template Stable.`,
+    title: 'Utiliser ce design ?',
+    copy: 'On applique ce modèle. Ton contenu reste.',
     warnings: diff.warnings,
   };
 }

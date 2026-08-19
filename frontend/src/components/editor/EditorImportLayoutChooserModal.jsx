@@ -59,12 +59,10 @@ export default function EditorImportLayoutChooserModal({
       >
         <header className="editor-import-chooser-head">
           <div>
-            <span className="editor-import-chooser-eyebrow">Choix de mise en page</span>
-            <h2 id="editor-import-chooser-title">Trois variantes après import</h2>
+            <span className="editor-import-chooser-eyebrow">Après import</span>
+            <h2 id="editor-import-chooser-title">Choisis une mise en page</h2>
             <p>
-              Ce n&apos;est pas une copie pixel-perfect : on reconstruit un canvas
-              éditable. Comparez le rendu approximatif et le score ATS, puis
-              continuez avec la variante qui vous convient.
+              Trois propositions éditables. Compare le rendu et le score, puis continue.
             </p>
             {policyNotice ? (
               <p className="editor-import-chooser-policy" role="note">{policyNotice}</p>

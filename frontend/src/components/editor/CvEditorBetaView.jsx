@@ -617,7 +617,7 @@ function CvEditorBeta({
       setDesignBridgeError(
         !cv
           ? 'Profil non chargé — réessaie dans un instant.'
-          : 'Ce template Stable n’a pas de projection canvas. Choisis un autre modèle.',
+          : 'Ce modèle ne peut pas être appliqué ici. Choisis-en un autre.',
       );
       return;
     }
@@ -628,8 +628,8 @@ function CvEditorBeta({
       if (!applied.ok || !applied.layout) {
         setDesignBridgeError(
           applied.reason === 'no_canvas_spec'
-            ? 'Ce template Stable n’a pas de projection canvas utilisable.'
-            : 'Impossible d’appliquer le design Stable sur le canvas.',
+            ? 'Ce modèle ne peut pas être appliqué ici.'
+            : 'Impossible d’appliquer ce design.',
         );
         return;
       }
@@ -2272,11 +2272,10 @@ function CvEditorBeta({
               <section className="cv-editor-beta-start-panel" role="dialog" aria-modal="true" aria-label="Démarrer le canvas">
                 <div className="cv-editor-beta-start-panel__backdrop" aria-hidden />
                 <div className="cv-editor-beta-start-panel__card">
-                  <span className="cv-editor-beta-start-panel__eyebrow">Démarrer en Beta</span>
+                  <span className="cv-editor-beta-start-panel__eyebrow">Démarrer</span>
                   <h2>Comment veux-tu commencer ?</h2>
                   <p>
-                    Ne reste pas sur une page vide : importe ton CV, pars d’un modèle,
-                    ou génère une mise en page depuis ton profil.
+                    Importe ton CV, pars d’un modèle, ou génère une mise en page depuis ton profil.
                   </p>
                   <div className="cv-editor-beta-start-panel__actions">
                     <button
@@ -2327,9 +2326,8 @@ function CvEditorBeta({
                     </button>
                   </div>
                   <p className="cv-editor-beta-start-panel__hint">
-                    Après démarrage, utilise « Composer l’en-tête » dans Sections pour
-                    poser identité + contact avec un design soigné. La page blanche
-                    est réservée aux utilisateurs avancés.
+                    Ensuite, « Composer l’en-tête » dans Sections pose identité et contact.
+                    La page blanche est pour les usages avancés.
                   </p>
                 </div>
               </section>

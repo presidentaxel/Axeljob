@@ -45,7 +45,7 @@ export default function DocxExportNoticeModal({
         <header className="docx-export-notice-modal__head">
           <div>
             <span className="docx-export-notice-modal__eyebrow">Export Word</span>
-            <h3 id={titleId}>Ce n’est pas une copie exacte du canvas</h3>
+            <h3 id={titleId}>Le Word n’est pas identique au PDF</h3>
           </div>
           <button
             type="button"
@@ -57,9 +57,8 @@ export default function DocxExportNoticeModal({
           </button>
         </header>
         <p className="docx-export-notice-modal__copy">
-          Word reprend le contenu, l’ordre des sections et une mise en page
-          approximative (colonnes, titres, couleurs du thème). Le PDF reste la
-          référence visuelle fidèle.
+          Word reprend ton contenu et une mise en page simple.
+          Pour un rendu fidèle, préfère le PDF.
         </p>
         <label className="docx-export-notice-modal__check" htmlFor={checkboxId}>
           <input

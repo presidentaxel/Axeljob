@@ -22,7 +22,7 @@ export const EDITOR_ONBOARDING_STEPS = Object.freeze([
   {
     id: 'place',
     title: 'Place sur le canvas',
-    body: 'Clique un élément puis clique la page pour le poser. Échap annule. « Importer » sert aux images uniquement.',
+    body: 'Clique un élément puis la page pour le poser. Échap annule. L’onglet Importer ajoute des images, pas un fichier CV.',
   },
 ]);
 

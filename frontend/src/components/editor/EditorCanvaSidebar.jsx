@@ -61,7 +61,7 @@ const SECTIONS = [
   {
     id: 'import',
     label: 'Importer',
-    title: 'Importer — images décoratives uniquement (pas de PDF/Word ici)',
+    title: 'Importer — images uniquement (pas de fichier CV)',
     icon: HiArrowUpTray,
   },
   {

@@ -98,5 +98,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Token drift
+        run: npm run tokens:check
+
+      - name: Lint CSS hex
+        run: npm run lint:css-hex
+
       - name: Build
         run: npm run build

@@ -235,13 +235,14 @@
   }
 
   .ds-button:not(.ds-button--ghost):not(.ds-button--link),
-  .button:not(.button-ghost),
-  .btn:not(.btn-ghost) {
+  .button:not(.button-ghost):not(.button-link),
+  .btn:not(.btn-ghost):not(.btn-link) {
     min-height: var(--ds-size-touch-min);
   }
 
   .button--lg,
-  .ds-button--lg {
+  .ds-button--lg,
+  .btn-lg {
     padding: 0.55rem 1rem;
     font-size: 0.88rem;
   }

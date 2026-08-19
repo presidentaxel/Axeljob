@@ -213,7 +213,8 @@
   margin-top: 0.75rem;
 }
 .reauth-actions .button,
-.reauth-actions .btn { flex: 1; }
+.reauth-actions .btn,
+.reauth-actions .ds-button { flex: 1; }
 
 /* Popup "Vous aviez déjà un compte" */
 .auth-popup-overlay {

@@ -22,10 +22,10 @@
   --danger: var(--color-error);
   --danger-light: var(--ds-color-feedback-error-subtle);
   --warning: var(--ds-color-feedback-warning);
-  --shadow-sm: rgba(0, 0, 0, 0.1) 0 5px 20px 0;
-  --shadow: rgba(0, 0, 0, 0.1) 0 5px 20px 0;
-  --shadow-card: rgba(0, 0, 0, 0.1) 0 0 32px 0;
-  --shadow-lg: rgba(0, 0, 0, 0.1) 0 0 32px 0;
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-card: none;
+  --shadow-lg: none;
   --shadow-focus: 0 0 0 2px var(--color-primary-tint);
   /* Alias legacy : --radius-sm/xs/lg/pill sont définis dans design-tokens.css */
   --radius: var(--radius-xl);

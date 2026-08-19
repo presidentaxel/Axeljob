@@ -902,7 +902,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
               <button type="button" className="button button-secondary profile-photo-modal-btn" onClick={() => { fileInputRef.current?.click(); }} disabled={uploadPhotoLoading}>
                 {uploadPhotoLoading ? 'Import…' : 'Importer depuis mon PC'}
               </button>
-              <button type="button" className="btn btn-linkedin-sync profile-photo-modal-btn" onClick={() => { handleImportLinkedInPhoto(); setPhotoModalOpen(false); }} disabled={importPhotoLoading}>
+              <button type="button" className="button button-secondary btn-linkedin-sync profile-photo-modal-btn" onClick={() => { handleImportLinkedInPhoto(); setPhotoModalOpen(false); }} disabled={importPhotoLoading}>
                 {importPhotoLoading ? 'Import…' : 'Importer la photo LinkedIn'}
               </button>
               <button type="button" className="button button-tertiary profile-photo-modal-close" onClick={() => setPhotoModalOpen(false)}>Fermer</button>

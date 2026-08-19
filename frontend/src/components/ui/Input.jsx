@@ -11,10 +11,10 @@ export default function Input({
 }) {
   return (
     <input
+      {...props}
       className={inputClassName({ invalid, className })}
       aria-invalid={invalid || undefined}
       disabled={disabled}
-      {...props}
     />
   );
 }

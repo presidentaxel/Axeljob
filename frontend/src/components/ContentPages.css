@@ -328,8 +328,8 @@ a.content-source:hover {
   transition: transform 0.15s, box-shadow 0.15s;
 }
 
-.content-cta .button:hover,
-.content-cta .btn:hover {
+.content-cta .button:hover:not(:disabled),
+.content-cta .btn:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
 }

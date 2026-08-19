@@ -66,6 +66,7 @@
 }
 
 .ds-range-input:focus-visible {
-  outline: none;
+  outline: 2px solid var(--ds-color-border-focus);
+  outline-offset: 2px;
   border-color: var(--ds-color-border-input-focus);
 }

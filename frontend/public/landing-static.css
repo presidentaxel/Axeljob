@@ -172,6 +172,7 @@ a.btn { text-decoration: none; }
   margin-left: auto;
   padding: 0.4rem 0.9rem;
   font-size: 0.8rem;
+  min-height: var(--ds-size-touch-min, 44px);
 }
 
 @media (max-width: 767px) { .landing-mobile-cta.button,

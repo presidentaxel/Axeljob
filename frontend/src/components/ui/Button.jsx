@@ -25,11 +25,26 @@ export default function Button({
   type,
   disabled,
   children,
+  onClick,
+  tabIndex,
   ...props
 }) {
-  const resolvedType = Component === 'button' ? (type ?? 'button') : type;
+  const isNativeButton = Component === 'button';
+  const isDisabled = Boolean(disabled || loading);
+  const resolvedType = isNativeButton ? (type ?? 'button') : type;
+
+  const handleClick = (event) => {
+    if (isDisabled) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    onClick?.(event);
+  };
+
   return (
     <Component
+      {...props}
       className={buttonClassName({
         variant,
         size,
@@ -39,9 +54,11 @@ export default function Button({
         className,
       })}
       type={resolvedType}
-      disabled={disabled || loading || undefined}
+      disabled={isNativeButton ? (isDisabled || undefined) : undefined}
+      aria-disabled={isDisabled || undefined}
       aria-busy={loading || undefined}
-      {...props}
+      tabIndex={isDisabled && !isNativeButton ? -1 : tabIndex}
+      onClick={handleClick}
     >
       {children}
     </Component>

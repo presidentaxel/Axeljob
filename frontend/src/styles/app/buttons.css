@@ -106,11 +106,14 @@ a.btn {
  * ghost / link gardent min-height: auto (actions texte, pas CTA).
  */
 @media (max-width: 767px) {
-  .ds-button:not(.ds-button--ghost):not(.ds-button--link),
-  .ds-button--sm,
-  .ds-button--md,
+  .ds-button--sm:not(.ds-button--ghost):not(.ds-button--link),
+  .ds-button--md:not(.ds-button--ghost):not(.ds-button--link),
+  .button:not(.button-ghost):not(.button-link):not(.button--lg),
+  .btn:not(.btn-ghost):not(.btn-link):not(.btn-lg),
   .button--sm,
-  .btn-sm {
+  .btn-sm,
+  .button--md,
+  .btn-md {
     min-height: var(--ds-size-touch-min);
   }
 
@@ -244,8 +247,14 @@ a.btn {
 
 .ds-button--ghost:hover:not(:disabled),
 .button-ghost:hover:not(:disabled),
-.btn-ghost:hover {
+.btn-ghost:hover:not(:disabled) {
   color: var(--ds-color-action-ghost-fg-hover);
+}
+
+.ds-button--ghost:disabled,
+.button-ghost:disabled,
+.btn-ghost:disabled {
+  opacity: 0.45;
 }
 
 /* Link */
@@ -261,6 +270,10 @@ a.btn {
 
 .ds-button--link:hover:not(:disabled) {
   color: var(--ds-color-action-link-fg-hover);
+}
+
+.ds-button--link:disabled {
+  opacity: 0.45;
 }
 
 /* Danger */

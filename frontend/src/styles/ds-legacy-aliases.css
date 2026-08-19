@@ -7,13 +7,13 @@
   --color-primary: var(--ds-color-action-primary-bg);
   --color-primary-deep: var(--ds-color-action-primary-bg-active);
   --color-primary-press: var(--ds-color-action-primary-bg-hover);
-  --color-primary-tint: var(--ds-color-neutral-800);
+  --color-primary-tint: var(--ds-color-text-default);
   --color-on-primary: var(--ds-color-action-primary-fg);
 
   --color-ink: var(--ds-color-text-default);
   --color-body-muted: var(--ds-color-text-muted);
   --color-muted: var(--ds-color-text-subtle);
-  --color-slate: var(--ds-color-neutral-600);
+  --color-slate: var(--ds-color-text-subtle);
   --color-on-dark: var(--ds-color-text-inverse);
 
   --color-canvas: var(--ds-color-bg-default);
@@ -27,7 +27,7 @@
 
   --color-hairline: var(--ds-color-border-default);
   --color-border-light: var(--ds-color-border-subtle);
-  --color-card-border: var(--ds-color-neutral-100);
+  --color-card-border: var(--ds-color-border-subtle);
 
   --color-deep-green: var(--ds-color-bg-inverse);
   --color-dark-navy: var(--ds-color-bg-inverse-alt);

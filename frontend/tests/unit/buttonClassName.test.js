@@ -67,6 +67,9 @@ test('buttonClassName refuse un variant, size ou tone inconnu', () => {
   assert.throws(() => buttonClassName({ variant: 'cta' }), /Unknown button variant/);
   assert.throws(() => buttonClassName({ size: 'xl' }), /Unknown button size/);
   assert.throws(() => buttonClassName({ tone: 'dark' }), /Unknown button tone/);
+  assert.throws(() => buttonClassName({ variant: 'toString' }), /Unknown button variant/);
+  assert.throws(() => buttonClassName({ size: 'toString' }), /Unknown button size/);
+  assert.throws(() => buttonClassName({ tone: 'toString' }), /Unknown button tone/);
 });
 
 test('les variants canoniques matchent le contrat', () => {
@@ -100,10 +103,17 @@ test('les tokens sémantiques se résolvent sans hex dans la référence', async
   );
 });
 
-test('size.touch.min est consommé par ds-button--sm (mobile)', async () => {
+test('size.touch.min est appliqué à sm et md (mobile), hors ghost/link', async () => {
   const css = await readFile(path.join(SRC_ROOT, 'styles/app/buttons.css'), 'utf8');
   assert.match(css, /--ds-size-touch-min/);
-  assert.match(css, /\.ds-button--sm/);
+  assert.match(
+    css,
+    /\.ds-button--sm:not\(\.ds-button--ghost\):not\(\.ds-button--link\)/,
+  );
+  assert.match(
+    css,
+    /\.ds-button--md:not\(\.ds-button--ghost\):not\(\.ds-button--link\)/,
+  );
 });
 
 test('le CSS généré est à jour par rapport à tokens.json', async () => {
@@ -115,12 +125,14 @@ test('le CSS généré est à jour par rapport à tokens.json', async () => {
 
 test('aucun markup CTA ne réutilise btn-primary (ni les autres btn-*)', async () => {
   const { readdir } = await import('node:fs/promises');
+  const FRONTEND_ROOT = fileURLToPath(new URL('../..', import.meta.url));
   async function walkFiles(dir) {
     const entries = await readdir(dir, { withFileTypes: true });
     const files = [];
     for (const entry of entries) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
+        if (entry.name === 'node_modules' || entry.name === 'dist') continue;
         files.push(...await walkFiles(full));
       } else if (/\.(jsx|js|html)$/.test(entry.name)) {
         files.push(full);
@@ -128,10 +140,24 @@ test('aucun markup CTA ne réutilise btn-primary (ni les autres btn-*)', async (
     }
     return files;
   }
-  const files = await walkFiles(SRC_ROOT);
+  const roots = [
+    SRC_ROOT,
+    path.join(FRONTEND_ROOT, 'public'),
+    path.join(FRONTEND_ROOT, 'index.html'),
+  ];
+  const files = [];
+  for (const root of roots) {
+    const { stat } = await import('node:fs/promises');
+    const st = await stat(root);
+    if (st.isDirectory()) {
+      files.push(...await walkFiles(root));
+    } else {
+      files.push(root);
+    }
+  }
   const offenders = [];
   for (const file of files) {
-    const rel = path.relative(SRC_ROOT, file);
+    const rel = path.relative(FRONTEND_ROOT, file);
     const text = await readFile(file, 'utf8');
     if (LEGACY_CTA_CLASS_RE.test(text)) {
       offenders.push(rel);

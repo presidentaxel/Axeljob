@@ -42,6 +42,8 @@ const LEGACY_SIZE = Object.freeze({
   lg: 'button--lg',
 });
 
+const hasOwn = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
+
 /**
  * @param {{
  *   variant?: keyof typeof BUTTON_VARIANTS,
@@ -61,15 +63,15 @@ export function buttonClassName({
   fullWidth = false,
   className = '',
 } = {}) {
-  const variantClass = BUTTON_VARIANTS[variant];
-  if (!variantClass) {
+  if (!hasOwn(BUTTON_VARIANTS, variant)) {
     throw new Error(`Unknown button variant: ${variant}`);
   }
-  const sizeClass = BUTTON_SIZES[size];
-  if (!sizeClass) {
+  const variantClass = BUTTON_VARIANTS[variant];
+  if (!hasOwn(BUTTON_SIZES, size)) {
     throw new Error(`Unknown button size: ${size}`);
   }
-  if (!(tone in BUTTON_TONES)) {
+  const sizeClass = BUTTON_SIZES[size];
+  if (!hasOwn(BUTTON_TONES, tone)) {
     throw new Error(`Unknown button tone: ${tone}`);
   }
   return [

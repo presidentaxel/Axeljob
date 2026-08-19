@@ -258,10 +258,10 @@ export default function OnboardingWizard({ session, onComplete }) {
             </p>
             <div className="onb-actions">
               <button type="button" className="button button-primary button--lg" onClick={handleLaunch}>
-                Lancer ma première candidature
+                Créer mon CV adapté
               </button>
-              <button type="button" className="button button-secondary" onClick={handleGoToProfile}>
-                Compléter mon profil d'abord
+              <button type="button" className="button ds-button ds-button--link onb-actions__link" onClick={handleGoToProfile}>
+                Compléter mon profil d&apos;abord
               </button>
             </div>
           </div>

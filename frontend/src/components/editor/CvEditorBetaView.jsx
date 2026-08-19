@@ -698,7 +698,6 @@ function CvEditorBeta({
         recommendedTemplateId,
         analysis,
         blockCount,
-        contentBlockCount,
         importSource,
       } = buildFullCanvasImportLayout(nextCv, templates, {
         templateId,

@@ -20,7 +20,10 @@ import {
 import {
   buildFullCanvasImportLayout,
   buildAdaptedCanvasLayoutForCv,
+  countContentBlocks,
+  ensureImportLayoutHasContent,
   recommendTemplateLabel,
+  resolveImportPersistTemplateId,
   summarizeImportAdaptation,
 } from '../../lib/canvasCvImportAdapter.js';
 import { buildImportLayoutVariants } from '../../lib/importLayoutVariants.js';
@@ -192,6 +195,7 @@ function CvEditorBeta({
   templatesList,
   onTemplateIdChange,
   onTemplateOptionsChange,
+  onSaveSuccess,
   isActive = true,
 }) {
   const [cv, setCv] = useState(null);
@@ -678,11 +682,13 @@ function CvEditorBeta({
     let recommendedTemplateId;
     let analysis = null;
     let blockCount;
+    let contentBlockCount;
     let importSource;
 
     if (chosenVariant?.layout) {
-      finalLayout = chosenVariant.layout;
+      finalLayout = ensureImportLayoutHasContent(chosenVariant.layout, nextCv);
       recommendedTemplateId = chosenVariant.recommendedTemplateId || '';
+      contentBlockCount = countContentBlocks(finalLayout);
       blockCount = chosenVariant.blockCount
         || (finalLayout?.pages || []).reduce((n, p) => n + (p?.blocks?.length || 0), 0);
       importSource = chosenVariant.importSource || chosenVariant.id || 'preset';
@@ -692,6 +698,7 @@ function CvEditorBeta({
         recommendedTemplateId,
         analysis,
         blockCount,
+        contentBlockCount,
         importSource,
       } = buildFullCanvasImportLayout(nextCv, templates, {
         templateId,
@@ -700,7 +707,24 @@ function CvEditorBeta({
         visionMeta,
         annotations,
       }));
+      finalLayout = ensureImportLayoutHasContent(finalLayout, nextCv);
+      contentBlockCount = countContentBlocks(finalLayout);
     }
+
+    // AXE-344 — jamais de succès « décoratif only » (filet sans identité / sections).
+    if (!contentBlockCount) {
+      setImportError(
+        'Import incomplet : aucun contenu affichable. Réessayez avec un PDF texte, ou saisissez le CV manuellement.',
+      );
+      setImportModalOpen(true);
+      setImportChooser(null);
+      return;
+    }
+
+    recommendedTemplateId = resolveImportPersistTemplateId(
+      recommendedTemplateId,
+      templateId || 'minimal',
+    );
 
     const recTemplate = templates.find((t) => t?.id === recommendedTemplateId) || templates[0];
     const contextKey = IMPORTED_CANVAS_CONTEXT_KEY;
@@ -738,6 +762,7 @@ function CvEditorBeta({
         template_id: recommendedTemplateId || templateId,
         template_options: nextTemplateOptions,
       });
+      onSaveSuccess?.();
     } catch (err) {
       setLoadError(err?.message || 'Import réussi mais enregistrement échoué.');
     }
@@ -756,9 +781,9 @@ function CvEditorBeta({
         sourceNote = ' · contenu adapté (pas de copie layout PDF)';
       }
       if (importSource === 'structural') {
-        setImportToast(`${blockCount} éléments importés${sourceNote}`);
+        setImportToast(`${contentBlockCount || blockCount} éléments importés${sourceNote}`);
       } else {
-        setImportToast(`${summarizeImportAdaptation(analysis, label, blockCount, {
+        setImportToast(`${summarizeImportAdaptation(analysis, label, contentBlockCount || blockCount, {
           fromVision: importSource === 'vision-guided',
         })}${sourceNote}`);
       }
@@ -772,12 +797,14 @@ function CvEditorBeta({
     autoSave,
     onTemplateIdChange,
     onTemplateOptionsChange,
+    onSaveSuccess,
     templateOptions,
   ]);
 
   const runCvImport = useCallback(async (importFn) => {
     setImportModalOpen(false);
     setImportChooser(null);
+    setStartupPromptOpen(false);
     setImportLoading(true);
     setImportStepIndex(0);
     setImportError('');
@@ -829,11 +856,20 @@ function CvEditorBeta({
         });
         return;
       }
+      // Affiche déjà le layout par défaut pendant le chooser (évite canvas vide).
+      const defaultId = defaultImportVariantId(merged);
+      const previewVariant = resolveImportVariant(merged, defaultId) || merged[0];
+      if (previewVariant?.layout) {
+        const previewLayout = ensureImportLayoutHasContent(previewVariant.layout, nextCv);
+        setCv(nextCv);
+        resetLayout(previewLayout);
+        layoutRef.current = previewLayout;
+      }
       setImportChooser({
         cv: nextCv,
         variants: merged,
         bestTotal,
-        selectedId: defaultImportVariantId(merged),
+        selectedId: defaultId,
         importPolicy,
         semanticMeta,
         blockAnnotations,
@@ -848,7 +884,7 @@ function CvEditorBeta({
         importCleanupRef.current = null;
       }
     }
-  }, [applyImportedCvToCanvas, templatesList, templateId]);
+  }, [applyImportedCvToCanvas, templatesList, templateId, resetLayout]);
 
   const handleImportChooserConfirm = useCallback(async (variant) => {
     if (!importChooser?.cv || !variant?.layout) return;

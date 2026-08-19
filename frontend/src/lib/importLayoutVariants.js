@@ -14,6 +14,8 @@ import { applyAtsLayoutOptimizations } from './atsLayoutOptimize.js';
 import {
   buildAdaptedCanvasLayoutForCv,
   buildFullCanvasImportLayout,
+  countContentBlocks,
+  ensureImportLayoutHasContent,
 } from './canvasCvImportAdapter.js';
 import { applyLayoutPagination } from './layoutPagination.js';
 
@@ -62,8 +64,11 @@ export function pickAtsSafeTemplate(templatesList = []) {
   return { id: 'minimal', name: 'Minimal', tags: ['ats-safe', 'single-column', 'no-sidebar'] };
 }
 
-function toVariant(id, result, overrides = {}) {
-  const layout = overrides.layout ?? result?.layout ?? null;
+function toVariant(id, result, overrides = {}, cv = null) {
+  let layout = overrides.layout ?? result?.layout ?? null;
+  if (layout && cv) {
+    layout = ensureImportLayoutHasContent(layout, cv);
+  }
   return {
     id,
     label: IMPORT_VARIANT_LABELS[id] || id,
@@ -75,6 +80,10 @@ function toVariant(id, result, overrides = {}) {
       ?? '',
     importSource: overrides.importSource ?? result?.importSource ?? 'preset',
     blockCount: overrides.blockCount ?? result?.blockCount ?? countBlocks(layout),
+    contentBlockCount:
+      overrides.contentBlockCount
+      ?? result?.contentBlockCount
+      ?? countContentBlocks(layout),
   };
 }
 
@@ -120,19 +129,21 @@ export function buildImportLayoutVariants(cv, templatesList = [], options = {}) 
   // les blocs clipperaient / se chevaucheraient au clamp UI.
   let mixLayout = applyAtsLayoutOptimizations(cloneLayout(designResult.layout));
   mixLayout = applyLayoutPagination(mixLayout);
+  mixLayout = ensureImportLayoutHasContent(mixLayout, cv);
   const mixVariant = toVariant('mix', designResult, {
     layout: mixLayout,
     importSource: 'mix',
     blockCount: countBlocks(mixLayout),
-  });
+    contentBlockCount: countContentBlocks(mixLayout),
+  }, cv);
 
   return {
     variants: [
       toVariant('ats-safe', atsSafeResult, {
         recommendedTemplateId: atsTemplate.id || 'minimal',
         importSource: 'ats-safe',
-      }),
-      toVariant('design', designResult),
+      }, cv),
+      toVariant('design', designResult, {}, cv),
       mixVariant,
     ],
   };

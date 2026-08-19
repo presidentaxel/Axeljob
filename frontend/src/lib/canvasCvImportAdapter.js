@@ -71,6 +71,43 @@ export function resolveImportPersistTemplateId(recommendedTemplateId, fallbackTe
   return id;
 }
 
+/**
+ * Vrai si le profil a du contenu réel (post-onboarding / import data-only)
+ * pour générer un canvas Beta sans forcer un nouvel import fichier.
+ */
+export function cvHasSeedableProfileContent(cv) {
+  const synced = syncCvDualKeys(cv || {});
+  if (
+    String(synced.prenom || '').trim()
+    || String(synced.first_name || '').trim()
+    || String(synced.nom || '').trim()
+    || String(synced.last_name || '').trim()
+    || String(synced.email || '').trim()
+    || String(synced.telephone || '').trim()
+    || String(synced.titre_professionnel || '').trim()
+    || String(synced.resume || '').trim()
+  ) {
+    return true;
+  }
+  const experiences = resolveExperiences(synced);
+  if (experiences.some((e) => (
+    String(e?.poste || '').trim()
+    || String(e?.entreprise || '').trim()
+    || (e?.bullet_points || []).some((b) => String(b || '').trim())
+  ))) {
+    return true;
+  }
+  const formations = resolveFormations(synced);
+  if (formations.some((f) => (
+    String(f?.diplome || '').trim()
+    || String(f?.etablissement || '').trim()
+  ))) {
+    return true;
+  }
+  const analysis = analyzeCvProfile(synced);
+  return analysis.skillCount > 0 || analysis.langCount > 0 || analysis.certCount > 0;
+}
+
 const LAYOUT_STYLE_TEMPLATES = {
   'sidebar-left': ['modern', 'classic', 'creative'],
   'sidebar-right': ['executive', 'bold'],

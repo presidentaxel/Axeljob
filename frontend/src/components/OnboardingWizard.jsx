@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { apiPost, apiPostFile, apiPut, trackEvent } from '../api';
+import { cvFromImportPayload } from '../lib/cvImportUtils.js';
 import '../styles/OnboardingWizard.css';
 
 const STEPS = ['Importer', 'Vérifier', 'C\'est parti'];
@@ -42,7 +43,7 @@ export default function OnboardingWizard({ session, onComplete }) {
     trackEvent('onboarding_method_chosen', { method: 'file_upload' });
     try {
       const data = await apiPostFile('/api/cv/import', file);
-      setParsedCv(data.cv);
+      setParsedCv(cvFromImportPayload(data?.cv || data));
       setStep(1);
     } catch (err) {
       setError(err.message || 'Impossible de lire le CV. Essaie le copier-coller.');
@@ -59,7 +60,7 @@ export default function OnboardingWizard({ session, onComplete }) {
     trackEvent('onboarding_method_chosen', { method: 'text_paste' });
     try {
       const data = await apiPost('/api/cv/import-text', { text: cvText.trim() });
-      setParsedCv(data.cv);
+      setParsedCv(cvFromImportPayload(data?.cv || data));
       setStep(1);
     } catch (err) {
       setError(err.message || 'Impossible de parser le texte.');

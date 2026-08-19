@@ -18,6 +18,7 @@ import {
   mergePresetDecorations,
   recommendTemplateId,
   resolveImportPersistTemplateId,
+  cvHasSeedableProfileContent,
 } from '../../src/lib/canvasCvImportAdapter.js';
 import { createCanvasLayoutForTemplate } from '../../src/lib/layoutTemplatePresets.js';
 import { createStarterLayoutV3, sanitizeLayoutV3 } from '../../src/lib/cvLayoutModelV3.js';
@@ -519,6 +520,17 @@ test('AXE-344: resolveImportPersistTemplateId refuse « imported »', () => {
   assert.equal(resolveImportPersistTemplateId('imported', 'minimal'), 'minimal');
   assert.equal(resolveImportPersistTemplateId('', 'classic'), 'classic');
   assert.equal(resolveImportPersistTemplateId('modern', 'minimal'), 'modern');
+});
+
+test('AXE-344: cvHasSeedableProfileContent détecte profil onboarding', () => {
+  assert.equal(cvHasSeedableProfileContent({}), false);
+  assert.equal(cvHasSeedableProfileContent({ prenom: 'Léa', nom: 'Martin' }), true);
+  assert.equal(cvHasSeedableProfileContent({
+    experiences: [{ poste: 'Dev', entreprise: 'Co', bullet_points: [] }],
+  }), true);
+  assert.equal(cvHasSeedableProfileContent({
+    experiences: [{ poste: '', entreprise: '', bullet_points: [''] }],
+  }), false);
 });
 
 test('AXE-344: structural import ne persiste pas template_id imported', () => {

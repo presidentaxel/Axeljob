@@ -21,6 +21,7 @@ import {
   buildFullCanvasImportLayout,
   buildAdaptedCanvasLayoutForCv,
   countContentBlocks,
+  cvHasSeedableProfileContent,
   ensureImportLayoutHasContent,
   recommendTemplateLabel,
   resolveImportPersistTemplateId,
@@ -245,6 +246,9 @@ function CvEditorBeta({
   const [designBridgeError, setDesignBridgeError] = useState('');
   const profileTemplateIdRef = useRef('');
   const designBridgeSeededRef = useRef(false);
+  /** AXE-344 : peupler Beta depuis le profil onboarding (CV sans layout). */
+  const pendingProfileSeedRef = useRef(false);
+  const profileSeedDoneRef = useRef(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
   const [importChooser, setImportChooser] = useState(null);
@@ -415,6 +419,8 @@ function CvEditorBeta({
     setLoading(true);
     setProfileLoadError(null);
     designBridgeSeededRef.current = false;
+    pendingProfileSeedRef.current = false;
+    profileSeedDoneRef.current = false;
     setDesignBridgeOffer(null);
     setDesignBridgeError('');
     apiGet('/api/cv?profile=1')
@@ -439,9 +445,15 @@ function CvEditorBeta({
             label: canvasContextLabel(contextKey, templates),
           });
           setCanvasDrafts(listCanvasDrafts(templates));
+          pendingProfileSeedRef.current = false;
+          setStartupPromptOpen(false);
+        } else {
+          // Import onboarding = données sans layout → peupler Beta dès que templates OK.
+          const seedable = cvHasSeedableProfileContent(mergedCv);
+          pendingProfileSeedRef.current = seedable;
+          setStartupPromptOpen(!seedable);
         }
         resetLayout(hydratedLayout);
-        setStartupPromptOpen(!rawLayout);
         setLoading(false);
       })
       .catch((err) => {
@@ -459,6 +471,47 @@ function CvEditorBeta({
     if (loading || profileLoadError || !cv) return;
     setCanvasDrafts(listCanvasDrafts(templatesList));
   }, [templatesList, loading, profileLoadError, cv]);
+
+  // AXE-344 — après onboarding (CV rempli, layout absent) : générer le canvas Beta.
+  useEffect(() => {
+    if (loading || profileLoadError || !cv) return;
+    if (!pendingProfileSeedRef.current || profileSeedDoneRef.current) return;
+    if (!Array.isArray(templatesList) || templatesList.length === 0) return;
+    if (!isEmptyLayoutV3(layoutRef.current)) {
+      pendingProfileSeedRef.current = false;
+      return;
+    }
+    pendingProfileSeedRef.current = false;
+    profileSeedDoneRef.current = true;
+    const tid = String(
+      profileTemplateIdRef.current || cv.template_id || templateId || '',
+    ).trim();
+    try {
+      const result = buildFullCanvasImportLayout(cv, templatesList, { templateId: tid });
+      const seeded = ensureImportLayoutHasContent(result.layout, cv);
+      if (!countContentBlocks(seeded)) {
+        setStartupPromptOpen(true);
+        return;
+      }
+      const persistId = resolveImportPersistTemplateId(
+        result.recommendedTemplateId,
+        tid || 'minimal',
+      );
+      if (persistId && onTemplateIdChange) onTemplateIdChange(persistId);
+      openCanvasContext(IMPORTED_CANVAS_CONTEXT_KEY, seeded);
+      setImportToast('Canvas généré depuis ton profil');
+    } catch {
+      setStartupPromptOpen(true);
+    }
+  }, [
+    loading,
+    profileLoadError,
+    cv,
+    templatesList,
+    templateId,
+    onTemplateIdChange,
+    openCanvasContext,
+  ]);
 
   // Recompute l’offre Stable→Beta quand templatesList arrive (souvent après le GET cv).
   useEffect(() => {
@@ -590,10 +643,14 @@ function CvEditorBeta({
       || templates[0];
 
     if (preferred && cv) {
-      const adapted = buildAdaptedCanvasLayoutForCv(cv, preferred, {
-        templatesList: templates,
-        templateId: preferred.id,
-      }).layout;
+      const adapted = ensureImportLayoutHasContent(
+        buildAdaptedCanvasLayoutForCv(cv, preferred, {
+          templatesList: templates,
+          templateId: preferred.id,
+          forImport: true,
+        }).layout,
+        cv,
+      );
       if (onTemplateIdChange) onTemplateIdChange(preferred.id);
       openCanvasContext(templateCanvasContextKey(preferred.id), adapted);
       return;
@@ -711,6 +768,24 @@ function CvEditorBeta({
     }
 
     // AXE-344 — jamais de succès « décoratif only » (filet sans identité / sections).
+    // Fallback : générer depuis le CV plutôt que casser un import fichier qui marchait.
+    if (!contentBlockCount) {
+      const preferred = templates.find((t) => t?.id === (recommendedTemplateId || templateId))
+        || templates.find((t) => t?.id === 'minimal')
+        || templates[0];
+      if (preferred && nextCv) {
+        const fallback = buildAdaptedCanvasLayoutForCv(nextCv, preferred, {
+          templatesList: templates,
+          templateId: preferred.id || 'minimal',
+          forImport: true,
+        });
+        finalLayout = ensureImportLayoutHasContent(fallback.layout, nextCv);
+        contentBlockCount = countContentBlocks(finalLayout);
+        recommendedTemplateId = preferred.id || recommendedTemplateId;
+        analysis = fallback.analysis || analysis;
+        importSource = importSource || 'preset';
+      }
+    }
     if (!contentBlockCount) {
       setImportError(
         'Import incomplet : aucun contenu affichable. Réessayez avec un PDF texte, ou saisissez le CV manuellement.',

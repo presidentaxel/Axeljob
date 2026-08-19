@@ -17,6 +17,8 @@ import {
   isStructuralLayout,
   mergePresetDecorations,
   recommendTemplateId,
+  resolveImportPersistTemplateId,
+  cvHasSeedableProfileContent,
 } from '../../src/lib/canvasCvImportAdapter.js';
 import { createCanvasLayoutForTemplate } from '../../src/lib/layoutTemplatePresets.js';
 import { createStarterLayoutV3, sanitizeLayoutV3 } from '../../src/lib/cvLayoutModelV3.js';
@@ -439,4 +441,114 @@ test('mergePresetDecorations ajoute bandeaux preset si absents', () => {
   const merged = mergePresetDecorations(vision, preset);
   const rects = merged.pages[0].blocks.filter((b) => b.type === 'shape:rect');
   assert.ok(rects.length >= 1);
+});
+
+test('AXE-344: forImport refuse un canvas décoratif-only (filet seul)', () => {
+  const emptyishCv = {
+    prenom: 'Camille',
+    nom: 'Dupont',
+    email: 'camille@ex.com',
+    experiences: [],
+    formations: [],
+    certifications: [],
+    projets: [],
+    competences: { techniques: [], logiciels: [], langues: [], autres: [] },
+  };
+  const decorativeOnly = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    theme: {},
+    pages: [{
+      id: 'p1',
+      blocks: [
+        {
+          id: 'deco',
+          type: 'shape:rect',
+          x: 0,
+          y: 0,
+          w: 8,
+          h: 297,
+          z: 1,
+          style: { color: '#003c33' },
+        },
+      ],
+    }],
+  };
+  const { layout, contentBlockCount } = adaptCanvasLayoutForCv(emptyishCv, decorativeOnly, {
+    forImport: true,
+    templatesList: [{ id: 'minimal' }],
+    templateId: 'minimal',
+  });
+  assert.ok(contentBlockCount >= 1);
+  const types = (layout.pages[0].blocks || []).map((b) => b.type);
+  assert.ok(types.includes('identity') || types.includes('contact'));
+  assert.ok(!types.every((t) => t === 'shape:rect' || t === 'shape:line'));
+});
+
+test('AXE-344: buildFullCanvasImportLayout peuplé même CV sparse', () => {
+  const templates = [{ id: 'minimal', name: 'Minimal' }];
+  const sparse = {
+    prenom: 'Léa',
+    nom: 'Martin',
+    email: 'lea@ex.com',
+    experiences: [],
+    formations: [],
+    certifications: [],
+    projets: [],
+    competences: { techniques: [], logiciels: [], langues: [], autres: [] },
+  };
+  const result = buildFullCanvasImportLayout(sparse, templates);
+  assert.ok(result.contentBlockCount >= 1);
+  assert.ok(
+    result.layout.pages[0].blocks.some((b) => b.type !== 'shape:rect' && b.type !== 'shape:line'),
+  );
+});
+
+test('AXE-344: analyzeCvProfile lit dual-keys first_name/last_name', () => {
+  const a = analyzeCvProfile({
+    first_name: 'Sam',
+    last_name: 'Lee',
+    email: 'sam@ex.com',
+  });
+  assert.equal(a.hasIdentity, true);
+  assert.equal(a.hasContact, true);
+});
+
+test('AXE-344: resolveImportPersistTemplateId refuse « imported »', () => {
+  assert.equal(resolveImportPersistTemplateId('imported', 'minimal'), 'minimal');
+  assert.equal(resolveImportPersistTemplateId('', 'classic'), 'classic');
+  assert.equal(resolveImportPersistTemplateId('modern', 'minimal'), 'modern');
+});
+
+test('AXE-344: cvHasSeedableProfileContent détecte profil onboarding', () => {
+  assert.equal(cvHasSeedableProfileContent({}), false);
+  assert.equal(cvHasSeedableProfileContent({ prenom: 'Léa', nom: 'Martin' }), true);
+  assert.equal(cvHasSeedableProfileContent({
+    experiences: [{ poste: 'Dev', entreprise: 'Co', bullet_points: [] }],
+  }), true);
+  assert.equal(cvHasSeedableProfileContent({
+    experiences: [{ poste: '', entreprise: '', bullet_points: [''] }],
+  }), false);
+});
+
+test('AXE-344: structural import ne persiste pas template_id imported', () => {
+  const structural = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    theme: { template_id: 'imported' },
+    pages: [{
+      id: 'p1',
+      blocks: [
+        { id: 't1', type: 'text', content: 'Hello', x: 10, y: 10, w: 80, h: 12, z: 1, style: {} },
+      ],
+    }],
+  };
+  const result = buildStructuralImportLayout(DENSE_CV, structural, { templateId: 'imported' });
+  assert.notEqual(result.recommendedTemplateId, 'imported');
+  assert.equal(result.layout.theme?.template_id, result.recommendedTemplateId);
+  assert.ok(result.contentBlockCount >= 1);
 });

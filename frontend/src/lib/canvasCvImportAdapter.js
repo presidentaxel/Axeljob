@@ -4,7 +4,10 @@
  * Pipeline : analyse profil → template + couleurs → blocs dimensionnés →
  * reflow → pagination → ordre ATS.
  */
-import { applyAtsLayoutOptimizations } from './atsLayoutOptimize.js';
+import {
+  applyAtsLayoutOptimizations,
+  optimizeAddMissingProfileSections,
+} from './atsLayoutOptimize.js';
 import {
   LAYOUT,
   MAIN_PAD_X,
@@ -19,10 +22,12 @@ import { applyLayoutPagination } from './layoutPagination.js';
 import {
   PAGE_HEIGHT_MM,
   PAGE_WIDTH_MM,
+  listAllBlocks,
   removeBlock,
   sanitizeLayoutV3,
   setBlockPosition,
 } from './cvLayoutModelV3.js';
+import { syncCvDualKeys } from './cvDualKey.js';
 import {
   resolveBoundText,
   resolveCertifications,
@@ -36,6 +41,72 @@ import {
 import { bindStructuralTextToSemanticBlocks } from './structuralSemanticBind.js';
 
 const DECORATIVE_TYPES = new Set(['shape:rect', 'shape:line']);
+
+/** Blocs visibles pour l’utilisateur (hors filets / rectangles déco). */
+export function isImportContentBlock(block) {
+  return Boolean(block?.type) && !DECORATIVE_TYPES.has(block.type);
+}
+
+/** Compte les blocs de contenu (pas les filets décoratifs). */
+export function countContentBlocks(layout) {
+  return listAllBlocks(layout).filter(isImportContentBlock).length;
+}
+
+/**
+ * AXE-344 — après prune import, ne jamais laisser un canvas décoratif-only
+ * si le CV a du contenu : on pose au moins identity/contact (+ sections profil).
+ */
+export function ensureImportLayoutHasContent(layout, cv) {
+  if (!layout?.pages?.length) return layout;
+  if (countContentBlocks(layout) > 0) return layout;
+  return optimizeAddMissingProfileSections(layout, cv || {});
+}
+
+/** template_id technique « imported » → id réel pour Stable / render-html. */
+export function resolveImportPersistTemplateId(recommendedTemplateId, fallbackTemplateId = '') {
+  const id = String(recommendedTemplateId || '').trim();
+  if (!id || id === 'imported') {
+    return String(fallbackTemplateId || '').trim() || 'minimal';
+  }
+  return id;
+}
+
+/**
+ * Vrai si le profil a du contenu réel (post-onboarding / import data-only)
+ * pour générer un canvas Beta sans forcer un nouvel import fichier.
+ */
+export function cvHasSeedableProfileContent(cv) {
+  const synced = syncCvDualKeys(cv || {});
+  if (
+    String(synced.prenom || '').trim()
+    || String(synced.first_name || '').trim()
+    || String(synced.nom || '').trim()
+    || String(synced.last_name || '').trim()
+    || String(synced.email || '').trim()
+    || String(synced.telephone || '').trim()
+    || String(synced.titre_professionnel || '').trim()
+    || String(synced.resume || '').trim()
+  ) {
+    return true;
+  }
+  const experiences = resolveExperiences(synced);
+  if (experiences.some((e) => (
+    String(e?.poste || '').trim()
+    || String(e?.entreprise || '').trim()
+    || (e?.bullet_points || []).some((b) => String(b || '').trim())
+  ))) {
+    return true;
+  }
+  const formations = resolveFormations(synced);
+  if (formations.some((f) => (
+    String(f?.diplome || '').trim()
+    || String(f?.etablissement || '').trim()
+  ))) {
+    return true;
+  }
+  const analysis = analyzeCvProfile(synced);
+  return analysis.skillCount > 0 || analysis.langCount > 0 || analysis.certCount > 0;
+}
 
 const LAYOUT_STYLE_TEMPLATES = {
   'sidebar-left': ['modern', 'classic', 'creative'],
@@ -85,16 +156,17 @@ const THEME_PRESETS = {
 
 /** Métriques du profil pour adapter la mise en page. */
 export function analyzeCvProfile(cv) {
-  const experiences = resolveExperiences(cv);
-  const formations = resolveFormations(cv);
-  const certifications = resolveCertifications(cv);
-  const projets = resolveProjets(cv);
-  const langues = resolveLangues(cv);
-  const techniques = resolveCompetenceList(cv, 'competences.techniques');
-  const logiciels = resolveCompetenceList(cv, 'competences.logiciels');
-  const autres = resolveCompetenceList(cv, 'competences.autres');
-  const resume = String(cv?.resume || '').trim();
-  const titre = String(cv?.titre_professionnel || '').trim().toLowerCase();
+  const synced = syncCvDualKeys(cv || {});
+  const experiences = resolveExperiences(synced);
+  const formations = resolveFormations(synced);
+  const certifications = resolveCertifications(synced);
+  const projets = resolveProjets(synced);
+  const langues = resolveLangues(synced);
+  const techniques = resolveCompetenceList(synced, 'competences.techniques');
+  const logiciels = resolveCompetenceList(synced, 'competences.logiciels');
+  const autres = resolveCompetenceList(synced, 'competences.autres');
+  const resume = String(synced?.resume || '').trim();
+  const titre = String(synced?.titre_professionnel || '').trim().toLowerCase();
   const bulletCount = experiences.reduce(
     (n, e) => n + (e.bullet_points || []).filter((b) => String(b || '').trim()).length,
     0,
@@ -109,16 +181,18 @@ export function analyzeCvProfile(cv) {
     skillCount: techniques.length + logiciels.length + autres.length,
     resumeChars: resume.length,
     bulletCount,
-    hasPhoto: Boolean(resolvePhotoUrl(cv)),
+    hasPhoto: Boolean(resolvePhotoUrl(synced)),
     hasContact: Boolean(
-      String(cv?.email || '').trim()
-      || String(cv?.telephone || '').trim()
-      || String(cv?.linkedin || '').trim(),
+      String(synced?.email || '').trim()
+      || String(synced?.telephone || '').trim()
+      || String(synced?.linkedin || '').trim(),
     ),
     hasIdentity: Boolean(
-      String(cv?.prenom || '').trim()
-      || String(cv?.nom || '').trim()
-      || String(cv?.titre_professionnel || '').trim(),
+      String(synced?.prenom || '').trim()
+      || String(synced?.first_name || '').trim()
+      || String(synced?.nom || '').trim()
+      || String(synced?.last_name || '').trim()
+      || String(synced?.titre_professionnel || '').trim(),
     ),
     isCreativeProfile: /design|créatif|creative|graphiste|ux|ui|marketing|brand|communication/.test(titre),
     isExecutiveProfile: /directeur|directrice|manager|chef|responsable|head|vp|ceo|cto|lead/.test(titre),
@@ -589,12 +663,17 @@ export function buildLayoutFromVisionDetection(cv, visionMeta = {}, templatesLis
     template,
     recommendedTemplateId,
   );
+  result.layout = ensureImportLayoutHasContent(result.layout, cv);
 
   return {
     ...result,
     layout: result.layout,
     blockCount: countLayoutBlocks(result.layout),
-    recommendedTemplateId,
+    contentBlockCount: countContentBlocks(result.layout),
+    recommendedTemplateId: resolveImportPersistTemplateId(
+      recommendedTemplateId,
+      template?.id || 'minimal',
+    ),
     importSource: 'vision-guided',
     visionConfidence: Number(visionMeta?.confidence ?? 0),
   };
@@ -859,6 +938,10 @@ export function adaptCanvasLayoutForCv(cv, layout, {
     };
   }
 
+  if (forImport) {
+    next = ensureImportLayoutHasContent(next, cv);
+  }
+
   return {
     layout: next,
     analysis,
@@ -866,6 +949,7 @@ export function adaptCanvasLayoutForCv(cv, layout, {
     removedBlockCount,
     resizedBlockCount,
     blockCount: countLayoutBlocks(next),
+    contentBlockCount: countContentBlocks(next),
   };
 }
 
@@ -888,7 +972,12 @@ export function buildAdaptedCanvasLayoutForCv(cv, template, options = {}) {
     }
     layout = applyLayoutPagination(layout);
   }
-  return { ...result, layout, blockCount: countLayoutBlocks(layout) };
+  return {
+    ...result,
+    layout,
+    blockCount: countLayoutBlocks(layout),
+    contentBlockCount: countContentBlocks(layout),
+  };
 }
 
 /**
@@ -1056,13 +1145,23 @@ export function buildStructuralImportLayout(cv, structuralLayout, {
       finalLayout = { ...finalLayout, theme: { ...existingTheme, ...patch } };
     }
   }
+  finalLayout = ensureImportLayoutHasContent(finalLayout, cv);
+  const persistedTemplateId = resolveImportPersistTemplateId(
+    templateId || finalLayout.theme?.template_id,
+    'minimal',
+  );
+  finalLayout = {
+    ...finalLayout,
+    theme: { ...(finalLayout.theme || {}), template_id: persistedTemplateId },
+  };
   return {
     layout: finalLayout,
     analysis,
-    recommendedTemplateId: templateId || finalLayout.theme?.template_id || 'imported',
+    recommendedTemplateId: persistedTemplateId,
     removedBlockCount: 0,
     resizedBlockCount: 0,
     blockCount: countLayoutBlocks(finalLayout),
+    contentBlockCount: countContentBlocks(finalLayout),
     importSource: 'structural',
   };
 }
@@ -1124,5 +1223,11 @@ export function buildFullCanvasImportLayout(cv, templatesList = [], {
     template,
     recommendedTemplateId,
   );
-  return { ...result, importSource: 'preset' };
+  result.layout = ensureImportLayoutHasContent(result.layout, cv);
+  return {
+    ...result,
+    blockCount: countLayoutBlocks(result.layout),
+    contentBlockCount: countContentBlocks(result.layout),
+    importSource: 'preset',
+  };
 }

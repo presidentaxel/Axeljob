@@ -185,26 +185,36 @@ export function cvFromImportPayload(parsed) {
   const src = parsed?.cv && typeof parsed.cv === 'object' ? parsed.cv : parsed;
   if (!src || typeof src !== 'object') return { ...base };
 
+  // Certains parsers renvoient identity/contact imbriqués (dual-key / schema API).
+  const identity = src.identity && typeof src.identity === 'object' ? src.identity : {};
+  const contact = src.contact && typeof src.contact === 'object' ? src.contact : {};
+
   const competences = src.competences && typeof src.competences === 'object'
     ? src.competences
     : {};
 
-  const prenom = String(src.prenom ?? src.first_name ?? '').trim();
-  const nom = String(src.nom ?? src.last_name ?? '').trim();
+  const prenom = String(
+    src.prenom ?? src.first_name ?? identity.prenom ?? identity.first_name ?? '',
+  ).trim();
+  const nom = String(
+    src.nom ?? src.last_name ?? identity.nom ?? identity.last_name ?? '',
+  ).trim();
 
   return syncCvDualKeys({
     ...base,
     prenom,
     nom,
-    first_name: String(src.first_name ?? prenom).trim() || prenom,
-    last_name: String(src.last_name ?? nom).trim() || nom,
-    email: String(src.email ?? '').trim(),
-    telephone: String(src.telephone ?? '').trim(),
-    linkedin: String(src.linkedin ?? '').trim(),
-    ville: String(src.ville ?? '').trim(),
-    titre_professionnel: String(src.titre_professionnel ?? '').trim(),
+    first_name: String(src.first_name ?? identity.first_name ?? prenom).trim() || prenom,
+    last_name: String(src.last_name ?? identity.last_name ?? nom).trim() || nom,
+    email: String(src.email ?? contact.email ?? '').trim(),
+    telephone: String(src.telephone ?? contact.telephone ?? contact.phone ?? '').trim(),
+    linkedin: String(src.linkedin ?? contact.linkedin ?? '').trim(),
+    ville: String(src.ville ?? contact.ville ?? contact.city ?? '').trim(),
+    titre_professionnel: String(
+      src.titre_professionnel ?? identity.titre_professionnel ?? identity.title ?? '',
+    ).trim(),
     resume: String(src.resume ?? '').trim(),
-    photo_url: String(src.photo_url ?? '').trim(),
+    photo_url: String(src.photo_url ?? identity.photo_url ?? '').trim(),
     experiences: Array.isArray(src.experiences) ? src.experiences : [],
     formations: Array.isArray(src.formations) ? src.formations : [],
     certifications: Array.isArray(src.certifications) ? src.certifications : [],

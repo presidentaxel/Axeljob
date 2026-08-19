@@ -1,6 +1,6 @@
 /**
- * Base globale - alias legacy + reset (Cohere 2026).
- * Voir docs/DESIGN-cohere.md et design-tokens.css.
+ * Base globale - alias legacy + reset.
+ * Tokens : docs/design-system.md et frontend/src/design/tokens.json.
  */
 :root {
   --bg: var(--color-canvas);
@@ -20,8 +20,8 @@
   --success: var(--color-deep-green);
   --success-light: var(--color-pale-green);
   --danger: var(--color-error);
-  --danger-light: #fef2f2;
-  --warning: #d97706;
+  --danger-light: var(--ds-color-feedback-error-subtle);
+  --warning: var(--ds-color-feedback-warning);
   --shadow-sm: rgba(0, 0, 0, 0.1) 0 5px 20px 0;
   --shadow: rgba(0, 0, 0, 0.1) 0 5px 20px 0;
   --shadow-card: rgba(0, 0, 0, 0.1) 0 0 32px 0;
@@ -29,8 +29,8 @@
   --shadow-focus: 0 0 0 2px var(--color-primary-tint);
   /* Alias legacy : --radius-sm/xs/lg/pill sont définis dans design-tokens.css */
   --radius: var(--radius-xl);
-  --transition: 0.15s ease;
-  --app-font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --transition: var(--ds-motion-duration-base) var(--ds-motion-easing-standard);
+  --app-font-family: var(--ds-font-family-body);
   --app-topbar-height: 52px;
 }
 

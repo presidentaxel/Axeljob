@@ -1,9 +1,7 @@
 /**
- * Convention de nommage des boutons (docs/DESIGN-cohere.md).
- *
- * Exécution : `npm run test:unit`
+ * Tokens DTCG + convention Button (docs/design-system.md).
  */
-import { readdir, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
@@ -11,62 +9,110 @@ import assert from 'node:assert/strict';
 
 import {
   BUTTON_SIZES,
+  BUTTON_TONES,
   BUTTON_VARIANTS,
   buttonClassName,
 } from '../../src/lib/buttonClassName.js';
+import { inputClassName } from '../../src/lib/inputClassName.js';
+import {
+  buildTokensCss,
+  flattenResolved,
+  loadTokenTree,
+  resolveValue,
+} from '../../scripts/build-tokens.mjs';
 
 const SRC_ROOT = fileURLToPath(new URL('../../src', import.meta.url));
+const TOKENS_PATH = path.join(SRC_ROOT, 'design/tokens.json');
+const GENERATED_CSS = path.join(SRC_ROOT, 'styles/ds-tokens.generated.css');
 
 const LEGACY_CTA_CLASS_RE = /\b(?:className|class)\s*=\s*["'`][^"'`]*\bbtn-(?:primary|secondary|tertiary|success|ghost|outline)\b/;
 
-async function walkFiles(dir) {
-  const entries = await readdir(dir, { withFileTypes: true });
-  const files = [];
-  for (const entry of entries) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...await walkFiles(full));
-    } else if (/\.(jsx|js|html)$/.test(entry.name)) {
-      files.push(full);
-    }
-  }
-  return files;
-}
+const PRIMITIVE_COLOR_ROOTS = new Set(['neutral', 'green', 'navy', 'blue', 'coral', 'purple', 'red', 'amber']);
 
-test('buttonClassName compose button + button-primary par défaut', () => {
-  assert.equal(buttonClassName(), 'button button-primary');
-  assert.equal(buttonClassName({ variant: 'primary' }), 'button button-primary');
+test('buttonClassName compose ds-button + primary + md par défaut', () => {
+  const cls = buttonClassName();
+  assert.match(cls, /\bds-button\b/);
+  assert.match(cls, /\bds-button--primary\b/);
+  assert.match(cls, /\bds-button--md\b/);
+  assert.match(cls, /\bbutton-primary\b/);
 });
 
-test('buttonClassName accepte size et className extra', () => {
-  assert.equal(
-    buttonClassName({ variant: 'primary', size: 'sm', className: 'profile-save-btn' }),
-    'button button-primary button--sm profile-save-btn',
-  );
-  assert.equal(
-    buttonClassName({ variant: 'secondary', size: 'lg' }),
-    'button button-secondary button--lg',
-  );
-  assert.equal(
-    buttonClassName({ variant: 'outline' }),
-    'button button-pill-outline',
-  );
+test('buttonClassName accepte size, tone et className extra', () => {
+  const cls = buttonClassName({
+    variant: 'primary',
+    size: 'sm',
+    tone: 'inverse',
+    className: 'profile-save-btn',
+  });
+  assert.match(cls, /\bds-button--sm\b/);
+  assert.match(cls, /\bds-button--inverse\b/);
+  assert.match(cls, /\bprofile-save-btn\b/);
 });
 
-test('buttonClassName refuse un variant ou une taille inconnus', () => {
+test('outline est un alias de secondary', () => {
+  assert.equal(BUTTON_VARIANTS.outline, BUTTON_VARIANTS.secondary);
+  assert.match(buttonClassName({ variant: 'outline' }), /\bds-button--secondary\b/);
+});
+
+test('buttonClassName refuse un variant, size ou tone inconnu', () => {
   assert.throws(() => buttonClassName({ variant: 'cta' }), /Unknown button variant/);
   assert.throws(() => buttonClassName({ size: 'xl' }), /Unknown button size/);
+  assert.throws(() => buttonClassName({ tone: 'dark' }), /Unknown button tone/);
 });
 
-test('les variants canoniques matchent le design system', () => {
-  assert.equal(BUTTON_VARIANTS.primary, 'button-primary');
-  assert.equal(BUTTON_VARIANTS.secondary, 'button-secondary');
-  assert.equal(BUTTON_VARIANTS.outline, 'button-pill-outline');
-  assert.equal(BUTTON_SIZES.sm, 'button--sm');
-  assert.equal(BUTTON_SIZES.lg, 'button--lg');
+test('les variants canoniques matchent le contrat', () => {
+  assert.equal(BUTTON_VARIANTS.primary, 'ds-button--primary');
+  assert.equal(BUTTON_SIZES.md, 'ds-button--md');
+  assert.equal(BUTTON_TONES.inverse, 'ds-button--inverse');
+});
+
+test('inputClassName pose ds-input et l’état invalid', () => {
+  assert.equal(inputClassName(), 'ds-input');
+  assert.equal(inputClassName({ invalid: true }), 'ds-input ds-input--invalid');
+});
+
+test('les tokens sémantiques se résolvent sans hex dans la référence', async () => {
+  const jsonText = await readFile(TOKENS_PATH, 'utf8');
+  const tree = loadTokenTree(jsonText);
+  const primary = resolveValue(tree, '{color.action.primary.bg}');
+  assert.equal(primary, '#17171c');
+  const hover = resolveValue(tree, '{color.action.primary.bg-hover}');
+  assert.equal(hover, '#212121');
+  const entries = flattenResolved(tree);
+  const semanticAction = entries.find((e) => e.cssName === '--ds-color-action-primary-bg');
+  assert.equal(semanticAction.value, '#17171c');
+  const primitiveLeak = entries.filter(
+    (e) => e.path[0] === 'color' && PRIMITIVE_COLOR_ROOTS.has(e.path[1]),
+  );
+  assert.ok(primitiveLeak.length > 0, 'primitives exist in the file');
+  assert.ok(
+    !semanticAction.path.includes('neutral'),
+    'semantic action token is not a primitive path',
+  );
+});
+
+test('le CSS généré est à jour par rapport à tokens.json', async () => {
+  const jsonText = await readFile(TOKENS_PATH, 'utf8');
+  const { css } = buildTokensCss(jsonText);
+  const onDisk = await readFile(GENERATED_CSS, 'utf8');
+  assert.equal(onDisk, css);
 });
 
 test('aucun markup CTA ne réutilise btn-primary (ni les autres btn-*)', async () => {
+  const { readdir } = await import('node:fs/promises');
+  async function walkFiles(dir) {
+    const entries = await readdir(dir, { withFileTypes: true });
+    const files = [];
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        files.push(...await walkFiles(full));
+      } else if (/\.(jsx|js|html)$/.test(entry.name)) {
+        files.push(full);
+      }
+    }
+    return files;
+  }
   const files = await walkFiles(SRC_ROOT);
   const offenders = [];
   for (const file of files) {

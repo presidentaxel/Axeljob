@@ -1,193 +1,270 @@
 /**
- * Boutons globaux — noms canoniques = tokens docs/DESIGN-cohere.md.
+ * Bouton design-system — axes séparés :
+ *   variant: primary | secondary | tertiary | ghost | link | danger | success
+ *   size:    sm (32) | md (40) | lg (48)
+ *   tone:    default | inverse
+ *   state:   :hover :active :focus-visible :disabled [aria-busy]
  *
- * CTA produit :
- *   .button.button-primary        action principale (un seul par zone)
- *   .button.button-secondary      action companion (pill soft)
- *   .button.button-pill-outline   contour
- *   .button.button-tertiary       action texte / discrète
- *   .button.button-ghost          action minimale (modales)
- *   .button.button-success        action de succès (export)
+ * La forme pill vient de --ds-radius-action, pas d'une variante.
  *
- * Tailles : .button--sm | .button--lg
- *
- * Alias .btn / .btn-* : contrôles métier (btn-add, btn-icon…) et rétrocompat.
- * Ne plus écrire `btn btn-primary` pour un CTA — utiliser `button button-primary`
- * ou <Button variant="primary" />.
+ * Markup cible : .ds-button.ds-button--primary.ds-button--md
+ * Alias : .button.button-primary pour la transition.
  */
+.ds-button,
 .button,
 .btn {
-  font-family: var(--app-font-family);
+  box-sizing: border-box;
+  font-family: var(--ds-font-family-body);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.875rem 1.75rem;
-  font-size: 1rem;
-  font-weight: 700;
-  border: none;
-  border-radius: var(--radius-pill);
+  gap: var(--ds-space-sm);
+  min-height: var(--ds-size-button-md);
+  padding: var(--ds-space-md) var(--ds-space-xl);
+  font-size: var(--ds-font-size-label-md);
+  font-weight: var(--ds-font-weight-medium);
+  line-height: var(--ds-font-line-height-button);
+  letter-spacing: var(--ds-font-letter-spacing-none);
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-action);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
-  letter-spacing: 0.012em;
-  line-height: 1.38;
   white-space: nowrap;
   text-decoration: none;
+  transition:
+    background var(--ds-motion-duration-fast) var(--ds-motion-easing-standard),
+    border-color var(--ds-motion-duration-fast) var(--ds-motion-easing-standard),
+    color var(--ds-motion-duration-fast) var(--ds-motion-easing-standard);
 }
 
+a.ds-button,
 a.button,
 a.btn {
   text-decoration: none;
 }
 
+.ds-button:focus-visible,
 .button:focus-visible,
 .btn:focus-visible {
-  outline: none;
-  box-shadow: rgb(97, 31, 105) 0 0 0 2px inset, 0 0 0 3px rgba(74, 21, 75, 0.35);
+  outline: 2px solid var(--ds-color-border-focus);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
-/* Primary — CTA unique */
-.button-primary,
-.btn-primary {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-}
-
-.button-primary:hover:not(:disabled),
-.btn-primary:hover:not(:disabled) {
-  background: var(--color-primary-press);
-}
-
-.button-primary:active:not(:disabled),
-.btn-primary:active:not(:disabled) {
-  background: var(--color-primary-deep);
-}
-
-.button-primary:disabled,
-.btn-primary:disabled {
-  opacity: 0.45;
+.ds-button:disabled,
+.button:disabled,
+.btn:disabled {
   cursor: not-allowed;
 }
 
-/* Secondary — companion pill */
+.ds-button[aria-busy='true'] {
+  cursor: wait;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* Sizes */
+.ds-button--sm,
+.button--sm,
+.btn-sm {
+  min-height: var(--ds-size-button-sm);
+  padding: var(--ds-space-xs) var(--ds-space-md);
+  font-size: var(--ds-font-size-label-sm);
+}
+
+.ds-button--lg,
+.button--lg,
+.btn-lg {
+  min-height: var(--ds-size-button-lg);
+  padding: var(--ds-space-md) var(--ds-space-xxl);
+  font-size: var(--ds-font-size-body-md);
+}
+
+.ds-button--full-width {
+  width: 100%;
+}
+
+.ds-button--icon-only {
+  width: var(--ds-size-button-md);
+  min-width: var(--ds-size-button-md);
+  padding: 0;
+}
+
+.ds-button--icon-only.ds-button--sm {
+  width: var(--ds-size-button-sm);
+  min-width: var(--ds-size-button-sm);
+}
+
+.ds-button--icon-only.ds-button--lg {
+  width: var(--ds-size-button-lg);
+  min-width: var(--ds-size-button-lg);
+}
+
+/* Primary */
+.ds-button--primary,
+.button-primary,
+.btn-primary {
+  background: var(--ds-color-action-primary-bg);
+  color: var(--ds-color-action-primary-fg);
+}
+
+.ds-button--primary:hover:not(:disabled),
+.button-primary:hover:not(:disabled),
+.btn-primary:hover:not(:disabled) {
+  background: var(--ds-color-action-primary-bg-hover);
+}
+
+.ds-button--primary:active:not(:disabled),
+.button-primary:active:not(:disabled),
+.btn-primary:active:not(:disabled) {
+  background: var(--ds-color-action-primary-bg-active);
+}
+
+.ds-button--primary:disabled,
+.button-primary:disabled,
+.btn-primary:disabled {
+  background: var(--ds-color-action-primary-bg-disabled);
+  color: var(--ds-color-action-primary-fg-disabled);
+  opacity: 1;
+}
+
+.ds-button--primary.ds-button--inverse {
+  background: var(--ds-color-action-inverse-bg);
+  color: var(--ds-color-action-inverse-fg);
+}
+
+.ds-button--primary.ds-button--inverse:hover:not(:disabled) {
+  background: var(--ds-color-action-inverse-bg-hover);
+}
+
+.ds-button--primary.ds-button--inverse:active:not(:disabled) {
+  background: var(--ds-color-bg-accent);
+}
+
+/* Secondary = outline (companion). Pas une « pill-outline » nommée. */
+.ds-button--secondary,
 .button-secondary,
-.btn-secondary {
-  background: var(--color-canvas-lavender);
-  color: var(--color-ink);
-  border: none;
-  border-radius: var(--radius-pill);
-  padding: 0.625rem 1.875rem;
+.btn-secondary,
+.button-pill-outline,
+.btn-outline {
+  background: var(--ds-color-action-secondary-bg);
+  color: var(--ds-color-action-secondary-fg);
+  border-color: var(--ds-color-action-secondary-border);
 }
 
+.ds-button--secondary:hover:not(:disabled),
 .button-secondary:hover:not(:disabled),
-.btn-secondary:hover:not(:disabled) {
-  background: #eddeff;
+.btn-secondary:hover:not(:disabled),
+.button-pill-outline:hover:not(:disabled),
+.btn-outline:hover:not(:disabled) {
+  background: var(--ds-color-action-secondary-bg-hover);
 }
 
+.ds-button--secondary:active:not(:disabled),
+.button-secondary:active:not(:disabled),
+.btn-secondary:active:not(:disabled) {
+  background: var(--ds-color-action-secondary-bg-active);
+}
+
+.ds-button--secondary:disabled,
 .button-secondary:disabled,
 .btn-secondary:disabled {
   opacity: 0.45;
-  cursor: not-allowed;
 }
 
-/* Outline on white surface (token button-pill-outline) */
-.button-pill-outline,
-.btn-outline {
-  background: var(--color-canvas);
-  color: var(--color-primary);
-  border: 2px solid var(--color-primary);
-  border-radius: var(--radius-pill);
-}
-
-.button-pill-outline:hover:not(:disabled),
-.btn-outline:hover:not(:disabled) {
-  background: var(--color-canvas-lavender);
-}
-
-/* Outline on dark / aubergine surface */
+.ds-button--secondary.ds-button--inverse,
 .button-pill-outline-on-dark,
 .btn-outline-on-dark {
   background: transparent;
-  color: var(--color-on-primary);
-  border: 2px solid var(--color-on-primary);
-  border-radius: var(--radius-pill);
+  color: var(--ds-color-text-inverse);
+  border-color: var(--ds-color-text-inverse);
 }
 
+.ds-button--secondary.ds-button--inverse:hover:not(:disabled),
 .button-pill-outline-on-dark:hover:not(:disabled),
 .btn-outline-on-dark:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--ds-color-action-inverse-overlay-hover);
 }
 
+/* Tertiary = text action */
+.ds-button--tertiary,
 .button-tertiary,
 .btn-tertiary {
-  background: transparent;
-  color: var(--color-muted);
-  border: none;
-  border-radius: var(--radius-md);
-  padding: 0.5rem 0.75rem;
-  font-weight: 400;
+  background: var(--ds-color-action-tertiary-bg);
+  color: var(--ds-color-action-tertiary-fg-muted);
+  border-radius: var(--ds-radius-xs);
+  font-weight: var(--ds-font-weight-regular);
 }
 
+.ds-button--tertiary:hover:not(:disabled),
 .button-tertiary:hover:not(:disabled),
 .btn-tertiary:hover:not(:disabled) {
-  color: var(--color-ink);
-  background: var(--color-canvas-cream);
+  color: var(--ds-color-action-tertiary-fg);
+  background: var(--ds-color-action-tertiary-bg-hover);
 }
 
+.ds-button--tertiary:disabled,
 .button-tertiary:disabled,
 .btn-tertiary:disabled {
   opacity: 0.45;
-  cursor: not-allowed;
 }
 
+/* Ghost */
+.ds-button--ghost,
 .button-ghost,
 .btn-ghost {
-  background: transparent;
-  border: none;
-  color: var(--muted);
-  font-size: 0.82rem;
-  cursor: pointer;
-  padding: 0.4rem 0.75rem;
-  font-family: inherit;
-  font-weight: 400;
-  border-radius: var(--radius-md);
+  background: var(--ds-color-action-ghost-bg);
+  color: var(--ds-color-action-ghost-fg);
+  border-radius: var(--ds-radius-sm);
+  font-weight: var(--ds-font-weight-regular);
+  min-height: auto;
+  padding: var(--ds-space-xs) var(--ds-space-md);
 }
 
+.ds-button--ghost:hover:not(:disabled),
 .button-ghost:hover:not(:disabled),
 .btn-ghost:hover {
-  color: var(--text);
+  color: var(--ds-color-action-ghost-fg-hover);
 }
 
+/* Link */
+.ds-button--link {
+  background: transparent;
+  color: var(--ds-color-action-link-fg);
+  border-radius: var(--ds-radius-xs);
+  min-height: auto;
+  padding: var(--ds-space-xxs) 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ds-button--link:hover:not(:disabled) {
+  color: var(--ds-color-action-link-fg-hover);
+}
+
+/* Danger */
+.ds-button--danger {
+  background: var(--ds-color-action-danger-bg);
+  color: var(--ds-color-action-danger-fg);
+}
+
+.ds-button--danger:hover:not(:disabled) {
+  background: var(--ds-color-action-danger-bg-hover);
+}
+
+.ds-button--danger:disabled {
+  opacity: 0.45;
+}
+
+/* Success (export / confirmation) */
+.ds-button--success,
 .button-success,
 .btn-success {
-  background: var(--color-deep-green);
-  color: var(--color-on-primary);
-  margin-top: 0.5rem;
+  background: var(--ds-color-action-success-bg);
+  color: var(--ds-color-action-success-fg);
 }
 
+.ds-button--success:hover:not(:disabled),
 .button-success:hover:not(:disabled),
 .btn-success:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-/* Tailles */
-.button--sm,
-.btn-sm {
-  padding: 0.5rem 1.1rem;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  border-radius: var(--radius-pill);
-}
-
-.button--sm.button-secondary,
-.button--sm.button-pill-outline,
-.btn-sm.btn-secondary,
-.btn-sm.btn-outline {
-  padding: 0.4rem 1rem;
-}
-
-.button--lg,
-.btn-lg {
-  padding: 0.7rem 1.75rem;
-  font-size: 0.95rem;
+  background: var(--ds-color-action-success-bg-hover);
 }

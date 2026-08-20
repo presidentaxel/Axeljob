@@ -31,6 +31,8 @@ Dans `backend/services/ats_score/rules/content.py` :
   positions absolues (AXE-336). On score plutôt :
   - aucun bloc sémantique / profil non affiché
   - ordre de lecture ambigu, identité pas en tête, contact trop bas
+  - contenu coupé hors A4 (`y + h > 297 mm`, AXE-350) — un bloc présent
+    mais hors zone imprimable ne doit pas laisser le score à 100
   - multicolonnes détectées via clusters `x`
 - Verify-pdf reste le filet pour un export réellement illisible.
 

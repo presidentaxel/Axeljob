@@ -6,7 +6,7 @@
  */
 
 /**
- * @typedef {'reading-order' | 'contact-up' | 'add-missing-sections' | 'hide-photo' | 'fix-font' | 'fix-body-font-size' | 'single-column' | null} AtsCoachFixKind
+ * @typedef {'reading-order' | 'contact-up' | 'add-missing-sections' | 'hide-photo' | 'fix-font' | 'fix-body-font-size' | 'single-column' | 'spill-overflow' | null} AtsCoachFixKind
  */
 
 /**
@@ -53,6 +53,13 @@ export const ATS_COACH_ADVICE = {
     explanation:
       'Des infos du profil ne sont pas affichées. Ajoute les blocs manquants depuis la sidebar.',
     fixKind: 'add-missing-sections',
+    designTradeoff: false,
+  },
+  malus_page_overflow_clipped: {
+    title: 'Contenu coupé en bas de page',
+    explanation:
+      'Un bloc dépasse la zone A4 imprimable. Déplace-le sur la page suivante ou réduis sa hauteur.',
+    fixKind: 'spill-overflow',
     designTradeoff: false,
   },
   malus_free_canvas_no_semantic_blocks: {

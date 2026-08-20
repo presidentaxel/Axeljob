@@ -14,6 +14,7 @@ une règle a un `fixKind` qui **modifie vraiment** le layout.
 | `fix-font` | Polices → Arial |
 | `fix-body-font-size` | Corps → 10 pt |
 | `single-column` | Free : même `x` ; template : `sidebar_ratio=0` |
+| `spill-overflow` | Déplace les blocs hors A4 vers la page suivante (`applyLayoutPagination`) |
 
 Si `fixKind` est `null`, l’UI affiche **`notApplicableReason`**
 (ex. « À remplir dans le contenu du profil »).

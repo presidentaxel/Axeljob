@@ -123,6 +123,92 @@ class TestContactFarFromTop(unittest.TestCase):
         self.assertIsNone(fc_rules.rule_contact_far_from_top(cv, layout))
 
 
+class TestPageOverflowClipped(unittest.TestCase):
+    """AXE-350 : bloc hors A4 → malus, score < 100, coach lisible."""
+
+    def test_skills_past_page_bottom_penalized(self):
+        layout = _free_layout(
+            [
+                {"id": "id", "type": "identity", "x": 10, "y": 10, "w": 180, "h": 20},
+                {
+                    "id": "sk",
+                    "type": "skills",
+                    "x": 10,
+                    "y": fc_rules.PAGE_HEIGHT_MM - 5,
+                    "w": 180,
+                    "h": 30,
+                },
+            ]
+        )
+        rule = fc_rules.rule_free_canvas_page_overflow({}, layout)
+        self.assertIsNotNone(rule)
+        self.assertEqual(rule.id, "malus_page_overflow_clipped")
+        self.assertEqual(rule.delta, -25)
+        self.assertIn("sk", rule.block_ids)
+        self.assertRegex(rule.advice.lower(), r"coupe|coupé")
+
+    def test_block_fully_on_page_no_penalty(self):
+        layout = _free_layout(
+            [{"id": "sk", "type": "skills", "x": 10, "y": 200, "w": 180, "h": 40}]
+        )
+        self.assertIsNone(fc_rules.rule_free_canvas_page_overflow({}, layout))
+
+    def test_template_grid_ignored(self):
+        layout = {
+            "version": 3,
+            "grid": "single-or-sidebar",
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "sk",
+                            "type": "skills",
+                            "x": 10,
+                            "y": fc_rules.PAGE_HEIGHT_MM - 5,
+                            "w": 180,
+                            "h": 30,
+                        }
+                    ],
+                }
+            ],
+        }
+        self.assertIsNone(fc_rules.rule_free_canvas_page_overflow({}, layout))
+
+    def test_score_cannot_be_100_with_clipped_skills(self):
+        from backend.services.ats_score import score_parsing
+
+        cv = {
+            "prenom": "Alice",
+            "nom": "Martin",
+            "email": "alice@example.com",
+            "telephone": "0600000000",
+            "experiences": [{"poste": "Dev", "debut": "2020", "fin": "2024"}],
+            "formations": [{"diplome": "Master"}],
+            "competences": {"techniques": ["Python"]},
+        }
+        layout = _free_layout(
+            [
+                {"id": "id", "type": "identity", "x": 10, "y": 8, "w": 180, "h": 18},
+                {"id": "co", "type": "contact", "x": 10, "y": 28, "w": 180, "h": 12},
+                {"id": "ex", "type": "experiences", "x": 10, "y": 44, "w": 180, "h": 50},
+                {"id": "fo", "type": "formations", "x": 10, "y": 98, "w": 180, "h": 30},
+                {
+                    "id": "sk",
+                    "type": "skills",
+                    "x": 10,
+                    "y": fc_rules.PAGE_HEIGHT_MM - 4,
+                    "w": 180,
+                    "h": 28,
+                },
+            ]
+        )
+        result = score_parsing(cv, layout)
+        ids = {r.id for r in result.rules}
+        self.assertIn("malus_page_overflow_clipped", ids)
+        self.assertLess(result.total, 100)
+
+
 class TestSpatialReorganizationImprovesScore(unittest.TestCase):
     """AXE-37 : une réorganisation spatiale (y) doit lever les malus free_canvas."""
 

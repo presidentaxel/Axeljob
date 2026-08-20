@@ -24,6 +24,11 @@ from backend.services.ats_score.rules._helpers import (
 )
 from backend.services.ats_score.types import Rule, RuleSeverity
 
+# Aligné sur frontend/src/lib/cvLayoutModelV3.js et layout_renderer.PAGE_HEIGHT_MM.
+PAGE_HEIGHT_MM = 297.0
+OVERFLOW_EPS_MM = 0.01
+MALUS_PAGE_OVERFLOW = -25
+
 # Ordre canonique recommande pour un CV ATS (sections semantiques).
 _CANONICAL_READ_ORDER: tuple[str, ...] = (
     "identity",
@@ -285,3 +290,48 @@ def rule_contact_far_from_top(cv: dict[str, Any], layout: dict[str, Any]) -> Rul
                 ),
             )
     return None
+
+
+def _overflowing_blocks(layout: dict[str, Any]) -> list[dict[str, Any]]:
+    found: list[dict[str, Any]] = []
+    for block in iter_blocks(layout):
+        try:
+            y = float(block.get("y", 0))
+            h = float(block.get("h", 0))
+        except (TypeError, ValueError):
+            continue
+        if y + h > PAGE_HEIGHT_MM + OVERFLOW_EPS_MM:
+            found.append(block)
+    return found
+
+
+def rule_free_canvas_page_overflow(cv: dict[str, Any], layout: dict[str, Any]) -> Rule | None:
+    """Penalise un bloc dont le bas depasse la hauteur A4 (contenu coupe).
+
+    AXE-350 : un skills (ou autre) colle au bord inferieur etait encore compte
+    « present » → score 100 trompeur. Aligne le backend sur
+    ``layoutHasPageOverflow`` du frontend.
+    """
+    del cv
+    if get_grid(layout) != "free":
+        return None
+    overflowing = _overflowing_blocks(layout)
+    if not overflowing:
+        return None
+    ids: list[str] = []
+    for block in overflowing:
+        bid = block.get("id")
+        if isinstance(bid, str) and bid and bid not in ids:
+            ids.append(bid)
+    return Rule(
+        id="malus_page_overflow_clipped",
+        label="Contenu coupe en bas de page (hors zone A4)",
+        delta=MALUS_PAGE_OVERFLOW,
+        severity=RuleSeverity.ERROR,
+        block_ids=tuple(ids[:6]),
+        advice=(
+            "Un bloc depasse le bas de la page A4 : le contenu est coupe a l'impression. "
+            "Deplace-le sur la page suivante ou reduis sa hauteur. "
+            "Un score 100 n'est pas credible avec du texte hors zone imprimable."
+        ),
+    )

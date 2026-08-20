@@ -9,6 +9,8 @@ import {
 import { clampBlockPositionOnPage } from '../../lib/canvasPageTransfer.js';
 import { canAppendBlankPage, findBlock } from '../../lib/cvLayoutModelV3.js';
 import { PAGE_HEIGHT_MM, PAGE_WIDTH_MM } from '../../lib/cvLayoutModelV3.js';
+import { layoutHasPageOverflow } from '../../lib/layoutPagination.js';
+import Button from '../ui/Button.jsx';
 import {
   clientDeltaToMmDelta,
   dragGroupKey,
@@ -136,6 +138,7 @@ export default function FreeCanvas({
   onDropBlockPreset,
   onAddPage,
   onRemovePage,
+  onSpillOverflow,
   onEmptyAddSection,
   onEmptyChooseTemplate,
 }) {
@@ -688,6 +691,7 @@ export default function FreeCanvas({
     if (event.target?.closest?.('.free-canvas-block')) return;
     if (event.target?.closest?.('.free-canvas-page')) return;
     if (event.target?.closest?.('.free-canvas-add-page-row')) return;
+    if (event.target?.closest?.('.free-canvas-overflow-banner')) return;
     const match = findPageForMarquee(event.clientX, event.clientY);
     if (!match) {
       commitEditingBlock();
@@ -715,6 +719,8 @@ export default function FreeCanvas({
   const showRemovePageBtns = interactable
     && typeof onRemovePage === 'function'
     && pages.length > 1;
+  const hasPageOverflow = interactable && layoutHasPageOverflow(layout);
+  const showSpillOverflowBtn = hasPageOverflow && typeof onSpillOverflow === 'function';
 
   const placeLabel = placementPreset?.placementMode === 'draw-rect'
     ? 'Dessinez la zone'
@@ -745,6 +751,48 @@ export default function FreeCanvas({
               ? 'Glissez pour dessiner · Échap annule'
               : 'Cliquez pour placer · Échap annule'}
           </span>
+        </div>
+      )}
+      {hasPageOverflow && (
+        <div
+          className="free-canvas-overflow-banner"
+          role="status"
+          data-testid="free-canvas-overflow-banner"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <p className="free-canvas-overflow-banner__title ds-label-md">
+            Contenu coupé en bas de page
+          </p>
+          <p className="free-canvas-overflow-banner__text ds-body-md">
+            Un bloc dépasse la zone A4 imprimable. Le score ATS ne peut pas rester à 100.
+          </p>
+          <div className="free-canvas-overflow-banner__actions">
+            {showSpillOverflowBtn && (
+              <Button
+                variant="primary"
+                size="md"
+                data-testid="free-canvas-spill-overflow"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSpillOverflow();
+                }}
+              >
+                Déplacer sur la page suivante
+              </Button>
+            )}
+            {showAddPageBtn && (
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddPage();
+                }}
+              >
+                Ajouter une page vide
+              </Button>
+            )}
+          </div>
         </div>
       )}
       <div className="free-canvas-pages-stack">
@@ -923,7 +971,9 @@ export default function FreeCanvas({
             </svg>
           </button>
           <span className="free-canvas-add-page-hint">
-            Page {pages.length} - ajouter la page {pages.length + 1}
+            {hasPageOverflow
+              ? 'Contenu coupé — ajoute une page ou déplace le bloc'
+              : `Page ${pages.length} - ajouter la page ${pages.length + 1}`}
           </span>
         </div>
       )}

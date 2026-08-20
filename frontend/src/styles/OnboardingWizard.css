@@ -306,6 +306,11 @@
   font-size: 1rem;
 }
 
+.onb-actions__link {
+  margin-top: 0.15rem;
+  font-size: 0.875rem;
+}
+
 /* Ready state */
 .onb-content--ready {
   padding-top: 1.5rem;

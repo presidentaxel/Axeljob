@@ -16,6 +16,7 @@ Point d'entree de la documentation technique, securite et operations.
 | Workflow Linear ↔ GitHub (tickets AXE, liens, PR) | [docs/linear-github-workflow.md](linear-github-workflow.md) |
 | Intégration `wip/innovation` → `main` (AXE-27) | [docs/axe-27-integration-strategy.md](axe-27-integration-strategy.md) |
 | Spike import PDF/Word → CV scoré (AXE-41) | [docs/axe-41-import-pipeline-spike.md](axe-41-import-pipeline-spike.md) |
+| Taggage analytics landing → signup (Linear) | [docs/taggage-analytics.md](taggage-analytics.md) |
 | Verifier la Definition of Done engineering | `docs/engineering-standards.md` |
 | Appliquer la baseline securite | `docs/security.md` |
 | Deployer en production | `docs/deploy.md` |

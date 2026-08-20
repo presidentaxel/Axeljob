@@ -113,6 +113,7 @@ import { isAtsSafe, sortTemplatesForEditor } from '../../lib/editorTemplateUtils
 import { resetTemplateOptionsToDefaults } from '../../lib/templateOptionsSchema.js';
 import { reflowColumnBlocksOnPage } from '../../lib/layoutReflow.js';
 import { moveBlockToPage } from '../../lib/canvasPageTransfer.js';
+import { applyLayoutPagination } from '../../lib/layoutPagination.js';
 import { useAutoSave } from '../../lib/useAutoSave.js';
 import { useLayoutHistory } from '../../lib/useLayoutHistory.js';
 import FreeCanvas from './FreeCanvas.jsx';
@@ -1022,6 +1023,16 @@ function CvEditorBeta({
     if (!layout || !canAppendBlankPage(layout)) return;
     const next = appendBlankPage(layout);
     commitLayout(next, { groupKey: 'page:add' });
+    setSelectedBlockIds([]);
+    setEditingBlockId(null);
+    if (cv) autoSave.schedule(cv);
+  }, [layout, commitLayout, cv, autoSave]);
+
+  const handleSpillOverflow = useCallback(() => {
+    if (!layout) return;
+    const next = applyLayoutPagination(layout);
+    if (next === layout) return;
+    commitLayout(next, { groupKey: 'page:spill-overflow' });
     setSelectedBlockIds([]);
     setEditingBlockId(null);
     if (cv) autoSave.schedule(cv);
@@ -2372,6 +2383,7 @@ function CvEditorBeta({
               onBlockAutoHeight={handleBlockAutoHeight}
               onAddPage={handleAddCanvasPage}
               onRemovePage={handleRemoveCanvasPage}
+              onSpillOverflow={handleSpillOverflow}
               onEmptyAddSection={handleEmptyAddSection}
               onEmptyChooseTemplate={handleEmptyChooseTemplate}
             />

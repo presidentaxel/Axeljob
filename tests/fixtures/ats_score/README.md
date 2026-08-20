@@ -21,7 +21,7 @@ Le snapshot comporte au minimum :
 
 ```json
 {
-  "scoring_version": "2026.08.1",
+  "scoring_version": "2026.08.2",
   "total": 92,
   "rule_ids": ["bonus_mono_column", "bonus_standard_section_titles", "..."]
 }

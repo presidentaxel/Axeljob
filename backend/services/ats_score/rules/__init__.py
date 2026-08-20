@@ -28,6 +28,7 @@ parsing_rules: tuple = (
     # AXE-336 : plus de malus systematique « positions libres »
     # (layout.rule_free_canvas_text_positions est un no-op conserve pour API).
     free_canvas.rule_free_canvas_no_semantic_blocks,
+    free_canvas.rule_free_canvas_page_overflow,
     free_canvas.rule_free_canvas_missing_profile_sections,
     free_canvas.rule_free_canvas_reading_order,
     free_canvas.rule_identity_not_first_in_reading,

@@ -12,6 +12,7 @@ import {
   optimizeSafeFonts,
   optimizeSingleColumnFreeCanvas,
 } from './atsLayoutOptimize.js';
+import { applyLayoutPagination } from './layoutPagination.js';
 import { getAtsCoachAdvice } from './atsCoachAdvice.js';
 
 /**
@@ -47,6 +48,9 @@ export function applyAtsCoachFix(layout, ruleId, options = {}) {
       return optimizeSingleColumnFreeCanvas(layout);
     }
     return optimizeRemoveSidebar(layout);
+  }
+  if (fixKind === 'spill-overflow') {
+    return applyLayoutPagination(layout);
   }
   return layout;
 }

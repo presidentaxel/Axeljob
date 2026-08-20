@@ -66,7 +66,8 @@ Pieces principales :
 - `save_cv_base` preserve `layout` si le payload ne l'envoie pas.
 - `POST /api/pdf` utilise `layout_renderer.py` si un layout est fourni.
 - `layout_renderer.py` produit un HTML A4 absolu en mm.
-- `free_canvas.py` ajoute des regles ATS basees sur l'ordre spatial des blocs.
+- `free_canvas.py` ajoute des regles ATS basees sur l'ordre spatial des blocs
+  (dont overflow A4 : `malus_page_overflow_clipped`, AXE-350).
 
 ## Avis Produit Detaille
 

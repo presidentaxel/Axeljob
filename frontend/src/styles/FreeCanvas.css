@@ -24,6 +24,34 @@
   max-width: 42rem;
 }
 
+.free-canvas-overflow-banner {
+  width: min(100%, 42rem);
+  margin: 0 0 var(--ds-space-md);
+  padding: var(--ds-space-md) var(--ds-space-lg);
+  background: var(--ds-color-feedback-error-subtle);
+  color: var(--ds-color-text-default);
+  border: 1px solid var(--ds-color-border-default);
+  border-radius: var(--ds-radius-sm);
+  text-align: left;
+}
+
+.free-canvas-overflow-banner__title {
+  margin: 0 0 var(--ds-space-xs);
+  color: var(--ds-color-text-danger);
+}
+
+.free-canvas-overflow-banner__text {
+  margin: 0 0 var(--ds-space-md);
+  color: var(--ds-color-text-muted);
+}
+
+.free-canvas-overflow-banner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-sm);
+  align-items: center;
+}
+
 .free-canvas-pages-stack {
   display: flex;
   flex-direction: column;

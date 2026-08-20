@@ -454,6 +454,7 @@ Base : **100**. Plancher : **0**. Plafond : **100**.
 | Dates au format exotique | −1 par occurrence (plafond −5) | Regex stricte sur `cv.experiences[].date_*` |
 | Police "exotique" (script, decorative) | −5 | Allowlist : Arial, Calibri, Helvetica, Inter, Plus Jakarta Sans, Georgia, Times |
 | Taille de corps < 9pt ou > 12pt | −3 | `layout.theme.font_size_body` |
+| Contenu coupé hors A4 (canvas libre) | −25 | AXE-350 : `grid == "free"` et `y + h > PAGE_HEIGHT_MM` (297 mm). Un bloc `skills` collé au bord inférieur ne doit plus laisser le score à 100. |
 
 #### 9.2.3 Pénalités légères (préférences ATS)
 
@@ -1807,9 +1808,12 @@ autres blocs), priorité magnétique sur la grille. Fichiers :
 | `malus_identity_not_first` | −5 si l’identité n’est pas lue en premier |
 | `malus_experiences_before_resume` | −5 si expériences avant le résumé |
 | `malus_contact_low_on_page` | −3 si contact sous 30 % hauteur page |
+| `malus_free_canvas_no_semantic_blocks` | −20 si aucun bloc sémantique |
+| `malus_free_canvas_missing_profile_sections` | malus si le profil n’est pas affiché |
+| `malus_page_overflow_clipped` | −25 si un bloc dépasse 297 mm (AXE-350) |
 
 Le badge ATS en mode canvas libre envoie le `layout` v3 courant (plus le
-`template_id`). Version scoring : `2026.05.1`.
+`template_id`). Version scoring : `2026.08.2`.
 
 #### 14.5.9 Robustesse ATS + P3.10 pagination (livré)
 
@@ -1817,8 +1821,11 @@ Le badge ATS en mode canvas libre envoie le `layout` v3 courant (plus le
 pause pendant drag/resize, conservation du dernier score en erreur, bouton
 réessayer. Fichiers : `useAtsScoreFetching.js`, `atsScoreLayoutFingerprint.js`.
 
-**P3.10** : `layoutPagination.js` - blocs dont le bas dépasse 297 mm sont
-déplacés sur la page suivante à la fin du drag/resize (`pagination:auto`).
+**P3.10** : `layoutPagination.js` — helper `layoutHasPageOverflow` /
+`applyLayoutPagination` (spill vers la page suivante). AXE-350 : le scoring
+backend pénalise l’overflow (`malus_page_overflow_clipped`) ; le coach
+« Corriger » et la bannière canvas appellent le spill. Pas de spill silencieux
+à chaque drag (l’utilisateur garde le contrôle).
 
 #### 14.5.10 Bilan P3 (état livré)
 

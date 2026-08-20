@@ -48,6 +48,14 @@ test('getAtsCoachAdvice mappe les règles clés en langage clair', () => {
     getAtsCoachAdvice({ id: 'malus_experiences_before_resume' }).fixKind,
     'reading-order',
   );
+  assert.match(
+    getAtsCoachAdvice({ id: 'malus_page_overflow_clipped' }).title,
+    /coup[eé]/i,
+  );
+  assert.equal(
+    getAtsCoachAdvice({ id: 'malus_page_overflow_clipped' }).fixKind,
+    'spill-overflow',
+  );
 });
 
 test('getAtsCoachAdvice préfère advice API si fourni', () => {
@@ -63,6 +71,7 @@ test('isAtsCoachRuleFixable pour contact, ordre, sections, photo', () => {
   assert.equal(isAtsCoachRuleFixable('malus_identity_not_first'), true);
   assert.equal(isAtsCoachRuleFixable('malus_free_canvas_missing_profile_sections'), true);
   assert.equal(isAtsCoachRuleFixable('malus_photo_present'), true);
+  assert.equal(isAtsCoachRuleFixable('malus_page_overflow_clipped'), true);
   assert.equal(isAtsCoachRuleFixable('malus_missing_identity'), false);
 });
 
@@ -203,6 +212,31 @@ test('applyAtsCoachFix fix-font et body size changent le theme', () => {
   assert.equal(fonts.theme.font_body, 'Arial');
   const size = applyAtsCoachFix(layout, 'malus_body_font_size_out_of_range');
   assert.equal(size.theme.font_size_body, 10);
+});
+
+test('applyAtsCoachFix spill-overflow envoie le bloc hors A4 sur la page 2', () => {
+  const layout = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    theme: {},
+    pages: [{
+      id: 'page-1',
+      blocks: [
+        { id: 'id', type: 'identity', x: 10, y: 8, w: 180, h: 18, z: 1, style: {} },
+        { id: 'sk', type: 'skills', x: 10, y: 292, w: 180, h: 30, z: 2, style: {} },
+      ],
+    }],
+  };
+  const next = applyAtsCoachFix(layout, 'malus_page_overflow_clipped');
+  assert.equal(isAtsCoachRuleFixable('malus_page_overflow_clipped'), true);
+  assert.ok(next.pages.length >= 2);
+  const page1Ids = next.pages[0].blocks.map((b) => b.id);
+  const page2Ids = next.pages[1].blocks.map((b) => b.id);
+  assert.equal(page1Ids.includes('sk'), false);
+  assert.ok(page2Ids.includes('sk'));
+  assert.equal(didAtsCoachFixChangeLayout(layout, next), true);
 });
 
 test('applyAtsCoachFix single-column retire la sidebar template', () => {

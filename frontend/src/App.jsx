@@ -19,6 +19,7 @@ import { ensureAnalyticsFirstTouch, getStoredAttribution } from './analyticsSess
 import { resetTemplateOptionsToDefaults } from './lib/templateOptionsSchema.js';
 import { useViewAnalytics } from './useViewAnalytics';
 import { supabase } from './lib/supabase';
+import { fetchAuthSessionWithTimeout } from './lib/supabaseAuthSession';
 import AuthForm from './components/AuthForm';
 import AppTopbar from './components/AppTopbar';
 import CompanyLogo from './components/CompanyLogo';
@@ -1046,11 +1047,15 @@ export default function App() {
       setAuthToken(null);
       supabase.auth.signOut();
     });
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setAuthToken(s?.access_token ?? null);
-      setAuthLoading(false);
-    });
+    fetchAuthSessionWithTimeout(supabase)
+      .then((s) => {
+        setSession(s);
+        setAuthToken(s?.access_token ?? null);
+        setAuthLoading(false);
+      })
+      .catch(() => {
+        setAuthLoading(false);
+      });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       setAuthToken(s?.access_token ?? null);
@@ -2934,8 +2939,8 @@ export default function App() {
     );
   }
 
-  /* Non connecté : landing (/) ou login (/login) */
-  if (!authLoading && !session) {
+  /* Non connecté : login visible tout de suite (AXE-372), sans attendre getSession. */
+  if (!session) {
     if (pathname === '/login') {
       return (
         <div className="login-screen">
@@ -2956,12 +2961,14 @@ export default function App() {
         </div>
       );
     }
-    const marketing = renderPublicMarketingPage(pathname, navigate);
-    if (marketing) return marketing;
     if (pathname === '/') {
       return <Suspense fallback={<div className="landing" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span aria-hidden>Chargement…</span></div>}><LandingPage onCtaClick={() => navigate('/login')} onProClick={() => navigate('/login?plan=pro')} /></Suspense>;
     }
-    return <NotFoundPage />;
+    const marketing = renderPublicMarketingPage(pathname, navigate);
+    if (marketing) return marketing;
+    if (!authLoading) {
+      return <NotFoundPage />;
+    }
   }
 
   /* Connecté : redirection / ou /login vers /app (useEffect) ; pages publiques hors /app ; sinon 404 */

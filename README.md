@@ -144,6 +144,19 @@ npm run dev
 
 [http://localhost:5173](http://localhost:5173)
 
+Linux / macOS / Cursor Cloud : `bash scripts/setup-dev.sh` puis `bash scripts/dev.sh` (API `:8000` + front `:5173`).
+
+### Cursor Cloud Agents (n'importe quel PC)
+
+Les secrets **ne vont pas dans Git** et **ne se copient pas** sur tes laptops. Ils sont injectes dans les VMs Cloud Agent depuis le dashboard Cursor (Environment → Secrets), puis `scripts/materialize_dotenv.py` ecrit `.env` et `frontend/.env` au boot.
+
+| Ou | Quoi faire |
+| --- | --- |
+| Agent Cloud (web / n'importe quel PC) | Ajouter les secrets dans Cursor (noms identiques au `.env.example`). `.cursor/environment.json` installe les deps et lance `bash scripts/dev.sh`. |
+| PC physique | `cp .env.example .env` et `cp frontend/.env.example frontend/.env`, ou exporter les memes variables puis `python scripts/materialize_dotenv.py`. |
+
+Secrets minimum pour un local utile : `GEMINI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_JWT_SECRET`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+
 ---
 
 ## Variables d'environnement

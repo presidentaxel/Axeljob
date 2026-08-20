@@ -30,6 +30,10 @@ Flux recommande pour produire des PR petites, lisibles et faciles a merger.
 
 ## 2) Setup local
 
+Linux / macOS : `bash scripts/setup-dev.sh` (venv, hooks, materialise `.env` depuis l'environnement si present).
+
+Les secrets Cursor Cloud ne remplacent pas un `.env` sur un PC physique.
+
 ### Backend (Python)
 
 ```powershell

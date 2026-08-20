@@ -26,8 +26,14 @@ if command -v pre-commit >/dev/null 2>&1; then
 fi
 
 echo ""
+echo "=== .env (depuis secrets shell / Cursor Cloud, sans ecraser les valeurs deja posees) ==="
+python "$REPO_ROOT/scripts/materialize_dotenv.py" --root "$REPO_ROOT"
+
+echo ""
 echo "=== Cursor ==="
 echo "Les hooks projet sont dans .cursor/hooks.json (bloque git push si la CI locale échoue)."
 echo "Règle agent : .cursor/rules/pre-push-ci.mdc"
+echo "Secrets Cloud Agents : dashboard Cursor → Environment secrets (jamais dans Git)."
 echo ""
 echo "OK - setup dev terminé. Tester : bash scripts/pre-push.sh --skip-extras --skip-gitleaks"
+echo "Lancer l'app : bash scripts/dev.sh"

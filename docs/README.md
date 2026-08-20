@@ -18,6 +18,7 @@ Point d'entree de la documentation technique, securite et operations.
 | Spike import PDF/Word → CV scoré (AXE-41) | [docs/axe-41-import-pipeline-spike.md](axe-41-import-pipeline-spike.md) |
 | Verifier la Definition of Done engineering | `docs/engineering-standards.md` |
 | Appliquer la baseline securite | `docs/security.md` |
+| Secrets Cursor Cloud / `.env` local | [README.md](../README.md) (section Cursor Cloud Agents) + `scripts/materialize_dotenv.py` |
 | Deployer en production | `docs/deploy.md` |
 | Utiliser les commandes ops courantes | `docs/ops-commands.md` |
 | Acceder a la version courte des commandes | `docs/COMMANDS.md` |

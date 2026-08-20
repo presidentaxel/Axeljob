@@ -1,4 +1,4 @@
 {
-  "install": "python3 -m venv .venv\n.venv/bin/python -m pip install --upgrade pip\n.venv/bin/pip install -r backend/requirements.txt -r backend/requirements-dev.txt\nnpm ci --prefix frontend\n.venv/bin/python scripts/materialize_dotenv.py --root .",
+  "install": "sudo apt-get update -o Acquire::Retries=3\nsudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3.12-venv libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 libffi-dev shared-mime-info fonts-dejavu-core\npython3 -m venv .venv\n.venv/bin/python -m pip install --upgrade pip\n.venv/bin/pip install -r backend/requirements.txt -r backend/requirements-dev.txt\nnpm ci --prefix frontend\n.venv/bin/python scripts/materialize_dotenv.py --root .",
   "start": "bash scripts/dev.sh"
 }

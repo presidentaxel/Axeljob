@@ -531,6 +531,11 @@
     border-top: none;
   }
 
+  /* Rail sticky horizontal : marge ≥ hauteur approx. des chips */
+  .settings-section {
+    scroll-margin-top: 4.5rem;
+  }
+
   .settings-split {
     grid-template-columns: 1fr;
   }

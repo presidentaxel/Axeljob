@@ -326,6 +326,13 @@ export default function SettingsView({
                   className={`settings-rail-link${isActive ? ' is-active' : ''}`}
                   aria-current={isActive ? 'true' : undefined}
                   onClick={(e) => {
+                    if (
+                      e.button !== 0
+                      || e.metaKey
+                      || e.ctrlKey
+                      || e.shiftKey
+                      || e.altKey
+                    ) return;
                     e.preventDefault();
                     scrollToSection(item.id);
                   }}

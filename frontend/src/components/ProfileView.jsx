@@ -1238,7 +1238,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                 <span className="tpl-btn-bar-extra-icon" aria-hidden>
                   <HiArrowDownTray size={16} strokeWidth={2} />
                 </span>
-                CV de base
+                Exporter en PDF
               </button>
             )}
           />

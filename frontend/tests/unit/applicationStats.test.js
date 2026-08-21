@@ -6,24 +6,25 @@ import {
   parseApplicationDate,
   isApplicationToFollowUp,
   computeApplicationMetrics,
+  getApplicationCardAccent,
 } from '../../src/lib/applicationStats.js';
 
-test('parseApplicationDate accepte jour seul et datetime UTC', () => {
-  const day = parseApplicationDate('2026-01-10');
-  assert.ok(day instanceof Date);
-  assert.equal(day.getFullYear(), 2026);
-  assert.equal(day.getMonth(), 0);
-  assert.equal(day.getDate(), 10);
-
-  const withTime = parseApplicationDate('2026-01-10 14:30');
-  assert.ok(withTime instanceof Date);
-  assert.equal(withTime.toISOString().slice(0, 16), '2026-01-10T14:30');
+test('parseApplicationDate est réexporté depuis applicationStats', () => {
+  assert.ok(parseApplicationDate('2026-01-10') instanceof Date);
 });
 
-test('parseApplicationDate refuse les valeurs invalides', () => {
-  assert.equal(parseApplicationDate(''), null);
-  assert.equal(parseApplicationDate(null), null);
-  assert.equal(parseApplicationDate('hier'), null);
+test('getApplicationCardAccent : offre / refus / relancer', () => {
+  const now = new Date('2026-08-21T12:00:00Z');
+  assert.equal(getApplicationCardAccent({ statut: 'offre', date: '2026-08-20' }, { now }), 'offre');
+  assert.equal(getApplicationCardAccent({ statut: 'refus', date: '2026-08-20' }, { now }), 'refus');
+  assert.equal(
+    getApplicationCardAccent({ statut: 'candidature_envoyee', date: '2026-08-01' }, { now }),
+    'relancer',
+  );
+  assert.equal(
+    getApplicationCardAccent({ statut: 'candidature_envoyee', date: '2026-08-20' }, { now }),
+    null,
+  );
 });
 
 test('isApplicationToFollowUp : 14j+ en attente', () => {

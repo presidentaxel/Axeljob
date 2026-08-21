@@ -35,8 +35,8 @@ import { syncRobotsMeta } from './lib/seoHead';
 import './App.css';
 import './styles/TemplatePicker.css';
 import './styles/GuidedTour.css';
-import { formatApplicationDateLabel } from './lib/applicationDates';
-import { computeApplicationMetrics, isApplicationToFollowUp } from './lib/applicationStats.js';
+import { formatApplicationDateLabel, formatApplicationRelativeLabel } from './lib/applicationDates';
+import { computeApplicationMetrics, getApplicationCardAccent, isApplicationToFollowUp } from './lib/applicationStats.js';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from './lib/cvPreviewA4Pages';
 import {
   betaCanvasRenderFields,
@@ -3757,12 +3757,28 @@ export default function App() {
                     <div className="kanban-column-cards">
                       {columnApps.map((app) => {
                         const titre = app.poste || app.poste_offre || 'Sans intitulé';
-                        const sousTitre = [app.entreprise].filter(Boolean).join(' · ');
+                        const entreprise = (app.entreprise || '').trim();
                         const isDragging = kanbanDraggedId === app.id;
+                        const statutKey = app.statut in STATUT_LABELS ? app.statut : 'candidature_envoyee';
+                        const needsFollowUp = isApplicationToFollowUp(app);
+                        const accent = getApplicationCardAccent(app);
+                        const hasDocs = Boolean(
+                          app.pdf_lettre_url || app.pdf_cv_url || app.pdf_fiche_url
+                          || app.pdf_cv_stored || app.pdf_fiche_stored || app.pdf_lettre_stored,
+                        );
+                        const dateAbs = formatApplicationDateLabel(app.date);
+                        const dateRel = formatApplicationRelativeLabel(app.date);
                         return (
                           <div
                             key={app.id}
-                            className={`application-card kanban-card ${app.archived ? 'archived' : ''} ${isDragging ? 'dragging' : ''} ${justAddedAppId === app.id ? 'just-added' : ''}`}
+                            className={[
+                              'application-card',
+                              'kanban-card',
+                              app.archived ? 'archived' : '',
+                              isDragging ? 'dragging' : '',
+                              justAddedAppId === app.id ? 'just-added' : '',
+                              accent ? `application-card--accent-${accent}` : '',
+                            ].filter(Boolean).join(' ')}
                             draggable={!app.archived}
                             onDragStart={(e) => {
                               setKanbanDraggedId(app.id);
@@ -3772,28 +3788,63 @@ export default function App() {
                             onDragEnd={() => setKanbanDraggedId(null)}
                           >
                             <div className="app-card-actions-icons">
-                              <button type="button" className="btn btn-icon btn-icon-view" onClick={() => openApplicationDetail(app.id)} title="Voir" aria-label="Voir">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                              </button>
-                              <button type="button" className="btn btn-icon btn-icon-archive" onClick={() => handleArchive(app.id, true)} title="Archiver" aria-label="Archiver">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                              </button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                iconOnly
+                                className="app-card-action"
+                                onClick={() => openApplicationDetail(app.id)}
+                                title="Voir"
+                                aria-label="Voir"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                iconOnly
+                                className="app-card-action app-card-action--archive"
+                                onClick={() => handleArchive(app.id, true)}
+                                title="Archiver"
+                                aria-label="Archiver"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                              </Button>
                             </div>
-                            <div className={`app-status-dot app-status-dot--${(app.statut in STATUT_LABELS ? app.statut : 'candidature_envoyee')}`} title={STATUT_LABELS[app.statut in STATUT_LABELS ? app.statut : 'candidature_envoyee']} aria-hidden />
                             <div className="app-card-top">
-                              <CompanyLogo companyName={app.entreprise} className="app-company-logo" size={36} />
-                              <div className="app-poste-date">
+                              <CompanyLogo companyName={entreprise || app.entreprise} className="app-company-logo" size={32} />
+                              <div className="app-card-text">
                                 <div className="app-title">{titre}</div>
-                                <div className="app-date">{formatApplicationDateLabel(app.date)}</div>
+                                {entreprise ? <div className="app-meta">{entreprise}</div> : null}
                               </div>
+                              {needsFollowUp && (
+                                <span
+                                  className="app-follow-up-dot"
+                                  title="Sans nouvelle depuis 14 jours ou plus"
+                                  aria-label="À relancer"
+                                />
+                              )}
                             </div>
-                            {sousTitre && <div className="app-meta">{sousTitre}</div>}
-                            {(app.pdf_lettre_url || app.pdf_cv_url || app.pdf_fiche_url || app.pdf_cv_stored || app.pdf_fiche_stored || app.pdf_lettre_stored) && (
-                              <div className="app-docs-badge" title="Documents PDF joints">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
-                                <span>PDF</span>
-                              </div>
-                            )}
+                            <div className="app-card-footer">
+                              {hasDocs ? (
+                                <div className="app-docs-badge" title="Documents PDF joints">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+                                  <span>PDF</span>
+                                </div>
+                              ) : (
+                                <span className="app-card-footer-spacer" aria-hidden />
+                              )}
+                              <time
+                                className="app-date"
+                                dateTime={(app.date || '').trim().slice(0, 10) || undefined}
+                                title={dateAbs || undefined}
+                              >
+                                {dateRel}
+                              </time>
+                            </div>
+                            <span className="app-card-statut-sr">{STATUT_LABELS[statutKey]}</span>
                           </div>
                         );
                       })}
@@ -3846,22 +3897,26 @@ export default function App() {
                 <div className="applications-list kanban-archived-list">
                   {filteredArchived.map((app) => {
                     const titre = app.poste || app.poste_offre || 'Sans intitulé';
+                    const entreprise = (app.entreprise || '').trim();
                     const statutVal = app.statut in STATUT_LABELS ? app.statut : 'candidature_envoyee';
+                    const dateAbs = formatApplicationDateLabel(app.date);
+                    const dateRel = formatApplicationRelativeLabel(app.date);
                     return (
                       <div key={app.id} className="application-card archived">
                         <div className="app-card-top">
-                          <CompanyLogo companyName={app.entreprise} className="app-company-logo" size={36} />
-                          <div className="app-poste-date">
+                          <CompanyLogo companyName={entreprise || app.entreprise} className="app-company-logo" size={32} />
+                          <div className="app-card-text">
                             <div className="app-title">{titre}</div>
-                            <div className="app-date">{formatApplicationDateLabel(app.date)}</div>
+                            {entreprise ? <div className="app-meta">{entreprise}</div> : null}
                           </div>
+                          <time className="app-date" title={dateAbs || undefined}>{dateRel}</time>
                         </div>
                         <div className="app-actions">
-                          <button type="button" className="btn btn-view" onClick={() => openApplicationDetail(app.id)}>Voir</button>
+                          <Button type="button" variant="secondary" size="sm" onClick={() => openApplicationDetail(app.id)}>Voir</Button>
                           <select className="app-statut" value={statutVal} onChange={(e) => handleStatutChange(app.id, e.target.value)}>
                             {Object.entries(STATUT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                           </select>
-                          <button type="button" className="btn btn-archive" onClick={() => handleArchive(app.id, false)}>Désarchiver</button>
+                          <Button type="button" variant="tertiary" size="sm" onClick={() => handleArchive(app.id, false)}>Désarchiver</Button>
                         </div>
                       </div>
                     );

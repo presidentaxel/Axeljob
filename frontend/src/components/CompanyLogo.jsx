@@ -14,11 +14,23 @@ function getCompanyLogoUrl(companyName) {
 export default function CompanyLogo({ companyName, className, size = 40 }) {
   const [failed, setFailed] = useState(false);
   const url = getCompanyLogoUrl(companyName);
-  const initial = (companyName || '?').trim().charAt(0).toUpperCase();
+  const trimmed = (companyName || '').trim();
+  const monogram = trimmed
+    ? trimmed
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((w) => w.charAt(0))
+        .join('')
+        .toUpperCase()
+    : '?';
   if (failed || !url) {
     return (
-      <div className={`company-logo-fallback ${className || ''}`} style={{ width: size, height: size, fontSize: Math.round(size * 0.5) }}>
-        {initial}
+      <div
+        className={`company-logo-fallback ${className || ''}`}
+        style={{ width: size, height: size, fontSize: Math.round(size * 0.4) }}
+        aria-hidden
+      >
+        {monogram}
       </div>
     );
   }

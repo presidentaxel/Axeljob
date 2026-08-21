@@ -12,29 +12,14 @@
  */
 
 import { STATUT_LABELS } from '../constants.js';
+import { parseApplicationDate } from './applicationDates.js';
+
+export { parseApplicationDate } from './applicationDates.js';
 
 export const RELANCE_DAYS = 14;
 
 const WAITING_STATUTS = new Set(['a_postuler', 'candidature_envoyee']);
 const RESPONDED_STATUTS = new Set(['reponse_recue', 'interview', 'offre', 'refus']);
-
-/**
- * @param {string | null | undefined} dateStr
- * @returns {Date | null}
- */
-export function parseApplicationDate(dateStr) {
-  if (!dateStr || typeof dateStr !== 'string') return null;
-  const trimmed = dateStr.trim();
-  const m = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2}))?/);
-  if (!m) return null;
-  const y = parseInt(m[1], 10);
-  const mo = parseInt(m[2], 10) - 1;
-  const d = parseInt(m[3], 10);
-  if (m[4] != null && m[5] != null) {
-    return new Date(Date.UTC(y, mo, d, parseInt(m[4], 10), parseInt(m[5], 10)));
-  }
-  return new Date(y, mo, d);
-}
 
 function resolveStatut(app) {
   const s = app?.statut;
@@ -52,6 +37,21 @@ export function isApplicationToFollowUp(app, { now = new Date(), relanceDays = R
   if (!ref) return false;
   const ms = now.getTime() - ref.getTime();
   return ms >= relanceDays * 24 * 60 * 60 * 1000;
+}
+
+/**
+ * Accent bordure gauche carte : offre | refus | relancer | null.
+ * @param {object} app
+ * @param {{ now?: Date }} [opts]
+ * @returns {'offre' | 'refus' | 'relancer' | null}
+ */
+export function getApplicationCardAccent(app, { now = new Date() } = {}) {
+  if (!app || app.archived) return null;
+  const statut = resolveStatut(app);
+  if (statut === 'offre') return 'offre';
+  if (statut === 'refus') return 'refus';
+  if (isApplicationToFollowUp(app, { now })) return 'relancer';
+  return null;
 }
 
 /**

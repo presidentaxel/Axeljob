@@ -324,6 +324,17 @@ function CvEditorBeta({
     () => summarizeNonFaithfulBlocks(pdfFidelityIssues),
     [pdfFidelityIssues],
   );
+  const pdfFidelityReasons = useMemo(() => {
+    const reasons = [];
+    const seen = new Set();
+    for (const item of pdfFidelityIssues) {
+      const reason = String(item?.reason || '').trim();
+      if (!reason || seen.has(reason)) continue;
+      seen.add(reason);
+      reasons.push(reason);
+    }
+    return reasons;
+  }, [pdfFidelityIssues]);
 
   const clearCanvasSelection = useCallback(() => {
     setSelectedBlockIds([]);
@@ -2112,9 +2123,19 @@ function CvEditorBeta({
       )}
       {pdfFidelityIssues.length > 0 && !loading && layout && (
         <div className="cv-editor-beta-pdf-fidelity" role="status">
-          Certains blocs ne seront pas exportés à l&apos;identique dans le PDF
-          {pdfFidelitySummary ? ` (${pdfFidelitySummary})` : ''}.
-          Survole le badge « PDF » sur le canvas pour le détail.
+          <p className="cv-editor-beta-pdf-fidelity-lead">
+            Certains blocs ne seront pas exportés à l&apos;identique dans le PDF
+            {pdfFidelitySummary ? ` (${pdfFidelitySummary})` : ''}.
+            {' '}
+            Un badge « PDF » sur le canvas rappelle le bloc concerné (survole-le pour le détail).
+          </p>
+          {pdfFidelityReasons.length > 0 && (
+            <ul className="cv-editor-beta-pdf-fidelity-list">
+              {pdfFidelityReasons.map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 

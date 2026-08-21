@@ -516,6 +516,19 @@
   line-height: 1.4;
 }
 
+.cv-editor-beta-pdf-fidelity-lead {
+  margin: 0;
+}
+
+.cv-editor-beta-pdf-fidelity-list {
+  margin: 0.35rem 0 0;
+  padding-left: 1.15rem;
+}
+
+.cv-editor-beta-pdf-fidelity-list li {
+  margin: 0.15rem 0;
+}
+
 .cv-editor-beta-canvas {
   position: relative;
   flex: 1;

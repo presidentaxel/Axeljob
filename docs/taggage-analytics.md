@@ -573,6 +573,7 @@ Un ID posé en prod ne se renomme jamais. Tracker app = `/api/events/track` + fu
 | `candidatures-banner-cta-adapt` | cta | secondary | Banner zéro adaptation | Aller à Adapter un CV (`/app/cv`) |
 | `candidatures-search-empty-cta-clear` | cta | secondary | Empty recherche | Effacer la recherche |
 | `candidatures-controls-input-search` | input | tertiary | Barre de filtres | Champ recherche. **Ne jamais** envoyer la valeur dans un event. |
+| `candidatures-list-input-statut` | input | tertiary | Liste mobile (≤768px) | Select changement de statut. **Ne jamais** envoyer la valeur dans un event. |
 
 `data-section` (hors compte) :
 
@@ -580,6 +581,7 @@ Un ID posé en prod ne se renomme jamais. Tracker app = `/api/events/track` + fu
 |---|---|
 | `candidatures` | Board kanban `/app/postule` |
 | `candidatures-stats` | Bandeau métriques |
+| `candidatures-list-mobile` | Liste groupée mobile (AXE-381) |
 
 V2 candidatures (ne pas poser maintenant) : ouverture carte, archive, drag colonne, métriques cliquables.
 

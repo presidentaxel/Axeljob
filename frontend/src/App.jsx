@@ -23,6 +23,7 @@ import { fetchAuthSessionWithTimeout } from './lib/supabaseAuthSession';
 import AuthForm from './components/AuthForm';
 import AppTopbar from './components/AppTopbar';
 import CompanyLogo from './components/CompanyLogo';
+import CandidatureBoardCard from './components/CandidatureBoardCard';
 import { NotFoundPage } from './components/ErrorPages';
 import Button from './components/ui/Button.jsx';
 import { CONTACT_EMAIL, STORAGE_EXPORT_DIR, STORAGE_EXPORT_ATS_BLOCK_SNOOZE, STORAGE_PRE_EXPORT_TEMPLATE_OPTIONS_DONE, STORAGE_PDF_EXPORT_FILENAME_PATTERN, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
@@ -36,7 +37,7 @@ import './App.css';
 import './styles/TemplatePicker.css';
 import './styles/GuidedTour.css';
 import { formatApplicationDateLabel, formatApplicationRelativeLabel } from './lib/applicationDates';
-import { computeApplicationMetrics, getApplicationCardAccent, isApplicationToFollowUp } from './lib/applicationStats.js';
+import { computeApplicationMetrics, isApplicationToFollowUp } from './lib/applicationStats.js';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from './lib/cvPreviewA4Pages';
 import {
   betaCanvasRenderFields,
@@ -3780,136 +3781,98 @@ export default function App() {
                 </div>
               </div>
               <div className="candidatures-board">
-                <div className="kanban-board">
-              {KANBAN_COLUMNS.map((col) => {
-                const columnApps = filteredApplications.filter((app) => {
-                  if (app.archived) return false;
-                  const s = app.statut in STATUT_LABELS ? app.statut : 'candidature_envoyee';
-                  return s === col.id;
-                });
-                return (
-                  <div
-                    key={col.id}
-                    className={`kanban-column kanban-column--${col.id} ${kanbanDragOverColumn === col.id ? 'drag-over' : ''}`}
-                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setKanbanDragOverColumn(col.id); }}
-                    onDragLeave={() => setKanbanDragOverColumn(null)}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      setKanbanDragOverColumn(null);
-                      const appId = e.dataTransfer.getData('application/id');
-                      const app = applications.find((a) => a.id === appId);
-                      if (app) handleKanbanDrop(col.id, app);
-                    }}
-                  >
-                    <div className="kanban-column-header">
-                      <span className="kanban-column-title">{col.label}</span>
-                      <span className="kanban-column-count">{columnApps.length}</span>
-                    </div>
-                    <div className="kanban-column-cards">
-                      {columnApps.map((app) => {
-                        const titre = app.poste || app.poste_offre || 'Sans intitulé';
-                        const entreprise = (app.entreprise || '').trim();
-                        const isDragging = kanbanDraggedId === app.id;
-                        const statutKey = app.statut in STATUT_LABELS ? app.statut : 'candidature_envoyee';
-                        const needsFollowUp = isApplicationToFollowUp(app);
-                        const accent = getApplicationCardAccent(app);
-                        const hasDocs = Boolean(
-                          app.pdf_lettre_url || app.pdf_cv_url || app.pdf_fiche_url
-                          || app.pdf_cv_stored || app.pdf_fiche_stored || app.pdf_lettre_stored,
-                        );
-                        const dateAbs = formatApplicationDateLabel(app.date);
-                        const dateRel = formatApplicationRelativeLabel(app.date);
-                        return (
-                          <div
-                            key={app.id}
-                            className={[
-                              'application-card',
-                              'kanban-card',
-                              app.archived ? 'archived' : '',
-                              isDragging ? 'dragging' : '',
-                              justAddedAppId === app.id ? 'just-added' : '',
-                              accent ? `application-card--accent-${accent}` : '',
-                            ].filter(Boolean).join(' ')}
-                            draggable={!app.archived}
-                            onDragStart={(e) => {
-                              setKanbanDraggedId(app.id);
-                              e.dataTransfer.setData('application/id', app.id);
-                              e.dataTransfer.effectAllowed = 'move';
-                            }}
-                            onDragEnd={() => setKanbanDraggedId(null)}
-                          >
-                            <div className="app-card-actions-icons">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                iconOnly
-                                className="app-card-action"
-                                onClick={() => openApplicationDetail(app.id)}
-                                title="Voir"
-                                aria-label="Voir"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                iconOnly
-                                className="app-card-action app-card-action--archive"
-                                onClick={() => handleArchive(app.id, true)}
-                                title="Archiver"
-                                aria-label="Archiver"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                              </Button>
-                            </div>
-                            <div className="app-card-top">
-                              <CompanyLogo companyName={entreprise || app.entreprise} className="app-company-logo" size={32} />
-                              <div className="app-card-text">
-                                <div className="app-title-row">
-                                  <div className="app-title">{titre}</div>
-                                  {needsFollowUp && (
-                                    <span
-                                      className="app-follow-up-dot"
-                                      title="Sans nouvelle depuis 14 jours ou plus"
-                                      aria-label="À relancer"
-                                    />
-                                  )}
-                                </div>
-                                {entreprise ? <div className="app-meta">{entreprise}</div> : null}
-                              </div>
-                            </div>
-                            <div className="app-card-footer">
-                              {hasDocs ? (
-                                <div className="app-docs-badge" title="Documents PDF joints">
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
-                                  <span>PDF</span>
-                                </div>
-                              ) : (
-                                <span className="app-card-footer-spacer" aria-hidden />
-                              )}
-                              <time
-                                className="app-date"
-                                dateTime={(app.date || '').trim().slice(0, 10) || undefined}
-                                title={dateAbs || undefined}
-                              >
-                                {dateRel}
-                              </time>
-                            </div>
-                            <span className="app-card-statut-sr">{STATUT_LABELS[statutKey]}</span>
-                          </div>
-                        );
-                      })}
-                      {columnApps.length === 0 && (
-                        <div className="kanban-column-empty" aria-hidden="true">
-                          Glisse une carte ici
+                <div className="kanban-board" data-section="candidatures-board-desktop" aria-label="Tableau kanban des candidatures">
+                  {KANBAN_COLUMNS.map((col) => {
+                    const columnApps = filteredApplications.filter((app) => {
+                      if (app.archived) return false;
+                      const s = app.statut in STATUT_LABELS ? app.statut : 'candidature_envoyee';
+                      return s === col.id;
+                    });
+                    return (
+                      <div
+                        key={col.id}
+                        className={`kanban-column kanban-column--${col.id} ${kanbanDragOverColumn === col.id ? 'drag-over' : ''}`}
+                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setKanbanDragOverColumn(col.id); }}
+                        onDragLeave={() => setKanbanDragOverColumn(null)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setKanbanDragOverColumn(null);
+                          const appId = e.dataTransfer.getData('application/id');
+                          const app = applications.find((a) => a.id === appId);
+                          if (app) handleKanbanDrop(col.id, app);
+                        }}
+                      >
+                        <div className="kanban-column-header">
+                          <span className="kanban-column-title">{col.label}</span>
+                          <span className="kanban-column-count">{columnApps.length}</span>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                        <div className="kanban-column-cards">
+                          {columnApps.map((app) => (
+                            <CandidatureBoardCard
+                              key={app.id}
+                              app={app}
+                              variant="kanban"
+                              isDragging={kanbanDraggedId === app.id}
+                              justAdded={justAddedAppId === app.id}
+                              onView={() => openApplicationDetail(app.id)}
+                              onArchive={() => handleArchive(app.id, true)}
+                              onDragStart={(e) => {
+                                setKanbanDraggedId(app.id);
+                                e.dataTransfer.setData('application/id', app.id);
+                                e.dataTransfer.effectAllowed = 'move';
+                              }}
+                              onDragEnd={() => setKanbanDraggedId(null)}
+                            />
+                          ))}
+                          {columnApps.length === 0 && (
+                            <div className="kanban-column-empty" aria-hidden="true">
+                              Glisse une carte ici
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div
+                  className="candidatures-list-mobile"
+                  data-section="candidatures-list-mobile"
+                  data-analytics-section="candidatures_list_mobile"
+                  aria-label="Liste des candidatures par statut"
+                >
+                  {KANBAN_COLUMNS.map((col) => {
+                    const sectionApps = filteredApplications.filter((app) => {
+                      if (app.archived) return false;
+                      const s = app.statut in STATUT_LABELS ? app.statut : 'candidature_envoyee';
+                      return s === col.id;
+                    });
+                    if (sectionApps.length === 0) return null;
+                    return (
+                      <section
+                        key={col.id}
+                        className={`candidatures-list-section candidatures-list-section--${col.id}`}
+                        aria-labelledby={`candidatures-list-${col.id}`}
+                      >
+                        <h3 className="candidatures-list-section-title" id={`candidatures-list-${col.id}`}>
+                          <span>{col.label}</span>
+                          <span className="candidatures-list-section-count">{sectionApps.length}</span>
+                        </h3>
+                        <div className="candidatures-list-section-cards">
+                          {sectionApps.map((app) => (
+                            <CandidatureBoardCard
+                              key={app.id}
+                              app={app}
+                              variant="list"
+                              justAdded={justAddedAppId === app.id}
+                              onView={() => openApplicationDetail(app.id)}
+                              onArchive={() => handleArchive(app.id, true)}
+                              onStatutChange={(statut) => handleKanbanDrop(statut, app)}
+                            />
+                          ))}
+                        </div>
+                      </section>
+                    );
+                  })}
                 </div>
               </div>
             {applications.filter((a) => !a.archived).length === 0 && !showArchived && (

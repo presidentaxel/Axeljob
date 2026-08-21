@@ -31,12 +31,11 @@ export const TEMPLATE_CANVAS_FIDELITY = Object.freeze({
     name: 'Minimal',
     layoutFamily: 'single-column',
     readiness: 'projection',
-    fidelityCss: 'medium',
+    fidelityCss: 'rich',
     gaps: [
-      'Header/contact/titres/exp alignés Stable (tranche 2) — checklist visuelle en cours',
-      'Compétences + Outils nestés (Stable) vs blocs skills séparés',
-      'Pagination multi-page / densités CV longs à valider',
+      'Checklist visuelle Stable↔Beta en cours (header + page 1)',
       'Typos injectées (--cv-fs-*) / densités Compact–Confort non projetées',
+      'Pagination multi-page CV longs à valider',
     ],
   },
   classic: {
@@ -577,16 +576,16 @@ export function buildTemplateBlocks(template) {
     }
 
     case 'minimal': {
-      // Réplique templates/minimal : mono-colonne, pas de photo (backend force show_photo=false),
-      // contact inline « · », titres Title Case, règle grise sous section (CSS twin).
+      // Réplique templates/minimal : mono-colonne, pas de photo, contact « · »,
+      // titres Title Case, géométrie verrouillée (freeform + lock_geometry).
       const px = (n) => (n * 25.4) / 96;
       const pad = px(28);
       const W = PAGE_WIDTH_MM - pad * 2;
       const yHeader = px(18);
-      const identityH = px(36);
-      const contactY = yHeader + px(34);
+      // name 18pt×1.15 + title 10pt + marges ≈ 32–34px
+      const identityH = px(34);
+      const contactY = yHeader + identityH + px(4);
       const contactH = px(14);
-      // header pad-bottom 8px + body pad-top 6px
       const yBody = contactY + contactH + px(8) + px(6);
       const section = (label, extra = {}) => ({
         ...main(),
@@ -594,6 +593,7 @@ export function buildTemplateBlocks(template) {
         title_style: 'minimal-section',
         ...extra,
       });
+      const headerLock = { lock_geometry: true };
       return [
         {
           type: 'identity',
@@ -605,9 +605,9 @@ export function buildTemplateBlocks(template) {
           z: 2,
           style: {
             ...main(),
-            font_size: 18,
+            ...headerLock,
+            // Pas de font_size/color ici : twin CSS gère (évite inherit !important).
             font_family: t.font_heading,
-            color: t.color_section_title,
             identity_layout: 'minimal-header',
           },
         },
@@ -621,8 +621,7 @@ export function buildTemplateBlocks(template) {
           z: 2,
           style: {
             ...main(),
-            font_size: 8.5,
-            color: '#666666',
+            ...headerLock,
             contact_layout: 'header-bar',
             contact_separator: ' · ',
             contact_icons: false,
@@ -656,7 +655,7 @@ export function buildTemplateBlocks(template) {
           w: W,
           h: px(36),
           z: 1,
-          style: section('Formation'),
+          style: section('Formation', { formation_style: 'minimal' }),
         },
         {
           type: 'skills',
@@ -664,44 +663,37 @@ export function buildTemplateBlocks(template) {
           x: pad,
           y: yBody + px(236),
           w: W,
-          h: px(28),
+          h: px(36),
           z: 1,
-          style: section('Compétences', { list_format: 'list' }),
-        },
-        {
-          type: 'skills',
-          bind: 'competences.logiciels',
-          x: pad,
-          y: yBody + px(268),
-          w: W,
-          h: px(22),
-          z: 1,
-          style: section('Outils', { list_format: 'list' }),
+          style: section('Compétences', {
+            list_format: 'inline',
+            skills_nested_outils: true,
+          }),
         },
         {
           type: 'certifications',
           bind: 'certifications',
           x: pad,
-          y: yBody + px(296),
+          y: yBody + px(278),
           w: W,
           h: px(24),
           z: 1,
-          style: section('Certifications', { list_format: 'list' }),
+          style: section('Certifications', { list_format: 'inline' }),
         },
         {
           type: 'languages',
           x: pad,
-          y: yBody + px(326),
+          y: yBody + px(308),
           w: W,
           h: px(20),
           z: 1,
-          style: section('Langues', { list_format: 'list' }),
+          style: section('Langues', { list_format: 'inline' }),
         },
         {
           type: 'projets',
           bind: 'projets',
           x: pad,
-          y: yBody + px(352),
+          y: yBody + px(334),
           w: W,
           h: px(28),
           z: 1,

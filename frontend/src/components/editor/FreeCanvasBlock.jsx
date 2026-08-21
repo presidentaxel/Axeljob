@@ -458,6 +458,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
     case 'formations': {
       const items = resolveFormations(cv, limit);
       if (items.length === 0) return <p className="free-canvas-block__placeholder">Formations</p>;
+      const minimalForm = style.formation_style === 'minimal';
       return (
         <div className="free-canvas-block__section-list">
           <SectionHeading
@@ -468,6 +469,55 @@ function SemanticBlockBody({ block, cv, editing = false }) {
           {items.map((f, i) => {
             const idx = findCvArrayIndex(cv, 'formations', f);
             if (idx < 0) return null;
+            if (minimalForm) {
+              const leftLabel = [f.etablissement, f.diplome].filter(Boolean).join(' - ')
+                || f.diplome
+                || f.etablissement
+                || 'Formation';
+              return (
+                <div key={f.id || i} className="free-canvas-block__formation free-canvas-block__formation--minimal">
+                  <div className="free-canvas-block__formation-header">
+                    <span className="free-canvas-block__formation-diplome">
+                      {editing ? (
+                        <>
+                          <CanvasEditableField path={`formations.${idx}.etablissement`} editing>
+                            {f.etablissement || 'Établissement'}
+                          </CanvasEditableField>
+                          {(editing || (f.etablissement && f.diplome)) ? ' - ' : null}
+                          <CanvasEditableField path={`formations.${idx}.diplome`} editing>
+                            {f.diplome || 'Diplôme'}
+                          </CanvasEditableField>
+                        </>
+                      ) : (
+                        leftLabel
+                      )}
+                    </span>
+                    {(editing || f.date) ? (
+                      <span className="free-canvas-block__formation-date">
+                        {editing ? (
+                          <CanvasEditableField path={`formations.${idx}.date`} editing>
+                            {f.date || 'Année'}
+                          </CanvasEditableField>
+                        ) : (
+                          f.date
+                        )}
+                      </span>
+                    ) : null}
+                  </div>
+                  {(editing || (f.mention || '').trim()) ? (
+                    <p className="free-canvas-block__formation-mention">
+                      {editing ? (
+                        <CanvasEditableField path={`formations.${idx}.mention`} editing>
+                          {f.mention || 'Mention'}
+                        </CanvasEditableField>
+                      ) : (
+                        f.mention
+                      )}
+                    </p>
+                  ) : null}
+                </div>
+              );
+            }
             return (
               <p key={f.id || i} className="free-canvas-block__formation-line">
                 {editing ? (
@@ -519,13 +569,16 @@ function SemanticBlockBody({ block, cv, editing = false }) {
             return editing ? (
               <p key={c.id || i}>
                 <CanvasEditableField path={`certifications.${idx}.nom`} editing>{c.nom || 'Nom'}</CanvasEditableField>
-                {' · '}
+                {' - '}
                 <CanvasEditableField path={`certifications.${idx}.organisme`} editing>{c.organisme || 'Organisme'}</CanvasEditableField>
                 {' · '}
                 <CanvasEditableField path={`certifications.${idx}.date`} editing>{c.date || 'Date'}</CanvasEditableField>
               </p>
             ) : (
-              <p key={c.id || i} className="free-canvas-block__sidebar-item">{[c.nom, c.organisme, c.date].filter(Boolean).join(' · ')}</p>
+              <p key={c.id || i} className="free-canvas-block__sidebar-item">
+                {[c.nom, c.organisme].filter(Boolean).join(' - ')}
+                {c.date ? `${c.nom || c.organisme ? ' · ' : ''}${c.date}` : ''}
+              </p>
             );
           })}
         </div>
@@ -559,11 +612,15 @@ function SemanticBlockBody({ block, cv, editing = false }) {
     }
     case 'skills': {
       const items = resolveCompetenceList(cv, bind);
-      if (items.length === 0 && !style.section_label && !style.sidebar_category) {
+      const outils = style.skills_nested_outils
+        ? resolveCompetenceList(cv, 'competences.logiciels')
+        : [];
+      if (items.length === 0 && outils.length === 0 && !style.section_label && !style.sidebar_category) {
         return <p className="free-canvas-block__placeholder">Compétences</p>;
       }
       const chips = format === 'chips';
       const asList = format === 'list' || style.list_format === 'list';
+      const asInline = style.list_format === 'inline' || (!chips && !asList);
       return (
         <div className="free-canvas-block__section-list">
           {style.section_label ? (
@@ -579,14 +636,24 @@ function SemanticBlockBody({ block, cv, editing = false }) {
           ) : asList ? (
             items.map((s, i) => <p key={i} className="free-canvas-block__sidebar-item">{s}</p>)
           ) : (
-            <p>{items.join(', ')}</p>
+            <p className={asInline ? 'free-canvas-block__skills-line' : undefined}>
+              {items.join(', ')}
+            </p>
           )}
+          {outils.length > 0 ? (
+            <p className="free-canvas-block__skills-outils">
+              <strong>Outils :</strong>
+              {' '}
+              {outils.join(', ')}
+            </p>
+          ) : null}
         </div>
       );
     }
     case 'languages': {
       const items = resolveLangues(cv);
       if (items.length === 0) return <p className="free-canvas-block__placeholder">Langues</p>;
+      const asInline = style.list_format === 'inline';
       return (
         <div className="free-canvas-block__section-list">
           <SectionHeading
@@ -594,11 +661,17 @@ function SemanticBlockBody({ block, cv, editing = false }) {
             titleStyle={style.title_style}
             zone={style.zone}
           />
-          {items.map((l, i) => (
-            <p key={i} className="free-canvas-block__sidebar-item">
-              {`${l.langue}${l.niveau ? ` - ${l.niveau}` : ''}`}
+          {asInline ? (
+            <p className="free-canvas-block__skills-line">
+              {items.map((l) => `${l.langue}${l.niveau ? ` (${l.niveau})` : ''}`).join(', ')}
             </p>
-          ))}
+          ) : (
+            items.map((l, i) => (
+              <p key={i} className="free-canvas-block__sidebar-item">
+                {`${l.langue}${l.niveau ? ` - ${l.niveau}` : ''}`}
+              </p>
+            ))
+          )}
         </div>
       );
     }

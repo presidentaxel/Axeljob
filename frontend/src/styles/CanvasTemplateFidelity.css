@@ -290,31 +290,40 @@
   font-family: Inter, Arial, sans-serif;
 }
 
+/* Annule le padding défaut des blocs sémantiques (Stable = flux sans inset). */
+.free-canvas-page--tpl-minimal .free-canvas-block__inner {
+  padding: 0;
+}
+
 .free-canvas-page--tpl-minimal .free-canvas-block__identity--minimal-header .free-canvas-block__identity-name,
 .free-canvas-page--tpl-minimal .free-canvas-block__identity .free-canvas-block__identity-name {
-  font-family: var(--free-canvas-font-heading);
-  font-size: 18pt;
-  font-weight: 700;
+  font-family: var(--free-canvas-font-heading) !important;
+  font-size: 18pt !important;
+  font-weight: 700 !important;
   letter-spacing: 0;
   line-height: 1.15;
-  color: var(--free-canvas-section-title, var(--free-canvas-accent, #111827));
+  color: var(--free-canvas-section-title, var(--free-canvas-accent, #111827)) !important;
   margin: 0;
 }
 
 .free-canvas-page--tpl-minimal .free-canvas-block__identity .free-canvas-block__identity-title {
-  font-size: 10pt;
-  font-weight: 400;
-  color: #555555;
+  font-family: Inter, Arial, sans-serif !important;
+  font-size: 10pt !important;
+  font-weight: 400 !important;
+  color: #555555 !important;
   margin: 0.5mm 0 0;
   line-height: 1.3;
+  font-style: normal !important;
+  opacity: 1 !important;
 }
 
 .free-canvas-page--tpl-minimal .free-canvas-block__contact,
 .free-canvas-page--tpl-minimal .free-canvas-block__contact--header-bar {
-  color: #666666;
-  font-size: 8.5pt;
+  color: #666666 !important;
+  font-size: 8.5pt !important;
   margin: 0;
   line-height: 1.35;
+  text-align: left !important;
 }
 
 .free-canvas-page--tpl-minimal .free-canvas-block__contact--header-bar .free-canvas-block__contact-spacer {
@@ -322,22 +331,22 @@
 }
 
 .free-canvas-page--tpl-minimal .free-canvas-block__section-title--minimal-section {
-  font-family: var(--free-canvas-font-heading);
-  font-size: 10.5pt;
-  font-weight: 700;
-  color: var(--free-canvas-section-title, var(--free-canvas-accent, #111827));
-  border-bottom: 1px solid #d1d5db;
+  font-family: var(--free-canvas-font-heading) !important;
+  font-size: 10.5pt !important;
+  font-weight: 700 !important;
+  color: var(--free-canvas-section-title, var(--free-canvas-accent, #111827)) !important;
+  border-bottom: 1px solid #d1d5db !important;
   padding-bottom: 0.5mm;
   margin: 0 0 1mm;
-  text-transform: none;
+  text-transform: none !important;
   letter-spacing: 0.02em;
 }
 
 .free-canvas-page--tpl-minimal .free-canvas-block__resume {
   font-style: italic;
-  font-size: 9pt;
+  font-size: 9pt !important;
   line-height: 1.45;
-  color: #1a1a1a;
+  color: #1a1a1a !important;
   text-align: justify;
   margin: 0;
 }
@@ -376,8 +385,8 @@
 
 .free-canvas-page--tpl-minimal .free-canvas-block__exp--minimal .free-canvas-block__exp-dates {
   font-weight: 600;
-  font-size: 8.5pt;
-  color: #444444;
+  font-size: 8.5pt !important;
+  color: #444444 !important;
 }
 
 .free-canvas-page--tpl-minimal .free-canvas-block__exp--minimal .free-canvas-block__exp-clients {
@@ -397,13 +406,59 @@
   position: relative;
   padding-left: 0;
   margin: 0;
-  font-size: 9pt;
+  font-size: 9pt !important;
   line-height: 1.35;
-  color: #1a1a1a;
+  color: #1a1a1a !important;
 }
 
 .free-canvas-page--tpl-minimal .free-canvas-block__bullets--dash li::before {
   content: '- ';
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__formation--minimal {
+  margin-bottom: 0.8mm;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__formation--minimal .free-canvas-block__formation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2mm;
+  margin: 0;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__formation--minimal .free-canvas-block__formation-diplome {
+  font-weight: 700;
+  color: #1a1a1a;
+  font-size: 9pt !important;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__formation--minimal .free-canvas-block__formation-date {
+  font-weight: 600;
+  font-size: 8.5pt !important;
+  color: #444444 !important;
+  white-space: nowrap;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__formation--minimal .free-canvas-block__formation-mention {
+  font-style: italic;
+  font-size: 8.5pt !important;
+  color: #555555 !important;
+  margin: 0.3mm 0 0;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__skills-line {
+  font-size: 8.5pt !important;
+  line-height: 1.4;
+  margin: 0 0 0.5mm;
+  color: #333333 !important;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__skills-outils {
+  font-size: 8.5pt !important;
+  line-height: 1.4;
+  margin: 0;
+  color: #333333 !important;
 }
 
 /* ---------- Élégant ---------- */

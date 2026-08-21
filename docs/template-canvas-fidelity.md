@@ -27,7 +27,7 @@ Le template virtuel `beta` (`betaCanvasTemplate.js`) n’est **pas** une twin HT
 
 | ID | Famille | Readiness | Fidelity CSS | Gaps principaux |
 |----|---------|-----------|--------------|-----------------|
-| `minimal` | single-column | projection | medium | Header/contact/titres/exp alignés (tranche 2) ; Outils nestés + densités + multi-page à valider |
+| `minimal` | single-column | projection | **rich** | Header/contact/exp/formation/compétences calqués ; checklist visuelle Stable↔Beta avant merge |
 | `classic` | sidebar-right | thin | thin | CSS Stable dense vs twin mince |
 | `modern` | sidebar-left | projection | medium | Sidebar / accents |
 | `creative` | sidebar-left | projection | medium | Titres creative-main |

@@ -20,16 +20,18 @@ export const STATUT_LABELS = {
   candidature_envoyee: 'Candidature envoyée',
   reponse_recue: 'Réponse reçue',
   interview: 'Entretien',
-  refus: 'Refusé',
   offre: 'Offre !',
+  refus: 'Refusé',
 };
 
+/** Colonnes board = tous les statuts de STATUT_LABELS (ordre funnel). */
 export const KANBAN_COLUMNS = [
+  { id: 'a_postuler', label: 'À postuler' },
   { id: 'candidature_envoyee', label: 'Candidature envoyée' },
   { id: 'reponse_recue', label: 'Réponse reçue' },
   { id: 'interview', label: 'Entretien' },
-  { id: 'refus', label: 'Refusé' },
   { id: 'offre', label: 'Offre !' },
+  { id: 'refus', label: 'Refusé' },
 ];
 
 export function getExportFolderName(entreprise, poste) {

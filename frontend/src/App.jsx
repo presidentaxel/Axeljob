@@ -24,6 +24,7 @@ import AuthForm from './components/AuthForm';
 import AppTopbar from './components/AppTopbar';
 import CompanyLogo from './components/CompanyLogo';
 import { NotFoundPage } from './components/ErrorPages';
+import Button from './components/ui/Button.jsx';
 import { CONTACT_EMAIL, STORAGE_EXPORT_DIR, STORAGE_EXPORT_ATS_BLOCK_SNOOZE, STORAGE_PRE_EXPORT_TEMPLATE_OPTIONS_DONE, STORAGE_PDF_EXPORT_FILENAME_PATTERN, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
 import { buildAdaptedPdfFilename } from './lib/pdfExportFilename';
 import { getPdfSaveStartInDirectoryHandle } from './lib/pdfExportStartDirIdb';
@@ -2908,11 +2909,10 @@ export default function App() {
     const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
-    const statutPostule = new Set(['a_postuler', 'candidature_envoyee', 'reponse_recue']);
     let countToday = 0, countYesterday = 0, countMonth = 0, countLastMonth = 0, total = 0;
+    // Total / périodes = toutes les candidatures non archivées (tous statuts du board).
     applications.forEach((app) => {
-      const statut = app.statut in STATUT_LABELS ? app.statut : 'candidature_envoyee';
-      if (!statutPostule.has(statut)) return;
+      if (app.archived) return;
       total++;
       const d = (app.date || '').trim().split(/\s+/)[0];
       if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
@@ -3614,25 +3614,57 @@ export default function App() {
                 Suis toutes tes candidatures ici. Glisse les cartes pour changer le statut.
               </p>
               <div className="dashboard-header-actions page-title-row-actions">
-                <button type="button" className="button button-tertiary button--sm btn-add-manual" onClick={() => setAddManualModalOpen(true)}>
+                <Button
+                  type="button"
+                  variant="tertiary"
+                  size="sm"
+                  className="btn-add-manual"
+                  onClick={() => setAddManualModalOpen(true)}
+                  data-attr="candidatures-header-cta-manual"
+                  data-track="cta"
+                  data-zone="header"
+                  data-level="secondary"
+                >
                   Ajouter une candidature (hors app)
-                </button>
-                <button type="button" className="button button-primary button--sm btn-new-candidature" onClick={() => setSetupModalOpen(true)}>
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  className="btn-new-candidature"
+                  onClick={() => setSetupModalOpen(true)}
+                  data-attr="candidatures-header-cta-new"
+                  data-track="cta"
+                  data-zone="header"
+                  data-level="primary"
+                >
                   Nouvelle Candidature
-                </button>
+                </Button>
               </div>
             </div>
           </header>
           {usage && usage.adaptations_used === 0 && (
             <div className="zero-adapt-banner zero-adapt-banner--compact" role="status">
               <span>Tes candidatures apparaîtront ici après une adaptation. Commence par coller une offre sur </span>
-              <button type="button" className="zero-adapt-banner-link" onClick={() => navigate('/app/cv')}>Adapter un CV</button>
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="zero-adapt-banner-link"
+                onClick={() => navigate('/app/cv')}
+                data-attr="candidatures-banner-cta-adapt"
+                data-track="cta"
+                data-zone="banner"
+                data-level="secondary"
+              >
+                Adapter un CV
+              </Button>
               <span>.</span>
             </div>
           )}
-          <div className="page-content applications-full candidatures-page" data-analytics-section="candidatures_board">
+          <div className="page-content applications-full candidatures-page" data-section="candidatures" data-analytics-section="candidatures_board">
             <div className="candidatures-page-inner">
-              <dl className="candidatures-metrics" data-analytics-section="candidatures_stats">
+              <dl className="candidatures-metrics" data-section="candidatures-stats" data-analytics-section="candidatures_stats">
                 <div className="candidatures-metric">
                   <dt className="candidatures-metric-label">Aujourd&apos;hui</dt>
                   <dd className="candidatures-metric-body">
@@ -3673,6 +3705,10 @@ export default function App() {
                     value={applicationSearchQuery}
                     onChange={(e) => setApplicationSearchQuery(e.target.value)}
                     aria-label="Filtrer les candidatures"
+                    data-attr="candidatures-controls-input-search"
+                    data-track="input"
+                    data-zone="controls"
+                    data-level="tertiary"
                   />
                   {applicationSearchDebounced && (
                     <span className="applications-search-count">
@@ -3763,15 +3799,34 @@ export default function App() {
                 </svg>
                 <h3>Pas encore de candidature</h3>
                 <p>Adapte ton CV à une offre d'emploi pour créer ta première candidature.</p>
-                <button type="button" className="button button-primary button--lg" onClick={() => setSetupModalOpen(true)}>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="lg"
+                  onClick={() => setSetupModalOpen(true)}
+                  data-attr="candidatures-empty-cta-start"
+                  data-track="cta"
+                  data-zone="empty"
+                  data-level="primary"
+                >
                   Lancer ma première candidature
-                </button>
+                </Button>
               </div>
             )}
             {applicationSearchDebounced && filteredNonArchivedCount === 0 && applications.filter((a) => !a.archived).length > 0 && (
               <div className="applications-empty-state applications-search-empty">
                 <p>Aucun résultat pour « {applicationSearchDebounced} ».</p>
-                <button type="button" className="button button-secondary" onClick={() => setApplicationSearchQuery('')}>Effacer la recherche</button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setApplicationSearchQuery('')}
+                  data-attr="candidatures-search-empty-cta-clear"
+                  data-track="cta"
+                  data-zone="empty"
+                  data-level="secondary"
+                >
+                  Effacer la recherche
+                </Button>
               </div>
             )}
             {showArchived && filteredArchived.length > 0 && (

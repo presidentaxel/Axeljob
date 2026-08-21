@@ -19,6 +19,7 @@ import ReauthModal from './ReauthModal';
 import DesignModeBridgeModal from './editor/DesignModeBridgeModal.jsx';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from '../lib/cvPreviewA4Pages';
 import { buildBetaToStableOffer } from '../lib/designModeBridge.js';
+import { betaCanvasRenderFields } from '../lib/betaCanvasTemplate.js';
 import { HiArrowDownTray } from 'react-icons/hi2';
 import '../styles/ProfileView.css';
 import '../styles/TemplatePicker.css';
@@ -365,6 +366,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
           cv,
           template_id: templateId,
           template_options: templateOptions,
+          ...betaCanvasRenderFields(templateId, cv?.layout),
         });
         if (cancelled) return;
         setProfilePreviewHtml(typeof html === 'string' ? html : '');
@@ -391,6 +393,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
         cv,
         template_id: templateId,
         template_options: pdfTemplateOptions,
+        ...betaCanvasRenderFields(templateId, cv?.layout),
       });
       await saveBlobWithPreferredMethod(blob, filename || 'CV-base.pdf', { preopenedWindow });
       trackEvent('base_cv_pdf_downloaded', { template_id: templateId, source: 'profile' });
@@ -1220,6 +1223,10 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
             onUpgradeClick={onUpgradeClick}
             optionsPreviewHtml={profilePreviewHtml}
             optionsPreviewLoading={profilePreviewLoading}
+            profileLayout={cv?.layout}
+            onBetaUnavailable={() => {
+              setError('Crée d’abord un design en activant le mode Beta (canvas), puis choisis « Beta » ici.');
+            }}
             extraBarLeft={(
               <button
                 type="button"

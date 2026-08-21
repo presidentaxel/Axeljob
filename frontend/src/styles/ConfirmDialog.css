@@ -1,0 +1,85 @@
+/* ConfirmDialog — modal DS (tokens --ds-* uniquement) */
+
+.confirm-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ds-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ds-space-xl);
+}
+
+.confirm-dialog__backdrop {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--ds-color-bg-inverse-alt) 40%, transparent);
+}
+
+.confirm-dialog__card {
+  position: relative;
+  z-index: 1;
+  width: min(26rem, 100%);
+  padding: var(--ds-space-lg);
+  background: var(--ds-color-bg-default);
+  border: 1px solid var(--ds-color-border-default);
+  border-radius: var(--ds-radius-md);
+}
+
+.confirm-dialog__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ds-space-md);
+}
+
+.confirm-dialog__eyebrow {
+  display: block;
+  margin-bottom: var(--ds-space-xxs);
+  color: var(--ds-color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.confirm-dialog__title {
+  margin: 0;
+  color: var(--ds-color-text-default);
+}
+
+.confirm-dialog__close {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ds-color-text-muted);
+  font-size: 1.375rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 var(--ds-space-xxs);
+  border-radius: var(--ds-radius-xs);
+}
+
+.confirm-dialog__close:hover {
+  color: var(--ds-color-text-default);
+}
+
+.confirm-dialog__close:focus-visible {
+  outline: 2px solid var(--ds-color-border-focus);
+  outline-offset: 2px;
+}
+
+.confirm-dialog__copy {
+  margin: var(--ds-space-md) 0 0;
+  color: var(--ds-color-text-muted);
+}
+
+.confirm-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--ds-space-sm);
+  margin-top: var(--ds-space-lg);
+}

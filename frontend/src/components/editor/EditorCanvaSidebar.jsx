@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   HiArrowUpTray,
   HiArrowsPointingOut,
@@ -42,6 +42,7 @@ import { deleteLayoutProposal, listLayoutProposals } from '../../lib/layoutPropo
 import CanvasIconGlyph from './CanvasIconGlyph.jsx';
 import EditorCanvaPositionDrawer from './EditorCanvaPositionDrawer.jsx';
 import TemplateMiniPreview from './TemplateMiniPreview.jsx';
+import ConfirmDialog from '../ui/ConfirmDialog.jsx';
 import '../../styles/EditorCanvaSidebar.css';
 
 /** Rail principal AXE-31 : 4 familles guidantes. */
@@ -85,13 +86,6 @@ const RAIL_SECTION_IDS = new Set(SECTIONS.map((s) => s.id));
 
 function layoutHasContent(layout) {
   return listAllBlocks(layout).length > 0;
-}
-
-function confirmDestructive(message) {
-  if (typeof window === 'undefined' || typeof window.confirm !== 'function') {
-    return true;
-  }
-  return window.confirm(message);
 }
 
 function ImageHistoryTile({ entry, disabled, onBeginPlacement, onRemove }) {
@@ -232,6 +226,8 @@ export default function EditorCanvaSidebar({
   const [importing, setImporting] = useState(false);
   const [transferSourceKey, setTransferSourceKey] = useState('');
   const [designTab, setDesignTab] = useState('models');
+  /** @type {[null | { title: string, message: string, confirmLabel: string, onConfirm: () => void }, Function]} */
+  const [pendingConfirm, setPendingConfirm] = useState(null);
   const fileInputRef = useRef(null);
 
   const refreshProposals = () => setProposals(listLayoutProposals());
@@ -264,12 +260,21 @@ export default function EditorCanvaSidebar({
     refreshProposals();
   };
 
+  const closeConfirm = () => setPendingConfirm(null);
+
   const handlePickBlankSafe = () => {
     if (layoutHasContent(layout)) {
-      const ok = confirmDestructive(
-        'Remplacer le canvas actuel par une page blanche ? Les blocs présents seront retirés de cette vue (le CV de base n’est pas effacé).',
-      );
-      if (!ok) return;
+      setPendingConfirm({
+        title: 'Page blanche ?',
+        message:
+          'Les blocs présents seront retirés de cette vue (le CV de base n’est pas effacé).',
+        confirmLabel: 'Remplacer',
+        onConfirm: () => {
+          setPendingConfirm(null);
+          onPickBlank?.();
+        },
+      });
+      return;
     }
     onPickBlank?.();
   };
@@ -278,20 +283,33 @@ export default function EditorCanvaSidebar({
     if (!template) return;
     if (layoutHasContent(layout)) {
       const name = template.name || template.id || 'ce modèle';
-      const ok = confirmDestructive(
-        `Appliquer le modèle « ${name} » ? La mise en page actuelle de ce canvas sera remplacée (brouillon local sauvegardé si possible).`,
-      );
-      if (!ok) return;
+      setPendingConfirm({
+        title: `Appliquer « ${name} » ?`,
+        message:
+          'La mise en page actuelle de ce canvas sera remplacée (brouillon local sauvegardé si possible).',
+        confirmLabel: 'Appliquer',
+        onConfirm: () => {
+          setPendingConfirm(null);
+          onApplyCanvasTemplate?.(template);
+        },
+      });
+      return;
     }
     onApplyCanvasTemplate?.(template);
   };
 
   const handleLoadProposalSafe = (proposalLayout) => {
     if (layoutHasContent(layout)) {
-      const ok = confirmDestructive(
-        'Appliquer cette proposition locale ? La mise en page actuelle de ce canvas sera remplacée.',
-      );
-      if (!ok) return;
+      setPendingConfirm({
+        title: 'Appliquer cette proposition ?',
+        message: 'La mise en page actuelle de ce canvas sera remplacée.',
+        confirmLabel: 'Appliquer',
+        onConfirm: () => {
+          setPendingConfirm(null);
+          onLoadProposal?.(proposalLayout);
+        },
+      });
+      return;
     }
     onLoadProposal?.(proposalLayout);
   };
@@ -326,6 +344,7 @@ export default function EditorCanvaSidebar({
   const effectiveDesignTab = openSection === 'models' ? 'models' : designTab;
 
   return (
+    <>
     <aside className={`editor-canva-shell${placementActive ? ' editor-canva-shell--placing' : ''}`} aria-label="Outils canvas">
       {placementActive && (
         <div className="editor-canva-shell__place-hint" role="status">
@@ -758,5 +777,17 @@ export default function EditorCanvaSidebar({
         </div>
       )}
     </aside>
+    <ConfirmDialog
+      open={Boolean(pendingConfirm)}
+      eyebrow="Canvas"
+      title={pendingConfirm?.title || ''}
+      message={pendingConfirm?.message || ''}
+      confirmLabel={pendingConfirm?.confirmLabel || 'Confirmer'}
+      cancelLabel="Annuler"
+      confirmVariant="primary"
+      onCancel={closeConfirm}
+      onConfirm={() => pendingConfirm?.onConfirm?.()}
+    />
+    </>
   );
 }

@@ -28,7 +28,7 @@ import Button from './components/ui/Button.jsx';
 import { CONTACT_EMAIL, STORAGE_EXPORT_DIR, STORAGE_EXPORT_ATS_BLOCK_SNOOZE, STORAGE_PRE_EXPORT_TEMPLATE_OPTIONS_DONE, STORAGE_PDF_EXPORT_FILENAME_PATTERN, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
 import { buildAdaptedPdfFilename } from './lib/pdfExportFilename';
 import { getPdfSaveStartInDirectoryHandle } from './lib/pdfExportStartDirIdb';
-import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiCheck, HiSwatch, HiChevronDown, HiChevronUp } from 'react-icons/hi2';
+import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiCheck, HiSwatch, HiChevronDown, HiChevronUp, HiPlus } from 'react-icons/hi2';
 import { lazyWithChunkReload, clearChunkErrorReloadKey } from './lib/lazyChunkReload';
 import { APP_DEFAULT_ROUTE, getViewFromPathname, isKnownAppPathname } from './lib/appRoutes';
 import { syncRobotsMeta } from './lib/seoHead';
@@ -820,6 +820,8 @@ export default function App() {
   const [setupPoste, setSetupPoste] = useState('');
   const [setupFiche, setSetupFiche] = useState('');
   const [addManualModalOpen, setAddManualModalOpen] = useState(false);
+  const [candidaturesAddMenuOpen, setCandidaturesAddMenuOpen] = useState(false);
+  const candidaturesAddMenuRef = useRef(null);
   const [addManualPoste, setAddManualPoste] = useState('');
   const [addManualEntreprise, setAddManualEntreprise] = useState('');
   const [addManualStatut, setAddManualStatut] = useState('candidature_envoyee');
@@ -2882,6 +2884,24 @@ export default function App() {
     return () => clearTimeout(t);
   }, [applicationSearchQuery]);
 
+  useEffect(() => {
+    if (!candidaturesAddMenuOpen) return undefined;
+    const onPointerDown = (e) => {
+      if (candidaturesAddMenuRef.current && !candidaturesAddMenuRef.current.contains(e.target)) {
+        setCandidaturesAddMenuOpen(false);
+      }
+    };
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setCandidaturesAddMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [candidaturesAddMenuOpen]);
+
   const filteredApplications = useMemo(() => {
     const q = applicationSearchDebounced.toLowerCase();
     let list = applications;
@@ -3599,32 +3619,61 @@ export default function App() {
                 Suis toutes tes candidatures ici. Glisse les cartes pour changer le statut.
               </p>
               <div className="dashboard-header-actions page-title-row-actions">
-                <Button
-                  type="button"
-                  variant="tertiary"
-                  size="sm"
-                  className="btn-add-manual"
-                  onClick={() => setAddManualModalOpen(true)}
-                  data-attr="candidatures-header-cta-manual"
-                  data-track="cta"
-                  data-zone="header"
-                  data-level="secondary"
-                >
-                  Ajouter une candidature (hors app)
-                </Button>
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  className="btn-new-candidature"
-                  onClick={() => setSetupModalOpen(true)}
-                  data-attr="candidatures-header-cta-new"
-                  data-track="cta"
-                  data-zone="header"
-                  data-level="primary"
-                >
-                  Nouvelle Candidature
-                </Button>
+                <div className="candidatures-add-menu" ref={candidaturesAddMenuRef}>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    className="btn-new-candidature candidatures-add-menu-trigger"
+                    aria-expanded={candidaturesAddMenuOpen}
+                    aria-haspopup="menu"
+                    aria-controls="candidatures-add-menu"
+                    onClick={() => setCandidaturesAddMenuOpen((open) => !open)}
+                  >
+                    <HiPlus aria-hidden />
+                    Ajouter
+                    <HiChevronDown aria-hidden className={`candidatures-add-menu-chevron${candidaturesAddMenuOpen ? ' is-open' : ''}`} />
+                  </Button>
+                  {candidaturesAddMenuOpen && (
+                    <div
+                      id="candidatures-add-menu"
+                      className="candidatures-add-menu-panel"
+                      role="menu"
+                      aria-label="Ajouter une candidature"
+                    >
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="candidatures-add-menu-item"
+                        data-attr="candidatures-header-cta-new"
+                        data-track="cta"
+                        data-zone="header"
+                        data-level="primary"
+                        onClick={() => {
+                          setCandidaturesAddMenuOpen(false);
+                          setSetupModalOpen(true);
+                        }}
+                      >
+                        Nouvelle candidature
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="candidatures-add-menu-item"
+                        data-attr="candidatures-header-cta-manual"
+                        data-track="cta"
+                        data-zone="header"
+                        data-level="secondary"
+                        onClick={() => {
+                          setCandidaturesAddMenuOpen(false);
+                          setAddManualModalOpen(true);
+                        }}
+                      >
+                        Hors app
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </header>
@@ -3816,16 +3865,18 @@ export default function App() {
                             <div className="app-card-top">
                               <CompanyLogo companyName={entreprise || app.entreprise} className="app-company-logo" size={32} />
                               <div className="app-card-text">
-                                <div className="app-title">{titre}</div>
+                                <div className="app-title-row">
+                                  <div className="app-title">{titre}</div>
+                                  {needsFollowUp && (
+                                    <span
+                                      className="app-follow-up-dot"
+                                      title="Sans nouvelle depuis 14 jours ou plus"
+                                      aria-label="À relancer"
+                                    />
+                                  )}
+                                </div>
                                 {entreprise ? <div className="app-meta">{entreprise}</div> : null}
                               </div>
-                              {needsFollowUp && (
-                                <span
-                                  className="app-follow-up-dot"
-                                  title="Sans nouvelle depuis 14 jours ou plus"
-                                  aria-label="À relancer"
-                                />
-                              )}
                             </div>
                             <div className="app-card-footer">
                               {hasDocs ? (
@@ -3848,6 +3899,11 @@ export default function App() {
                           </div>
                         );
                       })}
+                      {columnApps.length === 0 && (
+                        <div className="kanban-column-empty" aria-hidden="true">
+                          Glisse une carte ici
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -4018,10 +4074,10 @@ export default function App() {
                   </label>
                 </div>
                 <div className="setup-modal-actions">
-                  <button type="submit" className="button button-primary" disabled={addManualSubmitting}>
+                  <Button type="submit" variant="primary" disabled={addManualSubmitting} loading={addManualSubmitting}>
                     {addManualSubmitting ? 'Ajout…' : 'Ajouter'}
-                  </button>
-                  <button type="button" className="button button-secondary" onClick={() => setAddManualModalOpen(false)}>Annuler</button>
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={() => setAddManualModalOpen(false)}>Annuler</Button>
                 </div>
               </form>
             </div>

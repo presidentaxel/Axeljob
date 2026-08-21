@@ -971,6 +971,7 @@ export function buildAdaptedCanvasLayoutForCv(cv, template, options = {}) {
   const preserveReplicaGeometry = Boolean(
     options.preserveReplicaGeometry
     || templateId === 'minimal'
+    || templateId === 'elegant'
     || base?.freeform,
   );
   const result = adaptCanvasLayoutForCv(cv, base, {

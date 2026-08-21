@@ -27,11 +27,11 @@ Le template virtuel `beta` (`betaCanvasTemplate.js`) n’est **pas** une twin HT
 
 | ID | Famille | Readiness | Fidelity CSS | Gaps principaux |
 |----|---------|-----------|--------------|-----------------|
-| `minimal` | single-column | projection | **rich** | Header/contact/exp/formation/compétences calqués ; checklist visuelle Stable↔Beta avant merge |
+| `minimal` | single-column | near-replica | **rich** | Checklist visuelle OK (PR #170) |
 | `classic` | sidebar-right | thin | thin | CSS Stable dense vs twin mince |
 | `modern` | sidebar-left | projection | medium | Sidebar / accents |
 | `creative` | sidebar-left | projection | medium | Titres creative-main |
-| `elegant` | single-column | projection | thin | Chips / centrage |
+| `elegant` | single-column | near-replica | **rich** | Checklist visuelle Stable↔Beta (AXE-388) |
 | `executive` | sidebar-right | projection | medium | Header band |
 | `bold` | sidebar-right | **near-replica** | rich | Écarts typo/exp résiduels |
 
@@ -40,10 +40,16 @@ Source de vérité code : `TEMPLATE_CANVAS_FIDELITY` + `STABLE_CANVAS_TEMPLATE_I
 ### Minimal — couches Stable à calquer
 
 1. **HTML** `templates/minimal/template.html` — structure (header sans photo, contact ` · `, titres Title Case, `Organisation :` / `Fonction :` inline)
-2. **CSS** `templates/minimal/template.css` — pad `18/28/8`, body `6/28/16`, règle `#d1d5db`, typo Georgia/Inter
+2. **CSS** `templates/minimal/template.css` — pad `18/28/8`, body `6/28/16`, rule `#d1d5db`, typo Georgia/Inter
 3. **Options** `meta.json` + `template_registry` — `show_photo=false`, couleurs/font injectées
 4. **Preview overlay** `cvPreviewA4Pages.js` — badge « Page N » (chrome preview, pas du template)
 5. **Canvas** `buildTemplateBlocks('minimal')` + `CanvasTemplateFidelity.css` + `FreeCanvasBlock` (`contact_layout`, `exp_style: minimal`)
+
+### Élégant — couches Stable à calquer (AXE-388)
+
+1. **HTML** `templates/elegant/template.html` — photo centrée, contact ` · `, titres Title Case (+ uppercase CSS), chips techniques+outils, exp ATS (Fonction ligne séparée)
+2. **CSS** `templates/elegant/template.css` — pad `22/30/16`, body `0/30`, filet `#e2e8f0`, chips `#edf2f7` / tools `#e2e8f0`
+3. **Canvas** `buildTemplateBlocks('elegant')` + twin CSS + `exp_style: elegant` + `format: chips` + `skills_nested_outils`
 
 ## Critères de « réplique native »
 
@@ -56,10 +62,10 @@ Pour un id catalogue :
 
 ## Suite chantier
 
-1. ~~Inventaire + contrat tests + premier lift `minimal`~~ (PR #165)
-2. **Tranche 2 `minimal`** : header sans photo, contact ` · `, Title Case, exp ATS inline, règle grise (cette PR — **ne pas merger** tant que la checklist visuelle Stable≠Beta n’est pas OK)
-3. Monter `classic` / `elegant` (fidelity CSS + géométrie)
-4. Finir `bold` en réplique validée (checklist visuelle)
+1. ~~Inventaire + contrat tests + premier lift `minimal`~~ (PR #165 / #170)
+2. ~~Tranche Minimal~~ validée checklist visuelle
+3. **Élégant** (AXE-388) — cette PR ; ne merger que si checklist visuelle OK
+4. Monter `classic` puis finir `bold`
 5. Option ultérieure : assets `default_layout.json` par template (voir `docs/editor-vision.md`)
 
 ## Hors scope

@@ -11,8 +11,8 @@ export function createCanvasLayoutForTemplate(template) {
   const layout = createStarterLayoutV3();
   layout.pages[0].blocks = blocks;
   layout.theme = { ...layout.theme, ...parseCanvasTheme(template) };
-  // Minimal : géométrie mm calquée Stable — ne pas ré-empiler au reflow.
-  if (template.id === 'minimal') {
+  // Répliques mono-colonne : géométrie mm calquée Stable — ne pas ré-empiler au reflow.
+  if (template.id === 'minimal' || template.id === 'elegant') {
     layout.freeform = true;
   }
   return sanitizeLayoutV3(layout);

@@ -28,12 +28,8 @@ const PDF_VARIABLES = ['{prenom}', '{nom}', '{poste}', '{entreprise}'];
 
 const SETTINGS_NAV = [
   { id: 'settings-account', label: 'Compte' },
-  { id: 'settings-plan', label: 'Abonnement', when: (usage) => Boolean(usage) },
   { id: 'settings-export', label: 'Export PDF' },
-  { id: 'settings-cv', label: 'CV & modèle' },
   { id: 'settings-editor', label: 'Éditeur' },
-  { id: 'settings-local', label: 'Données locales' },
-  { id: 'settings-nav', label: 'Raccourcis' },
   { id: 'settings-privacy', label: 'Confidentialité' },
 ];
 
@@ -67,7 +63,7 @@ function SettingsListRow({ label, detail, onClear, disabled, actionLabel = 'Effa
 }
 
 /**
- * Page Paramètres : compte, abonnement, export, éditeur, données locales.
+ * Page Paramètres : compte, export PDF, éditeur, confidentialité.
  */
 export default function SettingsView({
   session,
@@ -258,27 +254,19 @@ export default function SettingsView({
     [pdfPattern, profileBasics.prenom, profileBasics.nom, profileBasics.titre_professionnel],
   );
 
-  const savePdfPattern = useCallback(() => {
-    const trimmed = pdfPattern.trim() || DEFAULT_PDF_EXPORT_FILENAME_PATTERN;
+  const saveExportPrefs = useCallback(() => {
+    const trimmedPattern = pdfPattern.trim() || DEFAULT_PDF_EXPORT_FILENAME_PATTERN;
     try {
-      localStorage.setItem(STORAGE_PDF_EXPORT_FILENAME_PATTERN, trimmed);
-      setPdfPattern(trimmed);
-      showSuccess('Modèle de nom PDF enregistré.');
-    } catch {
-      setError('Impossible d’enregistrer le modèle localement.');
-    }
-  }, [pdfPattern]);
-
-  const saveExportDossier = useCallback(() => {
-    try {
-      const trimmed = exportDossier.trim();
-      if (trimmed) localStorage.setItem(STORAGE_EXPORT_DIR, trimmed);
+      localStorage.setItem(STORAGE_PDF_EXPORT_FILENAME_PATTERN, trimmedPattern);
+      setPdfPattern(trimmedPattern);
+      const trimmedDir = exportDossier.trim();
+      if (trimmedDir) localStorage.setItem(STORAGE_EXPORT_DIR, trimmedDir);
       else localStorage.removeItem(STORAGE_EXPORT_DIR);
-      showSuccess('Préférence de dossier enregistrée.');
+      showSuccess('Préférences d’export enregistrées.');
     } catch {
-      setError('Impossible d’enregistrer le dossier.');
+      setError('Impossible d’enregistrer les préférences d’export.');
     }
-  }, [exportDossier]);
+  }, [pdfPattern, exportDossier]);
 
   const insertPdfVariable = useCallback((token) => {
     const input = pdfPatternInputRef.current;
@@ -346,10 +334,29 @@ export default function SettingsView({
         </aside>
 
         <div className="settings-stack" ref={stackRef}>
-      <SettingsSection id="settings-account-title" title="Compte" lead="Identité de connexion et accès sécurisé.">
+      <SettingsSection id="settings-account-title" title="Compte" lead="Identité, abonnement et accès au profil CV.">
         <dl className="settings-meta">
           <dt>Email</dt>
           <dd>{accountEmail}</dd>
+          {usage && (
+            <>
+              <dt>Plan</dt>
+              <dd>
+                <span className={`settings-plan-badge ${isPro ? 'settings-plan-badge--pro' : ''}`}>
+                  {isPro ? 'Pro' : 'Gratuit'}
+                </span>
+              </dd>
+              {usage.adaptations_used != null && (
+                <>
+                  <dt>Adaptations</dt>
+                  <dd>
+                    {usage.adaptations_used}
+                    {usage.adaptations_limit ? ` / ${usage.adaptations_limit}` : ''}
+                  </dd>
+                </>
+              )}
+            </>
+          )}
         </dl>
         <div className="settings-actions">
           <Button
@@ -365,47 +372,32 @@ export default function SettingsView({
           >
             Mot de passe
           </Button>
+          {usage && !isPro && typeof onUpgradeClick === 'function' && (
+            <Button type="button" variant="primary" size="sm" onClick={onUpgradeClick}>
+              Passer Pro
+            </Button>
+          )}
+          {usage && isPro && usage.stripe_subscription && typeof onBillingPortalClick === 'function' && (
+            <Button type="button" variant="secondary" size="sm" onClick={onBillingPortalClick}>
+              Gérer l&apos;abonnement
+            </Button>
+          )}
         </div>
+        <p className="settings-inline-meta">
+          <Link to="/app/profil" className="settings-text-link">Ouvrir le profil CV</Link>
+          {templateName && templateName !== '-' && (
+            <span className="settings-inline-meta__muted">Modèle&nbsp;: {templateName}</span>
+          )}
+        </p>
       </SettingsSection>
-
-      {usage && (
-        <SettingsSection id="settings-plan-title" title="Abonnement">
-          <dl className="settings-meta">
-            <dt>Plan</dt>
-            <dd>
-              <span className={`settings-plan-badge ${isPro ? 'settings-plan-badge--pro' : ''}`}>
-                {isPro ? 'Pro' : 'Gratuit'}
-              </span>
-            </dd>
-            {usage.adaptations_used != null && (
-              <>
-                <dt>Adaptations</dt>
-                <dd>{usage.adaptations_used}{usage.adaptations_limit ? ` / ${usage.adaptations_limit}` : ''}</dd>
-              </>
-            )}
-          </dl>
-          <div className="settings-actions">
-            {!isPro && typeof onUpgradeClick === 'function' && (
-              <Button type="button" variant="primary" size="sm" onClick={onUpgradeClick}>
-                Passer Pro
-              </Button>
-            )}
-            {isPro && usage.stripe_subscription && typeof onBillingPortalClick === 'function' && (
-              <Button type="button" variant="secondary" size="sm" onClick={onBillingPortalClick}>
-                Gérer l&apos;abonnement
-              </Button>
-            )}
-          </div>
-        </SettingsSection>
-      )}
 
       <SettingsSection
         id="settings-export-title"
         title="Export PDF"
-        lead="Personnalise le nom de fichier et le dossier suggéré lors de l'enregistrement d'un CV adapté."
+        lead="Nom de fichier et dossier suggéré à l’enregistrement d’un CV adapté."
       >
-        <div className="settings-split">
-          <div className="settings-split__col">
+        <div className="settings-export-layout">
+          <div className="settings-export-layout__col">
             <label className="settings-field">
               Modèle du nom de fichier
               <input
@@ -428,21 +420,8 @@ export default function SettingsView({
               Aperçu
               <code>{profileLoading ? '…' : pdfExportFilenameExample}</code>
             </p>
-            <div className="settings-actions">
-              <Button type="button" variant="primary" size="sm" onClick={savePdfPattern}>
-                Enregistrer
-              </Button>
-              <Button
-                type="button"
-                variant="tertiary"
-                size="sm"
-                onClick={() => setPdfPattern(DEFAULT_PDF_EXPORT_FILENAME_PATTERN)}
-              >
-                Réinitialiser
-              </Button>
-            </div>
           </div>
-          <div className="settings-split__col">
+          <div className="settings-export-layout__col">
             <label className="settings-field">
               Dossier d&apos;export (suggestion)
               <input
@@ -455,51 +434,47 @@ export default function SettingsView({
               />
             </label>
             <p className="settings-field-hint">
-              Utilisé comme base pour organiser tes exports (mémorisé sur cet appareil).
+              Mémorisé sur cet appareil.
+              {exportDirLabel ? <> Dernier dossier navigateur&nbsp;: <strong>{exportDirLabel}</strong></> : null}
             </p>
-            {exportDirLabel && (
-              <p className="settings-field-hint">
-                Dernier dossier navigateur&nbsp;: <strong>{exportDirLabel}</strong>
-              </p>
-            )}
-            <div className="settings-actions">
-              <Button type="button" variant="secondary" size="sm" onClick={saveExportDossier}>
-                Enregistrer le dossier
-              </Button>
-            </div>
-            <hr className="settings-divider" />
-            <Button
-              type="button"
-              variant="tertiary"
-              size="sm"
-              onClick={() => {
-                try {
-                  localStorage.removeItem(STORAGE_PRE_EXPORT_TEMPLATE_OPTIONS_DONE);
-                  showSuccess('Le panneau de personnalisation réapparaîtra avant le prochain export.');
-                } catch {
-                  setError('Impossible de réinitialiser cette préférence.');
-                }
-              }}
-            >
-              Réafficher la personnalisation avant export
-            </Button>
           </div>
         </div>
-      </SettingsSection>
-
-      <SettingsSection id="settings-cv-title" title="CV & modèle" lead="Couleurs, polices et sections se gèrent dans le profil CV.">
-        <dl className="settings-meta">
-          <dt>Modèle actif</dt>
-          <dd>{templateName}</dd>
-        </dl>
         <div className="settings-actions">
-          <Button as={Link} to="/app/profil" variant="secondary" size="sm">
-            Ouvrir le profil CV
+          <Button type="button" variant="primary" size="sm" onClick={saveExportPrefs}>
+            Enregistrer
+          </Button>
+          <Button
+            type="button"
+            variant="tertiary"
+            size="sm"
+            onClick={() => setPdfPattern(DEFAULT_PDF_EXPORT_FILENAME_PATTERN)}
+          >
+            Réinitialiser le modèle
           </Button>
         </div>
+        <Button
+          type="button"
+          variant="tertiary"
+          size="sm"
+          className="settings-export-reset-prefs"
+          onClick={() => {
+            try {
+              localStorage.removeItem(STORAGE_PRE_EXPORT_TEMPLATE_OPTIONS_DONE);
+              showSuccess('Le panneau de personnalisation réapparaîtra avant le prochain export.');
+            } catch {
+              setError('Impossible de réinitialiser cette préférence.');
+            }
+          }}
+        >
+          Réafficher la personnalisation avant export
+        </Button>
       </SettingsSection>
 
-      <SettingsSection id="settings-editor-title" title="Éditeur">
+      <SettingsSection
+        id="settings-editor-title"
+        title="Éditeur"
+        lead="Mode Beta et données locales (non synchronisées entre appareils)."
+      >
         <div className="settings-row">
           <div className="settings-row__text">
             <strong>Mode Beta</strong>
@@ -507,13 +482,7 @@ export default function SettingsView({
           </div>
           <BetaModeToggle />
         </div>
-      </SettingsSection>
-
-      <SettingsSection
-        id="settings-local-title"
-        title="Données sur cet appareil"
-        lead="Brouillons et caches locaux (non synchronisés entre appareils)."
-      >
+        <h3 className="settings-subsection-title">Données sur cet appareil</h3>
         <div className="settings-list-grid">
           <div className="settings-list-grid__col">
             <SettingsListRow
@@ -555,16 +524,7 @@ export default function SettingsView({
         </div>
       </SettingsSection>
 
-      <SettingsSection id="settings-nav-title" title="Raccourcis">
-        <nav className="settings-nav-list" aria-label="Pages de l'application">
-          <Link to="/app/cv" className="settings-nav-link">Adapter un CV</Link>
-          <Link to="/app/postule" className="settings-nav-link">Mes candidatures</Link>
-          <Link to="/app/profil" className="settings-nav-link">Profil CV</Link>
-          <Link to="/app/support" className="settings-nav-link">Support</Link>
-        </nav>
-      </SettingsSection>
-
-      <SettingsSection id="settings-privacy-title" title="Confidentialité" lead="Préférences cookies et documents légaux.">
+      <SettingsSection id="settings-privacy-title" title="Confidentialité" lead="Cookies et documents légaux.">
         {typeof onCookieSettingsClick === 'function' && (
           <div className="settings-actions settings-actions--spaced">
             <Button type="button" variant="secondary" size="sm" onClick={onCookieSettingsClick}>
@@ -573,8 +533,8 @@ export default function SettingsView({
           </div>
         )}
         <nav className="settings-links" aria-label="Documents légaux">
-          <Link to="/confidentialite">Politique de confidentialité</Link>
-          <Link to="/cgu">Conditions d&apos;utilisation</Link>
+          <Link to="/confidentialite">Confidentialité</Link>
+          <Link to="/cgu">CGU</Link>
           <Link to="/mentions-legales">Mentions légales</Link>
         </nav>
       </SettingsSection>

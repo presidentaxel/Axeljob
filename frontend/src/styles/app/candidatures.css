@@ -367,7 +367,7 @@
 
 .candidatures-add-menu-item:hover,
 .candidatures-add-menu-item:focus-visible {
-  background: var(--ds-color-bg-subtle, #f5f5f5);
+  background: var(--ds-color-bg-subtle);
   outline: none;
 }
 

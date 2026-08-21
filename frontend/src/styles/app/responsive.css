@@ -15,12 +15,12 @@
 /* -- Mobile: full overhaul -- */
 @media (max-width: 767px) {
 
-  /* Page header */
+  /* Page header — aligné tokens (déjà compact en mobile) */
   .page-header,
   .app-page .page-header {
-    padding: 0.65rem 0.75rem;
+    padding: var(--ds-space-sm) var(--ds-space-md);
     flex-wrap: wrap;
-    gap: 0.4rem;
+    gap: var(--ds-space-xs);
   }
 
   .page-header h1,
@@ -43,12 +43,6 @@
     padding: 0.38rem 0.6rem;
     flex: 1 1 auto;
     min-width: 0;
-  }
-
-  .page-header-dashboard {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.5rem;
   }
 
   /* Page content */
@@ -104,27 +98,29 @@
     flex-shrink: 0;
   }
 
-  .cv-chat-page .page-title-row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.5rem;
+  /* Mobile : sous-titre déjà masqué via @container ; actions sous le titre si besoin */
+  .page-title-row {
+    flex-wrap: wrap;
+    row-gap: var(--ds-space-sm);
   }
 
-  .cv-chat-page .page-title-row-actions {
+  .page-subtitle {
+    display: none;
+  }
+
+  .cv-chat-page .page-title-row-actions,
+  .dashboard-header-actions {
     width: 100%;
     margin-left: 0;
     justify-content: stretch;
+    flex-wrap: wrap;
   }
 
   .cv-chat-page .btn-new-adapt-session {
-    width: 100%;
+    flex: 1 1 auto;
     white-space: normal;
     text-align: center;
     justify-content: center;
-  }
-
-  .cv-chat-page .page-subtitle {
-    line-height: 1.5;
   }
 
   .cv-chat-error {

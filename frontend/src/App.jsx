@@ -2966,9 +2966,14 @@ export default function App() {
     }
     const marketing = renderPublicMarketingPage(pathname, navigate);
     if (marketing) return marketing;
-    if (!authLoading) {
-      return <NotFoundPage />;
+    if (authLoading || pathname.startsWith('/app')) {
+      return (
+        <div className="landing" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span aria-live="polite">Chargement…</span>
+        </div>
+      );
     }
+    return <NotFoundPage />;
   }
 
   /* Connecté : redirection / ou /login vers /app (useEffect) ; pages publiques hors /app ; sinon 404 */

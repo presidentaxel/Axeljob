@@ -614,36 +614,6 @@
   color: var(--text-primary);
 }
 
-.tpl-modal-tabs {
-  display: flex;
-  gap: 0;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.tpl-modal-tab {
-  padding: 10px 14px;
-  border: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
-}
-
-.tpl-modal-tab:hover {
-  color: var(--text-primary);
-}
-
-.tpl-modal-tab--active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-}
-
 .tpl-modal-body {
   padding: 16px;
   overflow-y: auto;
@@ -736,60 +706,7 @@
   color: var(--color-body-muted, var(--muted));
 }
 
-
-.tpl-modal-card-fav {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border: none;
-  border-radius: 50%;
-  background: var(--bg);
-  color: var(--text-muted, #94a3b8);
-  cursor: pointer;
-  transition: color 0.15s, background 0.15s;
-}
-
-.tpl-modal-card-fav:hover {
-  color: var(--accent);
-  background: var(--bg-secondary);
-}
-
-.tpl-modal-card-fav svg {
-  flex-shrink: 0;
-}
-
-.tpl-modal-card:has(.tpl-modal-card-fav) .tpl-modal-card-preview {
-  padding-right: 22px;
-}
-
-/* Mes templates: liste + carte custom désactivée */
-.tpl-modal-mine {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.tpl-modal-mine-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.tpl-modal-mine-section-title {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.tpl-modal-mine-empty {
+.tpl-modal-empty {
   margin: 0;
   font-size: 13px;
   color: var(--text-secondary);

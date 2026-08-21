@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { apiGet } from '../api';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from '../lib/cvPreviewA4Pages';
-import TemplateModal, { FAVORITES_STORAGE_KEY } from './TemplateModal';
+import TemplateModal from './TemplateModal';
 import {
   isBetaCanvasTemplateId,
   withBetaCanvasTemplate,
@@ -536,24 +536,6 @@ function TemplateOptionsModal({
   );
 }
 
-function loadFavorites() {
-  try {
-    const raw = localStorage.getItem(FAVORITES_STORAGE_KEY);
-    const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveFavorites(ids) {
-  try {
-    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(ids));
-  } catch {
-    /* ignore quota / private mode */
-  }
-}
-
 export default function TemplatePicker({
   templates: templatesProp,
   templateId,
@@ -563,8 +545,6 @@ export default function TemplatePicker({
   openOptionsFromSupport,
   openOptionsNonce = 0,
   onOptionsModalClosed,
-  openModalToTab,
-  onOpenFromUrlConsumed,
   optionsPreviewHtml = '',
   optionsPreviewLoading = false,
   extraBarLeft = null,
@@ -574,8 +554,6 @@ export default function TemplatePicker({
   const [templatesLocal, setTemplatesLocal] = useState([]);
   const [optionsModalOpen, setOptionsModalOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [initialTab, setInitialTab] = useState(null);
-  const [favoriteIds, setFavoriteIds] = useState(loadFavorites);
   const useProp = templatesProp !== undefined;
   const templatesRaw = useProp && Array.isArray(templatesProp) ? templatesProp : templatesLocal;
   const templates = withBetaCanvasTemplate(templatesRaw);
@@ -605,23 +583,6 @@ export default function TemplatePicker({
       setOptionsModalOpen(true);
     }
   }, [openOptionsNonce]);
-
-  const openedFromUrlRef = useRef(false);
-  useEffect(() => {
-    if (openModalToTab !== 'mine' || openedFromUrlRef.current || modalOpen) return;
-    openedFromUrlRef.current = true;
-    setInitialTab('mine');
-    setModalOpen(true);
-    onOpenFromUrlConsumed?.();
-  }, [openModalToTab, modalOpen, onOpenFromUrlConsumed]);
-
-  const toggleFavorite = useCallback((id) => {
-    setFavoriteIds((prev) => {
-      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-      saveFavorites(next);
-      return next;
-    });
-  }, []);
 
   const handleOptionsModalClose = useCallback(() => {
     setOptionsModalOpen(false);
@@ -679,13 +640,10 @@ export default function TemplatePicker({
       </div>
       <TemplateModal
         open={modalOpen}
-        onClose={() => { setModalOpen(false); setInitialTab(null); }}
+        onClose={() => setModalOpen(false)}
         templates={templates}
         templateId={templateId}
         onChangeTemplate={onChangeTemplate}
-        favoriteIds={favoriteIds}
-        onToggleFavorite={toggleFavorite}
-        initialTab={initialTab}
         profileLayout={profileLayout}
         onBetaUnavailable={onBetaUnavailable}
       />

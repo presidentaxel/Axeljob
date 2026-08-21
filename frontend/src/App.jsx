@@ -3345,8 +3345,6 @@ export default function App() {
                   openOptionsFromSupport={location.state?.supportHighlight?.openTemplateOptions}
                   openOptionsNonce={exportPrepTemplateOptionsNonce}
                   onOptionsModalClosed={handleTemplateOptionsModalAfterClose}
-                  openModalToTab={null}
-                  onOpenFromUrlConsumed={() => navigate(location.pathname, { replace: true })}
                   optionsPreviewHtml={previewVariant === 'original' ? (originalPreviewHtml || previewHtmlFallback) : (modifiedPreviewHtml || previewHtmlFallback)}
                   optionsPreviewLoading={false}
                   profileLayout={profileLayout}

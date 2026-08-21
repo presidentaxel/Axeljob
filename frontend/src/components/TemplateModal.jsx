@@ -1,7 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { HiStar, HiOutlineStar } from 'react-icons/hi2';
+import { useEffect, useRef } from 'react';
 import {
-  BETA_CANVAS_TEMPLATE_ID,
   hasUsableBetaCanvasLayout,
   isBetaCanvasTemplateId,
   withBetaCanvasTemplate,
@@ -17,8 +15,6 @@ const PREVIEW_THUMBNAILS = {
   bold:      { bg: '#1e293b', sidebar: '#f1f5f9', accent: '#dc2626', layout: 'right-sidebar' },
   beta:      { bg: '#17171c', sidebar: '#f4f1ea', accent: '#e85d4c', layout: 'beta-canvas' },
 };
-
-export const FAVORITES_STORAGE_KEY = 'cv_template_favorites';
 
 function MiniPreview({ templateId, isActive }) {
   const isCustom = templateId && String(templateId).startsWith('custom_');
@@ -83,15 +79,10 @@ function MiniPreview({ templateId, isActive }) {
   );
 }
 
-function TemplateCard({ template, isSelected, isFavorite, onSelect, onToggleFavorite, disabled, badge }) {
+function TemplateCard({ template, isSelected, onSelect, disabled, badge }) {
   const handleClick = () => {
     if (disabled) return;
     onSelect(template);
-  };
-  const handleStarClick = (e) => {
-    e.stopPropagation();
-    if (isBetaCanvasTemplateId(template.id)) return;
-    onToggleFavorite(template.id);
   };
 
   const handleCardKeyDown = (e) => {
@@ -119,19 +110,12 @@ function TemplateCard({ template, isSelected, isFavorite, onSelect, onToggleFavo
         {template.name}
         {badge ? <span className="tpl-modal-card-badge">{badge}</span> : null}
       </span>
-      {!isBetaCanvasTemplateId(template.id) && (
-        <button
-          type="button"
-          className="tpl-modal-card-fav"
-          onClick={handleStarClick}
-          title={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-          aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-        >
-          {isFavorite ? <HiStar size={16} /> : <HiOutlineStar size={16} />}
-        </button>
-      )}
     </div>
   );
+}
+
+function isCustomTemplate(t) {
+  return t?.tags?.includes('custom') || (t?.id && String(t.id).startsWith('custom_'));
 }
 
 export default function TemplateModal({
@@ -140,18 +124,10 @@ export default function TemplateModal({
   templates,
   templateId,
   onChangeTemplate,
-  favoriteIds,
-  onToggleFavorite,
-  initialTab,
   profileLayout = null,
   onBetaUnavailable = null,
 }) {
-  const [tab, setTab] = useState('library');
   const ref = useRef(null);
-
-  useEffect(() => {
-    if (open && initialTab) setTab(initialTab);
-  }, [open, initialTab]);
 
   useEffect(() => {
     if (!open) return;
@@ -173,7 +149,7 @@ export default function TemplateModal({
 
   if (!open) return null;
 
-  const catalog = withBetaCanvasTemplate(templates);
+  const catalog = withBetaCanvasTemplate(templates).filter((t) => !isCustomTemplate(t));
   const betaReady = hasUsableBetaCanvasLayout(profileLayout);
 
   const handleSelect = (t) => {
@@ -185,13 +161,6 @@ export default function TemplateModal({
     onClose();
   };
 
-  const isCustomTemplate = (t) => t.tags?.includes('custom') || (t.id && String(t.id).startsWith('custom_'));
-  const libraryTemplates = catalog.filter((t) => !isCustomTemplate(t));
-  const customTemplates = catalog.filter(isCustomTemplate);
-  const favoritesList = libraryTemplates.filter(
-    (t) => favoriteIds.includes(t.id) && !isBetaCanvasTemplateId(t.id),
-  );
-
   return (
     <div className="tpl-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="tpl-modal-title">
       <div className="tpl-modal" ref={ref}>
@@ -201,100 +170,37 @@ export default function TemplateModal({
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
-        <div className="tpl-modal-tabs">
-          <button
-            type="button"
-            className={`tpl-modal-tab${tab === 'library' ? ' tpl-modal-tab--active' : ''}`}
-            onClick={() => setTab('library')}
-          >
-            Bibliothèque de templates
-          </button>
-          <button
-            type="button"
-            className={`tpl-modal-tab${tab === 'mine' ? ' tpl-modal-tab--active' : ''}`}
-            onClick={() => setTab('mine')}
-          >
-            Mes templates
-          </button>
-        </div>
         <div className="tpl-modal-body">
-          {tab === 'library' && (
-            <div className="tpl-modal-library">
-              <div className="tpl-modal-grid">
-                {libraryTemplates.map((t) => {
-                  const isBeta = isBetaCanvasTemplateId(t.id);
-                  const disabled = isBeta && !betaReady;
-                  return (
-                    <TemplateCard
-                      key={t.id}
-                      template={{
-                        ...t,
-                        disabledReason: disabled
-                          ? 'Crée d’abord un design dans Profil → mode Beta.'
-                          : t.description,
-                      }}
-                      isSelected={templateId === t.id}
-                      isFavorite={favoriteIds.includes(t.id)}
-                      onSelect={handleSelect}
-                      onToggleFavorite={onToggleFavorite}
-                      disabled={disabled}
-                      badge={isBeta ? 'Canvas' : null}
-                    />
-                  );
-                })}
-              </div>
-              {libraryTemplates.length === 0 && (
-                <p className="tpl-modal-mine-empty">
-                  Les templates intégrés (Classic, Modern, Minimal, etc.) devraient s&apos;afficher ici. Rechargez la page si la liste est vide.
-                </p>
-              )}
+          <div className="tpl-modal-library">
+            <div className="tpl-modal-grid">
+              {catalog.map((t) => {
+                const isBeta = isBetaCanvasTemplateId(t.id);
+                const disabled = isBeta && !betaReady;
+                return (
+                  <TemplateCard
+                    key={t.id}
+                    template={{
+                      ...t,
+                      disabledReason: disabled
+                        ? 'Crée d’abord un design dans Profil → mode Beta.'
+                        : t.description,
+                    }}
+                    isSelected={templateId === t.id}
+                    onSelect={handleSelect}
+                    disabled={disabled}
+                    badge={isBeta ? 'Canvas' : null}
+                  />
+                );
+              })}
             </div>
-          )}
-          {tab === 'mine' && (
-            <div className="tpl-modal-mine">
-              {customTemplates.length > 0 && (
-                <div className="tpl-modal-mine-section">
-                  <h3 className="tpl-modal-mine-section-title">Mes templates personnalisés</h3>
-                  <div className="tpl-modal-grid">
-                    {customTemplates.map((t) => (
-                      <TemplateCard
-                        key={t.id}
-                        template={t}
-                        isSelected={templateId === t.id}
-                        isFavorite={favoriteIds.includes(t.id)}
-                        onSelect={handleSelect}
-                        onToggleFavorite={onToggleFavorite}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="tpl-modal-mine-section">
-                <h3 className="tpl-modal-mine-section-title">Favoris (bibliothèque)</h3>
-                <div className="tpl-modal-grid">
-                  {favoritesList.map((t) => (
-                    <TemplateCard
-                      key={t.id}
-                      template={t}
-                      isSelected={templateId === t.id}
-                      isFavorite={true}
-                      onSelect={handleSelect}
-                      onToggleFavorite={onToggleFavorite}
-                    />
-                  ))}
-                </div>
-                {favoritesList.length === 0 && (
-                  <p className="tpl-modal-mine-empty">
-                    Aucun favori. Ajoute des favoris depuis la bibliothèque (étoile).
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
+            {catalog.length === 0 && (
+              <p className="tpl-modal-empty">
+                Les templates intégrés (Classic, Modern, Minimal, etc.) devraient s&apos;afficher ici. Rechargez la page si la liste est vide.
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
-export { BETA_CANVAS_TEMPLATE_ID };

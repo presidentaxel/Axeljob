@@ -21,6 +21,7 @@ import {
   resetGuidedTours,
 } from '../lib/settingsLocalData.js';
 import BetaModeToggle from './BetaModeToggle.jsx';
+import Button from './ui/Button.jsx';
 import '../styles/app/settings.css';
 
 const PDF_VARIABLES = ['{prenom}', '{nom}', '{poste}', '{entreprise}'];
@@ -58,9 +59,9 @@ function SettingsListRow({ label, detail, onClear, disabled, actionLabel = 'Effa
         <strong>{label}</strong>
         {detail && <span>{detail}</span>}
       </div>
-      <button type="button" className="button button-tertiary button--sm" onClick={onClear} disabled={disabled}>
+      <Button type="button" variant="tertiary" size="sm" onClick={onClear} disabled={disabled}>
         {actionLabel}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -351,9 +352,10 @@ export default function SettingsView({
           <dd>{accountEmail}</dd>
         </dl>
         <div className="settings-actions">
-          <button
+          <Button
             type="button"
-            className="button button-secondary button--sm"
+            variant="secondary"
+            size="sm"
             onClick={() => {
               setSetPasswordOpen(true);
               setSetPasswordNew('');
@@ -362,7 +364,7 @@ export default function SettingsView({
             }}
           >
             Mot de passe
-          </button>
+          </Button>
         </div>
       </SettingsSection>
 
@@ -384,14 +386,14 @@ export default function SettingsView({
           </dl>
           <div className="settings-actions">
             {!isPro && typeof onUpgradeClick === 'function' && (
-              <button type="button" className="button button-primary button--sm" onClick={onUpgradeClick}>
+              <Button type="button" variant="primary" size="sm" onClick={onUpgradeClick}>
                 Passer Pro
-              </button>
+              </Button>
             )}
             {isPro && usage.stripe_subscription && typeof onBillingPortalClick === 'function' && (
-              <button type="button" className="button button-secondary button--sm" onClick={onBillingPortalClick}>
+              <Button type="button" variant="secondary" size="sm" onClick={onBillingPortalClick}>
                 Gérer l&apos;abonnement
-              </button>
+              </Button>
             )}
           </div>
         </SettingsSection>
@@ -408,6 +410,7 @@ export default function SettingsView({
               Modèle du nom de fichier
               <input
                 ref={pdfPatternInputRef}
+                className="ds-input"
                 type="text"
                 value={pdfPattern}
                 onChange={(e) => setPdfPattern(e.target.value)}
@@ -426,22 +429,24 @@ export default function SettingsView({
               <code>{profileLoading ? '…' : pdfExportFilenameExample}</code>
             </p>
             <div className="settings-actions">
-              <button type="button" className="button button-primary button--sm" onClick={savePdfPattern}>
+              <Button type="button" variant="primary" size="sm" onClick={savePdfPattern}>
                 Enregistrer
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                className="button button-tertiary button--sm"
+                variant="tertiary"
+                size="sm"
                 onClick={() => setPdfPattern(DEFAULT_PDF_EXPORT_FILENAME_PATTERN)}
               >
                 Réinitialiser
-              </button>
+              </Button>
             </div>
           </div>
           <div className="settings-split__col">
             <label className="settings-field">
               Dossier d&apos;export (suggestion)
               <input
+                className="ds-input"
                 type="text"
                 value={exportDossier}
                 onChange={(e) => setExportDossier(e.target.value)}
@@ -458,14 +463,15 @@ export default function SettingsView({
               </p>
             )}
             <div className="settings-actions">
-              <button type="button" className="button button-secondary button--sm" onClick={saveExportDossier}>
+              <Button type="button" variant="secondary" size="sm" onClick={saveExportDossier}>
                 Enregistrer le dossier
-              </button>
+              </Button>
             </div>
             <hr className="settings-divider" />
-            <button
+            <Button
               type="button"
-              className="button button-tertiary button--sm"
+              variant="tertiary"
+              size="sm"
               onClick={() => {
                 try {
                   localStorage.removeItem(STORAGE_PRE_EXPORT_TEMPLATE_OPTIONS_DONE);
@@ -476,7 +482,7 @@ export default function SettingsView({
               }}
             >
               Réafficher la personnalisation avant export
-            </button>
+            </Button>
           </div>
         </div>
       </SettingsSection>
@@ -487,7 +493,9 @@ export default function SettingsView({
           <dd>{templateName}</dd>
         </dl>
         <div className="settings-actions">
-          <Link to="/app/profil" className="button button-secondary button--sm">Ouvrir le profil CV</Link>
+          <Button as={Link} to="/app/profil" variant="secondary" size="sm">
+            Ouvrir le profil CV
+          </Button>
         </div>
       </SettingsSection>
 
@@ -559,9 +567,9 @@ export default function SettingsView({
       <SettingsSection id="settings-privacy-title" title="Confidentialité" lead="Préférences cookies et documents légaux.">
         {typeof onCookieSettingsClick === 'function' && (
           <div className="settings-actions settings-actions--spaced">
-            <button type="button" className="button button-secondary button--sm" onClick={onCookieSettingsClick}>
+            <Button type="button" variant="secondary" size="sm" onClick={onCookieSettingsClick}>
               Paramètres cookies
-            </button>
+            </Button>
           </div>
         )}
         <nav className="settings-links" aria-label="Documents légaux">
@@ -615,39 +623,44 @@ export default function SettingsView({
               <label className="settings-field">
                 Nouveau mot de passe
                 <input
+                  className="ds-input"
                   type="password"
                   value={setPasswordNew}
                   onChange={(e) => setSetPasswordNew(e.target.value)}
                   autoComplete="new-password"
                   minLength={6}
+                  aria-invalid={setPasswordError ? 'true' : undefined}
                 />
               </label>
               <label className="settings-field">
                 Confirmer
                 <input
+                  className="ds-input"
                   type="password"
                   value={setPasswordConfirm}
                   onChange={(e) => setSetPasswordConfirm(e.target.value)}
                   autoComplete="new-password"
                   minLength={6}
+                  aria-invalid={setPasswordError ? 'true' : undefined}
                 />
               </label>
-              {setPasswordError && <p className="settings-error">{setPasswordError}</p>}
+              {setPasswordError && <p className="ds-field-error" role="alert">{setPasswordError}</p>}
               <div className="settings-modal__actions">
-                <button
+                <Button
                   type="submit"
-                  className="button button-primary button--sm"
+                  variant="primary"
+                  size="sm"
+                  loading={setPasswordLoading}
                   disabled={
-                    setPasswordLoading
-                    || setPasswordNew.length < 6
+                    setPasswordNew.length < 6
                     || setPasswordNew !== setPasswordConfirm
                   }
                 >
-                  {setPasswordLoading ? '…' : 'Enregistrer'}
-                </button>
-                <button type="button" className="button button-tertiary button--sm" onClick={() => setSetPasswordOpen(false)}>
+                  Enregistrer
+                </Button>
+                <Button type="button" variant="tertiary" size="sm" onClick={() => setSetPasswordOpen(false)}>
                   Annuler
-                </button>
+                </Button>
               </div>
             </form>
           </div>

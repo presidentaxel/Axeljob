@@ -287,7 +287,8 @@
 .view-candidatures .kanban-column-cards {
   flex: 1;
   overflow-y: auto;
-  padding: 0 0.5rem 0.25rem;
+  /* Marge haute : la carte du haut peut se soulever au hover sans clipper la bordure sous le header */
+  padding: 0.2rem 0.5rem 0.35rem;
   gap: 0.4rem;
   background: transparent;
 }
@@ -373,11 +374,14 @@
 
 /* Drag affordance */
 .view-candidatures .kanban-board .kanban-card {
+  position: relative;
+  z-index: 0;
   cursor: grab;
   transition: transform 0.12s ease, border-color 0.12s ease;
 }
 
 .view-candidatures .kanban-board .kanban-card:hover:not(.dragging) {
+  z-index: 2;
   transform: translateY(-1px);
   border-color: var(--ds-color-text-muted);
 }
@@ -388,6 +392,7 @@
 }
 
 .view-candidatures .kanban-board .kanban-card.dragging {
+  z-index: 3;
   opacity: 0.88;
   transform: scale(1.02);
   border-color: var(--ds-color-border-focus, var(--ds-color-text-link));

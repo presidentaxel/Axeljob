@@ -36,6 +36,30 @@
   padding: 0;
 }
 
+.candidatures-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-sm, 0.5rem);
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--ds-color-border-default);
+  background: var(--ds-color-bg-subtle);
+  color: var(--ds-color-text-danger);
+  font-size: var(--ds-font-size-body-md, 0.9375rem);
+  line-height: 1.35;
+}
+
+.candidatures-error-msg {
+  min-width: 0;
+  flex: 1;
+}
+
+.candidatures-error-dismiss.ds-button {
+  flex-shrink: 0;
+}
+
 /* ── Toolbar unifiée : métriques + contrôles (AXE-382) ── */
 .candidatures-toolbar {
   display: flex;

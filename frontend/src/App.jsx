@@ -732,6 +732,8 @@ export default function App() {
   const [applicationSearchDebounced, setApplicationSearchDebounced] = useState('');
   /** Filtre métrique : `relancer` | null */
   const [candidaturesMetricFilter, setCandidaturesMetricFilter] = useState(null);
+  /** Erreur locale Mes candidatures (ne touche pas `error`/`rapport` de la vue CV) */
+  const [candidaturesError, setCandidaturesError] = useState('');
   /* sidebar removed - now using topbar layout */
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(!!supabase);
@@ -2728,9 +2730,10 @@ export default function App() {
   const handleStatutChange = async (id, statut, extra = {}) => {
     try {
       await apiPatch(`/api/applications/${encodeURIComponent(id)}`, { statut, ...extra });
+      setCandidaturesError('');
       loadApplications();
     } catch (e) {
-      showError(e?.message || 'Impossible de mettre à jour le statut.');
+      setCandidaturesError(e?.message || 'Impossible de mettre à jour le statut.');
     }
   };
 
@@ -2767,8 +2770,9 @@ export default function App() {
       setStatutModalType(null);
       setStatutModalAppId(null);
       setStatutModalApp(null);
+      setCandidaturesError('');
     } catch (e) {
-      setError(e.message || 'Erreur enregistrement');
+      setCandidaturesError(e.message || 'Erreur enregistrement');
     } finally {
       setStatutModalSubmitting(false);
     }
@@ -2788,8 +2792,9 @@ export default function App() {
       setStatutModalType(null);
       setStatutModalAppId(null);
       setStatutModalApp(null);
+      setCandidaturesError('');
     } catch (e) {
-      setError(e.message || 'Erreur enregistrement');
+      setCandidaturesError(e.message || 'Erreur enregistrement');
     } finally {
       setStatutModalSubmitting(false);
     }
@@ -3703,6 +3708,25 @@ export default function App() {
           )}
           <div className="page-content applications-full candidatures-page" data-section="candidatures" data-analytics-section="candidatures_board">
             <div className="candidatures-page-inner">
+              {candidaturesError && (
+                <div
+                  className="candidatures-error"
+                  role="alert"
+                  aria-live="assertive"
+                >
+                  <span className="candidatures-error-msg">{candidaturesError}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="candidatures-error-dismiss"
+                    onClick={() => setCandidaturesError('')}
+                    aria-label="Fermer l’erreur"
+                  >
+                    Fermer
+                  </Button>
+                </div>
+              )}
               <div className="candidatures-toolbar" data-section="candidatures-toolbar">
                 <div
                   className="candidatures-metrics candidatures-metrics--compact"

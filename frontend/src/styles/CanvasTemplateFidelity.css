@@ -284,14 +284,47 @@
   text-transform: uppercase;
 }
 
-/* ---------- Minimal ---------- */
+/* ---------- Minimal (réplique mono-colonne — AXE-346) ---------- */
+.free-canvas-page--tpl-minimal {
+  color: #1a1a1a;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__identity--minimal-header .free-canvas-block__identity-name,
+.free-canvas-page--tpl-minimal .free-canvas-block__identity .free-canvas-block__identity-name {
+  font-family: var(--free-canvas-font-heading);
+  font-size: 18pt;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--free-canvas-accent, #111827);
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__identity .free-canvas-block__identity-title {
+  font-size: 10pt;
+  font-weight: 400;
+  color: #374151;
+  margin-top: 0.4mm;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__contact {
+  color: #4b5563;
+  font-size: 8.5pt;
+}
+
 .free-canvas-page--tpl-minimal .free-canvas-block__section-title--minimal-section {
   font-family: var(--free-canvas-font-heading);
   font-size: 10.5pt;
   font-weight: 700;
-  color: var(--free-canvas-accent);
-  border-bottom: 0.35mm solid var(--free-canvas-accent);
+  color: var(--free-canvas-accent, #111827);
+  border-bottom: 0.35mm solid var(--free-canvas-accent, #111827);
   padding-bottom: 1mm;
+  margin-bottom: 1.5mm;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__resume {
+  font-style: italic;
+  color: #1a1a1a;
 }
 
 /* ---------- Élégant ---------- */

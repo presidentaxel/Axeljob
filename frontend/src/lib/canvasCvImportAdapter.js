@@ -15,6 +15,7 @@ import {
   parseCanvasTheme,
   SIDE_PAD_X,
   SIDE_PAD_Y,
+  STABLE_CANVAS_TEMPLATE_IDS,
 } from './canvasTemplateSpecs.js';
 import { createCanvasLayoutForTemplate } from './layoutTemplatePresets.js';
 import { reflowColumnBlocksOnPage } from './layoutReflow.js';
@@ -205,9 +206,7 @@ function isValidHexColor(value) {
   return /^#[0-9a-fA-F]{6}$/.test(String(value || '').trim());
 }
 
-const KNOWN_TEMPLATE_IDS = new Set([
-  'modern', 'creative', 'executive', 'bold', 'classic', 'minimal', 'elegant',
-]);
+const KNOWN_TEMPLATE_IDS = new Set(STABLE_CANVAS_TEMPLATE_IDS);
 
 /** Choisit le template le plus adapté au profil importé. */
 export function recommendTemplateId(analysis, templatesList = [], currentTemplateId = '', layoutHints = {}) {

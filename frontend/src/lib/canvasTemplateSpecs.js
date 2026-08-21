@@ -1,8 +1,99 @@
 /**
  * Spécifications canvas calquées sur templates/*.css (mm, typo, blocs).
+ * AXE-346 : viser des répliques natives ; la matrice de fidélité documente l’écart actuel.
  */
 import { fontStackFromTemplateOption } from './canvasFontOptions.js';
 import { PAGE_HEIGHT_MM, PAGE_WIDTH_MM } from './cvLayoutModelV3.js';
+
+/** Catalogue Stable avec projection canvas (hors `custom_*` / `beta`). */
+export const STABLE_CANVAS_TEMPLATE_IDS = Object.freeze([
+  'minimal',
+  'classic',
+  'modern',
+  'creative',
+  'elegant',
+  'executive',
+  'bold',
+]);
+
+/**
+ * Matrice AXE-346 — readiness réplique native (état projection actuelle).
+ * @type {Readonly<Record<string, {
+ *   name: string,
+ *   layoutFamily: 'single-column' | 'sidebar-left' | 'sidebar-right',
+ *   readiness: 'thin' | 'projection' | 'near-replica',
+ *   fidelityCss: 'thin' | 'medium' | 'rich',
+ *   gaps: string[],
+ * }>>}
+ */
+export const TEMPLATE_CANVAS_FIDELITY = Object.freeze({
+  minimal: {
+    name: 'Minimal',
+    layoutFamily: 'single-column',
+    readiness: 'projection',
+    fidelityCss: 'medium',
+    gaps: [
+      'Pas encore une réplique pixel-perfect du HTML Stable',
+      'Pagination multi-page / densités CV longs à valider',
+    ],
+  },
+  classic: {
+    name: 'Classique',
+    layoutFamily: 'sidebar-right',
+    readiness: 'thin',
+    fidelityCss: 'thin',
+    gaps: [
+      'CSS Stable très dense vs twin canvas mince',
+      'Sidebar compétences / typo header à rapprocher',
+    ],
+  },
+  modern: {
+    name: 'Moderne',
+    layoutFamily: 'sidebar-left',
+    readiness: 'projection',
+    fidelityCss: 'medium',
+    gaps: ['Détails sidebar (outils/langues) et accents underline à peaufiner'],
+  },
+  creative: {
+    name: 'Créatif',
+    layoutFamily: 'sidebar-left',
+    readiness: 'projection',
+    fidelityCss: 'medium',
+    gaps: ['Titres creative-main et bordures photo à valider visuellement'],
+  },
+  elegant: {
+    name: 'Élégant',
+    layoutFamily: 'single-column',
+    readiness: 'projection',
+    fidelityCss: 'thin',
+    gaps: ['Centrage / chips compétences vs HTML Stable'],
+  },
+  executive: {
+    name: 'Executive',
+    layoutFamily: 'sidebar-right',
+    readiness: 'projection',
+    fidelityCss: 'medium',
+    gaps: ['Bandeau header + barre accent vs CSS Stable'],
+  },
+  bold: {
+    name: 'Impact',
+    layoutFamily: 'sidebar-right',
+    readiness: 'near-replica',
+    fidelityCss: 'rich',
+    gaps: ['Écarts résiduels typo/exp (meilleure base actuelle)'],
+  },
+});
+
+/** @param {string|null|undefined} id */
+export function isStableCanvasTemplateId(id) {
+  return STABLE_CANVAS_TEMPLATE_IDS.includes(String(id || '').trim());
+}
+
+/** @param {string|null|undefined} id */
+export function getTemplateCanvasFidelity(id) {
+  const key = String(id || '').trim();
+  return TEMPLATE_CANVAS_FIDELITY[key] || null;
+}
 
 /** 200px @ 96dpi */
 export const SIDEBAR_W_MM = (200 * 25.4) / 96;
@@ -484,15 +575,17 @@ export function buildTemplateBlocks(template) {
     }
 
     case 'minimal': {
+      // Aligné templates/minimal : mono-colonne, pas de barre accent sous le header
+      // (la séparation suit les titres .section-title / title_style: minimal-section).
       const pad = (28 * 25.4) / 96;
       const W = PAGE_WIDTH_MM - pad * 2;
+      const photoMm = (52 * 25.4) / 96; // --cv-photo-size 52px
       return [
-        bar(pad, (18 * 25.4) / 96, W, 0.4, t.color_accent, 0),
-        { type: 'photo', x: pad, y: (20 * 25.4) / 96, w: 14, h: 14, z: 2, style: { shape: 'circle', zone: 'main' } },
-        { type: 'identity', bind: ['prenom', 'nom', 'titre_professionnel'], x: pad + 18, y: (18 * 25.4) / 96, w: W - 18, h: 20, z: 2, style: { ...main(), font_size: 18, font_family: t.font_heading, color: t.color_section_title } },
-        { type: 'contact', bind: ['email', 'telephone', 'linkedin'], x: pad + 18, y: (40 * 25.4) / 96, w: W - 18, h: 8, z: 2, style: { ...main(), font_size: 8.5, color: '#666666' } },
-        { type: 'resume', bind: 'resume', x: pad, y: (52 * 25.4) / 96, w: W, h: 22, z: 1, style: { ...main(), section_label: 'PROFIL', title_style: 'minimal-section', font_style: 'italic' } },
-        { type: 'experiences', bind: 'experiences', x: pad, y: (78 * 25.4) / 96, w: W, h: 118, z: 1, style: { ...main(), section_label: 'EXPÉRIENCE PROFESSIONNELLE', title_style: 'minimal-section', font_family: t.font_heading } },
+        { type: 'photo', x: pad, y: (18 * 25.4) / 96, w: photoMm, h: photoMm, z: 2, style: { shape: 'circle', zone: 'main' } },
+        { type: 'identity', bind: ['prenom', 'nom', 'titre_professionnel'], x: pad + photoMm + (14 * 25.4) / 96, y: (18 * 25.4) / 96, w: W - photoMm - (14 * 25.4) / 96, h: 18, z: 2, style: { ...main(), font_size: 18, font_family: t.font_heading, color: t.color_section_title, identity_layout: 'minimal-header' } },
+        { type: 'contact', bind: ['email', 'telephone', 'linkedin'], x: pad + photoMm + (14 * 25.4) / 96, y: (40 * 25.4) / 96, w: W - photoMm - (14 * 25.4) / 96, h: 8, z: 2, style: { ...main(), font_size: 8.5, color: '#4b5563' } },
+        { type: 'resume', bind: 'resume', x: pad, y: (56 * 25.4) / 96, w: W, h: 22, z: 1, style: { ...main(), section_label: 'PROFIL', title_style: 'minimal-section', font_style: 'italic' } },
+        { type: 'experiences', bind: 'experiences', x: pad, y: (82 * 25.4) / 96, w: W, h: 114, z: 1, style: { ...main(), section_label: 'EXPÉRIENCE PROFESSIONNELLE', title_style: 'minimal-section', font_family: t.font_heading } },
         { type: 'formations', bind: 'formations', x: pad, y: (200 * 25.4) / 96, w: W, h: 28, z: 1, style: { ...main(), section_label: 'FORMATION', title_style: 'minimal-section', font_family: t.font_heading } },
         { type: 'skills', bind: 'competences.techniques', x: pad, y: (232 * 25.4) / 96, w: W, h: 22, z: 1, style: { ...main(), section_label: 'COMPÉTENCES', title_style: 'minimal-section', list_format: 'list' } },
         { type: 'skills', bind: 'competences.logiciels', x: pad, y: (258 * 25.4) / 96, w: W, h: 18, z: 1, style: { ...main(), section_label: 'OUTILS', title_style: 'minimal-section', list_format: 'list' } },
@@ -543,4 +636,33 @@ export function buildTemplateBlocks(template) {
     default:
       return [];
   }
+}
+
+/**
+ * Résumé structurel d’une projection (tests + inventaire AXE-346).
+ * @param {object} template
+ */
+export function summarizeTemplateCanvasLayout(template) {
+  const theme = parseCanvasTheme(template);
+  const blocks = buildTemplateBlocks(template);
+  /** @type {Record<string, number>} */
+  const blockTypes = {};
+  /** @type {Set<string>} */
+  const zones = new Set();
+  for (const block of blocks) {
+    const type = String(block?.type || 'unknown');
+    blockTypes[type] = (blockTypes[type] || 0) + 1;
+    const zone = block?.style?.zone;
+    if (zone) zones.add(String(zone));
+  }
+  const fidelity = getTemplateCanvasFidelity(theme.template_id);
+  return {
+    templateId: theme.template_id,
+    blockCount: blocks.length,
+    blockTypes,
+    zones: [...zones].sort(),
+    themeTemplateId: theme.template_id,
+    readiness: fidelity?.readiness || null,
+    layoutFamily: fidelity?.layoutFamily || null,
+  };
 }

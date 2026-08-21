@@ -7,7 +7,7 @@
  */
 
 import { buildAdaptedCanvasLayoutForCv } from './canvasCvImportAdapter.js';
-import { buildTemplateBlocks } from './canvasTemplateSpecs.js';
+import { buildTemplateBlocks, isStableCanvasTemplateId } from './canvasTemplateSpecs.js';
 import { detectTransferCandidates } from './canvasLayoutTransfer.js';
 import { createCanvasLayoutForTemplate } from './layoutTemplatePresets.js';
 import { isEmptyLayoutV3 } from './cvLayoutModelV3.js';
@@ -29,7 +29,7 @@ export function resolveTemplateFromList(templatesList, templateId) {
  * @param {object|null|undefined} template
  */
 export function canBuildCanvasForTemplate(template) {
-  if (!template?.id) return false;
+  if (!template?.id || !isStableCanvasTemplateId(template.id)) return false;
   try {
     return buildTemplateBlocks(template).length > 0;
   } catch {

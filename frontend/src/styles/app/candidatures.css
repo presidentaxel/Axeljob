@@ -36,6 +36,30 @@
   padding: 0;
 }
 
+.candidatures-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-sm, 0.5rem);
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--ds-color-border-default);
+  background: var(--ds-color-bg-subtle);
+  color: var(--ds-color-text-danger);
+  font-size: var(--ds-font-size-body-md, 0.9375rem);
+  line-height: 1.35;
+}
+
+.candidatures-error-msg {
+  min-width: 0;
+  flex: 1;
+}
+
+.candidatures-error-dismiss.ds-button {
+  flex-shrink: 0;
+}
+
 /* ── Toolbar unifiée : métriques + contrôles (AXE-382) ── */
 .candidatures-toolbar {
   display: flex;
@@ -238,12 +262,17 @@
   flex: 1;
   min-height: 0;
   margin: 0;
-  background: var(--ds-color-bg-subtle, var(--color-soft-stone));
+  background: var(--ds-color-bg-subtle);
   border-radius: 0;
   padding: 0.5rem 0 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* Liste mobile : masquée desktop (AXE-381) */
+.candidatures-list-mobile {
+  display: none;
 }
 
 .view-candidatures .kanban-board {
@@ -610,7 +639,7 @@
 }
 
 .view-candidatures .kanban-archived-list .application-card:hover {
-  background: var(--color-soft-stone);
+  background: var(--ds-color-bg-subtle);
   border-radius: var(--radius-xs);
 }
 
@@ -685,37 +714,174 @@
 
   .candidatures-board {
     margin: 0;
-    padding: 0.35rem 0 0;
+    padding: 0;
     border-radius: 0;
-  }
-
-  .view-candidatures .kanban-board {
-    flex-direction: column;
-    overflow-x: hidden;
     overflow-y: auto;
-    min-height: auto;
+    overflow-x: hidden;
   }
 
-  .view-candidatures .kanban-column {
-    flex: none;
-    width: 100%;
-    min-width: 0;
-    border-right: none;
+  /* Desktop kanban masqué ; liste groupée (AXE-381) */
+  .view-candidatures .kanban-board {
+    display: none;
+  }
+
+  .candidatures-list-mobile {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    gap: 0;
+    padding: 0 0.75rem 1rem;
+  }
+
+  .candidatures-list-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem 0 0.25rem;
     border-bottom: 1px solid var(--ds-color-border-default);
-    max-height: none;
   }
 
-  .view-candidatures .kanban-column:last-child {
+  .candidatures-list-section:last-child {
     border-bottom: none;
   }
 
-  /* Un seul scroll vertical (board) : pas de scroll interne par colonne */
-  .view-candidatures .kanban-column-cards {
-    max-height: none;
-    overflow-y: visible;
+  .candidatures-list-section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0.15rem 0;
+    font-size: var(--ds-font-size-label-md, 0.8125rem);
+    font-weight: 500;
+    color: var(--ds-color-text-default);
+    line-height: 1.3;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--ds-color-bg-subtle);
   }
 
-  .view-candidatures .kanban-column-empty {
-    min-height: 3.25rem;
+  .candidatures-list-section-count {
+    font-variant-numeric: tabular-nums;
+    font-weight: 400;
+    color: var(--ds-color-text-muted);
+    font-size: var(--ds-font-size-label-sm, 0.75rem);
+  }
+
+  .candidatures-list-section-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .view-candidatures .candidatures-list-card.application-card {
+    position: relative;
+    margin: 0;
+    padding: 0.75rem 0.65rem 0.65rem;
+    background: var(--ds-color-bg-default);
+    border: 1px solid var(--ds-color-border-default);
+    border-radius: var(--ds-radius-sm, 0.375rem);
+    cursor: default;
+  }
+
+  .view-candidatures .candidatures-list-card .app-card-actions-icons {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.25rem;
+  }
+
+  .view-candidatures .candidatures-list-card .app-card-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    padding-right: 4.25rem;
+  }
+
+  .view-candidatures .candidatures-list-card .app-card-text {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .view-candidatures .candidatures-list-card .app-title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .view-candidatures .candidatures-list-card .application-card .app-title,
+  .view-candidatures .candidatures-list-card .app-title {
+    font-size: var(--ds-font-size-body-md, 0.9375rem);
+    font-weight: 500;
+    color: var(--ds-color-text-default);
+    line-height: 1.25;
+  }
+
+  .view-candidatures .candidatures-list-card .app-meta {
+    font-size: var(--ds-font-size-label-sm, 0.75rem);
+    color: var(--ds-color-text-muted);
+  }
+
+  .view-candidatures .candidatures-list-card .app-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.45rem;
+  }
+
+  .view-candidatures .candidatures-list-card .app-date {
+    font-size: var(--ds-font-size-label-sm, 0.75rem);
+    color: var(--ds-color-text-muted);
+  }
+
+  .view-candidatures .candidatures-list-card .app-follow-up-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--ds-color-feedback-warning);
+  }
+
+  .view-candidatures .candidatures-list-card .app-company-logo,
+  .view-candidatures .candidatures-list-card .company-logo-fallback {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--ds-radius-sm, 0.375rem);
+  }
+
+  .candidatures-list-statut {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.55rem;
+  }
+
+  .candidatures-list-statut-label {
+    font-size: var(--ds-font-size-label-sm, 0.75rem);
+    color: var(--ds-color-text-muted);
+  }
+
+  .candidatures-list-statut-select.ds-input {
+    width: 100%;
+    min-height: var(--ds-size-touch-min, 2.75rem);
+    font-size: var(--ds-font-size-body-md, 0.9375rem);
+  }
+
+  .view-candidatures .candidatures-list-card.application-card--accent-offre {
+    box-shadow: inset 3px 0 0 var(--ds-color-feedback-success);
+  }
+
+  .view-candidatures .candidatures-list-card.application-card--accent-refus {
+    box-shadow: inset 3px 0 0 var(--ds-color-text-danger);
+  }
+
+  .view-candidatures .candidatures-list-card.application-card--accent-relancer {
+    box-shadow: inset 3px 0 0 var(--ds-color-feedback-warning);
+  }
+
+  .view-candidatures .candidatures-list-card .app-card-action.ds-button {
+    min-width: var(--ds-size-touch-min, 2.75rem);
+    min-height: var(--ds-size-touch-min, 2.75rem);
   }
 }

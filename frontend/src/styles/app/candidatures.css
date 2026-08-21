@@ -448,12 +448,21 @@
   gap: 0.15rem;
 }
 
+.view-candidatures .kanban-board .app-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
 .view-candidatures .kanban-board .application-card .app-title {
   font-weight: 500;
   font-size: 0.8125rem;
   color: var(--ds-color-text-default);
   line-height: 1.35;
   word-break: break-word;
+  min-width: 0;
+  flex: 1;
 }
 
 .view-candidatures .kanban-board .application-card .app-meta {

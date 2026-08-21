@@ -3865,16 +3865,18 @@ export default function App() {
                             <div className="app-card-top">
                               <CompanyLogo companyName={entreprise || app.entreprise} className="app-company-logo" size={32} />
                               <div className="app-card-text">
-                                <div className="app-title">{titre}</div>
+                                <div className="app-title-row">
+                                  <div className="app-title">{titre}</div>
+                                  {needsFollowUp && (
+                                    <span
+                                      className="app-follow-up-dot"
+                                      title="Sans nouvelle depuis 14 jours ou plus"
+                                      aria-label="À relancer"
+                                    />
+                                  )}
+                                </div>
                                 {entreprise ? <div className="app-meta">{entreprise}</div> : null}
                               </div>
-                              {needsFollowUp && (
-                                <span
-                                  className="app-follow-up-dot"
-                                  title="Sans nouvelle depuis 14 jours ou plus"
-                                  aria-label="À relancer"
-                                />
-                              )}
                             </div>
                             <div className="app-card-footer">
                               {hasDocs ? (

@@ -36,12 +36,12 @@ const SETTINGS_NAV = [
   { id: 'settings-privacy', label: 'Confidentialité' },
 ];
 
-function SettingsSection({ id, title, lead, children, wide = false }) {
+function SettingsSection({ id, title, lead, children }) {
   const sectionId = id.replace(/-title$/, '');
   return (
     <section
       id={sectionId}
-      className={`settings-section${wide ? ' settings-section--wide' : ''}`}
+      className="settings-section"
       aria-labelledby={id}
     >
       <h2 id={id} className="settings-section__title">{title}</h2>
@@ -117,10 +117,97 @@ export default function SettingsView({
 
   const pdfPatternInputRef = useRef(null);
   const messageTimerRef = useRef(null);
+  const stackRef = useRef(null);
+  const [activeSectionId, setActiveSectionId] = useState('settings-account');
+
+  const navItems = useMemo(
+    () => SETTINGS_NAV.filter((item) => !item.when || item.when(usage)),
+    [usage],
+  );
 
   const refreshLocalSummary = useCallback(() => {
     setLocalSummary(getLocalDataSummary());
   }, []);
+
+  useEffect(() => {
+    if (!navItems.length) return undefined;
+    if (!navItems.some((item) => item.id === activeSectionId)) {
+      setActiveSectionId(navItems[0].id);
+    }
+    return undefined;
+  }, [navItems, activeSectionId]);
+
+  useEffect(() => {
+    const stack = stackRef.current;
+    if (!stack || !navItems.length) return undefined;
+
+    const sections = navItems
+      .map((item) => document.getElementById(item.id))
+      .filter(Boolean);
+    if (!sections.length) return undefined;
+
+    const root = stack.closest('.app-page');
+    const ratios = new Map();
+
+    const pickActive = () => {
+      let bestId = navItems[0].id;
+      let bestRatio = -1;
+      for (const section of sections) {
+        const ratio = ratios.get(section.id) ?? 0;
+        if (ratio > bestRatio) {
+          bestRatio = ratio;
+          bestId = section.id;
+        }
+      }
+      if (bestRatio <= 0) {
+        // Fallback : première section dont le top est au-dessus du milieu du root
+        const rootTop = root ? root.getBoundingClientRect().top : 0;
+        const midpoint = rootTop + (root ? root.clientHeight * 0.28 : 120);
+        for (const section of sections) {
+          const top = section.getBoundingClientRect().top;
+          if (top <= midpoint) bestId = section.id;
+        }
+      }
+      setActiveSectionId((prev) => (prev === bestId ? prev : bestId));
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          ratios.set(entry.target.id, entry.isIntersecting ? entry.intersectionRatio : 0);
+        }
+        pickActive();
+      },
+      {
+        root: root || null,
+        rootMargin: '-12% 0px -62% 0px',
+        threshold: [0, 0.08, 0.2, 0.35, 0.5, 0.75, 1],
+      },
+    );
+
+    sections.forEach((section) => observer.observe(section));
+    pickActive();
+    return () => observer.disconnect();
+  }, [navItems]);
+
+  const scrollToSection = useCallback((sectionId) => {
+    const el = document.getElementById(sectionId);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setActiveSectionId(sectionId);
+    try {
+      window.history.replaceState(null, '', `#${sectionId}`);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    const hash = (window.location.hash || '').replace(/^#/, '');
+    if (!hash || !navItems.some((item) => item.id === hash)) return undefined;
+    const t = window.setTimeout(() => scrollToSection(hash), 0);
+    return () => window.clearTimeout(t);
+  }, [navItems, scrollToSection]);
 
   useEffect(() => {
     if (!session) return;
@@ -230,16 +317,28 @@ export default function SettingsView({
       <div className="settings-shell">
         <aside className="settings-rail" aria-label="Sections des paramètres">
           <nav className="settings-rail-nav">
-            {SETTINGS_NAV.filter((item) => !item.when || item.when(usage)).map((item) => (
-              <a key={item.id} href={`#${item.id}`} className="settings-rail-link">
-                {item.label}
-              </a>
-            ))}
+            {navItems.map((item) => {
+              const isActive = activeSectionId === item.id;
+              return (
+                <a
+                  key={item.id}
+                  href={`#${item.id}`}
+                  className={`settings-rail-link${isActive ? ' is-active' : ''}`}
+                  aria-current={isActive ? 'true' : undefined}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    scrollToSection(item.id);
+                  }}
+                >
+                  {item.label}
+                </a>
+              );
+            })}
           </nav>
         </aside>
 
-        <div className="settings-mosaic">
-      <SettingsSection id="settings-account-title" title="Compte" lead="Identité de connexion et accès sécurisé." wide={!usage}>
+        <div className="settings-stack" ref={stackRef}>
+      <SettingsSection id="settings-account-title" title="Compte" lead="Identité de connexion et accès sécurisé.">
         <dl className="settings-meta">
           <dt>Email</dt>
           <dd>{accountEmail}</dd>
@@ -295,7 +394,6 @@ export default function SettingsView({
         id="settings-export-title"
         title="Export PDF"
         lead="Personnalise le nom de fichier et le dossier suggéré lors de l'enregistrement d'un CV adapté."
-        wide
       >
         <div className="settings-split">
           <div className="settings-split__col">
@@ -400,7 +498,6 @@ export default function SettingsView({
         id="settings-local-title"
         title="Données sur cet appareil"
         lead="Brouillons et caches locaux (non synchronisés entre appareils)."
-        wide
       >
         <div className="settings-list-grid">
           <div className="settings-list-grid__col">

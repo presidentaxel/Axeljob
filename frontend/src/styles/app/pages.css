@@ -113,14 +113,6 @@
   }
 }
 
-.page-header-dashboard {
-  /* hérite de .page-header ; la ligne est .page-title-row */
-}
-
-.page-header-dashboard {
-  /* hérite de .page-header ; la ligne est .page-title-row */
-}
-
 .dashboard-header-actions {
   display: flex;
   flex-wrap: nowrap;

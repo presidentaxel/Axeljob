@@ -36,6 +36,7 @@ import './App.css';
 import './styles/TemplatePicker.css';
 import './styles/GuidedTour.css';
 import { formatApplicationDateLabel } from './lib/applicationDates';
+import { computeApplicationMetrics, isApplicationToFollowUp } from './lib/applicationStats.js';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from './lib/cvPreviewA4Pages';
 import {
   betaCanvasRenderFields,
@@ -728,6 +729,8 @@ export default function App() {
   const [showArchived, setShowArchived] = useState(false);
   const [applicationSearchQuery, setApplicationSearchQuery] = useState('');
   const [applicationSearchDebounced, setApplicationSearchDebounced] = useState('');
+  /** Filtre métrique : `relancer` | null */
+  const [candidaturesMetricFilter, setCandidaturesMetricFilter] = useState(null);
   /* sidebar removed - now using topbar layout */
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(!!supabase);
@@ -2881,15 +2884,21 @@ export default function App() {
 
   const filteredApplications = useMemo(() => {
     const q = applicationSearchDebounced.toLowerCase();
-    if (!q) return applications;
-    return applications.filter((app) => {
-      const poste = ((app.poste || app.poste_offre || '') + ' ').toLowerCase();
-      const entreprise = ((app.entreprise || '') + ' ').toLowerCase();
-      const source = ((app.source_offre || '') + ' ').toLowerCase();
-      const date = ((app.date || '') + ' ').toLowerCase();
-      return poste.includes(q) || entreprise.includes(q) || source.includes(q) || date.includes(q);
-    });
-  }, [applications, applicationSearchDebounced]);
+    let list = applications;
+    if (q) {
+      list = list.filter((app) => {
+        const poste = ((app.poste || app.poste_offre || '') + ' ').toLowerCase();
+        const entreprise = ((app.entreprise || '') + ' ').toLowerCase();
+        const source = ((app.source_offre || '') + ' ').toLowerCase();
+        const date = ((app.date || '') + ' ').toLowerCase();
+        return poste.includes(q) || entreprise.includes(q) || source.includes(q) || date.includes(q);
+      });
+    }
+    if (candidaturesMetricFilter === 'relancer') {
+      list = list.filter((app) => isApplicationToFollowUp(app));
+    }
+    return list;
+  }, [applications, applicationSearchDebounced, candidaturesMetricFilter]);
 
   const filteredNonArchivedCount = useMemo(
     () => filteredApplications.filter((a) => !a.archived).length,
@@ -2900,31 +2909,7 @@ export default function App() {
     [filteredApplications],
   );
 
-  const applicationStats = (() => {
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
-    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
-    let countToday = 0, countYesterday = 0, countMonth = 0, countLastMonth = 0, total = 0;
-    // Total / périodes = toutes les candidatures non archivées (tous statuts du board).
-    applications.forEach((app) => {
-      if (app.archived) return;
-      total++;
-      const d = (app.date || '').trim().split(/\s+/)[0];
-      if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
-      if (d === today) countToday++;
-      if (d === yesterdayStr) countYesterday++;
-      if (d.startsWith(thisMonth)) countMonth++;
-      if (d.startsWith(lastMonth)) countLastMonth++;
-    });
-    const todayPct = countYesterday > 0 ? Math.round(((countToday - countYesterday) / countYesterday) * 100) : (countToday > 0 ? 100 : 0);
-    const monthPct = countLastMonth > 0 ? Math.round(((countMonth - countLastMonth) / countLastMonth) * 100) : (countMonth > 0 ? 100 : 0);
-    return { countToday, countMonth, total, todayPct, monthPct };
-  })();
+  const applicationStats = useMemo(() => computeApplicationMetrics(applications), [applications]);
 
   /* Mode full Supabase : sans config Supabase, on n'affiche que l'écran de configuration */
   if (!supabase) {
@@ -3664,34 +3649,60 @@ export default function App() {
           )}
           <div className="page-content applications-full candidatures-page" data-section="candidatures" data-analytics-section="candidatures_board">
             <div className="candidatures-page-inner">
-              <dl className="candidatures-metrics" data-section="candidatures-stats" data-analytics-section="candidatures_stats">
-                <div className="candidatures-metric">
-                  <dt className="candidatures-metric-label">Aujourd&apos;hui</dt>
-                  <dd className="candidatures-metric-body">
-                    <span className="candidatures-metric-value">{applicationStats.countToday}</span>
-                    {applicationStats.countToday > 0 && (
-                      <span className="candidatures-metric-delta candidatures-metric-delta--up">↑ +{applicationStats.todayPct}%</span>
-                    )}
-                  </dd>
+              <div
+                className="candidatures-metrics candidatures-metrics--compact"
+                data-section="candidatures-stats"
+                data-analytics-section="candidatures_stats"
+                role="group"
+                aria-label="Indicateurs candidatures"
+              >
+                <Button
+                  type="button"
+                  variant={candidaturesMetricFilter === 'relancer' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className={`candidatures-metric-chip${applicationStats.toFollowUp > 0 ? ' candidatures-metric-chip--alert' : ''}`}
+                  aria-pressed={candidaturesMetricFilter === 'relancer'}
+                  title="À postuler ou envoyée depuis 14 jours ou plus — clic pour filtrer"
+                  onClick={() => setCandidaturesMetricFilter((f) => (f === 'relancer' ? null : 'relancer'))}
+                >
+                  <span className="candidatures-metric-chip-label">À relancer</span>
+                  <span className="candidatures-metric-chip-value">{applicationStats.toFollowUp}</span>
+                </Button>
+                <div
+                  className="candidatures-metric-chip candidatures-metric-chip--static"
+                  title="Part des candidatures envoyées ayant reçu une réponse (réponse, entretien, offre ou refus)"
+                >
+                  <span className="candidatures-metric-chip-label">Taux de réponse</span>
+                  <span className="candidatures-metric-chip-value">
+                    {applicationStats.responseRatePct == null ? '—' : `${applicationStats.responseRatePct}%`}
+                  </span>
                 </div>
-                <div className="candidatures-metric">
-                  <dt className="candidatures-metric-label">Ce mois</dt>
-                  <dd className="candidatures-metric-body">
-                    <span className="candidatures-metric-value">{applicationStats.countMonth}</span>
-                    {applicationStats.countMonth > 0 && (
-                      <span className={`candidatures-metric-delta ${applicationStats.monthPct >= 0 ? 'candidatures-metric-delta--up' : 'candidatures-metric-delta--down'}`}>
-                        {applicationStats.monthPct >= 0 ? '↑' : '↓'} {applicationStats.monthPct >= 0 ? '+' : ''}{applicationStats.monthPct}%
-                      </span>
-                    )}
-                  </dd>
+                <div
+                  className="candidatures-metric-chip candidatures-metric-chip--static"
+                  title="Moyenne des jours entre envoi et première réponse employeur (nécessite date_reponse)"
+                >
+                  <span className="candidatures-metric-chip-label">Délai moyen</span>
+                  <span className="candidatures-metric-chip-value">
+                    {applicationStats.avgResponseDays == null
+                      ? '—'
+                      : `${applicationStats.avgResponseDays} j`}
+                  </span>
                 </div>
-                <div className="candidatures-metric">
-                  <dt className="candidatures-metric-label">Total</dt>
-                  <dd className="candidatures-metric-body">
-                    <span className="candidatures-metric-value">{applicationStats.total}</span>
-                  </dd>
-                </div>
-              </dl>
+                <span className="candidatures-metric-total" title="Candidatures non archivées">
+                  {applicationStats.total} candidature{applicationStats.total !== 1 ? 's' : ''}
+                </span>
+                {candidaturesMetricFilter === 'relancer' && (
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="candidatures-metric-clear"
+                    onClick={() => setCandidaturesMetricFilter(null)}
+                  >
+                    Afficher tout
+                  </Button>
+                )}
+              </div>
               <div className="candidatures-controls">
                 <label className="applications-toggle">
                   <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />

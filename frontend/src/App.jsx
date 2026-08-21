@@ -36,6 +36,10 @@ import './styles/TemplatePicker.css';
 import './styles/GuidedTour.css';
 import { formatApplicationDateLabel } from './lib/applicationDates';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from './lib/cvPreviewA4Pages';
+import {
+  betaCanvasRenderFields,
+  withBetaCanvasTemplate,
+} from './lib/betaCanvasTemplate.js';
 
 const ProfileView = lazyWithChunkReload(() => import('./components/editor/ProfileViewSwitcher'));
 const SettingsView = lazyWithChunkReload(() => import('./components/SettingsView'));
@@ -836,6 +840,20 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('cv_template_options') || '{}'); } catch { return {}; }
   });
   const [templatesList, setTemplatesList] = useState([]);
+  /** Layout canvas Beta du profil (pour template virtuel `beta`). */
+  const [profileLayout, setProfileLayout] = useState(null);
+  const profileLayoutRef = useRef(null);
+  profileLayoutRef.current = profileLayout;
+
+  const postRenderHtml = useCallback((body) => apiPost('/api/render-html', {
+    ...body,
+    ...betaCanvasRenderFields(body?.template_id, profileLayoutRef.current),
+  }), []);
+
+  const postPdfBlob = useCallback((body) => apiPostBlob('/api/pdf', {
+    ...body,
+    ...betaCanvasRenderFields(body?.template_id, profileLayoutRef.current),
+  }), []);
 
   /**
    * Wrapper a appeler quand l utilisateur CHOISIT explicitement un nouveau
@@ -858,8 +876,9 @@ export default function App() {
    */
   const handleUserPickTemplate = useCallback((nextId, templates = templatesList) => {
     setTemplateId(nextId);
-    const nextTemplate = Array.isArray(templates)
-      ? templates.find((t) => t && t.id === nextId)
+    const list = withBetaCanvasTemplate(templates);
+    const nextTemplate = Array.isArray(list)
+      ? list.find((t) => t && t.id === nextId)
       : null;
     setTemplateOptions(nextTemplate ? resetTemplateOptionsToDefaults(nextTemplate) : {});
   }, [templatesList]);
@@ -1020,7 +1039,7 @@ export default function App() {
   }, [session, templateId, templateOptions]);
 
   const templateParams = { template_id: templateId, template_options: templateOptions };
-  const templateKey = templateId + '|' + JSON.stringify(templateOptions);
+  const templateKey = `${templateId}|${JSON.stringify(templateOptions)}|layout:${profileLayout ? '1' : '0'}`;
 
   // Garder HTML original/modifié pour l'iframe et CvEditablePreview
   const wantHighlight = !!(lastBaseCv && lastAdaptedCv);
@@ -1164,6 +1183,9 @@ export default function App() {
         setNeedsOnboarding(empty);
         if (data?.template_id !== undefined && (data.template_id || '').trim()) setTemplateId((data.template_id || '').trim() || 'minimal');
         if (data?.template_options !== undefined && typeof data.template_options === 'object') setTemplateOptions(data.template_options || {});
+        if (data && typeof data === 'object' && 'layout' in data) {
+          setProfileLayout(data.layout && typeof data.layout === 'object' ? data.layout : null);
+        }
       })
       .catch(() => {
         setProfileCvLoadError('Impossible de charger ton profil. Vérifie ta connexion puis réessaie.');
@@ -1392,7 +1414,7 @@ export default function App() {
       if (adaptChanged && suppressAdaptedPreviewRef.current && lastAdaptedCv) {
         suppressAdaptedPreviewRef.current = false;
         if (lastBaseCv) {
-          apiPost('/api/render-html', { cv: lastBaseCv, template_id: tid, template_options: opts })
+          postRenderHtml({ cv: lastBaseCv, template_id: tid, template_options: opts })
             .then((html) => setOriginalPreviewHtml(html))
             .catch(() => {
         /* ignore */
@@ -1401,7 +1423,7 @@ export default function App() {
         return;
       }
       if (lastAdaptedCv) {
-        apiPost('/api/render-html', {
+        postRenderHtml({
           cv: lastAdaptedCv,
           base_cv: lastBaseCv || undefined,
           highlight_changes: wantHighlight,
@@ -1419,7 +1441,7 @@ export default function App() {
         loadInitialPreview(tid, opts);
       }
       if (lastBaseCv) {
-        apiPost('/api/render-html', { cv: lastBaseCv, template_id: tid, template_options: opts })
+        postRenderHtml({ cv: lastBaseCv, template_id: tid, template_options: opts })
           .then((html) => setOriginalPreviewHtml(html))
           .catch(() => {
         /* ignore */
@@ -1443,7 +1465,7 @@ export default function App() {
     const run = async () => {
       try {
         if (lastAdaptedCv && lastBaseCv) {
-          const html = await apiPost('/api/render-html', {
+          const html = await postRenderHtml({
             cv: lastAdaptedCv,
             base_cv: lastBaseCv,
             highlight_changes: true,
@@ -1460,7 +1482,7 @@ export default function App() {
         }
         if (lastBaseCv && hasProfilMinContent(lastBaseCv)) {
           const adapted = buildTourDemoAdaptedFromBase(lastBaseCv);
-          const html = await apiPost('/api/render-html', {
+          const html = await postRenderHtml({
             cv: adapted,
             base_cv: lastBaseCv,
             highlight_changes: true,
@@ -1470,7 +1492,7 @@ export default function App() {
           if (!cancelled) setTourDemoPreviewHtml(html);
           return;
         }
-        const html = await apiPost('/api/render-html', {
+        const html = await postRenderHtml({
           cv: TOUR_STATIC_DEMO_ADAPTED_CV,
           base_cv: TOUR_STATIC_DEMO_BASE_CV,
           highlight_changes: true,
@@ -1507,7 +1529,7 @@ export default function App() {
         loadInitialPreview();
       }
       if (lastAdaptedCv) {
-        apiPost('/api/render-html', {
+        postRenderHtml({
           cv: lastAdaptedCv,
           base_cv: lastBaseCv || undefined,
           highlight_changes: !!(lastBaseCv && lastAdaptedCv),
@@ -1640,7 +1662,7 @@ export default function App() {
         const tid = templateIdForPreviewRef.current;
         const opts = templateOptionsForPreviewRef.current;
         if (adapted) {
-          apiPost('/api/render-html', {
+          postRenderHtml({
             cv: adapted,
             highlight_changes: false,
             selection_a4: lastSelectionA4 || undefined,
@@ -2010,7 +2032,7 @@ export default function App() {
       } catch {
         /* fallback: lastBaseCv */
       }
-      const html = lastStreamPreviewHtml || await apiPost('/api/render-html', {
+      const html = lastStreamPreviewHtml || await postRenderHtml({
         ...templateParams,
         cv: data.cv,
         base_cv: baseCv ?? lastBaseCv ?? undefined,
@@ -2192,7 +2214,7 @@ export default function App() {
           showError(persistErr.message || 'CV affiné en local - enregistrement serveur incomplet. Réessaie ou exporte le dossier.');
         }
       }
-      const html = await apiPost('/api/render-html', {
+      const html = await postRenderHtml({
         ...templateParams,
         cv: data.cv,
         base_cv: lastBaseCv || undefined,
@@ -2235,7 +2257,7 @@ export default function App() {
   const handleSaveCvEdits = (editedCv) => {
     if (!editedCv) return;
     setLastAdaptedCv(editedCv);
-    apiPost('/api/render-html', {
+    postRenderHtml({
       ...templateParams,
       cv: editedCv,
       base_cv: lastBaseCv || undefined,
@@ -2351,7 +2373,7 @@ export default function App() {
       try {
         startIn = await getPdfSaveStartInDirectoryHandle();
       } catch (_) { /* ignore */ }
-      const { blob } = await apiPostBlob('/api/pdf', {
+      const { blob } = await postPdfBlob({
         cv: lastAdaptedCv,
         titre: titre || undefined,
         entreprise: ent || undefined,
@@ -2399,7 +2421,7 @@ export default function App() {
     }
     try {
       const pdfTemplateOptions = { ...opts, show_mots_cles_ats: opts?.show_mots_cles_ats !== false };
-      const { blob, filename } = await apiPostBlob('/api/pdf', {
+      const { blob, filename } = await postPdfBlob({
         cv: base,
         template_id: templateId,
         template_options: pdfTemplateOptions,
@@ -2638,7 +2660,7 @@ export default function App() {
       return;
     }
     if (lastBaseCv) {
-      apiPost('/api/render-html', {
+      postRenderHtml({
         cv: lastBaseCv,
         template_id: templateId,
         template_options: templateOptions,
@@ -3323,10 +3345,12 @@ export default function App() {
                   openOptionsFromSupport={location.state?.supportHighlight?.openTemplateOptions}
                   openOptionsNonce={exportPrepTemplateOptionsNonce}
                   onOptionsModalClosed={handleTemplateOptionsModalAfterClose}
-                  openModalToTab={null}
-                  onOpenFromUrlConsumed={() => navigate(location.pathname, { replace: true })}
                   optionsPreviewHtml={previewVariant === 'original' ? (originalPreviewHtml || previewHtmlFallback) : (modifiedPreviewHtml || previewHtmlFallback)}
                   optionsPreviewLoading={false}
+                  profileLayout={profileLayout}
+                  onBetaUnavailable={() => {
+                    showError('Crée d’abord un design dans Profil → active le mode Beta, puis reviens choisir « Beta » ici.');
+                  }}
                   extraBarLeft={(
                     <button
                       type="button"
@@ -3405,7 +3429,7 @@ export default function App() {
                     onChange={(updatedCv) => {
                       setLastAdaptedCv(updatedCv);
                       trackEvent('cv_manually_edited', { adaptation_id: lastAdaptationId });
-                      apiPost('/api/render-html', {
+                      postRenderHtml({
                         ...templateParams,
                         cv: updatedCv,
                         base_cv: lastBaseCv || undefined,
@@ -3958,7 +3982,7 @@ export default function App() {
                       /* ignore */
                     }
                     if (baseCv) setLastBaseCv(baseCv);
-                    const html = await apiPost('/api/render-html', {
+                    const html = await postRenderHtml({
                       ...templateParams,
                       cv: data.cv,
                       base_cv: baseCv ?? undefined,

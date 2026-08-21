@@ -2,7 +2,11 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { apiGet } from '../api';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from '../lib/cvPreviewA4Pages';
-import TemplateModal, { FAVORITES_STORAGE_KEY } from './TemplateModal';
+import TemplateModal from './TemplateModal';
+import {
+  isBetaCanvasTemplateId,
+  withBetaCanvasTemplate,
+} from '../lib/betaCanvasTemplate.js';
 
 const TYPO_DEFAULTS = {
   font_size_name: 15,
@@ -382,6 +386,7 @@ function TemplateOptionsModal({
   onChangeOptions,
   previewHtml,
   previewLoading,
+  betaMode = false,
 }) {
   const previewIframeRef = useRef(null);
   const previewScrollRef = useRef(null);
@@ -460,14 +465,24 @@ function TemplateOptionsModal({
       >
         <header className="tpl-options-modal-header">
           <h2 id="tpl-options-modal-title" className="tpl-options-modal-title">Personnaliser le CV</h2>
-          <p className="tpl-options-modal-sub">Les changements s’appliquent tout de suite à l’aperçu ; rien à valider.</p>
+          <p className="tpl-options-modal-sub">
+            {betaMode
+              ? 'Le design Beta se règle dans l’éditeur canvas (Profil → mode Beta).'
+              : 'Les changements s’appliquent tout de suite à l’aperçu ; rien à valider.'}
+          </p>
           <button type="button" className="tpl-options-modal-close" onClick={onClose} aria-label="Fermer">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
         </header>
         <div className="tpl-options-modal-body">
           <aside className="tpl-options-modal-settings">
-            <OptionsPanel templateId={templateId} options={options} templateOptions={templateOptions} onChangeOptions={onChangeOptions} />
+            {betaMode ? (
+              <p className="tpl-options-beta-hint">
+                Couleurs, blocs et typo du canvas Beta se modifient dans Profil avec le mode Beta activé.
+              </p>
+            ) : (
+              <OptionsPanel templateId={templateId} options={options} templateOptions={templateOptions} onChangeOptions={onChangeOptions} />
+            )}
           </aside>
           <div className="tpl-options-modal-preview">
             <div className="tpl-options-modal-preview-bar">
@@ -521,24 +536,6 @@ function TemplateOptionsModal({
   );
 }
 
-function loadFavorites() {
-  try {
-    const raw = localStorage.getItem(FAVORITES_STORAGE_KEY);
-    const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveFavorites(ids) {
-  try {
-    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(ids));
-  } catch {
-    /* ignore quota / private mode */
-  }
-}
-
 export default function TemplatePicker({
   templates: templatesProp,
   templateId,
@@ -548,23 +545,23 @@ export default function TemplatePicker({
   openOptionsFromSupport,
   openOptionsNonce = 0,
   onOptionsModalClosed,
-  openModalToTab,
-  onOpenFromUrlConsumed,
   optionsPreviewHtml = '',
   optionsPreviewLoading = false,
   extraBarLeft = null,
+  profileLayout = null,
+  onBetaUnavailable = null,
 }) {
   const [templatesLocal, setTemplatesLocal] = useState([]);
   const [optionsModalOpen, setOptionsModalOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [initialTab, setInitialTab] = useState(null);
-  const [favoriteIds, setFavoriteIds] = useState(loadFavorites);
   const useProp = templatesProp !== undefined;
-  const templates = useProp && Array.isArray(templatesProp) ? templatesProp : templatesLocal;
-  const loading = useProp ? templates.length === 0 : templatesLocal.length === 0;
+  const templatesRaw = useProp && Array.isArray(templatesProp) ? templatesProp : templatesLocal;
+  const templates = withBetaCanvasTemplate(templatesRaw);
+  const loading = useProp ? templatesRaw.length === 0 : templatesLocal.length === 0;
   const currentMeta = templates.find(t => t.id === templateId) || templates[0] || {};
   const rawLayoutOptions = currentMeta.options || [];
   const isCustomTemplate = (templateId || '').startsWith('custom_');
+  const isBetaTemplate = isBetaCanvasTemplateId(templateId);
   const options = (isCustomTemplate && rawLayoutOptions.length === 0) ? LAYOUT_OPTIONS_FALLBACK : rawLayoutOptions;
 
   useEffect(() => {
@@ -586,23 +583,6 @@ export default function TemplatePicker({
       setOptionsModalOpen(true);
     }
   }, [openOptionsNonce]);
-
-  const openedFromUrlRef = useRef(false);
-  useEffect(() => {
-    if (openModalToTab !== 'mine' || openedFromUrlRef.current || modalOpen) return;
-    openedFromUrlRef.current = true;
-    setInitialTab('mine');
-    setModalOpen(true);
-    onOpenFromUrlConsumed?.();
-  }, [openModalToTab, modalOpen, onOpenFromUrlConsumed]);
-
-  const toggleFavorite = useCallback((id) => {
-    setFavoriteIds((prev) => {
-      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-      saveFavorites(next);
-      return next;
-    });
-  }, []);
 
   const handleOptionsModalClose = useCallback(() => {
     setOptionsModalOpen(false);
@@ -638,7 +618,9 @@ export default function TemplatePicker({
           type="button"
           className={`tpl-gear${optionsModalOpen ? ' tpl-gear--open' : ''}`}
           onClick={() => setOptionsModalOpen(true)}
-          title="Personnaliser le template (couleurs, typo)"
+          title={isBetaTemplate
+            ? 'Le design Beta se personnalise dans l’éditeur Beta'
+            : 'Personnaliser le template (couleurs, typo)'}
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -653,17 +635,17 @@ export default function TemplatePicker({
           onChangeOptions={onChangeOptions}
           previewHtml={optionsPreviewHtml}
           previewLoading={optionsPreviewLoading}
+          betaMode={isBetaTemplate}
         />
       </div>
       <TemplateModal
         open={modalOpen}
-        onClose={() => { setModalOpen(false); setInitialTab(null); }}
+        onClose={() => setModalOpen(false)}
         templates={templates}
         templateId={templateId}
         onChangeTemplate={onChangeTemplate}
-        favoriteIds={favoriteIds}
-        onToggleFavorite={toggleFavorite}
-        initialTab={initialTab}
+        profileLayout={profileLayout}
+        onBetaUnavailable={onBetaUnavailable}
       />
     </div>
   );

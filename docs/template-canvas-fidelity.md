@@ -27,7 +27,7 @@ Le template virtuel `beta` (`betaCanvasTemplate.js`) n’est **pas** une twin HT
 
 | ID | Famille | Readiness | Fidelity CSS | Gaps principaux |
 |----|---------|-----------|--------------|-----------------|
-| `minimal` | single-column | projection | thin→medium | Réplique mono-colonne en cours ; valider vs preview Stable |
+| `minimal` | single-column | projection | medium | Header/contact/titres/exp alignés (tranche 2) ; Outils nestés + densités + multi-page à valider |
 | `classic` | sidebar-right | thin | thin | CSS Stable dense vs twin mince |
 | `modern` | sidebar-left | projection | medium | Sidebar / accents |
 | `creative` | sidebar-left | projection | medium | Titres creative-main |
@@ -36,6 +36,14 @@ Le template virtuel `beta` (`betaCanvasTemplate.js`) n’est **pas** une twin HT
 | `bold` | sidebar-right | **near-replica** | rich | Écarts typo/exp résiduels |
 
 Source de vérité code : `TEMPLATE_CANVAS_FIDELITY` + `STABLE_CANVAS_TEMPLATE_IDS`.
+
+### Minimal — couches Stable à calquer
+
+1. **HTML** `templates/minimal/template.html` — structure (header sans photo, contact ` · `, titres Title Case, `Organisation :` / `Fonction :` inline)
+2. **CSS** `templates/minimal/template.css` — pad `18/28/8`, body `6/28/16`, règle `#d1d5db`, typo Georgia/Inter
+3. **Options** `meta.json` + `template_registry` — `show_photo=false`, couleurs/font injectées
+4. **Preview overlay** `cvPreviewA4Pages.js` — badge « Page N » (chrome preview, pas du template)
+5. **Canvas** `buildTemplateBlocks('minimal')` + `CanvasTemplateFidelity.css` + `FreeCanvasBlock` (`contact_layout`, `exp_style: minimal`)
 
 ## Critères de « réplique native »
 
@@ -48,10 +56,11 @@ Pour un id catalogue :
 
 ## Suite chantier
 
-1. ~~Inventaire + contrat tests + premier lift `minimal`~~ (cette PR)
-2. Monter `classic` / `elegant` (fidelity CSS + géométrie)
-3. Finir `bold` en réplique validée (checklist visuelle)
-4. Option ultérieure : assets `default_layout.json` par template (voir `docs/editor-vision.md`)
+1. ~~Inventaire + contrat tests + premier lift `minimal`~~ (PR #165)
+2. **Tranche 2 `minimal`** : header sans photo, contact ` · `, Title Case, exp ATS inline, règle grise (cette PR — **ne pas merger** tant que la checklist visuelle Stable≠Beta n’est pas OK)
+3. Monter `classic` / `elegant` (fidelity CSS + géométrie)
+4. Finir `bold` en réplique validée (checklist visuelle)
+5. Option ultérieure : assets `default_layout.json` par template (voir `docs/editor-vision.md`)
 
 ## Hors scope
 

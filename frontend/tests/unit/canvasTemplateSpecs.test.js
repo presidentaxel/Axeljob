@@ -63,8 +63,37 @@ test('minimal n’ajoute plus de barre accent décorative sous le header', () =>
   const blocks = buildTemplateBlocks({ id: 'minimal' });
   const shapes = blocks.filter((b) => b.type === 'shape:rect');
   assert.equal(shapes.length, 0, 'minimal mono-colonne : pas de shape:rect de chrome');
-  assert.ok(blocks.some((b) => b.type === 'photo'));
+  assert.equal(
+    blocks.some((b) => b.type === 'photo'),
+    false,
+    'minimal Stable force show_photo=false : pas de bloc photo',
+  );
   assert.ok(blocks.some((b) => b.style?.title_style === 'minimal-section'));
+});
+
+test('minimal réplique Stable : contact inline ·, titres Title Case, exp ATS', () => {
+  const blocks = buildTemplateBlocks({ id: 'minimal' });
+  const identity = blocks.find((b) => b.type === 'identity');
+  const contact = blocks.find((b) => b.type === 'contact');
+  const experiences = blocks.find((b) => b.type === 'experiences');
+  const resume = blocks.find((b) => b.type === 'resume');
+
+  assert.ok(identity);
+  assert.equal(identity.x, contact.x, 'identity et contact alignés (pas de décalage photo)');
+  assert.equal(contact.style?.contact_layout, 'header-bar');
+  assert.equal(contact.style?.contact_separator, ' · ');
+  assert.equal(contact.style?.contact_icons, false);
+  assert.deepEqual(contact.bind, ['telephone', 'email', 'linkedin']);
+
+  assert.equal(resume.style?.section_label, 'Profil');
+  assert.equal(experiences.style?.section_label, 'Expérience professionnelle');
+  assert.equal(experiences.style?.exp_style, 'minimal');
+
+  const uppercaseTitles = blocks.filter(
+    (b) => typeof b.style?.section_label === 'string' && b.style.section_label === b.style.section_label.toUpperCase()
+      && /[A-ZÀ-Ü]/.test(b.style.section_label),
+  );
+  assert.equal(uppercaseTitles.length, 0, 'titres Title Case comme Stable HTML, pas UPPERCASE');
 });
 
 test('bold reste le plus proche d’une réplique (near-replica)', () => {

@@ -287,6 +287,7 @@
 /* ---------- Minimal (réplique mono-colonne — AXE-346) ---------- */
 .free-canvas-page--tpl-minimal {
   color: #1a1a1a;
+  font-family: Inter, Arial, sans-serif;
 }
 
 .free-canvas-page--tpl-minimal .free-canvas-block__identity--minimal-header .free-canvas-block__identity-name,
@@ -294,37 +295,115 @@
   font-family: var(--free-canvas-font-heading);
   font-size: 18pt;
   font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--free-canvas-accent, #111827);
+  letter-spacing: 0;
+  line-height: 1.15;
+  color: var(--free-canvas-section-title, var(--free-canvas-accent, #111827));
+  margin: 0;
 }
 
 .free-canvas-page--tpl-minimal .free-canvas-block__identity .free-canvas-block__identity-title {
   font-size: 10pt;
   font-weight: 400;
-  color: #374151;
-  margin-top: 0.4mm;
+  color: #555555;
+  margin: 0.5mm 0 0;
+  line-height: 1.3;
 }
 
-.free-canvas-page--tpl-minimal .free-canvas-block__contact {
-  color: #4b5563;
+.free-canvas-page--tpl-minimal .free-canvas-block__contact,
+.free-canvas-page--tpl-minimal .free-canvas-block__contact--header-bar {
+  color: #666666;
   font-size: 8.5pt;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__contact--header-bar .free-canvas-block__contact-spacer {
+  white-space: pre;
 }
 
 .free-canvas-page--tpl-minimal .free-canvas-block__section-title--minimal-section {
   font-family: var(--free-canvas-font-heading);
   font-size: 10.5pt;
   font-weight: 700;
-  color: var(--free-canvas-accent, #111827);
-  border-bottom: 0.35mm solid var(--free-canvas-accent, #111827);
-  padding-bottom: 1mm;
-  margin-bottom: 1.5mm;
+  color: var(--free-canvas-section-title, var(--free-canvas-accent, #111827));
+  border-bottom: 1px solid #d1d5db;
+  padding-bottom: 0.5mm;
+  margin: 0 0 1mm;
   text-transform: none;
-  letter-spacing: 0;
+  letter-spacing: 0.02em;
 }
 
 .free-canvas-page--tpl-minimal .free-canvas-block__resume {
   font-style: italic;
+  font-size: 9pt;
+  line-height: 1.45;
   color: #1a1a1a;
+  text-align: justify;
+  margin: 0;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__exp--minimal {
+  margin-bottom: 1.6mm;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__exp--minimal .free-canvas-block__exp-header {
+  align-items: baseline;
+  font-weight: 400;
+  margin-bottom: 0.3mm;
+  gap: 2mm;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__exp--minimal .free-canvas-block__exp-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__exp--minimal .free-canvas-block__ats-label {
+  font-weight: 400;
+  font-size: 0.9em;
+  color: #888888;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__exp--minimal .free-canvas-block__exp-entreprise strong {
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__exp--minimal .free-canvas-block__exp-poste-inline {
+  font-weight: 400;
+  color: #555555;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__exp--minimal .free-canvas-block__exp-dates {
+  font-weight: 600;
+  font-size: 8.5pt;
+  color: #444444;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__exp--minimal .free-canvas-block__exp-clients {
+  font-style: italic;
+  font-size: 8pt;
+  color: #666666;
+  margin: 0.8mm 0 0;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__bullets--dash {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__bullets--dash li {
+  position: relative;
+  padding-left: 0;
+  margin: 0;
+  font-size: 9pt;
+  line-height: 1.35;
+  color: #1a1a1a;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__bullets--dash li::before {
+  content: '- ';
 }
 
 /* ---------- Élégant ---------- */

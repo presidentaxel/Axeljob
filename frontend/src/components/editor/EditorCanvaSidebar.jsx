@@ -260,7 +260,7 @@ export default function EditorCanvaSidebar({
     refreshProposals();
   };
 
-  const closeConfirm = () => setPendingConfirm(null);
+  const closeConfirm = useCallback(() => setPendingConfirm(null), []);
 
   const handlePickBlankSafe = () => {
     if (layoutHasContent(layout)) {

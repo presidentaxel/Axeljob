@@ -32,23 +32,38 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 0 1.5rem 1.5rem;
+  /* Full-bleed board : pas de gouttière page ; padding uniquement sur la toolbar */
+  padding: 0;
+}
+
+/* ── Toolbar unifiée : métriques + contrôles (AXE-382) ── */
+.candidatures-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--ds-space-sm, 0.5rem) var(--ds-space-md, 0.75rem);
+  padding: 0.4rem 1rem;
+  border-bottom: 1px solid var(--ds-color-border-default);
+  flex-shrink: 0;
+  background: var(--ds-color-bg-default);
 }
 
 /* ── Métriques compactes actionnables (AXE-378) ── */
 .candidatures-metrics {
   display: flex;
   margin: 0;
-  padding: 1.25rem 0;
-  border-bottom: 1px solid var(--ds-color-border-default);
+  padding: 0;
+  border-bottom: none;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .candidatures-metrics--compact {
   align-items: center;
   flex-wrap: wrap;
   gap: var(--ds-space-sm, 0.5rem) var(--ds-space-md, 0.75rem);
-  padding: 0.5rem 0;
-  min-height: 2.5rem;
+  min-height: var(--ds-size-button-sm, 2rem);
 }
 
 .candidatures-metric-chip {
@@ -86,10 +101,11 @@
 }
 
 .candidatures-metric-total {
-  margin-left: auto;
+  margin-left: 0;
   font-size: var(--ds-font-size-label-sm, 0.75rem);
   color: var(--ds-color-text-muted);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .candidatures-metric-clear {
@@ -155,16 +171,18 @@
   color: var(--ds-color-text-danger);
 }
 
-/* ── Contrôles : bande hairline, pas de carte englobante ── */
+/* ── Contrôles : dans la toolbar (plus de bande séparée) ── */
 .candidatures-controls {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid var(--color-hairline);
+  justify-content: flex-end;
+  gap: var(--ds-space-md, 0.75rem);
+  padding: 0;
+  border-bottom: none;
   flex-wrap: wrap;
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  margin-left: auto;
+  min-width: 0;
 }
 
 .view-candidatures .applications-toggle {
@@ -215,14 +233,14 @@
   white-space: nowrap;
 }
 
-/* ── Board : une seule surface, densité un peu plus compacte ── */
+/* ── Board full-bleed : coins carrés, collé côtés + bas (AXE-382) ── */
 .candidatures-board {
   flex: 1;
   min-height: 0;
-  margin-top: 0.85rem;
+  margin: 0;
   background: var(--ds-color-bg-subtle, var(--color-soft-stone));
-  border-radius: var(--ds-radius-lg, var(--radius-lg));
-  padding: 0.75rem 0.5rem;
+  border-radius: 0;
+  padding: 0.5rem 0 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -616,20 +634,21 @@
 }
 
 @media (max-width: 768px) {
-  .candidatures-page-inner {
-    padding: 0 1rem 1rem;
+  .candidatures-toolbar {
+    padding: 0.4rem 0.75rem;
+    align-items: stretch;
   }
 
   .candidatures-metrics {
     flex-direction: row;
     flex-wrap: wrap;
     gap: 0.35rem 0.5rem;
-    padding: 0.5rem 0;
+    flex: 1 1 100%;
   }
 
   .candidatures-metrics--compact .candidatures-metric-total {
     margin-left: 0;
-    width: 100%;
+    width: auto;
   }
 
   .candidatures-metric {
@@ -654,6 +673,8 @@
   }
 
   .candidatures-controls {
+    flex: 1 1 100%;
+    margin-left: 0;
     flex-direction: column;
     align-items: stretch;
   }
@@ -663,9 +684,9 @@
   }
 
   .candidatures-board {
-    margin-top: 1rem;
-    padding: 0.75rem 0.5rem;
-    border-radius: var(--radius-md);
+    margin: 0;
+    padding: 0.35rem 0 0;
+    border-radius: 0;
   }
 
   .view-candidatures .kanban-board {

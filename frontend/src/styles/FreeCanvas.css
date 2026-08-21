@@ -409,7 +409,9 @@
   letter-spacing: 0.04em;
   line-height: 1.3;
   text-transform: uppercase;
-  pointer-events: none;
+  /* Doit rester cliquable / survollable pour le title natif (détail fidélité PDF) */
+  pointer-events: auto;
+  cursor: help;
 }
 
 .free-canvas-block__pdf-fidelity-badge--unsupported {

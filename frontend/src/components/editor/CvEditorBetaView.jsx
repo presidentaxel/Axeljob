@@ -223,7 +223,9 @@ function CvEditorBeta({
   const [pdfExportError, setPdfExportError] = useState('');
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [docxNoticeOpen, setDocxNoticeOpen] = useState(false);
+  const [pdfFidelityInfoOpen, setPdfFidelityInfoOpen] = useState(false);
   const exportMenuRef = useRef(null);
+  const pdfFidelityInfoRef = useRef(null);
   const [atsOptimizeMessage, setAtsOptimizeMessage] = useState('');
   const [atsOptimizePreview, setAtsOptimizePreview] = useState(null);
   const [atsOptimizePreviewLoading, setAtsOptimizePreviewLoading] = useState(false);
@@ -324,6 +326,17 @@ function CvEditorBeta({
     () => summarizeNonFaithfulBlocks(pdfFidelityIssues),
     [pdfFidelityIssues],
   );
+  const pdfFidelityReasons = useMemo(() => {
+    const reasons = [];
+    const seen = new Set();
+    for (const item of pdfFidelityIssues) {
+      const reason = String(item?.reason || '').trim();
+      if (!reason || seen.has(reason)) continue;
+      seen.add(reason);
+      reasons.push(reason);
+    }
+    return reasons;
+  }, [pdfFidelityIssues]);
 
   const clearCanvasSelection = useCallback(() => {
     setSelectedBlockIds([]);
@@ -1801,6 +1814,30 @@ function CvEditorBeta({
     };
   }, [exportMenuOpen]);
 
+  useEffect(() => {
+    if (!pdfFidelityInfoOpen) return undefined;
+    const onPointerDown = (event) => {
+      const root = pdfFidelityInfoRef.current;
+      if (root && !root.contains(event.target)) setPdfFidelityInfoOpen(false);
+    };
+    const onKeyDown = (event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      setPdfFidelityInfoOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown, true);
+    };
+  }, [pdfFidelityInfoOpen]);
+
+  useEffect(() => {
+    if (pdfFidelityIssues.length === 0) setPdfFidelityInfoOpen(false);
+  }, [pdfFidelityIssues.length]);
+
   const handleSaveLayoutProposal = useCallback((name) => {
     if (!layout) return;
     saveLayoutProposal(name, layout);
@@ -2068,10 +2105,59 @@ function CvEditorBeta({
             </button>
           </div>
           <div className="cv-editor-beta-export-wrap" ref={exportMenuRef}>
+            {pdfFidelityIssues.length > 0 && !loading && layout && (
+              <div className="cv-editor-beta-pdf-fidelity-wrap" ref={pdfFidelityInfoRef}>
+                <button
+                  type="button"
+                  className="cv-editor-beta-pdf-fidelity-btn"
+                  onClick={() => {
+                    setExportMenuOpen(false);
+                    setPdfFidelityInfoOpen((open) => !open);
+                  }}
+                  aria-expanded={pdfFidelityInfoOpen}
+                  aria-haspopup="dialog"
+                  aria-controls="cv-editor-beta-pdf-fidelity-popover"
+                  title="Certains blocs seront simplifiés à l’export PDF"
+                >
+                  PDF info
+                  {pdfFidelitySummary ? (
+                    <span className="cv-editor-beta-pdf-fidelity-btn__count" aria-hidden>
+                      {pdfFidelityIssues.length}
+                    </span>
+                  ) : null}
+                </button>
+                {pdfFidelityInfoOpen && (
+                  <div
+                    id="cv-editor-beta-pdf-fidelity-popover"
+                    className="cv-editor-beta-pdf-fidelity-popover"
+                    role="dialog"
+                    aria-label="Fidélité export PDF"
+                  >
+                    <p className="cv-editor-beta-pdf-fidelity-popover__lead">
+                      Certains blocs ne seront pas exportés à l&apos;identique
+                      {pdfFidelitySummary ? ` (${pdfFidelitySummary})` : ''}.
+                    </p>
+                    {pdfFidelityReasons.length > 0 && (
+                      <ul className="cv-editor-beta-pdf-fidelity-popover__list">
+                        {pdfFidelityReasons.map((reason) => (
+                          <li key={reason}>{reason}</li>
+                        ))}
+                      </ul>
+                    )}
+                    <p className="cv-editor-beta-pdf-fidelity-popover__hint">
+                      Un badge « PDF » sur le canvas marque chaque bloc concerné (survole-le pour le même détail).
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
             <button
               type="button"
               className="cv-editor-beta-history-btn"
-              onClick={() => setExportMenuOpen((open) => !open)}
+              onClick={() => {
+                setPdfFidelityInfoOpen(false);
+                setExportMenuOpen((open) => !open);
+              }}
               disabled={loading || !layout || pdfExporting}
               aria-expanded={exportMenuOpen}
               aria-haspopup="menu"
@@ -2108,13 +2194,6 @@ function CvEditorBeta({
       {pdfExportError && (
         <div className="cv-editor-beta-error" role="alert">
           {pdfExportError}
-        </div>
-      )}
-      {pdfFidelityIssues.length > 0 && !loading && layout && (
-        <div className="cv-editor-beta-pdf-fidelity" role="status">
-          Certains blocs ne seront pas exportés à l&apos;identique dans le PDF
-          {pdfFidelitySummary ? ` (${pdfFidelitySummary})` : ''}.
-          Survole le badge « PDF » sur le canvas pour le détail.
         </div>
       )}
 

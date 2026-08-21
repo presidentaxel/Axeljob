@@ -1000,6 +1000,7 @@ export default function FreeCanvasBlock({
           className={`free-canvas-block__pdf-fidelity-badge free-canvas-block__pdf-fidelity-badge--${pdfFidelity.level}`}
           title={pdfFidelity.reason || 'Export PDF partiel pour ce bloc'}
           aria-label={pdfFidelity.reason || 'Export PDF partiel pour ce bloc'}
+          onPointerDown={(e) => e.stopPropagation()}
         >
           PDF
         </span>

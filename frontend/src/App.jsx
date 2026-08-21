@@ -31,7 +31,7 @@ import { buildAdaptedPdfFilename } from './lib/pdfExportFilename';
 import { getPdfSaveStartInDirectoryHandle } from './lib/pdfExportStartDirIdb';
 import { HiDocumentText, HiArrowDownTray, HiClipboardDocumentList, HiPencilSquare, HiChatBubbleLeftRight, HiCheck, HiSwatch, HiChevronDown, HiChevronUp, HiPlus } from 'react-icons/hi2';
 import { lazyWithChunkReload, clearChunkErrorReloadKey } from './lib/lazyChunkReload';
-import { APP_DEFAULT_ROUTE, getViewFromPathname, isKnownAppPathname } from './lib/appRoutes';
+import { APP_DEFAULT_ROUTE, APP_ROUTES, getViewFromPathname, isKnownAppPathname } from './lib/appRoutes';
 import { syncRobotsMeta } from './lib/seoHead';
 import './App.css';
 import './styles/TemplatePicker.css';
@@ -2729,8 +2729,8 @@ export default function App() {
     try {
       await apiPatch(`/api/applications/${encodeURIComponent(id)}`, { statut, ...extra });
       loadApplications();
-    } catch {
-      /* ignore */
+    } catch (e) {
+      showError(e?.message || 'Impossible de mettre à jour le statut.');
     }
   };
 
@@ -2829,7 +2829,7 @@ export default function App() {
     if (supabase) await supabase.auth.signOut();
   };
 
-  /** En production : bloque l’espace /app sur petit écran (l’app vaut mieux sur PC). Désactiver avec VITE_ALLOW_MOBILE_APP=true */
+  /** Prod : bloque /app sur petit écran (sauf Mes candidatures — liste mobile AXE-381). Opt-out : VITE_ALLOW_MOBILE_APP=true */
   const MOBILE_APP_GATE_MAX_PX = 768;
   const mobileAppGateActive =
     import.meta.env.PROD &&
@@ -2848,7 +2848,11 @@ export default function App() {
     return () => mq.removeEventListener('change', sync);
   }, []);
 
-  const showMobileAppGate = mobileAppGateActive && mobileViewportTooNarrow && pathname.startsWith('/app');
+  const showMobileAppGate =
+    mobileAppGateActive &&
+    mobileViewportTooNarrow &&
+    pathname.startsWith('/app') &&
+    !pathname.startsWith(APP_ROUTES.postule);
 
   useEffect(() => {
     if (!showMobileAppGate) return;

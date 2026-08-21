@@ -238,7 +238,7 @@
   flex: 1;
   min-height: 0;
   margin: 0;
-  background: var(--ds-color-bg-subtle, var(--color-soft-stone));
+  background: var(--ds-color-bg-subtle);
   border-radius: 0;
   padding: 0.5rem 0 0;
   display: flex;
@@ -615,7 +615,7 @@
 }
 
 .view-candidatures .kanban-archived-list .application-card:hover {
-  background: var(--color-soft-stone);
+  background: var(--ds-color-bg-subtle);
   border-radius: var(--radius-xs);
 }
 
@@ -736,7 +736,7 @@
     position: sticky;
     top: 0;
     z-index: 1;
-    background: var(--ds-color-bg-subtle, var(--color-soft-stone));
+    background: var(--ds-color-bg-subtle);
   }
 
   .candidatures-list-section-count {

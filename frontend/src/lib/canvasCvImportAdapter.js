@@ -839,6 +839,7 @@ export function reorderSemanticBlocksByPriority(layout, cv, analysis, layoutHint
       if (DECORATIVE_TYPES.has(block.type)) continue;
       const zone = block.style?.zone;
       if (zone === 'header') continue;
+      if (block.style?.lock_geometry) continue;
       const lane = blockLane(block);
       if (HEADER_ZONE_TYPES.has(lane)) continue;
       if (!lanes.has(lane)) lanes.set(lane, []);
@@ -878,6 +879,7 @@ export function adaptCanvasLayoutForCv(cv, layout, {
   layoutHints = {},
   fromVision = false,
   forImport = false,
+  preserveReplicaGeometry = false,
 } = {}) {
   const analysis = analyzeCvProfile(cv);
   const recommendedTemplateId = recommendTemplateId(
@@ -899,6 +901,7 @@ export function adaptCanvasLayoutForCv(cv, layout, {
   }
 
   let next = sanitizeLayoutV3(layout);
+  const keepGeometry = Boolean(preserveReplicaGeometry || next.freeform);
   let removedBlockCount = 0;
   let resizedBlockCount = 0;
 
@@ -909,6 +912,7 @@ export function adaptCanvasLayoutForCv(cv, layout, {
         removedBlockCount += 1;
         continue;
       }
+      if (keepGeometry || block.style?.lock_geometry) continue;
       const est = estimateSemanticBlockHeight(block, cv, { respectCurrentMin: false });
       const cur = Number(block.h) || 0;
       if (est > 0 && Math.abs(est - cur) > 1.5) {
@@ -918,16 +922,22 @@ export function adaptCanvasLayoutForCv(cv, layout, {
     }
   }
 
-  if (!fromVision && !forImport) {
+  if (!keepGeometry && !fromVision && !forImport) {
     next = reorderSemanticBlocksByPriority(next, cv, analysis, layoutHints);
   }
 
-  for (let pi = 0; pi < (next.pages?.length || 0); pi += 1) {
-    next = reflowColumnBlocksOnPage(next, pi);
+  if (!keepGeometry) {
+    for (let pi = 0; pi < (next.pages?.length || 0); pi += 1) {
+      next = reflowColumnBlocksOnPage(next, pi);
+    }
   }
 
   next = applyLayoutPagination(next);
   next = applyAtsLayoutOptimizations(next);
+
+  if (keepGeometry) {
+    next = { ...next, freeform: true };
+  }
 
   if (!fromVision && !forImport) {
     const themePatch = inferThemeFromProfile(analysis, layoutHints);
@@ -958,14 +968,20 @@ export function adaptCanvasLayoutForCv(cv, layout, {
 export function buildAdaptedCanvasLayoutForCv(cv, template, options = {}) {
   const base = createCanvasLayoutForTemplate(template);
   const templateId = template?.id || options.templateId || '';
+  const preserveReplicaGeometry = Boolean(
+    options.preserveReplicaGeometry
+    || templateId === 'minimal'
+    || base?.freeform,
+  );
   const result = adaptCanvasLayoutForCv(cv, base, {
     templatesList: options.templatesList,
     templateId,
     layoutHints: options.layoutHints || {},
     forImport: Boolean(options.forImport),
+    preserveReplicaGeometry,
   });
   let layout = result.layout;
-  if (!options.skipAdaptReorder) {
+  if (!options.skipAdaptReorder && !preserveReplicaGeometry) {
     for (let pi = 0; pi < (layout.pages?.length || 0); pi += 1) {
       layout = reflowColumnBlocksOnPage(layout, pi);
     }

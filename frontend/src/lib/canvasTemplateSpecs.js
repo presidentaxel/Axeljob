@@ -31,10 +31,11 @@ export const TEMPLATE_CANVAS_FIDELITY = Object.freeze({
     name: 'Minimal',
     layoutFamily: 'single-column',
     readiness: 'projection',
-    fidelityCss: 'medium',
+    fidelityCss: 'rich',
     gaps: [
-      'Pas encore une réplique pixel-perfect du HTML Stable',
-      'Pagination multi-page / densités CV longs à valider',
+      'Checklist visuelle Stable↔Beta en cours (header + page 1)',
+      'Typos injectées (--cv-fs-*) / densités Compact–Confort non projetées',
+      'Pagination multi-page CV longs à valider',
     ],
   },
   classic: {
@@ -575,23 +576,129 @@ export function buildTemplateBlocks(template) {
     }
 
     case 'minimal': {
-      // Aligné templates/minimal : mono-colonne, pas de barre accent sous le header
-      // (la séparation suit les titres .section-title / title_style: minimal-section).
-      const pad = (28 * 25.4) / 96;
+      // Réplique templates/minimal : mono-colonne, pas de photo, contact « · »,
+      // titres Title Case, géométrie verrouillée (freeform + lock_geometry).
+      const px = (n) => (n * 25.4) / 96;
+      const pad = px(28);
       const W = PAGE_WIDTH_MM - pad * 2;
-      const photoMm = (52 * 25.4) / 96; // --cv-photo-size 52px
+      const yHeader = px(18);
+      // name 18pt×1.15 + title 10pt + marges ≈ 32–34px
+      const identityH = px(34);
+      const contactY = yHeader + identityH + px(4);
+      const contactH = px(14);
+      const yBody = contactY + contactH + px(8) + px(6);
+      const section = (label, extra = {}) => ({
+        ...main(),
+        section_label: label,
+        title_style: 'minimal-section',
+        ...extra,
+      });
+      const headerLock = { lock_geometry: true };
       return [
-        { type: 'photo', x: pad, y: (18 * 25.4) / 96, w: photoMm, h: photoMm, z: 2, style: { shape: 'circle', zone: 'main' } },
-        { type: 'identity', bind: ['prenom', 'nom', 'titre_professionnel'], x: pad + photoMm + (14 * 25.4) / 96, y: (18 * 25.4) / 96, w: W - photoMm - (14 * 25.4) / 96, h: 18, z: 2, style: { ...main(), font_size: 18, font_family: t.font_heading, color: t.color_section_title, identity_layout: 'minimal-header' } },
-        { type: 'contact', bind: ['email', 'telephone', 'linkedin'], x: pad + photoMm + (14 * 25.4) / 96, y: (40 * 25.4) / 96, w: W - photoMm - (14 * 25.4) / 96, h: 8, z: 2, style: { ...main(), font_size: 8.5, color: '#4b5563' } },
-        { type: 'resume', bind: 'resume', x: pad, y: (56 * 25.4) / 96, w: W, h: 22, z: 1, style: { ...main(), section_label: 'PROFIL', title_style: 'minimal-section', font_style: 'italic' } },
-        { type: 'experiences', bind: 'experiences', x: pad, y: (82 * 25.4) / 96, w: W, h: 114, z: 1, style: { ...main(), section_label: 'EXPÉRIENCE PROFESSIONNELLE', title_style: 'minimal-section', font_family: t.font_heading } },
-        { type: 'formations', bind: 'formations', x: pad, y: (200 * 25.4) / 96, w: W, h: 28, z: 1, style: { ...main(), section_label: 'FORMATION', title_style: 'minimal-section', font_family: t.font_heading } },
-        { type: 'skills', bind: 'competences.techniques', x: pad, y: (232 * 25.4) / 96, w: W, h: 22, z: 1, style: { ...main(), section_label: 'COMPÉTENCES', title_style: 'minimal-section', list_format: 'list' } },
-        { type: 'skills', bind: 'competences.logiciels', x: pad, y: (258 * 25.4) / 96, w: W, h: 18, z: 1, style: { ...main(), section_label: 'OUTILS', title_style: 'minimal-section', list_format: 'list' } },
-        { type: 'certifications', bind: 'certifications', x: pad, y: (280 * 25.4) / 96, w: W, h: 20, z: 1, style: { ...main(), section_label: 'CERTIFICATIONS', title_style: 'minimal-section', list_format: 'list' } },
-        { type: 'languages', x: pad, y: (304 * 25.4) / 96, w: W, h: 16, z: 1, style: { ...main(), section_label: 'LANGUES', title_style: 'minimal-section', list_format: 'list' } },
-        { type: 'projets', bind: 'projets', x: pad, y: (324 * 25.4) / 96, w: W, h: 22, z: 1, style: { ...main(), section_label: 'PROJETS', title_style: 'minimal-section' } },
+        {
+          type: 'identity',
+          bind: ['prenom', 'nom', 'titre_professionnel'],
+          x: pad,
+          y: yHeader,
+          w: W,
+          h: identityH,
+          z: 2,
+          style: {
+            ...main(),
+            ...headerLock,
+            // Pas de font_size/color ici : twin CSS gère (évite inherit !important).
+            font_family: t.font_heading,
+            identity_layout: 'minimal-header',
+          },
+        },
+        {
+          type: 'contact',
+          bind: ['telephone', 'email', 'linkedin'],
+          x: pad,
+          y: contactY,
+          w: W,
+          h: contactH,
+          z: 2,
+          style: {
+            ...main(),
+            ...headerLock,
+            contact_layout: 'header-bar',
+            contact_separator: ' · ',
+            contact_icons: false,
+          },
+        },
+        {
+          type: 'resume',
+          bind: 'resume',
+          x: pad,
+          y: yBody,
+          w: W,
+          h: px(42),
+          z: 1,
+          style: section('Profil', { font_style: 'italic' }),
+        },
+        {
+          type: 'experiences',
+          bind: 'experiences',
+          x: pad,
+          y: yBody + px(48),
+          w: W,
+          h: px(140),
+          z: 1,
+          style: section('Expérience professionnelle', { exp_style: 'minimal' }),
+        },
+        {
+          type: 'formations',
+          bind: 'formations',
+          x: pad,
+          y: yBody + px(194),
+          w: W,
+          h: px(36),
+          z: 1,
+          style: section('Formation', { formation_style: 'minimal' }),
+        },
+        {
+          type: 'skills',
+          bind: 'competences.techniques',
+          x: pad,
+          y: yBody + px(236),
+          w: W,
+          h: px(36),
+          z: 1,
+          style: section('Compétences', {
+            list_format: 'inline',
+            skills_nested_outils: true,
+          }),
+        },
+        {
+          type: 'certifications',
+          bind: 'certifications',
+          x: pad,
+          y: yBody + px(278),
+          w: W,
+          h: px(24),
+          z: 1,
+          style: section('Certifications', { list_format: 'inline' }),
+        },
+        {
+          type: 'languages',
+          x: pad,
+          y: yBody + px(308),
+          w: W,
+          h: px(20),
+          z: 1,
+          style: section('Langues', { list_format: 'inline' }),
+        },
+        {
+          type: 'projets',
+          bind: 'projets',
+          x: pad,
+          y: yBody + px(334),
+          w: W,
+          h: px(28),
+          z: 1,
+          style: section('Projets'),
+        },
       ];
     }
 

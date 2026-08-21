@@ -224,6 +224,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       );
 
       if (style.contact_layout === 'header-bar') {
+        const separator = style.contact_separator != null ? String(style.contact_separator) : ' ';
         const segments = [];
         if (showTel) {
           segments.push(
@@ -256,7 +257,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
           <p className={contactCls}>
             {segments.map((seg, i) => (
               <span key={seg.key}>
-                {i > 0 ? <span className="free-canvas-block__contact-spacer"> </span> : null}
+                {i > 0 ? <span className="free-canvas-block__contact-spacer">{separator}</span> : null}
                 {seg}
               </span>
             ))}
@@ -321,8 +322,10 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       const items = resolveExperiences(cv, limit);
       if (items.length === 0) return <p className="free-canvas-block__placeholder">Expériences</p>;
       const boldExp = style.exp_style === 'bold';
+      const minimalExp = style.exp_style === 'minimal';
+      const atsLabels = boldExp || minimalExp;
       return (
-        <div className={`free-canvas-block__section-list${boldExp ? ' free-canvas-block__section-list--bold-exp' : ''}`}>
+        <div className={`free-canvas-block__section-list${boldExp ? ' free-canvas-block__section-list--bold-exp' : ''}${minimalExp ? ' free-canvas-block__section-list--minimal-exp' : ''}`}>
           <SectionHeading
             label={style.section_label || SECTION_LABELS.experiences}
             titleStyle={style.title_style}
@@ -331,83 +334,121 @@ function SemanticBlockBody({ block, cv, editing = false }) {
           {items.map((exp, i) => {
             const idx = findCvArrayIndex(cv, 'experiences', exp);
             if (idx < 0) return null;
-            const dateParts = [exp.date_debut, exp.date_fin].filter(Boolean).join(' – ');
-            const dateLine = [dateParts, exp.lieu].filter(Boolean).join(' · ');
+            const dateParts = [exp.date_debut, exp.date_fin].filter(Boolean).join(minimalExp ? ' - ' : ' – ');
+            const dateLine = minimalExp
+              ? dateParts
+              : [dateParts, exp.lieu].filter(Boolean).join(' · ');
+            const entrepriseNode = editing ? (
+              <CanvasEditableField path={`experiences.${idx}.entreprise`} editing tag="strong">
+                {exp.entreprise || exp.poste || 'Organisation'}
+              </CanvasEditableField>
+            ) : (
+              <strong>{exp.entreprise || exp.poste}</strong>
+            );
+            const posteNode = editing ? (
+              <CanvasEditableField path={`experiences.${idx}.poste`} editing>
+                {exp.poste || 'Poste'}
+              </CanvasEditableField>
+            ) : (
+              exp.poste
+            );
+            const datesNode = (editing || dateLine) && (
+              <span className="free-canvas-block__exp-dates">
+                {editing ? (
+                  <>
+                    <CanvasEditableField path={`experiences.${idx}.date_debut`} editing>
+                      {exp.date_debut || 'Début'}
+                    </CanvasEditableField>
+                    {minimalExp ? ' - ' : ' – '}
+                    <CanvasEditableField path={`experiences.${idx}.date_fin`} editing>
+                      {exp.date_fin || 'Fin'}
+                    </CanvasEditableField>
+                    {minimalExp ? null : (
+                      <>
+                        {' · '}
+                        <CanvasEditableField path={`experiences.${idx}.lieu`} editing>
+                          {exp.lieu || 'Lieu'}
+                        </CanvasEditableField>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  dateLine
+                )}
+              </span>
+            );
+            const clientsNode = (editing || (exp.clients || '').trim()) ? (
+              <p className="free-canvas-block__exp-clients">
+                Clients :{' '}
+                {editing ? (
+                  <CanvasEditableField path={`experiences.${idx}.clients`} editing>
+                    {exp.clients || 'Clients'}
+                  </CanvasEditableField>
+                ) : (
+                  exp.clients
+                )}
+              </p>
+            ) : null;
+            const bulletsNode = (
+              <ul className={`free-canvas-block__bullets${minimalExp ? ' free-canvas-block__bullets--dash' : ''}`}>
+                {(exp.bullet_points || []).filter((b) => editing || (b || '').trim()).map((b, j) => (
+                  <li key={j}>
+                    {editing ? (
+                      <CanvasEditableField path={`experiences.${idx}.bullet_points.${j}`} editing tag="span">
+                        {(b || '').trim() || 'Point clé'}
+                      </CanvasEditableField>
+                    ) : (
+                      b
+                    )}
+                  </li>
+                ))}
+              </ul>
+            );
             return (
               <div
                 key={exp.id || i}
-                className={`free-canvas-block__exp${format === 'compact' ? ' free-canvas-block__exp--compact' : ''}${boldExp ? ' free-canvas-block__exp--bold' : ''}`}
+                className={`free-canvas-block__exp${format === 'compact' ? ' free-canvas-block__exp--compact' : ''}${boldExp ? ' free-canvas-block__exp--bold' : ''}${minimalExp ? ' free-canvas-block__exp--minimal' : ''}`}
               >
-                <div className="free-canvas-block__exp-header">
-                  <span className="free-canvas-block__exp-entreprise">
-                    {boldExp ? <span className="free-canvas-block__ats-label">Organisation : </span> : null}
-                    {editing ? (
-                      <CanvasEditableField path={`experiences.${idx}.entreprise`} editing tag="strong">
-                        {exp.entreprise || exp.poste || 'Organisation'}
-                      </CanvasEditableField>
-                    ) : (
-                      <strong>{exp.entreprise || exp.poste}</strong>
-                    )}
-                  </span>
-                  {(editing || dateLine) && (
-                    <span className="free-canvas-block__exp-dates">
-                      {editing ? (
-                        <>
-                          <CanvasEditableField path={`experiences.${idx}.date_debut`} editing>
-                            {exp.date_debut || 'Début'}
-                          </CanvasEditableField>
-                          {' – '}
-                          <CanvasEditableField path={`experiences.${idx}.date_fin`} editing>
-                            {exp.date_fin || 'Fin'}
-                          </CanvasEditableField>
-                          {' · '}
-                          <CanvasEditableField path={`experiences.${idx}.lieu`} editing>
-                            {exp.lieu || 'Lieu'}
-                          </CanvasEditableField>
-                        </>
-                      ) : (
-                        dateLine
-                      )}
-                    </span>
-                  )}
-                </div>
-                {(editing || exp.poste) ? (
-                  <p className="free-canvas-block__exp-role">
-                    {boldExp ? <span className="free-canvas-block__ats-label">Fonction : </span> : null}
-                    {editing ? (
-                      <CanvasEditableField path={`experiences.${idx}.poste`} editing>
-                        {exp.poste || 'Poste'}
-                      </CanvasEditableField>
-                    ) : (
-                      exp.poste
-                    )}
-                  </p>
-                ) : null}
-                {(editing || (exp.clients || '').trim()) ? (
-                  <p className="free-canvas-block__exp-clients">
-                    Clients :{' '}
-                    {editing ? (
-                      <CanvasEditableField path={`experiences.${idx}.clients`} editing>
-                        {exp.clients || 'Clients'}
-                      </CanvasEditableField>
-                    ) : (
-                      exp.clients
-                    )}
-                  </p>
-                ) : null}
-                <ul className="free-canvas-block__bullets">
-                  {(exp.bullet_points || []).filter((b) => editing || (b || '').trim()).map((b, j) => (
-                    <li key={j}>
-                      {editing ? (
-                        <CanvasEditableField path={`experiences.${idx}.bullet_points.${j}`} editing tag="span">
-                          {(b || '').trim() || 'Point clé'}
-                        </CanvasEditableField>
-                      ) : (
-                        b
-                      )}
-                    </li>
-                  ))}
-                </ul>
+                {minimalExp ? (
+                  <>
+                    <div className="free-canvas-block__exp-header">
+                      <span className="free-canvas-block__exp-left">
+                        <span className="free-canvas-block__exp-entreprise">
+                          <span className="free-canvas-block__ats-label">Organisation : </span>
+                          {entrepriseNode}
+                        </span>
+                        {(editing || exp.poste) ? (
+                          <span className="free-canvas-block__exp-poste-inline">
+                            {' - '}
+                            <span className="free-canvas-block__ats-label">Fonction : </span>
+                            {posteNode}
+                          </span>
+                        ) : null}
+                      </span>
+                      {datesNode}
+                    </div>
+                    {bulletsNode}
+                    {clientsNode}
+                  </>
+                ) : (
+                  <>
+                    <div className="free-canvas-block__exp-header">
+                      <span className="free-canvas-block__exp-entreprise">
+                        {atsLabels ? <span className="free-canvas-block__ats-label">Organisation : </span> : null}
+                        {entrepriseNode}
+                      </span>
+                      {datesNode}
+                    </div>
+                    {(editing || exp.poste) ? (
+                      <p className="free-canvas-block__exp-role">
+                        {atsLabels ? <span className="free-canvas-block__ats-label">Fonction : </span> : null}
+                        {posteNode}
+                      </p>
+                    ) : null}
+                    {clientsNode}
+                    {bulletsNode}
+                  </>
+                )}
               </div>
             );
           })}
@@ -417,6 +458,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
     case 'formations': {
       const items = resolveFormations(cv, limit);
       if (items.length === 0) return <p className="free-canvas-block__placeholder">Formations</p>;
+      const minimalForm = style.formation_style === 'minimal';
       return (
         <div className="free-canvas-block__section-list">
           <SectionHeading
@@ -427,6 +469,55 @@ function SemanticBlockBody({ block, cv, editing = false }) {
           {items.map((f, i) => {
             const idx = findCvArrayIndex(cv, 'formations', f);
             if (idx < 0) return null;
+            if (minimalForm) {
+              const leftLabel = [f.etablissement, f.diplome].filter(Boolean).join(' - ')
+                || f.diplome
+                || f.etablissement
+                || 'Formation';
+              return (
+                <div key={f.id || i} className="free-canvas-block__formation free-canvas-block__formation--minimal">
+                  <div className="free-canvas-block__formation-header">
+                    <span className="free-canvas-block__formation-diplome">
+                      {editing ? (
+                        <>
+                          <CanvasEditableField path={`formations.${idx}.etablissement`} editing>
+                            {f.etablissement || 'Établissement'}
+                          </CanvasEditableField>
+                          {(editing || (f.etablissement && f.diplome)) ? ' - ' : null}
+                          <CanvasEditableField path={`formations.${idx}.diplome`} editing>
+                            {f.diplome || 'Diplôme'}
+                          </CanvasEditableField>
+                        </>
+                      ) : (
+                        leftLabel
+                      )}
+                    </span>
+                    {(editing || f.date) ? (
+                      <span className="free-canvas-block__formation-date">
+                        {editing ? (
+                          <CanvasEditableField path={`formations.${idx}.date`} editing>
+                            {f.date || 'Année'}
+                          </CanvasEditableField>
+                        ) : (
+                          f.date
+                        )}
+                      </span>
+                    ) : null}
+                  </div>
+                  {(editing || (f.mention || '').trim()) ? (
+                    <p className="free-canvas-block__formation-mention">
+                      {editing ? (
+                        <CanvasEditableField path={`formations.${idx}.mention`} editing>
+                          {f.mention || 'Mention'}
+                        </CanvasEditableField>
+                      ) : (
+                        f.mention
+                      )}
+                    </p>
+                  ) : null}
+                </div>
+              );
+            }
             return (
               <p key={f.id || i} className="free-canvas-block__formation-line">
                 {editing ? (
@@ -478,13 +569,16 @@ function SemanticBlockBody({ block, cv, editing = false }) {
             return editing ? (
               <p key={c.id || i}>
                 <CanvasEditableField path={`certifications.${idx}.nom`} editing>{c.nom || 'Nom'}</CanvasEditableField>
-                {' · '}
+                {' - '}
                 <CanvasEditableField path={`certifications.${idx}.organisme`} editing>{c.organisme || 'Organisme'}</CanvasEditableField>
                 {' · '}
                 <CanvasEditableField path={`certifications.${idx}.date`} editing>{c.date || 'Date'}</CanvasEditableField>
               </p>
             ) : (
-              <p key={c.id || i} className="free-canvas-block__sidebar-item">{[c.nom, c.organisme, c.date].filter(Boolean).join(' · ')}</p>
+              <p key={c.id || i} className="free-canvas-block__sidebar-item">
+                {[c.nom, c.organisme].filter(Boolean).join(' - ')}
+                {c.date ? `${c.nom || c.organisme ? ' · ' : ''}${c.date}` : ''}
+              </p>
             );
           })}
         </div>
@@ -518,11 +612,15 @@ function SemanticBlockBody({ block, cv, editing = false }) {
     }
     case 'skills': {
       const items = resolveCompetenceList(cv, bind);
-      if (items.length === 0 && !style.section_label && !style.sidebar_category) {
+      const outils = style.skills_nested_outils
+        ? resolveCompetenceList(cv, 'competences.logiciels')
+        : [];
+      if (items.length === 0 && outils.length === 0 && !style.section_label && !style.sidebar_category) {
         return <p className="free-canvas-block__placeholder">Compétences</p>;
       }
       const chips = format === 'chips';
       const asList = format === 'list' || style.list_format === 'list';
+      const asInline = style.list_format === 'inline' || (!chips && !asList);
       return (
         <div className="free-canvas-block__section-list">
           {style.section_label ? (
@@ -538,14 +636,24 @@ function SemanticBlockBody({ block, cv, editing = false }) {
           ) : asList ? (
             items.map((s, i) => <p key={i} className="free-canvas-block__sidebar-item">{s}</p>)
           ) : (
-            <p>{items.join(', ')}</p>
+            <p className={asInline ? 'free-canvas-block__skills-line' : undefined}>
+              {items.join(', ')}
+            </p>
           )}
+          {outils.length > 0 ? (
+            <p className="free-canvas-block__skills-outils">
+              <strong>Outils :</strong>
+              {' '}
+              {outils.join(', ')}
+            </p>
+          ) : null}
         </div>
       );
     }
     case 'languages': {
       const items = resolveLangues(cv);
       if (items.length === 0) return <p className="free-canvas-block__placeholder">Langues</p>;
+      const asInline = style.list_format === 'inline';
       return (
         <div className="free-canvas-block__section-list">
           <SectionHeading
@@ -553,11 +661,17 @@ function SemanticBlockBody({ block, cv, editing = false }) {
             titleStyle={style.title_style}
             zone={style.zone}
           />
-          {items.map((l, i) => (
-            <p key={i} className="free-canvas-block__sidebar-item">
-              {`${l.langue}${l.niveau ? ` - ${l.niveau}` : ''}`}
+          {asInline ? (
+            <p className="free-canvas-block__skills-line">
+              {items.map((l) => `${l.langue}${l.niveau ? ` (${l.niveau})` : ''}`).join(', ')}
             </p>
-          ))}
+          ) : (
+            items.map((l, i) => (
+              <p key={i} className="free-canvas-block__sidebar-item">
+                {`${l.langue}${l.niveau ? ` - ${l.niveau}` : ''}`}
+              </p>
+            ))
+          )}
         </div>
       );
     }

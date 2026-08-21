@@ -3094,7 +3094,7 @@ export default function App() {
               <div className="page-title-row-actions">
                 <button
                   type="button"
-                  className="button button-secondary btn-new-adapt-session"
+                  className="button button-secondary button--sm btn-new-adapt-session"
                   onClick={requestNewCandidatureWorkspace}
                   disabled={adapting}
                   title="Vider le chat et l’aperçu pour adapter ton CV à une autre offre (sans supprimer tes candidatures enregistrées)"
@@ -3103,7 +3103,7 @@ export default function App() {
                 </button>
                 <button
                   type="button"
-                  className="button button-secondary btn-new-adapt-session"
+                  className="button button-secondary button--sm btn-new-adapt-session"
                   onClick={async () => {
                     if (!lastAdaptRunConfig || adapting) return;
                     setChatMessages((prev) => [...prev, { role: 'user', content: 'Relancer la dernière adaptation' }]);

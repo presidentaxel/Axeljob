@@ -15,12 +15,12 @@
 /* -- Mobile: full overhaul -- */
 @media (max-width: 767px) {
 
-  /* Page header */
+  /* Page header — aligné tokens (déjà compact en mobile) */
   .page-header,
   .app-page .page-header {
-    padding: 0.65rem 0.75rem;
+    padding: var(--ds-space-sm) var(--ds-space-md);
     flex-wrap: wrap;
-    gap: 0.4rem;
+    gap: var(--ds-space-xs);
   }
 
   .page-header h1,

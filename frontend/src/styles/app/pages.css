@@ -11,7 +11,8 @@
 
 .app-page .page-header {
   flex-shrink: 0;
-  padding: 1.25rem 1.5rem;
+  /* DESIGN-cohere + ds tokens : chrome compact (md/xl), pas 1.25rem aéré */
+  padding: var(--ds-space-md) var(--ds-space-xl);
   border-bottom: 1px solid var(--color-hairline);
   background: var(--color-canvas);
 }
@@ -21,19 +22,19 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: var(--ds-space-sm);
 }
 
 .page-title-row-left {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--ds-space-sm);
 }
 
 .page-title-row-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--ds-space-sm);
   margin-left: auto;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -83,7 +84,7 @@
 }
 
 .app-page .page-subtitle {
-  margin: 0.2rem 0 0;
+  margin: var(--ds-space-xxs) 0 0;
   font-size: 0.875rem;
   color: var(--color-body-muted);
 }

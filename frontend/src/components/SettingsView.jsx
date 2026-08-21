@@ -396,43 +396,49 @@ export default function SettingsView({
         title="Export PDF"
         lead="Nom de fichier et dossier suggéré à l’enregistrement d’un CV adapté."
       >
-        <label className="settings-field">
-          Modèle du nom de fichier
-          <input
-            ref={pdfPatternInputRef}
-            className="ds-input"
-            type="text"
-            value={pdfPattern}
-            onChange={(e) => setPdfPattern(e.target.value)}
-            spellCheck={false}
-          />
-        </label>
-        <div className="settings-chips" aria-label="Variables">
-          {PDF_VARIABLES.map((token) => (
-            <button key={token} type="button" className="settings-chip" onClick={() => insertPdfVariable(token)}>
-              {token}
-            </button>
-          ))}
+        <div className="settings-export-layout">
+          <div className="settings-export-layout__col">
+            <label className="settings-field">
+              Modèle du nom de fichier
+              <input
+                ref={pdfPatternInputRef}
+                className="ds-input"
+                type="text"
+                value={pdfPattern}
+                onChange={(e) => setPdfPattern(e.target.value)}
+                spellCheck={false}
+              />
+            </label>
+            <div className="settings-chips" aria-label="Variables">
+              {PDF_VARIABLES.map((token) => (
+                <button key={token} type="button" className="settings-chip" onClick={() => insertPdfVariable(token)}>
+                  {token}
+                </button>
+              ))}
+            </div>
+            <p className="settings-preview">
+              Aperçu
+              <code>{profileLoading ? '…' : pdfExportFilenameExample}</code>
+            </p>
+          </div>
+          <div className="settings-export-layout__col">
+            <label className="settings-field">
+              Dossier d&apos;export (suggestion)
+              <input
+                className="ds-input"
+                type="text"
+                value={exportDossier}
+                onChange={(e) => setExportDossier(e.target.value)}
+                placeholder="Ex. Entreprise - Poste"
+                spellCheck={false}
+              />
+            </label>
+            <p className="settings-field-hint">
+              Mémorisé sur cet appareil.
+              {exportDirLabel ? <> Dernier dossier navigateur&nbsp;: <strong>{exportDirLabel}</strong></> : null}
+            </p>
+          </div>
         </div>
-        <p className="settings-preview">
-          Aperçu
-          <code>{profileLoading ? '…' : pdfExportFilenameExample}</code>
-        </p>
-        <label className="settings-field">
-          Dossier d&apos;export (suggestion)
-          <input
-            className="ds-input"
-            type="text"
-            value={exportDossier}
-            onChange={(e) => setExportDossier(e.target.value)}
-            placeholder="Ex. Entreprise - Poste"
-            spellCheck={false}
-          />
-        </label>
-        <p className="settings-field-hint">
-          Mémorisé sur cet appareil.
-          {exportDirLabel ? <> Dernier dossier navigateur&nbsp;: <strong>{exportDirLabel}</strong></> : null}
-        </p>
         <div className="settings-actions">
           <Button type="button" variant="primary" size="sm" onClick={saveExportPrefs}>
             Enregistrer

@@ -33,21 +33,75 @@
   padding: 0 1.5rem 1.5rem;
 }
 
-/* ── Métriques : ligne ouverte, séparateurs hairline (pas de cards) ── */
+/* ── Métriques compactes actionnables (AXE-378) ── */
 .candidatures-metrics {
   display: flex;
   margin: 0;
   padding: 1.25rem 0;
-  border-bottom: 1px solid var(--color-hairline);
+  border-bottom: 1px solid var(--ds-color-border-default);
 }
 
+.candidatures-metrics--compact {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--ds-space-sm, 0.5rem) var(--ds-space-md, 0.75rem);
+  padding: 0.5rem 0;
+  min-height: 2.5rem;
+}
+
+.candidatures-metric-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0;
+  min-height: var(--ds-size-button-sm, 2rem);
+}
+
+.candidatures-metric-chip--static {
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--ds-radius-sm, 0.25rem);
+  color: var(--ds-color-text-default);
+}
+
+.candidatures-metric-chip-label {
+  font-size: var(--ds-font-size-label-sm, 0.75rem);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--ds-color-text-muted);
+  line-height: 1.2;
+}
+
+.candidatures-metric-chip-value {
+  font-size: var(--ds-font-size-body-md, 0.9375rem);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-color-text-default);
+  line-height: 1.2;
+}
+
+.candidatures-metric-chip--alert .candidatures-metric-chip-value {
+  color: var(--ds-color-text-danger);
+}
+
+.candidatures-metric-total {
+  margin-left: auto;
+  font-size: var(--ds-font-size-label-sm, 0.75rem);
+  color: var(--ds-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.candidatures-metric-clear {
+  flex-shrink: 0;
+}
+
+/* Legacy 3-colonnes (si réutilisé ailleurs) */
 .candidatures-metric {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
   padding: 0 1.5rem;
-  border-right: 1px solid var(--color-hairline);
+  border-right: 1px solid var(--ds-color-border-default);
   min-width: 0;
 }
 
@@ -66,7 +120,7 @@
   font-weight: 400;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--color-muted);
+  color: var(--ds-color-text-muted);
   line-height: 1.4;
 }
 
@@ -82,7 +136,7 @@
   font-size: 1.5rem;
   font-weight: 400;
   letter-spacing: -0.02em;
-  color: var(--color-ink);
+  color: var(--ds-color-text-default);
   line-height: 1.1;
 }
 
@@ -92,11 +146,11 @@
 }
 
 .candidatures-metric-delta--up {
-  color: var(--color-deep-green);
+  color: var(--ds-color-feedback-success);
 }
 
 .candidatures-metric-delta--down {
-  color: var(--color-error);
+  color: var(--ds-color-text-danger);
 }
 
 /* ── Contrôles : bande hairline, pas de carte englobante ── */
@@ -363,9 +417,15 @@
   }
 
   .candidatures-metrics {
-    flex-direction: column;
-    gap: 0;
-    padding: 1rem 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.5rem;
+    padding: 0.5rem 0;
+  }
+
+  .candidatures-metrics--compact .candidatures-metric-total {
+    margin-left: 0;
+    width: 100%;
   }
 
   .candidatures-metric {
@@ -374,7 +434,7 @@
     justify-content: space-between;
     padding: 0.65rem 0;
     border-right: none;
-    border-bottom: 1px solid var(--color-hairline);
+    border-bottom: 1px solid var(--ds-color-border-default);
   }
 
   .candidatures-metric:last-child {

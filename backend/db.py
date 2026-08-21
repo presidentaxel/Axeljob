@@ -852,6 +852,8 @@ def _application_row(aid: str, data: dict, updated_at: str | None = None) -> dic
         "statut": data.get("statut", "candidature_envoyee"),
         "archived": data.get("archived", False),
         "date": date_str,
+        "date_envoi": (data.get("date_envoi") or "").strip(),
+        "date_reponse": (data.get("date_reponse") or "").strip(),
         "created_at": created,
         "refus_raison": data.get("refus_raison", ""),
         "refus_raison_type": data.get("refus_raison_type", ""),
@@ -1281,6 +1283,10 @@ def update_adaptation(adaptation_id: str, updates: dict, user_id: str | None = N
         # Ne fixer date_envoi que lors du premier passage en "candidature_envoyee" (pas quand on y revient après un autre statut)
         if updates["statut"] == "candidature_envoyee" and statut_prev != "candidature_envoyee":
             current["date_envoi"] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+        # Première réponse employeur (métrique délai moyen AXE-378)
+        _response_statuts = frozenset({"reponse_recue", "interview", "offre", "refus"})
+        if updates["statut"] in _response_statuts and not current.get("date_reponse"):
+            current["date_reponse"] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
     if "archived" in updates:
         current["archived"] = bool(updates["archived"])
     if "poste" in updates:

@@ -3698,83 +3698,85 @@ export default function App() {
           )}
           <div className="page-content applications-full candidatures-page" data-section="candidatures" data-analytics-section="candidatures_board">
             <div className="candidatures-page-inner">
-              <div
-                className="candidatures-metrics candidatures-metrics--compact"
-                data-section="candidatures-stats"
-                data-analytics-section="candidatures_stats"
-                role="group"
-                aria-label="Indicateurs candidatures"
-              >
-                <Button
-                  type="button"
-                  variant={candidaturesMetricFilter === 'relancer' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className={`candidatures-metric-chip${applicationStats.toFollowUp > 0 ? ' candidatures-metric-chip--alert' : ''}`}
-                  aria-pressed={candidaturesMetricFilter === 'relancer'}
-                  title="À postuler ou envoyée depuis 14 jours ou plus — clic pour filtrer"
-                  onClick={() => setCandidaturesMetricFilter((f) => (f === 'relancer' ? null : 'relancer'))}
-                >
-                  <span className="candidatures-metric-chip-label">À relancer</span>
-                  <span className="candidatures-metric-chip-value">{applicationStats.toFollowUp}</span>
-                </Button>
+              <div className="candidatures-toolbar" data-section="candidatures-toolbar">
                 <div
-                  className="candidatures-metric-chip candidatures-metric-chip--static"
-                  title="Part des candidatures envoyées ayant reçu une réponse (réponse, entretien, offre ou refus)"
+                  className="candidatures-metrics candidatures-metrics--compact"
+                  data-section="candidatures-stats"
+                  data-analytics-section="candidatures_stats"
+                  role="group"
+                  aria-label="Indicateurs candidatures"
                 >
-                  <span className="candidatures-metric-chip-label">Taux de réponse</span>
-                  <span className="candidatures-metric-chip-value">
-                    {applicationStats.responseRatePct == null ? '—' : `${applicationStats.responseRatePct}%`}
-                  </span>
-                </div>
-                <div
-                  className="candidatures-metric-chip candidatures-metric-chip--static"
-                  title="Moyenne des jours entre envoi et première réponse employeur (nécessite date_reponse)"
-                >
-                  <span className="candidatures-metric-chip-label">Délai moyen</span>
-                  <span className="candidatures-metric-chip-value">
-                    {applicationStats.avgResponseDays == null
-                      ? '—'
-                      : `${applicationStats.avgResponseDays} j`}
-                  </span>
-                </div>
-                <span className="candidatures-metric-total" title="Candidatures non archivées">
-                  {applicationStats.total} candidature{applicationStats.total !== 1 ? 's' : ''}
-                </span>
-                {candidaturesMetricFilter === 'relancer' && (
                   <Button
                     type="button"
-                    variant="link"
+                    variant={candidaturesMetricFilter === 'relancer' ? 'secondary' : 'ghost'}
                     size="sm"
-                    className="candidatures-metric-clear"
-                    onClick={() => setCandidaturesMetricFilter(null)}
+                    className={`candidatures-metric-chip${applicationStats.toFollowUp > 0 ? ' candidatures-metric-chip--alert' : ''}`}
+                    aria-pressed={candidaturesMetricFilter === 'relancer'}
+                    title="À postuler ou envoyée depuis 14 jours ou plus — clic pour filtrer"
+                    onClick={() => setCandidaturesMetricFilter((f) => (f === 'relancer' ? null : 'relancer'))}
                   >
-                    Afficher tout
+                    <span className="candidatures-metric-chip-label">À relancer</span>
+                    <span className="candidatures-metric-chip-value">{applicationStats.toFollowUp}</span>
                   </Button>
-                )}
-              </div>
-              <div className="candidatures-controls">
-                <label className="applications-toggle">
-                  <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
-                  Afficher les archivées
-                </label>
-                <div className="applications-search-wrap">
-                  <input
-                    type="search"
-                    className="applications-search"
-                    placeholder="Rechercher par poste, entreprise, source, date…"
-                    value={applicationSearchQuery}
-                    onChange={(e) => setApplicationSearchQuery(e.target.value)}
-                    aria-label="Filtrer les candidatures"
-                    data-attr="candidatures-controls-input-search"
-                    data-track="input"
-                    data-zone="controls"
-                    data-level="tertiary"
-                  />
-                  {applicationSearchDebounced && (
-                    <span className="applications-search-count">
-                      {filteredNonArchivedCount} résultat{filteredNonArchivedCount !== 1 ? 's' : ''}
+                  <div
+                    className="candidatures-metric-chip candidatures-metric-chip--static"
+                    title="Part des candidatures envoyées ayant reçu une réponse (réponse, entretien, offre ou refus)"
+                  >
+                    <span className="candidatures-metric-chip-label">Taux de réponse</span>
+                    <span className="candidatures-metric-chip-value">
+                      {applicationStats.responseRatePct == null ? '—' : `${applicationStats.responseRatePct}%`}
                     </span>
+                  </div>
+                  <div
+                    className="candidatures-metric-chip candidatures-metric-chip--static"
+                    title="Moyenne des jours entre envoi et première réponse employeur (nécessite date_reponse)"
+                  >
+                    <span className="candidatures-metric-chip-label">Délai moyen</span>
+                    <span className="candidatures-metric-chip-value">
+                      {applicationStats.avgResponseDays == null
+                        ? '—'
+                        : `${applicationStats.avgResponseDays} j`}
+                    </span>
+                  </div>
+                  <span className="candidatures-metric-total" title="Candidatures non archivées">
+                    {applicationStats.total} candidature{applicationStats.total !== 1 ? 's' : ''}
+                  </span>
+                  {candidaturesMetricFilter === 'relancer' && (
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      className="candidatures-metric-clear"
+                      onClick={() => setCandidaturesMetricFilter(null)}
+                    >
+                      Afficher tout
+                    </Button>
                   )}
+                </div>
+                <div className="candidatures-controls" data-section="candidatures-controls">
+                  <label className="applications-toggle">
+                    <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+                    Afficher les archivées
+                  </label>
+                  <div className="applications-search-wrap">
+                    <input
+                      type="search"
+                      className="applications-search"
+                      placeholder="Rechercher par poste, entreprise, source, date…"
+                      value={applicationSearchQuery}
+                      onChange={(e) => setApplicationSearchQuery(e.target.value)}
+                      aria-label="Filtrer les candidatures"
+                      data-attr="candidatures-controls-input-search"
+                      data-track="input"
+                      data-zone="controls"
+                      data-level="tertiary"
+                    />
+                    {applicationSearchDebounced && (
+                      <span className="applications-search-count">
+                        {filteredNonArchivedCount} résultat{filteredNonArchivedCount !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="candidatures-board">

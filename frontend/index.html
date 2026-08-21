@@ -166,11 +166,15 @@ a.button,a.btn{text-decoration:none}
           document.documentElement.appendChild(s);
           var root = document.getElementById('root');
           if (root) root.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:\'Plus Jakarta Sans\',sans-serif;color:#64748b;">Chargement…</div>';
-          var isDev = window.location.hostname === 'localhost' && (window.location.port === '5173' || window.location.port === '');
-          if (!isDev && typeof __APP_CSS__ === 'string' && __APP_CSS__) {
+          var cssName = typeof window.__APP_CSS__ === 'string' ? window.__APP_CSS__ : '';
+          var cssReady = cssName && cssName.indexOf('__APP') === -1;
+          var isViteDev = window.location.port === '5173'
+            || window.location.hostname === 'localhost'
+            || window.location.hostname === '127.0.0.1';
+          if (!isViteDev && cssReady) {
             var link = document.createElement('link');
             link.rel = 'stylesheet';
-            link.href = '/assets/' + __APP_CSS__;
+            link.href = '/assets/' + cssName;
             document.head.appendChild(link);
           }
         }

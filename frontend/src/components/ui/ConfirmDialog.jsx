@@ -3,6 +3,22 @@ import { useEffect, useId, useRef } from 'react';
 import Button from './Button.jsx';
 import '../../styles/ConfirmDialog.css';
 
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+function listFocusable(container) {
+  if (!container) return [];
+  return Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR)).filter(
+    (el) => !el.hasAttribute('disabled') && el.getAttribute('aria-hidden') !== 'true',
+  );
+}
+
 /**
  * Dialogue de confirmation design system (remplace `window.confirm`).
  *
@@ -39,12 +55,40 @@ export default function ConfirmDialog({
     const focusTimer = window.setTimeout(() => {
       cardRef.current?.querySelector('[data-confirm-primary]')?.focus?.();
     }, 0);
+
     const onKeyDown = (event) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      event.stopPropagation();
-      onCancel?.();
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        onCancel?.();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const focusables = listFocusable(cardRef.current);
+      if (focusables.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      const inside = cardRef.current?.contains(active);
+
+      if (event.shiftKey) {
+        if (!inside || active === first) {
+          event.preventDefault();
+          last.focus();
+        }
+        return;
+      }
+      if (!inside || active === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
+
     document.addEventListener('keydown', onKeyDown, true);
     return () => {
       window.clearTimeout(focusTimer);
@@ -66,10 +110,9 @@ export default function ConfirmDialog({
       aria-labelledby={titleId}
       aria-describedby={message ? descriptionId : undefined}
     >
-      <button
-        type="button"
+      <div
         className="confirm-dialog__backdrop"
-        aria-label={cancelLabel}
+        aria-hidden="true"
         onClick={() => onCancel?.()}
       />
       <div className="confirm-dialog__card" ref={cardRef}>

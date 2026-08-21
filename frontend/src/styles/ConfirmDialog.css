@@ -13,9 +13,6 @@
 .confirm-dialog__backdrop {
   position: absolute;
   inset: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
   cursor: pointer;
   background: color-mix(in srgb, var(--ds-color-bg-inverse-alt) 40%, transparent);
 }

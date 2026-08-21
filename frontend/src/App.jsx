@@ -3091,6 +3091,9 @@ export default function App() {
                   ?
                 </button>
               </div>
+              <p className="page-subtitle" title="Colle une offre d'emploi, l'IA adapte ton CV. Affine par chat, puis exporte en PDF.">
+                Colle une offre d&apos;emploi, l&apos;IA adapte ton CV. Affine par chat, puis exporte en PDF.
+              </p>
               <div className="page-title-row-actions">
                 <button
                   type="button"
@@ -3120,7 +3123,6 @@ export default function App() {
                 </button>
               </div>
             </div>
-            <p className="page-subtitle">Colle une offre d'emploi, l'IA adapte ton CV. Affine par chat, puis exporte en PDF.</p>
           </header>
           {usage && usage.plan === 'free' && usage.adaptations_used >= 2 && (
             <div className="free-plan-banner">
@@ -3582,17 +3584,19 @@ export default function App() {
 
         <div id="viewCandidatures" className={`view-panel app-page view-candidatures ${view === 'candidatures' ? 'active' : ''}`} style={{ display: view === 'candidatures' ? 'flex' : 'none' }}>
           <header className="page-header page-header-dashboard">
-            <div>
+            <div className="page-title-row">
               <h1 className="page-title">Mes candidatures</h1>
-              <p className="page-subtitle">Suis toutes tes candidatures ici. Glisse les cartes pour changer le statut.</p>
-            </div>
-            <div className="dashboard-header-actions">
-              <button type="button" className="button button-tertiary btn-add-manual" onClick={() => setAddManualModalOpen(true)}>
-                Ajouter une candidature (hors app)
-              </button>
-              <button type="button" className="button button-primary btn-new-candidature" onClick={() => setSetupModalOpen(true)}>
-                Nouvelle Candidature
-              </button>
+              <p className="page-subtitle" title="Suis toutes tes candidatures ici. Glisse les cartes pour changer le statut.">
+                Suis toutes tes candidatures ici. Glisse les cartes pour changer le statut.
+              </p>
+              <div className="dashboard-header-actions page-title-row-actions">
+                <button type="button" className="button button-tertiary button--sm btn-add-manual" onClick={() => setAddManualModalOpen(true)}>
+                  Ajouter une candidature (hors app)
+                </button>
+                <button type="button" className="button button-primary button--sm btn-new-candidature" onClick={() => setSetupModalOpen(true)}>
+                  Nouvelle Candidature
+                </button>
+              </div>
             </div>
           </header>
           {usage && usage.adaptations_used === 0 && (
@@ -3996,8 +4000,12 @@ export default function App() {
 
         <div id="viewProfil" className={`view-panel app-page view-profil ${view === 'profil' ? 'active' : ''}`} style={{ display: view === 'profil' ? 'flex' : 'none' }}>
           <header className="page-header">
-            <h1 className="page-title">Profil</h1>
-            <p className="page-subtitle">Ton CV de base. Modifications enregistrées automatiquement.</p>
+            <div className="page-title-row">
+              <h1 className="page-title">Profil</h1>
+              <p className="page-subtitle" title="Ton CV de base. Modifications enregistrées automatiquement.">
+                Ton CV de base. Modifications enregistrées automatiquement.
+              </p>
+            </div>
             {usage && usage.adaptations_used === 0 && (
               <div className="zero-adapt-banner zero-adapt-banner--compact" role="status">
                 <span>Pour adapter ton CV à une offre, va sur </span>
@@ -4013,8 +4021,12 @@ export default function App() {
 
         <div id="viewSettings" className={`view-panel app-page view-settings ${view === 'settings' ? 'active' : ''}`} style={{ display: view === 'settings' ? 'flex' : 'none' }} data-analytics-section="settings_page">
           <header className="page-header">
-            <h1 className="page-title">Paramètres</h1>
-            <p className="page-subtitle">Compte, export PDF, éditeur et confidentialité.</p>
+            <div className="page-title-row">
+              <h1 className="page-title">Paramètres</h1>
+              <p className="page-subtitle" title="Compte, export PDF, éditeur et confidentialité.">
+                Compte, export PDF, éditeur et confidentialité.
+              </p>
+            </div>
           </header>
           <div className="page-content">
             <SettingsView

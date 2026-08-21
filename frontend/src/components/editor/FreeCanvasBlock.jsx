@@ -140,6 +140,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
             className={[
               'free-canvas-block__identity',
               'free-canvas-block__identity--inline-title',
+              style.identity_layout ? `free-canvas-block__identity--${style.identity_layout}` : '',
               style.identity_divider ? 'free-canvas-block__identity--divider' : '',
             ].filter(Boolean).join(' ')}
           >
@@ -156,7 +157,11 @@ function SemanticBlockBody({ block, cv, editing = false }) {
         );
       }
       return (
-        <div className={`free-canvas-block__identity${style.identity_divider ? ' free-canvas-block__identity--divider' : ''}`}>
+        <div className={[
+          'free-canvas-block__identity',
+          style.identity_layout ? `free-canvas-block__identity--${style.identity_layout}` : '',
+          style.identity_divider ? 'free-canvas-block__identity--divider' : '',
+        ].filter(Boolean).join(' ')}>
           {nameEl ? (
             <div className="free-canvas-block__identity-name" style={{ textAlign: style.align || 'left' }}>
               {nameEl}

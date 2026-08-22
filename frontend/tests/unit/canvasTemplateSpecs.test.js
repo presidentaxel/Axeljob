@@ -137,12 +137,12 @@ test('elegant réplique Stable : header centré + photo, chips, freeform', () =>
 
   assert.equal(identity.style?.align, 'center');
   assert.equal(identity.style?.identity_layout, 'elegant-header');
-  assert.equal(identity.style?.lock_geometry, true);
   assert.ok(identity.y >= photo.y + photo.h - 0.01, 'identity sous photo');
 
   assert.equal(contact.style?.contact_layout, 'header-bar');
-  assert.equal(contact.style?.contact_separator, ' · ');
+  assert.equal(contact.style?.contact_separator, '·');
   assert.equal(contact.style?.align, 'center');
+  assert.ok(contact.y >= identity.y + identity.h - 0.01, 'contact sous identity');
   assert.deepEqual(contact.bind, ['telephone', 'email', 'linkedin']);
 
   assert.equal(experiences.style?.exp_style, 'elegant');

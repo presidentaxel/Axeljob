@@ -708,14 +708,18 @@ export function buildTemplateBlocks(template) {
       const pad = ePx(30);
       const W = PAGE_WIDTH_MM - pad * 2;
       const photoSize = ePx(56);
+      // Stable .cv-header { padding: 22px 30px 16px }
       const yPhoto = ePx(22);
+      // .header-photo { margin-bottom: 8px }
       const yIdentity = yPhoto + photoSize + ePx(8);
-      // Name 20pt + title 10.5pt + marges (Stable header) — éviter overflow vers contact
-      const identityH = ePx(48);
-      const yContact = yIdentity + identityH + ePx(2);
-      const contactH = ePx(16);
-      const yRule = yContact + contactH + ePx(6);
-      const yBody = yRule + ePx(6);
+      // name ~20pt×1.15 + title mt 4px + 10.5pt×1.3 ≈ 42–44px
+      const identityH = ePx(44);
+      // .header-contact { margin-top: 8px } sous le titre
+      const yContact = yIdentity + identityH + ePx(8);
+      const contactH = ePx(14);
+      // padding-bottom header 16px puis border
+      const yRule = yContact + contactH + ePx(16);
+      const yBody = yRule + ePx(8);
       const section = (label, extra = {}) => ({
         ...main(),
         section_label: label,
@@ -750,7 +754,7 @@ export function buildTemplateBlocks(template) {
           z: 3,
           style: {
             ...main(),
-            ...headerLock,
+            // Pas de lock : auto-height + replica_cascade gardent l’écart Stable sous le titre
             align: 'center',
             font_family: t.font_heading,
             identity_layout: 'elegant-header',
@@ -766,10 +770,10 @@ export function buildTemplateBlocks(template) {
           z: 3,
           style: {
             ...main(),
-            ...headerLock,
             align: 'center',
             contact_layout: 'header-bar',
-            contact_separator: ' · ',
+            // Stable : <span class="contact-sep">·</span> + margin 0 8px
+            contact_separator: '·',
             contact_icons: false,
           },
         },

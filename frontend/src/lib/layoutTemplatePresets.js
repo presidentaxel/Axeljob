@@ -11,9 +11,11 @@ export function createCanvasLayoutForTemplate(template) {
   const layout = createStarterLayoutV3();
   layout.pages[0].blocks = blocks;
   layout.theme = { ...layout.theme, ...parseCanvasTheme(template) };
-  // Répliques mono-colonne : géométrie mm calquée Stable — ne pas ré-empiler au reflow.
+  // Répliques mono-colonne : géométrie mm calquée Stable — ne pas ré-empiler au reflow ATS.
+  // `replica_cascade` : autorise le reflow colonne après auto-height (sans toucher lock_geometry).
   if (template.id === 'minimal' || template.id === 'elegant') {
     layout.freeform = true;
+    layout.replica_cascade = true;
   }
   return sanitizeLayoutV3(layout);
 }

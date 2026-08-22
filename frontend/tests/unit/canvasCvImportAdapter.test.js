@@ -303,6 +303,81 @@ test('reflowColumnBlocksOnPage : ne touche pas un layout freeform', () => {
   assert.equal(out.pages[0].blocks[1].y, 50);
 });
 
+test('reflowColumnBlocksOnPage : replica_cascade empile malgré freeform', () => {
+  const layout = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    freeform: true,
+    replica_cascade: true,
+    pages: [{
+      id: 'p1',
+      blocks: [
+        { id: 'a', type: 'experiences', bind: 'experiences', x: 8, y: 40, w: 180, h: 40, z: 1, style: { zone: 'main' } },
+        { id: 'b', type: 'formations', bind: 'formations', x: 8, y: 50, w: 180, h: 20, z: 1, style: { zone: 'main' } },
+      ],
+    }],
+    theme: {},
+  };
+  const out = reflowColumnBlocksOnPage(layout, 0);
+  const formations = out.pages[0].blocks.find((b) => b.id === 'b');
+  assert.ok(formations.y >= 80, `formations poussé sous expériences, got y=${formations.y}`);
+});
+
+test('elegant preserveReplicaGeometry : photo au-dessus du nom, pas de restack ATS', () => {
+  const cv = {
+    prenom: 'Louis',
+    nom: 'Vedovato',
+    titre_professionnel: 'Product Owner',
+    telephone: '06',
+    email: 'a@b.fr',
+    resume: 'Stage Product Owner.',
+    experiences: [
+      {
+        entreprise: 'LOUITOS',
+        poste: 'Dirigeant',
+        date_debut: '2022',
+        date_fin: "Aujourd'hui",
+        lieu: 'Cusset',
+        bullet_points: ['Chef'],
+        clients: 'clients',
+      },
+      {
+        entreprise: 'AXEL',
+        poste: 'Président',
+        date_debut: '2024',
+        date_fin: "Aujourd'hui",
+        lieu: 'Cusset',
+        bullet_points: ['Crea'],
+        clients: 'monde',
+      },
+    ],
+    formations: [{ etablissement: 'ESSEC', diplome: 'BBA', date: '2023-2027' }],
+    competences: { techniques: ['Python'], logiciels: ['Notion'], langues: [{ langue: 'Français', niveau: 'Natif' }] },
+    certifications: [{ nom: 'Cert', organisme: 'Org', date: '2026' }],
+    projets: [{ nom: 'CRM', description: 'Desc' }],
+    photo_url: 'https://example.com/p.jpg',
+  };
+  const base = createCanvasLayoutForTemplate({ id: 'elegant' });
+  const { layout } = adaptCanvasLayoutForCv(cv, base, {
+    preserveReplicaGeometry: true,
+    templateId: 'elegant',
+  });
+  assert.equal(layout.freeform, true);
+  assert.equal(layout.replica_cascade, true);
+  const blocks = layout.pages[0].blocks;
+  const photo = blocks.find((b) => b.type === 'photo');
+  const identity = blocks.find((b) => b.type === 'identity');
+  const contact = blocks.find((b) => b.type === 'contact');
+  const experiences = blocks.find((b) => b.type === 'experiences');
+  const formations = blocks.find((b) => b.type === 'formations');
+  assert.ok(photo && identity && contact);
+  assert.ok(photo.y < identity.y, 'photo Stable au-dessus du nom');
+  assert.ok(identity.y < contact.y, 'contact sous identity');
+  assert.ok(experiences.y + experiences.h <= formations.y + 0.05, 'pas de chevauchement exp/formation');
+});
+
 test('reflowColumnBlocksOnPage : empile bien hors freeform (régression du flag)', () => {
   const layout = {
     version: 3,

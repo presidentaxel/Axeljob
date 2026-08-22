@@ -46,7 +46,9 @@ export function reflowColumnBlocksOnPage(layout, pageIndex = 0) {
   // Import "copie fidèle" : les blocs sont positionnés en absolu d'après le
   // PDF (titre + dates côte à côte, espacements serrés…). Les ré-empiler par
   // colonne casserait tout le rendu → on n'y touche pas.
-  if (layout.freeform === true) return layout;
+  // Exception : répliques Stable (minimal/elegant) avec `replica_cascade` —
+  // auto-height doit pousser les sections suivantes sans chevauchement.
+  if (layout.freeform === true && layout.replica_cascade !== true) return layout;
 
   const blocks = layout.pages[pageIndex].blocks;
   const lanes = new Map();

@@ -748,13 +748,19 @@ function estimateListHeight(count, itemHmm = 4.2, base = 10, max = 80) {
 
 function estimateSkillsHeight(block, cv) {
   const items = resolveCompetenceList(cv, block.bind || 'competences.techniques');
-  if (!items.length) return 0;
+  const outils = block.style?.skills_nested_outils
+    ? resolveCompetenceList(cv, 'competences.logiciels')
+    : [];
+  const total = items.length + outils.length;
+  if (!total) return 0;
   const isChips = block.style?.format === 'chips';
   if (isChips) {
-    const rows = Math.ceil(items.length / 5);
+    const rows = Math.ceil(total / 5);
     return Math.min(55, Math.max(16, 12 + rows * 5.5));
   }
-  return estimateListHeight(items.length, 3.8, 10, 50);
+  // Ligne « Outils : … » si nestés
+  const base = estimateListHeight(items.length, 3.8, 10, 50);
+  return outils.length ? Math.min(60, base + 6) : base;
 }
 
 const SEMANTIC_MIN_HEIGHT_MM = 10;
@@ -806,6 +812,48 @@ function patchBlockHeight(layout, blockId, h) {
     )),
   }));
   return { ...layout, pages };
+}
+
+const REPLICA_CASCADE_GAP_MM = 2.5;
+
+/**
+ * Réplique Stable (freeform) : ajuste h au contenu et empile sans chevauchement,
+ * en respectant `lock_geometry` / photo (header figé).
+ * Ne réordonne PAS les types (contrairement à ATS spatial).
+ */
+export function fitReplicaLayoutToContent(layout, cv) {
+  if (!layout?.pages?.length) return layout;
+  let next = layout;
+  for (let pageIndex = 0; pageIndex < next.pages.length; pageIndex += 1) {
+    const page = next.pages[pageIndex];
+    const blocks = [...(page.blocks || [])];
+    const sorted = [...blocks].sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0));
+    let cursorBottom = null;
+    for (const block of sorted) {
+      const locked = Boolean(block.style?.lock_geometry)
+        || block.type === 'photo'
+        || DECORATIVE_TYPES.has(block.type);
+      let h = Number(block.h) || 0;
+      let y = Number(block.y) || 0;
+      if (!locked && !DECORATIVE_TYPES.has(block.type)) {
+        const est = estimateSemanticBlockHeight(block, cv, { respectCurrentMin: true });
+        if (est > 0 && Math.abs(est - h) > 0.8) {
+          h = est;
+          next = patchBlockHeight(next, block.id, h);
+        }
+      }
+      if (!locked && cursorBottom != null) {
+        const minY = cursorBottom + REPLICA_CASCADE_GAP_MM;
+        if (y < minY - 0.05) {
+          y = minY;
+          next = setBlockPosition(next, block.id, { x: Number(block.x) || 0, y });
+        }
+      }
+      const bottom = y + Math.max(h, 0.2);
+      cursorBottom = cursorBottom == null ? bottom : Math.max(cursorBottom, bottom);
+    }
+  }
+  return next;
 }
 
 function blockLane(block) {
@@ -933,10 +981,17 @@ export function adaptCanvasLayoutForCv(cv, layout, {
   }
 
   next = applyLayoutPagination(next);
-  next = applyAtsLayoutOptimizations(next);
-
+  // ATS spatial réordonne identity→contact→photo et casse les répliques Stable
+  // (ex. Élégant : photo centrée au-dessus du nom). Skip si géométrie préservée.
   if (keepGeometry) {
-    next = { ...next, freeform: true };
+    next = fitReplicaLayoutToContent(next, cv);
+    next = {
+      ...next,
+      freeform: true,
+      replica_cascade: true,
+    };
+  } else {
+    next = applyAtsLayoutOptimizations(next);
   }
 
   if (!fromVision && !forImport) {

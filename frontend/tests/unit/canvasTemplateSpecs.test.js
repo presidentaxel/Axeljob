@@ -158,6 +158,7 @@ test('elegant réplique Stable : header centré + photo, chips, freeform', () =>
 
   const layout = createCanvasLayoutForTemplate({ id: 'elegant' });
   assert.equal(layout.freeform, true);
+  assert.equal(layout.replica_cascade, true);
   assert.equal(getTemplateCanvasFidelity('elegant')?.fidelityCss, 'rich');
   assert.equal(getTemplateCanvasFidelity('elegant')?.readiness, 'near-replica');
 });

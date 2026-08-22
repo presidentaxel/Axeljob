@@ -649,9 +649,12 @@ export function buildLayoutFromVisionDetection(cv, visionMeta = {}, templatesLis
   layout = applyVisionPhotoShape(layout, visionMeta);
 
   const analysis2 = analyzeCvProfile(cv);
-  layout = reorderSemanticBlocksByPriority(layout, cv, analysis2, mergedHints);
-  for (let pi = 0; pi < (layout.pages?.length || 0); pi += 1) {
-    layout = reflowColumnBlocksOnPage(layout, pi);
+  // Répliques freeform (elegant/minimal) : ne pas réordonner / reflow ATS.
+  if (!layout.freeform) {
+    layout = reorderSemanticBlocksByPriority(layout, cv, analysis2, mergedHints);
+    for (let pi = 0; pi < (layout.pages?.length || 0); pi += 1) {
+      layout = reflowColumnBlocksOnPage(layout, pi);
+    }
   }
   layout = applyLayoutPagination(layout);
 
@@ -814,7 +817,7 @@ function patchBlockHeight(layout, blockId, h) {
   return { ...layout, pages };
 }
 
-const REPLICA_CASCADE_GAP_MM = 2.5;
+const REPLICA_CASCADE_GAP_MM = 1.2;
 
 /**
  * Réplique Stable (freeform) : ajuste h au contenu et empile sans chevauchement,

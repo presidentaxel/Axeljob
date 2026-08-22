@@ -666,9 +666,36 @@
 }
 
 .free-canvas-block__contact--header-bar {
-  display: block;
-  text-align: center;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0;
   margin: 0;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.free-canvas-block__contact--header-bar > span {
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.free-canvas-block__contact-segment {
+  display: inline;
+  white-space: nowrap;
+}
+
+.free-canvas-block__contact-spacer {
+  white-space: pre;
+  flex-shrink: 0;
 }
 
 .free-canvas-block__inner--zone-main .free-canvas-block__section-title {

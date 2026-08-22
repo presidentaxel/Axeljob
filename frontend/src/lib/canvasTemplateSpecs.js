@@ -710,11 +710,12 @@ export function buildTemplateBlocks(template) {
       const photoSize = ePx(56);
       const yPhoto = ePx(22);
       const yIdentity = yPhoto + photoSize + ePx(8);
-      const identityH = ePx(38);
-      const yContact = yIdentity + identityH + ePx(4);
-      const contactH = ePx(14);
-      const yRule = yContact + contactH + ePx(10);
-      const yBody = yRule + ePx(10);
+      // Name 20pt + title 10.5pt + marges (Stable header) — éviter overflow vers contact
+      const identityH = ePx(48);
+      const yContact = yIdentity + identityH + ePx(2);
+      const contactH = ePx(16);
+      const yRule = yContact + contactH + ePx(6);
+      const yBody = yRule + ePx(6);
       const section = (label, extra = {}) => ({
         ...main(),
         section_label: label,

@@ -225,40 +225,55 @@ function SemanticBlockBody({ block, cv, editing = false }) {
 
       if (style.contact_layout === 'header-bar') {
         const separator = style.contact_separator != null ? String(style.contact_separator) : ' ';
-        const segments = [];
+        /** @type {{ id: string, node: import('react').ReactNode }[]} */
+        const parts = [];
         if (showTel) {
-          segments.push(
-            <span key="tel" className="free-canvas-block__contact-segment">
-              {maybeIcon(HiPhone)}
-              {showIcons ? ' ' : null}
-              {renderContactValue('telephone', tel, 'Téléphone')}
-            </span>,
-          );
+          parts.push({
+            id: 'tel',
+            node: (
+              <>
+                {maybeIcon(HiPhone)}
+                {showIcons ? ' ' : null}
+                {renderContactValue('telephone', tel, 'Téléphone')}
+              </>
+            ),
+          });
         }
         if (showEmail) {
-          segments.push(
-            <span key="email" className="free-canvas-block__contact-segment">
-              {maybeIcon(HiEnvelope)}
-              {showIcons ? ' ' : null}
-              {renderContactValue('email', email, 'Email')}
-            </span>,
-          );
+          parts.push({
+            id: 'email',
+            node: (
+              <>
+                {maybeIcon(HiEnvelope)}
+                {showIcons ? ' ' : null}
+                {renderContactValue('email', email, 'Email')}
+              </>
+            ),
+          });
         }
         if (showLinkedin) {
-          segments.push(
-            <span key="linkedin" className="free-canvas-block__contact-segment">
-              {maybeIcon(HiLink)}
-              {showIcons ? ' ' : null}
-              {renderContactValue('linkedin', linkedin, 'LinkedIn')}
-            </span>,
-          );
+          parts.push({
+            id: 'linkedin',
+            node: (
+              <>
+                {maybeIcon(HiLink)}
+                {showIcons ? ' ' : null}
+                {renderContactValue('linkedin', linkedin, 'LinkedIn')}
+              </>
+            ),
+          });
         }
         return (
-          <p className={contactCls}>
-            {segments.map((seg, i) => (
-              <span key={seg.key}>
+          <p
+            className={contactCls}
+            style={style.align === 'left' || style.align === 'right'
+              ? { justifyContent: style.align === 'right' ? 'flex-end' : 'flex-start' }
+              : undefined}
+          >
+            {parts.map((part, i) => (
+              <span key={part.id}>
                 {i > 0 ? <span className="free-canvas-block__contact-spacer">{separator}</span> : null}
-                {seg}
+                <span className="free-canvas-block__contact-segment">{part.node}</span>
               </span>
             ))}
           </p>

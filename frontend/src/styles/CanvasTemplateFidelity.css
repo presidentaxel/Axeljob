@@ -508,14 +508,19 @@
   color: #718096 !important;
   font-size: 8.5pt !important;
   margin: 0;
-  text-align: center;
   letter-spacing: 0.02em;
   line-height: 1.4 !important;
+}
+
+.free-canvas-page--tpl-elegant .free-canvas-block__contact--header-bar {
+  justify-content: center;
 }
 
 .free-canvas-page--tpl-elegant .free-canvas-block__contact--header-bar .free-canvas-block__contact-spacer {
   white-space: pre;
   color: #cbd5e0;
+  /* Stable .contact-sep { margin: 0 8px } */
+  margin: 0 2mm;
 }
 
 .free-canvas-page--tpl-elegant .free-canvas-block__section-title--elegant-section {
@@ -532,7 +537,8 @@
 }
 
 .free-canvas-page--tpl-elegant .free-canvas-block__section-list {
-  padding: 2.1mm 0;
+  /* Stable .cv-section { padding: 8px 0 } ≈ 2.1mm — un seul côté pour éviter double gap */
+  padding: 1.6mm 0 0.8mm;
   border-bottom: 0.3mm solid #edf2f7;
 }
 

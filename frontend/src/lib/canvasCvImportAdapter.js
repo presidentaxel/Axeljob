@@ -736,17 +736,18 @@ function blockHasRenderableContent(block, cv, analysis) {
 function estimateExperiencesHeight(cv) {
   const exps = resolveExperiences(cv);
   if (!exps.length) return 0;
-  let h = 14;
+  let h = 8; // titre de section
   for (const e of exps) {
     const bullets = (e.bullet_points || []).filter((b) => String(b || '').trim()).length;
-    h += 10 + bullets * 3.8;
+    h += 8 + bullets * 3.2;
   }
-  return Math.min(220, Math.max(28, h));
+  return Math.min(220, Math.max(18, h));
 }
 
-function estimateListHeight(count, itemHmm = 4.2, base = 10, max = 80) {
+function estimateListHeight(count, itemHmm = 4.2, base = 8, max = 80) {
   if (!count) return 0;
-  return Math.min(max, Math.max(14, base + count * itemHmm));
+  // Floor bas : le padding CSS twin + auto-height finalisent la hauteur réelle.
+  return Math.min(max, Math.max(7, base + count * itemHmm));
 }
 
 function estimateSkillsHeight(block, cv) {
@@ -793,13 +794,13 @@ export function estimateSemanticBlockHeight(block, cv, { respectCurrentMin = fal
     case 'experiences':
       return Math.max(floor, estimateExperiencesHeight(cv));
     case 'formations':
-      return Math.max(floor, estimateListHeight(resolveFormations(cv).length, 9, 12, 70));
+      return Math.max(floor, estimateListHeight(resolveFormations(cv).length, 6, 8, 70));
     case 'certifications':
-      return Math.max(floor, estimateListHeight(resolveCertifications(cv).length, 7, 10, 45));
+      return Math.max(floor, estimateListHeight(resolveCertifications(cv).length, 5, 7, 45));
     case 'projets':
-      return Math.max(floor, estimateListHeight(resolveProjets(cv).length, 11, 12, 65));
+      return Math.max(floor, estimateListHeight(resolveProjets(cv).length, 8, 8, 65));
     case 'languages':
-      return Math.max(floor, estimateListHeight(resolveLangues(cv).length, 4.5, 10, 35));
+      return Math.max(floor, estimateListHeight(resolveLangues(cv).length, 4, 7, 35));
     case 'skills':
       return Math.max(floor, estimateSkillsHeight(block, cv));
     default:
@@ -817,7 +818,7 @@ function patchBlockHeight(layout, blockId, h) {
   return { ...layout, pages };
 }
 
-const REPLICA_CASCADE_GAP_MM = 1.2;
+const REPLICA_CASCADE_GAP_MM = 0;
 
 /**
  * Réplique Stable (freeform) : ajuste h au contenu et empile sans chevauchement,
@@ -839,7 +840,8 @@ export function fitReplicaLayoutToContent(layout, cv) {
       let h = Number(block.h) || 0;
       let y = Number(block.y) || 0;
       if (!locked && !DECORATIVE_TYPES.has(block.type)) {
-        const est = estimateSemanticBlockHeight(block, cv, { respectCurrentMin: true });
+        // Shrink to content — les hauteurs preset trop larges créaient des « trous » entre sections.
+        const est = estimateSemanticBlockHeight(block, cv, { respectCurrentMin: false });
         if (est > 0 && Math.abs(est - h) > 0.8) {
           h = est;
           next = patchBlockHeight(next, block.id, h);

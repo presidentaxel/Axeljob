@@ -535,15 +535,20 @@
   border-bottom: 0;
   letter-spacing: 0.06em !important;
   text-transform: uppercase;
-  margin: 0 0 1.6mm !important;
+  /* Stable .section-title { margin: 0 0 6px } */
+  margin: 0 0 1.59mm !important;
   padding: 0;
   line-height: 1.2 !important;
 }
 
 .free-canvas-page--tpl-elegant .free-canvas-block__section-list {
-  /* Stable .cv-section { padding: 8px 0 } ≈ 2.1mm — un seul côté pour éviter double gap */
-  padding: 1.6mm 0 0.8mm;
-  border-bottom: 0.3mm solid #edf2f7;
+  /* Stable .cv-section { padding: 8px 0 } — blocs adjacents (gap reflow 0) */
+  padding: 2.12mm 0;
+  border-bottom: 0.26mm solid #edf2f7;
+}
+
+.free-canvas-page--tpl-elegant .free-canvas-block__pdf-fidelity-badge {
+  display: none;
 }
 
 .free-canvas-page--tpl-elegant .free-canvas-block__resume {
@@ -557,7 +562,8 @@
 
 .free-canvas-page--tpl-elegant .free-canvas-block__exp--elegant,
 .free-canvas-page--tpl-elegant .free-canvas-block__exp--bold {
-  margin-bottom: 1.6mm;
+  /* Stable .experience-item { margin-bottom: 6px } */
+  margin-bottom: 1.59mm;
 }
 
 .free-canvas-page--tpl-elegant .free-canvas-block__exp--elegant .free-canvas-block__exp-header,

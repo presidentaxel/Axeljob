@@ -10,6 +10,8 @@ import {
 } from './cvLayoutModelV3.js';
 
 const REFLOW_GAP_MM = 2;
+/** Gap nul pour répliques Stable : le padding CSS `.cv-section` (8px) fait l’écart. */
+const REFLOW_GAP_REPLICA_MM = 0;
 
 import { isVectorShapeType } from './canvasShapePresets.js';
 
@@ -65,6 +67,7 @@ export function reflowColumnBlocksOnPage(layout, pageIndex = 0) {
 
   let next = layout;
   const patches = new Map();
+  const gapMm = layout.replica_cascade === true ? REFLOW_GAP_REPLICA_MM : REFLOW_GAP_MM;
 
   for (const laneBlocks of lanes.values()) {
     const sorted = [...laneBlocks].sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0));
@@ -74,12 +77,12 @@ export function reflowColumnBlocksOnPage(layout, pageIndex = 0) {
       const h = Number(b.h) || 0;
       const locked = Boolean(b.style?.lock_geometry);
       if (bottom === null) {
-        bottom = (Number(b.y) || 0) + h + REFLOW_GAP_MM;
+        bottom = (Number(b.y) || 0) + h + gapMm;
         continue;
       }
       const curY = Number(b.y) || 0;
       if (locked) {
-        bottom = Math.max(bottom, curY + h + REFLOW_GAP_MM);
+        bottom = Math.max(bottom, curY + h + gapMm);
         continue;
       }
       const minY = bottom;
@@ -87,7 +90,7 @@ export function reflowColumnBlocksOnPage(layout, pageIndex = 0) {
       if (Math.abs(y - curY) > 0.08) {
         patches.set(b.id, { x: Number(b.x) || 0, y });
       }
-      bottom = y + h + REFLOW_GAP_MM;
+      bottom = y + h + gapMm;
     }
   }
 

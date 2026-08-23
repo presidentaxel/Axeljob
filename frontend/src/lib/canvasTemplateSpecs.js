@@ -241,22 +241,6 @@ const main = (extra = {}) => ({
   ...extra,
 });
 
-const header = (extra = {}) => ({
-  zone: 'header',
-  color: '#ffffff',
-  ...extra,
-});
-
-const sideLight = (extra = {}) => ({
-  zone: 'sidebar-light',
-  font_size: 8.5,
-  color: '#333333',
-  show_section_title: true,
-  title_style: 'sidebar-category',
-  list_format: 'list',
-  ...extra,
-});
-
 const px = (n) => (n * 25.4) / 96;
 
 /** Layout colonne gauche type Modern / Creative (sidebar 200px). */

@@ -669,12 +669,24 @@
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
-  justify-content: center;
+  /* Défaut gauche — le centrage est opt-in (Élégant/Bold via --align-center). */
+  justify-content: flex-start;
   align-items: baseline;
   gap: 0;
   margin: 0;
   max-width: 100%;
   overflow: visible;
+  text-align: left;
+}
+
+.free-canvas-block__contact--header-bar.free-canvas-block__contact--align-center {
+  justify-content: center;
+  text-align: center;
+}
+
+.free-canvas-block__contact--header-bar.free-canvas-block__contact--align-right {
+  justify-content: flex-end;
+  text-align: right;
 }
 
 .free-canvas-block__contact--header-bar > span {

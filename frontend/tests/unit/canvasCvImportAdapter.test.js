@@ -385,6 +385,93 @@ test('elegant preserveReplicaGeometry : photo au-dessus du nom, pas de restack A
   assert.ok(experiences.y + experiences.h <= formations.y + 0.05, 'pas de chevauchement exp/formation');
 });
 
+test('classic preserveReplicaGeometry : contenu main reste page 1 (lanes séparées)', () => {
+  const cv = {
+    prenom: 'Louis',
+    nom: 'Vedovato',
+    titre_professionnel: 'Product Owner',
+    telephone: '06',
+    email: 'a@b.fr',
+    resume: 'Résumé professionnel court pour le header Classic.',
+    experiences: [
+      {
+        entreprise: 'A',
+        poste: 'B',
+        date_debut: '2022',
+        date_fin: "Aujourd'hui",
+        lieu: 'Paris',
+        bullet_points: ['Un', 'Deux'],
+      },
+    ],
+    formations: [{ etablissement: 'ESSEC', diplome: 'BBA', date: '2023' }],
+    projets: [{ nom: 'CRM', description: 'Desc' }],
+    competences: { techniques: ['Python'], logiciels: ['Notion'] },
+    photo_url: 'https://example.com/p.jpg',
+  };
+  const { layout } = adaptCanvasLayoutForCv(cv, createCanvasLayoutForTemplate({ id: 'classic' }), {
+    preserveReplicaGeometry: true,
+    templateId: 'classic',
+  });
+  assert.equal(layout.pages.length, 1, 'pas de pagination parasite sidebar/main');
+  const page0 = layout.pages[0].blocks;
+  assert.ok(page0.some((b) => b.type === 'experiences'), 'expériences sur page 1');
+  assert.ok(page0.some((b) => b.type === 'shape:rect'), 'fonds couleurs sur page 1');
+  const contact = page0.find((b) => b.type === 'contact');
+  const experiences = page0.find((b) => b.type === 'experiences');
+  assert.ok(
+    experiences.y >= contact.y + contact.h - 0.05,
+    'main sous le header (pas de chevauchement contact)',
+  );
+});
+
+test('classic sidebar : cascade resserre les blocs (pas de trous après shrink)', () => {
+  const cv = {
+    prenom: 'L',
+    nom: 'V',
+    titre_professionnel: 'PO',
+    telephone: '06',
+    email: 'a@b.fr',
+    resume: 'Résumé.',
+    experiences: [{ entreprise: 'A', poste: 'B', bullet_points: ['x'] }],
+    formations: [{ etablissement: 'E', diplome: 'D', date: '2023' }],
+    projets: [{ nom: 'P', description: 'D' }],
+    competences: {
+      techniques: ['Python', 'Lire'],
+      logiciels: ['Excel', 'Claude'],
+      autres: ['Permis B'],
+      langues: [
+        { langue: 'Français', niveau: 'Natif' },
+        { langue: 'Japonais', niveau: 'C2' },
+      ],
+    },
+    certifications: [{ nom: 'Cert', organisme: 'AXEL', date: '2026' }],
+    photo_url: 'https://example.com/p.jpg',
+  };
+  const { layout } = adaptCanvasLayoutForCv(cv, createCanvasLayoutForTemplate({ id: 'classic' }), {
+    preserveReplicaGeometry: true,
+    templateId: 'classic',
+  });
+  const side = layout.pages[0].blocks
+    .filter((b) => b.style?.zone === 'sidebar-light')
+    .sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0));
+  assert.ok(side.length >= 4, `sidebar trop courte: ${side.length}`);
+  for (let i = 1; i < side.length; i += 1) {
+    const prev = side[i - 1];
+    const gap = side[i].y - (prev.y + prev.h);
+    assert.ok(
+      gap >= -0.05 && gap < 1.5,
+      `gap sidebar ${prev.type}→${side[i].type}: ${gap.toFixed(1)}mm`,
+    );
+  }
+});
+
+test('minimal : contact sous identity sans overlap (hauteur nom+titre)', () => {
+  const blocks = createCanvasLayoutForTemplate({ id: 'minimal' }).pages[0].blocks;
+  const identity = blocks.find((b) => b.type === 'identity');
+  const contact = blocks.find((b) => b.type === 'contact');
+  assert.ok(contact.y >= identity.y + identity.h + 1, `gap trop serré: id.h=${identity.h} contact.y=${contact.y}`);
+});
+
 test('adaptCanvasLayoutForCv : freeform sans replica_cascade ne cascade pas', () => {
   const freeformNoCascade = {
     version: 3,

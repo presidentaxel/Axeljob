@@ -762,16 +762,21 @@ function estimateSkillsHeight(block, cv) {
     const rows = Math.ceil(total / 5);
     return Math.min(55, Math.max(16, 12 + rows * 5.5));
   }
-  // Ligne « Outils : … » si nestés
-  const base = estimateListHeight(items.length, 3.8, 10, 50);
+  // Sidebar catégorie seule (sans titre COMPÉTENCES) : base plus basse.
+  const baseHmm = block.style?.section_label ? 9 : 5.5;
+  const base = estimateListHeight(items.length, 3.4, baseHmm, 50);
   return outils.length ? Math.min(60, base + 6) : base;
 }
 
 const SEMANTIC_MIN_HEIGHT_MM = 10;
+/** Floor bas quand on shrink-to-content (répliques) — évite des blocs sidebar trop hauts. */
+const SEMANTIC_SHRINK_FLOOR_MM = 7;
 
 /** Hauteur estimée (mm) d'un bloc sémantique selon le CV. */
 export function estimateSemanticBlockHeight(block, cv, { respectCurrentMin = false } = {}) {
-  const floor = respectCurrentMin ? (Number(block.h) || SEMANTIC_MIN_HEIGHT_MM) : SEMANTIC_MIN_HEIGHT_MM;
+  const floor = respectCurrentMin
+    ? (Number(block.h) || SEMANTIC_MIN_HEIGHT_MM)
+    : SEMANTIC_SHRINK_FLOOR_MM;
   if (!block || DECORATIVE_TYPES.has(block.type)) return floor;
 
   switch (block.type) {
@@ -796,12 +801,15 @@ export function estimateSemanticBlockHeight(block, cv, { respectCurrentMin = fal
       return Math.max(floor, estimateExperiencesHeight(cv));
     case 'formations':
       return Math.max(floor, estimateListHeight(resolveFormations(cv).length, 6, 8, 70));
-    case 'certifications':
-      return Math.max(floor, estimateListHeight(resolveCertifications(cv).length, 5, 7, 45));
+    case 'certifications': {
+      const n = resolveCertifications(cv).length;
+      const base = block.style?.sidebar_category && !block.style?.section_label ? 5 : 7;
+      return Math.max(floor, estimateListHeight(n, 4.5, base, 45));
+    }
     case 'projets':
       return Math.max(floor, estimateListHeight(resolveProjets(cv).length, 8, 8, 65));
     case 'languages':
-      return Math.max(floor, estimateListHeight(resolveLangues(cv).length, 4, 7, 35));
+      return Math.max(floor, estimateListHeight(resolveLangues(cv).length, 3.6, 7, 35));
     case 'skills':
       return Math.max(floor, estimateSkillsHeight(block, cv));
     default:
@@ -824,6 +832,8 @@ const REPLICA_CASCADE_GAP_MM = 0;
 /**
  * Réplique Stable (freeform) : ajuste h au contenu et empile sans chevauchement,
  * en respectant `lock_geometry` / photo (header figé).
+ * Cascade **par lane** (header / main / sidebar) — un seul curseur vertical
+ * cassait Classic (sidebar-right) et poussait le texte en page 2.
  * Ne réordonne PAS les types (contrairement à ATS spatial).
  */
 export function fitReplicaLayoutToContent(layout, cv) {
@@ -832,31 +842,39 @@ export function fitReplicaLayoutToContent(layout, cv) {
   for (let pageIndex = 0; pageIndex < next.pages.length; pageIndex += 1) {
     const page = next.pages[pageIndex];
     const blocks = [...(page.blocks || [])];
-    const sorted = [...blocks].sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0));
-    let cursorBottom = null;
-    for (const block of sorted) {
-      const locked = Boolean(block.style?.lock_geometry)
-        || block.type === 'photo'
-        || DECORATIVE_TYPES.has(block.type);
-      let h = Number(block.h) || 0;
-      let y = Number(block.y) || 0;
-      if (!locked && !DECORATIVE_TYPES.has(block.type)) {
-        // Shrink to content — les hauteurs preset trop larges créaient des « trous » entre sections.
-        const est = estimateSemanticBlockHeight(block, cv, { respectCurrentMin: false });
-        if (est > 0 && Math.abs(est - h) > 0.8) {
-          h = est;
-          next = patchBlockHeight(next, block.id, h);
+    const lanes = new Map();
+    for (const block of blocks) {
+      if (DECORATIVE_TYPES.has(block.type)) continue;
+      const lane = blockLane(block);
+      if (!lanes.has(lane)) lanes.set(lane, []);
+      lanes.get(lane).push(block);
+    }
+    for (const laneBlocks of lanes.values()) {
+      const sorted = [...laneBlocks].sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0));
+      let cursorBottom = null;
+      for (const block of sorted) {
+        const locked = Boolean(block.style?.lock_geometry) || block.type === 'photo';
+        let h = Number(block.h) || 0;
+        let y = Number(block.y) || 0;
+        if (!locked) {
+          const est = estimateSemanticBlockHeight(block, cv, { respectCurrentMin: false });
+          if (est > 0 && Math.abs(est - h) > 0.8) {
+            h = est;
+            next = patchBlockHeight(next, block.id, h);
+          }
         }
-      }
-      if (!locked && cursorBottom != null) {
-        const minY = cursorBottom + REPLICA_CASCADE_GAP_MM;
-        if (y < minY - 0.05) {
-          y = minY;
-          next = setBlockPosition(next, block.id, { x: Number(block.x) || 0, y });
+        if (!locked && cursorBottom != null) {
+          // Snap (monter ou descendre) — sinon les y preset trop bas laissent des trous
+          // après shrink (sidebar Classic : Logiciels/Certifs/Langues trop espacés).
+          const targetY = cursorBottom + REPLICA_CASCADE_GAP_MM;
+          if (Math.abs(y - targetY) > 0.05) {
+            y = targetY;
+            next = setBlockPosition(next, block.id, { x: Number(block.x) || 0, y });
+          }
         }
+        const bottom = y + Math.max(h, 0.2);
+        cursorBottom = cursorBottom == null ? bottom : Math.max(cursorBottom, bottom);
       }
-      const bottom = y + Math.max(h, 0.2);
-      cursorBottom = cursorBottom == null ? bottom : Math.max(cursorBottom, bottom);
     }
   }
   return next;
@@ -1033,6 +1051,7 @@ export function buildAdaptedCanvasLayoutForCv(cv, template, options = {}) {
     options.preserveReplicaGeometry
     || templateId === 'minimal'
     || templateId === 'elegant'
+    || templateId === 'classic'
     || base?.freeform,
   );
   const result = adaptCanvasLayoutForCv(cv, base, {

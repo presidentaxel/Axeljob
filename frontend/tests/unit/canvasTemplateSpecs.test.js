@@ -85,6 +85,7 @@ test('minimal réplique Stable : contact inline ·, titres Title Case, exp ATS',
   assert.equal(identity.style?.lock_geometry, true);
   assert.equal(contact.style?.lock_geometry, true);
   assert.equal(contact.style?.contact_layout, 'header-bar');
+  assert.equal(contact.style?.align, 'left', 'Minimal : contact à gauche (pas center Élégant)');
   assert.equal(contact.style?.contact_separator, ' · ');
   assert.equal(contact.style?.contact_icons, false);
   assert.deepEqual(contact.bind, ['telephone', 'email', 'linkedin']);
@@ -161,4 +162,39 @@ test('elegant réplique Stable : header centré + photo, chips, freeform', () =>
   assert.equal(layout.replica_cascade, true);
   assert.equal(getTemplateCanvasFidelity('elegant')?.fidelityCss, 'rich');
   assert.equal(getTemplateCanvasFidelity('elegant')?.readiness, 'near-replica');
+});
+
+test('classic réplique Stable : header sombre + résumé + sidebar droite', () => {
+  const blocks = buildTemplateBlocks({ id: 'classic' });
+  const photo = blocks.find((b) => b.type === 'photo');
+  const identity = blocks.find((b) => b.type === 'identity');
+  const contact = blocks.find((b) => b.type === 'contact');
+  const resume = blocks.find((b) => b.type === 'resume');
+  const experiences = blocks.find((b) => b.type === 'experiences');
+  const projets = blocks.find((b) => b.type === 'projets');
+  const sidebarSkills = blocks.filter((b) => b.type === 'skills' && b.style?.zone === 'sidebar-light');
+
+  assert.ok(photo && identity && contact && resume);
+  assert.equal(photo.style?.zone, 'header');
+  assert.equal(identity.style?.header_layout, 'inline-title');
+  assert.equal(identity.style?.zone, 'header');
+  assert.equal(resume.style?.zone, 'header');
+  assert.equal(resume.style?.show_section_title, false);
+  assert.ok(resume.y > identity.y, 'résumé sous identity dans le header');
+  assert.equal(contact.style?.align, 'center');
+  assert.equal(contact.style?.contact_icons, true);
+  assert.ok(contact.y > resume.y, 'contact sous résumé');
+
+  assert.equal(experiences.style?.exp_style, 'classic');
+  assert.equal(experiences.style?.title_style, 'classic-main');
+  assert.ok(projets, 'projets en main (pas profil)');
+  assert.ok(!blocks.some((b) => b.type === 'resume' && b.style?.zone === 'main'), 'pas de Profil en main');
+  assert.ok(sidebarSkills.length >= 1, 'compétences en sidebar');
+  assert.ok(sidebarSkills.every((b) => b.x > 100), 'sidebar à droite');
+
+  const layout = createCanvasLayoutForTemplate({ id: 'classic' });
+  assert.equal(layout.freeform, true);
+  assert.equal(layout.replica_cascade, true);
+  assert.equal(getTemplateCanvasFidelity('classic')?.fidelityCss, 'rich');
+  assert.equal(getTemplateCanvasFidelity('classic')?.readiness, 'near-replica');
 });

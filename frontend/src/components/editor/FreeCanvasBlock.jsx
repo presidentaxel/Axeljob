@@ -204,12 +204,18 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       const email = showEmail ? getFieldDisplayValue(cv, 'email') : '';
       const linkedin = showLinkedin ? getFieldDisplayValue(cv, 'linkedin') : '';
       const showIcons = Boolean(style.contact_icons);
+      // Alignement explicite : défaut gauche (Minimal). Élégant/Bold = center via style.align.
+      // Évite qu’un justify-content global centre tous les header-bar.
+      const contactAlign = style.align === 'center' || style.align === 'right' || style.align === 'left'
+        ? style.align
+        : 'left';
       const contactCls = [
         'free-canvas-block__contact',
         style.contact_divider ? 'free-canvas-block__contact--divider' : '',
         style.contact_uppercase ? 'free-canvas-block__contact--uppercase' : '',
         showIcons ? 'free-canvas-block__contact--icons' : '',
         style.contact_layout === 'header-bar' ? 'free-canvas-block__contact--header-bar' : '',
+        style.contact_layout === 'header-bar' ? `free-canvas-block__contact--align-${contactAlign}` : '',
       ].filter(Boolean).join(' ');
 
       const renderContactValue = (path, value, placeholder) => {
@@ -266,9 +272,14 @@ function SemanticBlockBody({ block, cv, editing = false }) {
         return (
           <p
             className={contactCls}
-            style={style.align === 'left' || style.align === 'right'
-              ? { justifyContent: style.align === 'right' ? 'flex-end' : 'flex-start' }
-              : undefined}
+            style={{
+              justifyContent: contactAlign === 'right'
+                ? 'flex-end'
+                : contactAlign === 'center'
+                  ? 'center'
+                  : 'flex-start',
+              textAlign: contactAlign,
+            }}
           >
             {parts.map((part, i) => (
               <span key={part.id}>
@@ -314,11 +325,13 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       const resumeText = resolveBoundText(cv, resumeBind);
       return (
         <div className="free-canvas-block__section-list">
-          <SectionHeading
-            label={style.section_label || 'PROFIL'}
-            titleStyle={style.title_style}
-            zone={style.zone}
-          />
+          {style.show_section_title === false ? null : (
+            <SectionHeading
+              label={style.section_label || 'PROFIL'}
+              titleStyle={style.title_style}
+              zone={style.zone}
+            />
+          )}
           <p className="free-canvas-block__resume">
             {editing ? (
               <CanvasEditableField path={resumePath} editing tag="span">
@@ -336,9 +349,10 @@ function SemanticBlockBody({ block, cv, editing = false }) {
     case 'experiences': {
       const items = resolveExperiences(cv, limit);
       if (items.length === 0) return <p className="free-canvas-block__placeholder">Expériences</p>;
-      const boldExp = style.exp_style === 'bold' || style.exp_style === 'elegant';
+      const boldExp = style.exp_style === 'bold' || style.exp_style === 'elegant' || style.exp_style === 'classic';
       const elegantExp = style.exp_style === 'elegant';
       const minimalExp = style.exp_style === 'minimal';
+      const classicExp = style.exp_style === 'classic';
       const atsLabels = boldExp || minimalExp;
       const hyphenDates = minimalExp || elegantExp;
       return (
@@ -407,7 +421,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
               </p>
             ) : null;
             const bulletsNode = (
-              <ul className={`free-canvas-block__bullets${minimalExp || elegantExp ? ' free-canvas-block__bullets--dash' : ''}`}>
+              <ul className={`free-canvas-block__bullets${minimalExp || elegantExp || classicExp ? ' free-canvas-block__bullets--dash' : ''}`}>
                 {(exp.bullet_points || []).filter((b) => editing || (b || '').trim()).map((b, j) => (
                   <li key={j}>
                     {editing ? (
@@ -424,7 +438,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
             return (
               <div
                 key={exp.id || i}
-                className={`free-canvas-block__exp${format === 'compact' ? ' free-canvas-block__exp--compact' : ''}${boldExp ? ' free-canvas-block__exp--bold' : ''}${minimalExp ? ' free-canvas-block__exp--minimal' : ''}${elegantExp ? ' free-canvas-block__exp--elegant' : ''}`}
+                className={`free-canvas-block__exp${format === 'compact' ? ' free-canvas-block__exp--compact' : ''}${boldExp ? ' free-canvas-block__exp--bold' : ''}${minimalExp ? ' free-canvas-block__exp--minimal' : ''}${elegantExp ? ' free-canvas-block__exp--elegant' : ''}${classicExp ? ' free-canvas-block__exp--classic' : ''}`}
               >
                 {minimalExp ? (
                   <>
@@ -462,8 +476,18 @@ function SemanticBlockBody({ block, cv, editing = false }) {
                         {posteNode}
                       </p>
                     ) : null}
-                    {clientsNode}
-                    {bulletsNode}
+                    {/* Stable Classic : bullets puis Clients (filet au-dessus) */}
+                    {classicExp ? (
+                      <>
+                        {bulletsNode}
+                        {clientsNode}
+                      </>
+                    ) : (
+                      <>
+                        {clientsNode}
+                        {bulletsNode}
+                      </>
+                    )}
                   </>
                 )}
               </div>
@@ -475,7 +499,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
     case 'formations': {
       const items = resolveFormations(cv, limit);
       if (items.length === 0) return <p className="free-canvas-block__placeholder">Formations</p>;
-      const minimalForm = style.formation_style === 'minimal';
+      const minimalForm = style.formation_style === 'minimal' || style.formation_style === 'classic';
       return (
         <div className="free-canvas-block__section-list">
           <SectionHeading

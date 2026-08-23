@@ -213,6 +213,7 @@
 
 .free-canvas-page--tpl-bold .free-canvas-block__contact--header-bar {
   text-align: center;
+  justify-content: center;
   margin: 0;
   color: rgba(255, 255, 255, 0.75);
 }
@@ -275,13 +276,231 @@
   margin: 0 0 0.3mm;
 }
 
-/* ---------- Classique ---------- */
+/* ---------- Classique (réplique templates/classic — AXE-389) ---------- */
+.free-canvas-page--tpl-classic {
+  color: #1a1a1a;
+  font-family: Arial, sans-serif;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__inner {
+  padding: 0;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__photo--border-light,
+.free-canvas-page--tpl-classic .free-canvas-block__image-frame-inner.free-canvas-block__photo--border-light {
+  border-radius: 50%;
+  /* Stable : border 2px solid white — pas de box-shadow (clippé par overflow → arcs blancs). */
+  border: 2px solid #ffffff;
+  box-shadow: none;
+  box-sizing: border-box;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__photo {
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__identity--inline-title,
+.free-canvas-page--tpl-classic .free-canvas-block__identity--classic-header {
+  color: #ffffff;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__identity--inline-title .free-canvas-block__identity-name,
+.free-canvas-page--tpl-classic .free-canvas-block__identity--classic-header .free-canvas-block__identity-name {
+  font-family: var(--free-canvas-font-heading) !important;
+  font-size: 15pt !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  letter-spacing: 0;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__identity--inline-title .free-canvas-block__identity-sep {
+  font-weight: 400;
+  opacity: 0.7;
+  margin: 0 1.06mm;
+  color: #ffffff;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__identity--inline-title .free-canvas-block__identity-title,
+.free-canvas-page--tpl-classic .free-canvas-block__identity--inline-title .free-canvas-block__identity-title--accent {
+  font-family: var(--free-canvas-font-heading) !important;
+  font-size: 10pt !important;
+  font-weight: 600 !important;
+  opacity: 0.95;
+  color: #ffffff !important;
+  font-style: normal !important;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__inner--zone-header .free-canvas-block__resume {
+  font-family: Arial, sans-serif !important;
+  font-size: 9pt !important;
+  font-weight: 400 !important;
+  font-style: italic !important;
+  text-align: justify;
+  color: #ffffff !important;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__contact--header-bar {
+  justify-content: center;
+  text-align: center;
+  color: #ffffff !important;
+  font-family: var(--free-canvas-font-heading) !important;
+  font-size: 9pt !important;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__contact-icon {
+  color: rgba(255, 255, 255, 0.9);
+  margin-right: 0.53mm;
+  vertical-align: middle;
+}
+
 .free-canvas-page--tpl-classic .free-canvas-block__section-title--classic-main {
-  font-size: 9pt;
-  font-weight: 700;
-  color: var(--free-canvas-accent);
-  border-bottom: 0.35mm solid var(--free-canvas-accent);
+  font-family: var(--free-canvas-font-heading) !important;
+  font-size: 9.5pt !important;
+  font-weight: 700 !important;
+  color: var(--free-canvas-section-title, var(--free-canvas-accent, #1e2a3a)) !important;
+  /* Stable .section-title { border-bottom: 2px solid accent } */
+  border-bottom: 2px solid var(--free-canvas-accent, #1e2a3a) !important;
+  padding-bottom: 1px;
+  margin: 0 0 1.06mm !important;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__exp--classic,
+.free-canvas-page--tpl-classic .free-canvas-block__exp--bold {
+  margin-bottom: 1.59mm;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__exp--classic .free-canvas-block__exp-header,
+.free-canvas-page--tpl-classic .free-canvas-block__exp--bold .free-canvas-block__exp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2.5mm;
+  margin-bottom: 0.3mm;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__exp--classic .free-canvas-block__ats-label,
+.free-canvas-page--tpl-classic .free-canvas-block__exp--bold .free-canvas-block__ats-label {
+  font-weight: 400;
+  font-size: 0.9em;
+  color: #666666;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__exp--classic .free-canvas-block__exp-dates,
+.free-canvas-page--tpl-classic .free-canvas-block__exp--bold .free-canvas-block__exp-dates {
+  font-size: 8.5pt !important;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__exp--classic .free-canvas-block__exp-entreprise strong,
+.free-canvas-page--tpl-classic .free-canvas-block__exp--bold .free-canvas-block__exp-entreprise strong {
+  font-weight: 700;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__exp--classic .free-canvas-block__exp-role,
+.free-canvas-page--tpl-classic .free-canvas-block__exp--bold .free-canvas-block__exp-role {
+  margin: 0 0 0.53mm;
+  font-size: 9pt !important;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__exp--classic .free-canvas-block__exp-clients,
+.free-canvas-page--tpl-classic .free-canvas-block__exp--bold .free-canvas-block__exp-clients {
+  font-style: italic;
+  font-size: 8.5pt;
+  color: #555555;
+  /* Stable .exp-clients { border-top: 1px solid #e8e8e8; margin-top: 6px; padding-top: 4px } */
+  margin: 1.59mm 0 0;
+  padding-top: 1.06mm;
+  border-top: 1px solid #e8e8e8;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__bullets--dash {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__bullets--dash li {
+  position: relative;
+  padding-left: 2.6mm;
+  margin: 0;
+  font-size: 8.5pt !important;
+  line-height: 1.35;
+  color: #1a1a1a !important;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__bullets--dash li::before {
+  content: '-';
+  position: absolute;
+  left: 0;
+  color: #1a1a1a;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__formation--minimal .free-canvas-block__formation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2.5mm;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__formation--minimal .free-canvas-block__formation-diplome {
+  font-weight: 700;
+  font-size: 9pt !important;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__formation--minimal .free-canvas-block__formation-date {
+  font-size: 8.5pt !important;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__sidebar-item {
+  font-size: 8.5pt !important;
+  margin: 0 0 0.13mm;
+  line-height: 1.3;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__section-title--bold-sidebar-section,
+.free-canvas-page--tpl-classic .free-canvas-block__section-title--bold-main,
+.free-canvas-page--tpl-classic .free-canvas-block__section-title--sidebar-category {
+  font-family: var(--free-canvas-font-heading) !important;
+  font-size: 9.5pt !important;
+  font-weight: 700 !important;
+  color: var(--free-canvas-accent, #1e2a3a) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid var(--free-canvas-accent, #1e2a3a) !important;
+  margin: 0 0 1.06mm;
+  padding-bottom: 1px;
+}
+
+/* Catégories sidebar (pas de filet — Stable .sidebar-category) */
+.free-canvas-page--tpl-classic .free-canvas-block__section-title--bold-sidebar-category,
+.free-canvas-page--tpl-classic .free-canvas-block__sidebar-category {
+  font-family: var(--free-canvas-font-heading) !important;
+  font-size: 9.5pt !important;
+  font-weight: 700 !important;
+  color: var(--free-canvas-accent, #1e2a3a) !important;
+  text-transform: none;
+  letter-spacing: 0;
+  border-bottom: 0 !important;
+  margin: 0 0 1.06mm;
+  padding-bottom: 0;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__pdf-fidelity-badge {
+  display: none;
 }
 
 /* ---------- Minimal (réplique mono-colonne — AXE-346) ---------- */
@@ -324,6 +543,7 @@
   margin: 0;
   line-height: 1.35;
   text-align: left !important;
+  justify-content: flex-start !important;
 }
 
 .free-canvas-page--tpl-minimal .free-canvas-block__contact--header-bar .free-canvas-block__contact-spacer {

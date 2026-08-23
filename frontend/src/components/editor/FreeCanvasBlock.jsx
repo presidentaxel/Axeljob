@@ -352,19 +352,21 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       const boldExp = style.exp_style === 'bold'
         || style.exp_style === 'elegant'
         || style.exp_style === 'classic'
-        || style.exp_style === 'modern';
+        || style.exp_style === 'modern'
+        || style.exp_style === 'executive';
       const elegantExp = style.exp_style === 'elegant';
       const minimalExp = style.exp_style === 'minimal';
       const classicExp = style.exp_style === 'classic';
       const impactExp = style.exp_style === 'bold';
       const modernExp = style.exp_style === 'modern';
+      const executiveExp = style.exp_style === 'executive';
       const atsLabels = boldExp || minimalExp;
-      const hyphenDates = minimalExp || elegantExp || impactExp || modernExp;
-      const dashBullets = minimalExp || elegantExp || classicExp || impactExp || modernExp;
-      const clientsAfterBullets = classicExp || impactExp || modernExp;
-      const secteurInline = impactExp || modernExp;
+      const hyphenDates = minimalExp || elegantExp || impactExp || modernExp || executiveExp;
+      const dashBullets = minimalExp || elegantExp || classicExp || impactExp || modernExp || executiveExp;
+      const clientsAfterBullets = classicExp || impactExp || modernExp || executiveExp;
+      const secteurInline = impactExp || modernExp || executiveExp;
       return (
-        <div className={`free-canvas-block__section-list${boldExp ? ' free-canvas-block__section-list--bold-exp' : ''}${minimalExp ? ' free-canvas-block__section-list--minimal-exp' : ''}${elegantExp ? ' free-canvas-block__section-list--elegant-exp' : ''}${modernExp ? ' free-canvas-block__section-list--modern-exp' : ''}`}>
+        <div className={`free-canvas-block__section-list${boldExp ? ' free-canvas-block__section-list--bold-exp' : ''}${minimalExp ? ' free-canvas-block__section-list--minimal-exp' : ''}${elegantExp ? ' free-canvas-block__section-list--elegant-exp' : ''}${modernExp ? ' free-canvas-block__section-list--modern-exp' : ''}${executiveExp ? ' free-canvas-block__section-list--executive-exp' : ''}`}>
           <SectionHeading
             label={style.section_label || SECTION_LABELS.experiences}
             titleStyle={style.title_style}
@@ -446,7 +448,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
             return (
               <div
                 key={exp.id || i}
-                className={`free-canvas-block__exp${format === 'compact' ? ' free-canvas-block__exp--compact' : ''}${boldExp ? ' free-canvas-block__exp--bold' : ''}${minimalExp ? ' free-canvas-block__exp--minimal' : ''}${elegantExp ? ' free-canvas-block__exp--elegant' : ''}${classicExp ? ' free-canvas-block__exp--classic' : ''}${modernExp ? ' free-canvas-block__exp--modern' : ''}`}
+                className={`free-canvas-block__exp${format === 'compact' ? ' free-canvas-block__exp--compact' : ''}${boldExp ? ' free-canvas-block__exp--bold' : ''}${minimalExp ? ' free-canvas-block__exp--minimal' : ''}${elegantExp ? ' free-canvas-block__exp--elegant' : ''}${classicExp ? ' free-canvas-block__exp--classic' : ''}${modernExp ? ' free-canvas-block__exp--modern' : ''}${executiveExp ? ' free-canvas-block__exp--executive' : ''}`}
               >
                 {minimalExp ? (
                   <>

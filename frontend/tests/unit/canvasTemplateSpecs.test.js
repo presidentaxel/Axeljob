@@ -297,6 +297,56 @@ test('parseCanvasTheme applique template_options live (Modern)', () => {
   assert.equal(sidebarBg?.style?.color, '#1a365d');
 });
 
+test('executive réplique Stable : header band + sidebar droite + freeform', () => {
+  const blocks = buildTemplateBlocks({ id: 'executive' });
+  const photo = blocks.find((b) => b.type === 'photo');
+  const identity = blocks.find((b) => b.type === 'identity');
+  const contact = blocks.find((b) => b.type === 'contact');
+  const resume = blocks.find((b) => b.type === 'resume');
+  const experiences = blocks.find((b) => b.type === 'experiences');
+  const formations = blocks.find((b) => b.type === 'formations');
+  const shapes = blocks.filter((b) => b.type === 'shape:rect');
+  const sidebarSkills = blocks.filter((b) => b.type === 'skills' && b.style?.zone === 'sidebar-light');
+
+  assert.ok(photo && identity && contact && resume && experiences);
+  assert.equal(photo.style?.zone, 'header');
+  assert.equal(photo.style?.photo_border, 'accent');
+  assert.equal(photo.style?.lock_geometry, true);
+  assert.ok(photo.w > 14 && photo.w < 18, 'photo ~60px');
+
+  assert.equal(identity.style?.header_layout, 'inline-title');
+  assert.equal(identity.style?.lock_geometry, true);
+  assert.equal(resume.style?.show_section_title, false);
+  assert.equal(resume.style?.lock_geometry, true);
+  assert.ok(resume.y > identity.y, 'résumé sous identity');
+
+  assert.equal(contact.style?.contact_layout, 'header-bar');
+  assert.equal(contact.style?.align, 'center');
+  assert.equal(contact.style?.contact_icons, true);
+  assert.deepEqual(contact.bind, ['telephone', 'email', 'linkedin']);
+  assert.ok(contact.y > resume.y, 'contact sous résumé');
+
+  assert.equal(experiences.style?.exp_style, 'executive');
+  assert.equal(experiences.style?.title_style, 'executive-main');
+  assert.equal(formations.style?.formation_style, 'minimal');
+  assert.ok(sidebarSkills.length >= 2, 'compétences sidebar');
+  assert.ok(sidebarSkills.every((b) => b.x > 100), 'sidebar à droite');
+  assert.ok(shapes.length >= 3, 'header + barre accent + sidebar');
+
+  const theme = parseCanvasTheme({ id: 'executive' });
+  assert.match(theme.font_heading, /Georgia/);
+  assert.equal(theme.color_header, '#0f172a');
+  assert.equal(theme.color_sidebar, '#f8f6f0');
+  assert.equal(theme.color_accent, '#b8860b');
+  assert.equal(theme.color_section_title, '#0f172a');
+
+  const layout = createCanvasLayoutForTemplate({ id: 'executive' });
+  assert.equal(layout.freeform, true);
+  assert.equal(layout.replica_cascade, true);
+  assert.equal(getTemplateCanvasFidelity('executive')?.readiness, 'near-replica');
+  assert.equal(getTemplateCanvasFidelity('executive')?.fidelityCss, 'rich');
+});
+
 test('classic réplique Stable : header sombre + résumé + sidebar droite', () => {
   const blocks = buildTemplateBlocks({ id: 'classic' });
   const photo = blocks.find((b) => b.type === 'photo');

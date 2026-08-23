@@ -789,7 +789,8 @@ export function estimateSemanticBlockHeight(block, cv, { respectCurrentMin = fal
       if (block.style?.zone === 'header') {
         return Math.min(14, Math.max(10, 8 + chars * 0.06));
       }
-      return Math.max(16, Math.min(52, 12 + chars * 0.22));
+      // Titre section + corps 9pt : ancien 0.22 mm/char gonflait Profil→Expérience.
+      return Math.max(11, Math.min(40, 8 + chars * 0.12));
     }
     case 'experiences':
       return Math.max(floor, estimateExperiencesHeight(cv));

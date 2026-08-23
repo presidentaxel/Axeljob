@@ -547,6 +547,15 @@
   border-bottom: 0.26mm solid #edf2f7;
 }
 
+/* Profil : un peu moins de padding bas pour coller Stable (texte court + section suivante) */
+.free-canvas-page--tpl-elegant .free-canvas-block[data-block-type='resume'] .free-canvas-block__section-list {
+  padding-bottom: 1.06mm;
+}
+
+.free-canvas-page--tpl-elegant .free-canvas-block[data-block-type='experiences'] .free-canvas-block__section-list {
+  padding-top: 1.06mm;
+}
+
 .free-canvas-page--tpl-elegant .free-canvas-block__pdf-fidelity-badge {
   display: none;
 }

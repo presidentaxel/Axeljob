@@ -80,6 +80,13 @@ test('estimateSemanticBlockHeight : expériences volumineuses', () => {
   assert.ok(h > 50);
 });
 
+test('estimateSemanticBlockHeight : résumé court reste compact (Profil→Exp)', () => {
+  const cv = { resume: "J'ai fait un stage de 20 mois en tant que Product Owner chez Michelin." };
+  const h = estimateSemanticBlockHeight({ type: 'resume', h: 40, style: { zone: 'main' } }, cv);
+  assert.ok(h < 22, `resume trop haut: ${h}mm`);
+  assert.ok(h >= 11);
+});
+
 test('inferThemeFromProfile : hints accent prioritaire', () => {
   const analysis = analyzeCvProfile(DENSE_CV);
   const theme = inferThemeFromProfile(analysis, { accent_color: '#ff5500' });

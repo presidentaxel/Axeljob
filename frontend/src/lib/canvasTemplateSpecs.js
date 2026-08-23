@@ -712,9 +712,9 @@ export function buildTemplateBlocks(template) {
       const pad = px(28);
       const W = PAGE_WIDTH_MM - pad * 2;
       const yHeader = px(18);
-      // name 18pt×1.15 + title 10pt + marges ≈ 32–34px
-      const identityH = px(34);
-      const contactY = yHeader + identityH + px(4);
+      // name 18pt×1.15 + title 10pt×1.3 + marge titre ≈ 48px (34px overflowait sur le contact)
+      const identityH = px(48);
+      const contactY = yHeader + identityH + px(6);
       const contactH = px(14);
       const yBody = contactY + contactH + px(8) + px(6);
       const section = (label, extra = {}) => ({

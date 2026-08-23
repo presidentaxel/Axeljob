@@ -824,6 +824,8 @@ const REPLICA_CASCADE_GAP_MM = 0;
 /**
  * Réplique Stable (freeform) : ajuste h au contenu et empile sans chevauchement,
  * en respectant `lock_geometry` / photo (header figé).
+ * Cascade **par lane** (header / main / sidebar) — un seul curseur vertical
+ * cassait Classic (sidebar-right) et poussait le texte en page 2.
  * Ne réordonne PAS les types (contrairement à ATS spatial).
  */
 export function fitReplicaLayoutToContent(layout, cv) {
@@ -832,31 +834,37 @@ export function fitReplicaLayoutToContent(layout, cv) {
   for (let pageIndex = 0; pageIndex < next.pages.length; pageIndex += 1) {
     const page = next.pages[pageIndex];
     const blocks = [...(page.blocks || [])];
-    const sorted = [...blocks].sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0));
-    let cursorBottom = null;
-    for (const block of sorted) {
-      const locked = Boolean(block.style?.lock_geometry)
-        || block.type === 'photo'
-        || DECORATIVE_TYPES.has(block.type);
-      let h = Number(block.h) || 0;
-      let y = Number(block.y) || 0;
-      if (!locked && !DECORATIVE_TYPES.has(block.type)) {
-        // Shrink to content — les hauteurs preset trop larges créaient des « trous » entre sections.
-        const est = estimateSemanticBlockHeight(block, cv, { respectCurrentMin: false });
-        if (est > 0 && Math.abs(est - h) > 0.8) {
-          h = est;
-          next = patchBlockHeight(next, block.id, h);
+    const lanes = new Map();
+    for (const block of blocks) {
+      if (DECORATIVE_TYPES.has(block.type)) continue;
+      const lane = blockLane(block);
+      if (!lanes.has(lane)) lanes.set(lane, []);
+      lanes.get(lane).push(block);
+    }
+    for (const laneBlocks of lanes.values()) {
+      const sorted = [...laneBlocks].sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0));
+      let cursorBottom = null;
+      for (const block of sorted) {
+        const locked = Boolean(block.style?.lock_geometry) || block.type === 'photo';
+        let h = Number(block.h) || 0;
+        let y = Number(block.y) || 0;
+        if (!locked) {
+          const est = estimateSemanticBlockHeight(block, cv, { respectCurrentMin: false });
+          if (est > 0 && Math.abs(est - h) > 0.8) {
+            h = est;
+            next = patchBlockHeight(next, block.id, h);
+          }
         }
-      }
-      if (!locked && cursorBottom != null) {
-        const minY = cursorBottom + REPLICA_CASCADE_GAP_MM;
-        if (y < minY - 0.05) {
-          y = minY;
-          next = setBlockPosition(next, block.id, { x: Number(block.x) || 0, y });
+        if (!locked && cursorBottom != null) {
+          const minY = cursorBottom + REPLICA_CASCADE_GAP_MM;
+          if (y < minY - 0.05) {
+            y = minY;
+            next = setBlockPosition(next, block.id, { x: Number(block.x) || 0, y });
+          }
         }
+        const bottom = y + Math.max(h, 0.2);
+        cursorBottom = cursorBottom == null ? bottom : Math.max(cursorBottom, bottom);
       }
-      const bottom = y + Math.max(h, 0.2);
-      cursorBottom = cursorBottom == null ? bottom : Math.max(cursorBottom, bottom);
     }
   }
   return next;

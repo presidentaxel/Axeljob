@@ -107,6 +107,41 @@ body.cv-layout-body {
   color: #334155;
   text-align: center;
 }
+/* Zones sombres (sidebar-left Modern/Creative, header Classic/Bold) : texte clair. */
+.cv-layout-block[data-zone="sidebar"] .cv-layout-identity-name,
+.cv-layout-block[data-zone="header"] .cv-layout-identity-name {
+  color: #ffffff;
+}
+.cv-layout-block[data-zone="sidebar"] .cv-layout-identity-title,
+.cv-layout-block[data-zone="header"] .cv-layout-identity-title,
+.cv-layout-block[data-zone="sidebar"] .cv-layout-identity-sep,
+.cv-layout-block[data-zone="header"] .cv-layout-identity-sep {
+  color: rgba(255, 255, 255, 0.85);
+}
+.cv-layout-block[data-zone="sidebar"] .cv-layout-contact p,
+.cv-layout-block[data-zone="sidebar"] .cv-layout-contact--header-bar,
+.cv-layout-block[data-zone="header"] .cv-layout-contact p,
+.cv-layout-block[data-zone="header"] .cv-layout-contact--header-bar,
+.cv-layout-block[data-zone="sidebar"] .cv-layout-sidebar-item,
+.cv-layout-block[data-zone="header"] .cv-layout-sidebar-item,
+.cv-layout-block[data-zone="sidebar"] .cv-layout-block__inner,
+.cv-layout-block[data-zone="header"] .cv-layout-block__inner {
+  color: rgba(255, 255, 255, 0.92);
+}
+.cv-layout-block[data-zone="sidebar"] .cv-layout-identity-divider,
+.cv-layout-block[data-zone="header"] .cv-layout-identity-divider {
+  background: rgba(255, 255, 255, 0.25);
+}
+.cv-layout-block[data-zone="sidebar"] .cv-layout-section-title--twin-sidebar,
+.cv-layout-block[data-zone="sidebar"] .cv-layout-section-title--modern-sidebar,
+.cv-layout-block[data-zone="sidebar"] .cv-layout-sidebar-category {
+  color: rgba(255, 255, 255, 0.94);
+  border-bottom-color: rgba(255, 255, 255, 0.28);
+}
+.cv-layout-block[data-zone="sidebar"] .cv-layout-section-title--creative-sidebar {
+  color: var(--layout-accent, #f59e0b);
+  border-bottom-color: rgba(255, 255, 255, 0.28);
+}
 .cv-layout-contact-segment {
   display: inline-flex;
   align-items: center;
@@ -218,17 +253,24 @@ body.cv-layout-body {
   padding-left: 1.5mm;
   padding-bottom: 0;
 }
-/* Twins catalogue (AXE-38 tranche 2). */
+/* Twins catalogue (AXE-38). */
 .cv-layout-section-title--twin-main {
   border-bottom: 0.55mm solid var(--layout-accent, #1e293b);
   letter-spacing: 0.04em;
   padding-bottom: 0.6mm;
 }
-.cv-layout-section-title--twin-sidebar {
+.cv-layout-section-title--twin-sidebar,
+.cv-layout-section-title--modern-sidebar {
   font-size: 8pt;
   letter-spacing: 0.08em;
-  color: var(--layout-accent, #1e293b);
+  color: var(--layout-section-title, var(--layout-accent, #1e293b));
   border-bottom: 0.25mm solid color-mix(in srgb, var(--layout-accent, #1e293b) 35%, transparent);
+}
+.cv-layout-section-title--creative-sidebar {
+  font-size: 8pt;
+  letter-spacing: 0.08em;
+  color: var(--layout-accent, #f59e0b);
+  border-bottom: 0.25mm solid rgba(255, 255, 255, 0.28);
 }
 .cv-layout-shape-svg {
   width: 100%;
@@ -282,8 +324,11 @@ def render_html(
         merged_theme.get("color_section_title") or merged_theme.get("color_accent") or "#1e293b"
     )
     sidebar = _esc(merged_theme.get("color_sidebar") or "#64748b")
+    header = _esc(merged_theme.get("color_header") or sidebar)
     font_heading = _esc(merged_theme.get("font_heading") or "Inter")
     font_body = _esc(merged_theme.get("font_body") or font_heading)
+    template_id = str(merged_theme.get("template_id") or "").strip().lower()
+    tpl_class = f" cv-layout-doc--tpl-{_esc(template_id)}" if template_id else ""
 
     pages_html: list[str] = []
     for page in pages:
@@ -315,13 +360,14 @@ def render_html(
   --layout-accent: {accent};
   --layout-section-title: {section_title};
   --layout-sidebar: {sidebar};
+  --layout-header: {header};
   --layout-font-heading: {font_heading};
   --layout-font-body: {font_body};
 }}
 </style>
 </head>
 <body class="cv-layout-body">
-<div class="cv-layout-doc">{body}</div>
+<div class="cv-layout-doc{tpl_class}">{body}</div>
 </body>
 </html>"""
 
@@ -338,8 +384,11 @@ def _render_block(cv: dict, block: dict) -> str:
     inner_style = _style_attr(_typography_declarations(block_style))
     inner = _render_semantic(cv, block) if btype in SEMANTIC_TYPES else _render_non_semantic(block)
     bid = _esc(str(block.get("id") or ""))
+    zone = str(block_style.get("zone") or "").strip()
+    zone_attr = f' data-zone="{_esc(zone)}"' if zone else ""
     return (
-        f'<div class="cv-layout-block" data-block-id="{bid}" data-type="{_esc(btype)}" '
+        f'<div class="cv-layout-block" data-block-id="{bid}" data-type="{_esc(btype)}"'
+        f"{zone_attr} "
         f'style="{style_attr}">'
         f'<div class="cv-layout-block__inner"{inner_style}>{inner}</div></div>'
     )
@@ -746,11 +795,11 @@ def _title_style_modifier(title_style: str) -> str:
         "minimal-section",
     }:
         return " cv-layout-section-title--twin-main"
+    if ts in {"modern-sidebar", "sidebar"}:
+        return " cv-layout-section-title--modern-sidebar"
+    if ts in {"creative-sidebar", "sidebar-creative"}:
+        return " cv-layout-section-title--creative-sidebar"
     if ts in {
-        "modern-sidebar",
-        "creative-sidebar",
-        "sidebar-creative",
-        "sidebar",
         "bold-sidebar-section",
         "executive-sidebar-section",
         "bold-sidebar-category",
@@ -879,11 +928,32 @@ def _image_frame_html(
 
 
 def _image_border_css(style: dict[str, Any]) -> str:
-    border_mm = style.get("photo_border") or style.get("image_border_mm")
-    if border_mm is None or _num(border_mm) <= 0:
+    """Bordure photo / image : mm numériques ou presets twin (`light`, `accent`, …)."""
+    raw = style.get("photo_border")
+    if raw is None:
+        raw = style.get("image_border_mm")
+    if raw is None:
+        return ""
+
+    preset = str(raw).strip().lower() if not isinstance(raw, (int, float)) else ""
+    accent_border = "var(--layout-accent, #1e293b)"
+    presets: dict[str, tuple[float, str]] = {
+        "light": (0.8, "rgba(255, 255, 255, 0.3)"),
+        "accent": (0.8, accent_border),
+        "accent-thick": (1.1, accent_border),
+        "accent-thin": (0.45, accent_border),
+    }
+    if preset in presets:
+        mm, color = presets[preset]
+        override = style.get("image_border_color") or style.get("photo_border_color")
+        if isinstance(override, str) and override.strip() and preset != "light":
+            color = _css_value(override.strip())
+        return f"border:{mm}mm solid {color};"
+
+    if _num(raw) <= 0:
         return ""
     border_color = style.get("image_border_color") or style.get("photo_border_color") or "#1e293b"
-    return f"border:{_num(border_mm)}mm solid {_css_value(str(border_color))};"
+    return f"border:{_num(raw)}mm solid {_css_value(str(border_color))};"
 
 
 # Paths SVG alignés sur frontend/src/lib/canvasShapePresets.js (viewBox 0 0 100 100).

@@ -509,9 +509,11 @@ class TestLayoutRenderer(unittest.TestCase):
         layout = {
             "version": 3,
             "theme": {
+                "template_id": "creative",
                 "color_accent": "#f59e0b",
                 "color_section_title": "#6366f1",
-                "color_sidebar": "#64748b",
+                "color_sidebar": "#6366f1",
+                "color_header": "#6366f1",
             },
             "pages": [
                 {
@@ -540,8 +542,24 @@ class TestLayoutRenderer(unittest.TestCase):
                             "h": 40,
                             "z": 2,
                             "style": {
+                                "zone": "sidebar",
+                                "color": "#ffffff",
                                 "section_label": "COMPÉTENCES",
                                 "title_style": "creative-sidebar",
+                            },
+                        },
+                        {
+                            "id": "photo",
+                            "type": "photo",
+                            "x": 10,
+                            "y": 10,
+                            "w": 30,
+                            "h": 30,
+                            "z": 3,
+                            "style": {
+                                "zone": "sidebar",
+                                "shape": "circle",
+                                "photo_border": "accent",
                             },
                         },
                         {
@@ -551,7 +569,7 @@ class TestLayoutRenderer(unittest.TestCase):
                             "y": 130,
                             "w": 180,
                             "h": 40,
-                            "z": 3,
+                            "z": 4,
                             "limit": 1,
                             "style": {
                                 "section_label": "PARCOURS",
@@ -565,15 +583,49 @@ class TestLayoutRenderer(unittest.TestCase):
         }
         html = render_html(_sample_cv(), layout)
         self.assertIn("--layout-section-title: #6366f1", html)
+        self.assertIn("--layout-header: #6366f1", html)
+        self.assertIn("cv-layout-doc--tpl-creative", html)
         self.assertIn("cv-layout-section-title--twin-main", html)
-        self.assertIn("cv-layout-section-title--twin-sidebar", html)
+        self.assertIn("cv-layout-section-title--creative-sidebar", html)
         self.assertIn("cv-layout-section-title--sidebar-bar", html)
+        self.assertIn('data-zone="sidebar"', html)
         self.assertIn("cv-layout-ats-label", html)
         self.assertIn("cv-layout-bullets--dash", html)
         self.assertIn("cv-layout-bullets--chevron", html)
         self.assertIn("Organisation :", html)
         # Dates twin : tiret ASCII
         self.assertRegex(html, r"\d{4} - \d{4}|\d{4} - | - \d{4}")
+
+    def test_photo_border_light_preset(self):
+        layout = {
+            "version": 3,
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "ph",
+                            "type": "photo",
+                            "x": 5,
+                            "y": 5,
+                            "w": 28,
+                            "h": 28,
+                            "z": 1,
+                            "style": {
+                                "shape": "circle",
+                                "zone": "sidebar",
+                                "photo_border": "light",
+                            },
+                        }
+                    ],
+                }
+            ],
+        }
+        cv = _sample_cv()
+        cv["photo_url"] = "https://example.com/p.jpg"
+        html = render_html(cv, layout)
+        self.assertIn("rgba(255, 255, 255, 0.3)", html)
+        self.assertIn('data-zone="sidebar"', html)
 
 
 if __name__ == "__main__":

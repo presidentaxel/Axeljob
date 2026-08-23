@@ -50,10 +50,19 @@ Classification UI : `frontend/src/lib/canvasPdfFidelity.js`
 
 Les `title_style` catalogue (`modern-main`, `creative-main`, `classic-main`,
 `executive-main`, `bold-main`, `elegant-section`, `minimal-section`, variants
-sidebar) sont mappés en PDF (`twin-main` / `twin-sidebar` / `sidebar-bar`) via
-`--layout-section-title` / `--layout-accent` / `--layout-sidebar` du thème.
+sidebar) sont mappés en PDF (`twin-main` / `modern-sidebar` / `creative-sidebar`
+/ `sidebar-bar`) via `--layout-section-title` / `--layout-accent` /
+`--layout-sidebar` / `--layout-header` du thème.
+
+Zones sombres (`style.zone: sidebar|header`) : texte identité / contact / listes
+en blanc (le fond vient des `shape:rect` du layout). Presets `photo_border`
+(`light`, `accent`, `accent-thick`, `accent-thin`) exportés.
 
 Les effets de bloc (`style.effect`) ne sont pas exportés → **partial**.
+
+**Limite :** le PDF n’embarque pas tout `CanvasTemplateFidelity.css` (typo fine,
+espacements twin). Objectif = chrome + couleurs + structure lisibles, pas un
+clone pixel-perfect Stable.
 
 ---
 

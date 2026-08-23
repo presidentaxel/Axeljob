@@ -287,9 +287,18 @@
 }
 
 .free-canvas-page--tpl-classic .free-canvas-block__photo--border-light,
+.free-canvas-page--tpl-classic .free-canvas-block__image-frame-inner.free-canvas-block__photo--border-light {
+  border-radius: 50%;
+  /* Stable : border 2px solid white — pas de box-shadow (clippé par overflow → arcs blancs). */
+  border: 2px solid #ffffff;
+  box-shadow: none;
+  box-sizing: border-box;
+}
+
 .free-canvas-page--tpl-classic .free-canvas-block__photo {
   border-radius: 50%;
-  box-shadow: 0 0 0 0.53mm #ffffff;
+  object-fit: cover;
+  object-position: center;
 }
 
 .free-canvas-page--tpl-classic .free-canvas-block__identity--inline-title,

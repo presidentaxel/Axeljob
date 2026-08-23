@@ -385,6 +385,39 @@ test('elegant preserveReplicaGeometry : photo au-dessus du nom, pas de restack A
   assert.ok(experiences.y + experiences.h <= formations.y + 0.05, 'pas de chevauchement exp/formation');
 });
 
+test('adaptCanvasLayoutForCv : freeform sans replica_cascade ne cascade pas', () => {
+  const freeformNoCascade = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    freeform: true,
+    pages: [{
+      id: 'p1',
+      blocks: [
+        {
+          id: 'exp', type: 'experiences', bind: 'experiences',
+          x: 10, y: 40, w: 90, h: 20, z: 3, style: { zone: 'main' },
+        },
+        {
+          id: 'side', type: 'formations', bind: 'formations',
+          x: 110, y: 40, w: 80, h: 30, z: 3, style: { zone: 'sidebar' },
+        },
+      ],
+    }],
+    theme: {},
+  };
+  const cv = {
+    experiences: [{ entreprise: 'A', poste: 'B', bullet_points: ['x', 'y', 'z'] }],
+    formations: [{ etablissement: 'ESSEC', diplome: 'BBA', date: '2023' }],
+  };
+  const { layout } = adaptCanvasLayoutForCv(cv, freeformNoCascade, { forImport: true });
+  assert.notEqual(layout.replica_cascade, true);
+  const side = layout.pages[0].blocks.find((b) => b.id === 'side');
+  assert.ok(side, 'bloc sidebar conservé');
+  assert.equal(side.y, 40, 'colonne latérale non déplacée par cascade réplique');
+});
+
 test('reflowColumnBlocksOnPage : empile bien hors freeform (régression du flag)', () => {
   const layout = {
     version: 3,

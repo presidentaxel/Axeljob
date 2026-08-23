@@ -668,7 +668,7 @@
 .free-canvas-block__contact--header-bar {
   display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
   align-items: baseline;
   gap: 0;

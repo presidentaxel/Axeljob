@@ -986,17 +986,17 @@ export function adaptCanvasLayoutForCv(cv, layout, {
     }
   }
 
-  next = applyLayoutPagination(next);
   // ATS spatial réordonne identity→contact→photo et casse les répliques Stable
   // (ex. Élégant : photo centrée au-dessus du nom). Skip si géométrie préservée.
+  // Cascade verticale uniquement pour les répliques déclarées (`replica_cascade`),
+  // pas pour un freeform PDF multi-colonnes.
   if (keepGeometry) {
-    next = fitReplicaLayoutToContent(next, cv);
-    next = {
-      ...next,
-      freeform: true,
-      replica_cascade: true,
-    };
+    if (next.replica_cascade === true) {
+      next = fitReplicaLayoutToContent(next, cv);
+    }
+    next = applyLayoutPagination(next);
   } else {
+    next = applyLayoutPagination(next);
     next = applyAtsLayoutOptimizations(next);
   }
 

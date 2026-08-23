@@ -277,6 +277,26 @@ test('modern réplique Stable : sidebar gauche + main PROFIL/EXP/FORMATION', () 
   assert.equal(getTemplateCanvasFidelity('modern')?.fidelityCss, 'rich');
 });
 
+test('parseCanvasTheme applique template_options live (Modern)', () => {
+  const template = {
+    id: 'modern',
+    options: [
+      { key: 'sidebar_color', type: 'color', default: '#2d3748' },
+      { key: 'accent_color', type: 'color', default: '#3182ce' },
+    ],
+  };
+  const theme = parseCanvasTheme(template, {
+    sidebar_color: '#1a365d',
+    accent_color: '#e53e3e',
+  });
+  assert.equal(theme.color_sidebar, '#1a365d');
+  assert.equal(theme.color_accent, '#e53e3e');
+  assert.equal(theme.color_section_title, '#e53e3e');
+  const blocks = buildTemplateBlocks(template, { sidebar_color: '#1a365d' });
+  const sidebarBg = blocks.find((b) => b.type === 'shape:rect');
+  assert.equal(sidebarBg?.style?.color, '#1a365d');
+});
+
 test('classic réplique Stable : header sombre + résumé + sidebar droite', () => {
   const blocks = buildTemplateBlocks({ id: 'classic' });
   const photo = blocks.find((b) => b.type === 'photo');

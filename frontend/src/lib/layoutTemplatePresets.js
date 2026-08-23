@@ -4,13 +4,17 @@
 import { buildTemplateBlocks, parseCanvasTheme } from './canvasTemplateSpecs.js';
 import { createBlankLayoutV3, createStarterLayoutV3, sanitizeLayoutV3 } from './cvLayoutModelV3.js';
 
-export function createCanvasLayoutForTemplate(template) {
+/**
+ * @param {object} template
+ * @param {Record<string, unknown>|null|undefined} [optionValues] Stable template_options live
+ */
+export function createCanvasLayoutForTemplate(template, optionValues = null) {
   if (!template?.id) return createStarterLayoutV3();
-  const blocks = buildTemplateBlocks(template);
+  const blocks = buildTemplateBlocks(template, optionValues);
   if (!blocks.length) return createStarterLayoutV3();
   const layout = createStarterLayoutV3();
   layout.pages[0].blocks = blocks;
-  layout.theme = { ...layout.theme, ...parseCanvasTheme(template) };
+  layout.theme = { ...layout.theme, ...parseCanvasTheme(template, optionValues) };
   // Répliques mono-colonne : géométrie mm calquée Stable — ne pas ré-empiler au reflow ATS.
   // `replica_cascade` : autorise le reflow colonne après auto-height (sans toucher lock_geometry).
   if (

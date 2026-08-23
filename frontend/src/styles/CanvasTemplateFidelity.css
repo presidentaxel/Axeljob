@@ -10,9 +10,19 @@
   padding: 0;
 }
 
-.free-canvas-page--tpl-modern .free-canvas-block__photo--border-light {
-  box-shadow: 0 0 0 0.8mm rgba(255, 255, 255, 0.3);
+.free-canvas-page--tpl-modern .free-canvas-block__photo--border-light,
+.free-canvas-page--tpl-modern .free-canvas-block__image-frame-inner.free-canvas-block__photo--border-light {
   border-radius: 50%;
+  /* Stable : border 3px solid rgba(255,255,255,0.3) — pas de box-shadow (clippé par overflow → arcs). */
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  box-shadow: none;
+  box-sizing: border-box;
+}
+
+.free-canvas-page--tpl-modern .free-canvas-block__photo {
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center;
 }
 
 .free-canvas-page--tpl-modern .free-canvas-block__identity--modern-sidebar,
@@ -60,7 +70,7 @@
 .free-canvas-page--tpl-modern .free-canvas-block__section-title--underline-accent {
   font-size: 9.5pt !important;
   font-weight: 700 !important;
-  color: var(--free-canvas-accent, #3182ce) !important;
+  color: var(--free-canvas-section-title, var(--free-canvas-accent, #3182ce)) !important;
   border-bottom: 2px solid var(--free-canvas-accent, #3182ce) !important;
   letter-spacing: 0.04em;
   text-transform: none;
@@ -111,19 +121,24 @@
   white-space: nowrap;
 }
 
+.free-canvas-page--tpl-modern .free-canvas-block__exp--modern .free-canvas-block__exp-entreprise strong {
+  color: #1a1a1a !important;
+  font-weight: 700 !important;
+}
+
 .free-canvas-page--tpl-modern .free-canvas-block__exp--modern .free-canvas-block__exp-role {
   font-size: 8.5pt !important;
   color: #555555 !important;
-  margin: 1px 0 3px;
+  margin: 0 0 3px;
 }
 
 .free-canvas-page--tpl-modern .free-canvas-block__exp-clients {
   font-style: italic;
   font-size: 8pt;
-  color: #777777;
-  margin: 2mm 0 0;
-  padding-top: 1mm;
-  border-top: 1px solid #e8e8e8;
+  color: #555555;
+  margin: 1mm 0 0;
+  padding-top: 0.8mm;
+  border-top: 1px solid #eeeeee;
 }
 
 .free-canvas-page--tpl-modern .free-canvas-block__bullets--dash {
@@ -155,11 +170,13 @@
 
 .free-canvas-page--tpl-modern .free-canvas-block__formation--minimal .free-canvas-block__formation-diplome {
   font-weight: 700;
+  color: #1a1a1a !important;
 }
 
 .free-canvas-page--tpl-modern .free-canvas-block__formation--minimal .free-canvas-block__formation-date {
   font-size: 8.5pt;
   font-weight: 700;
+  color: #1a1a1a !important;
   white-space: nowrap;
 }
 

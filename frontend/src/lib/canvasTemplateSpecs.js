@@ -118,8 +118,11 @@ function bar(x, y, w, h, color, z = 1) {
   return { type: 'shape:rect', x, y, w, h, z, style: { color } };
 }
 
-/** @param {object} template */
-export function parseCanvasTheme(template) {
+/**
+ * @param {object} template
+ * @param {Record<string, unknown>|null|undefined} [optionValues] valeurs live (Stable template_options)
+ */
+export function parseCanvasTheme(template, optionValues = null) {
   const id = template?.id || 'classic';
   const theme = {
     template_id: id,
@@ -155,23 +158,55 @@ export function parseCanvasTheme(template) {
       : theme.font_heading;
   }
 
+  const live = optionValues && typeof optionValues === 'object' ? optionValues : null;
+  const resolveOpt = (key, fallback) => {
+    if (live && live[key] != null && String(live[key]).trim() !== '') return live[key];
+    return fallback;
+  };
+
   const opts = template?.options;
   if (Array.isArray(opts)) {
     opts.forEach((o) => {
-      if (o?.key === 'accent_color' && o.default) {
-        theme.color_accent = o.default;
-        // Bold Stable : titres corps restent slate ; accent = filets/dates seulement.
-        if (id !== 'creative' && id !== 'bold') theme.color_section_title = o.default;
+      if (o?.key === 'accent_color') {
+        const val = resolveOpt('accent_color', o.default);
+        if (val) {
+          theme.color_accent = val;
+          // Bold Stable : titres corps restent slate ; accent = filets/dates seulement.
+          if (id !== 'creative' && id !== 'bold') theme.color_section_title = val;
+        }
       }
-      if (o?.key === 'header_color' && o.default) theme.color_header = o.default;
-      if (o?.key === 'sidebar_color' && o.default) theme.color_sidebar = o.default;
-      if (o?.key === 'font' && o.default) {
-        theme.font_heading = fontStackFromTemplateOption(o.default);
-        theme.font_body = id === 'executive' || id === 'minimal' || id === 'elegant'
-          ? 'Inter, sans-serif'
-          : theme.font_heading;
+      if (o?.key === 'header_color') {
+        const val = resolveOpt('header_color', o.default);
+        if (val) theme.color_header = val;
+      }
+      if (o?.key === 'sidebar_color') {
+        const val = resolveOpt('sidebar_color', o.default);
+        if (val) theme.color_sidebar = val;
+      }
+      if (o?.key === 'font') {
+        const val = resolveOpt('font', o.default);
+        if (val) {
+          theme.font_heading = fontStackFromTemplateOption(val);
+          theme.font_body = id === 'executive' || id === 'minimal' || id === 'elegant'
+            ? 'Inter, sans-serif'
+            : theme.font_heading;
+        }
       }
     });
+  } else if (live) {
+    // Template catalogue sans schema options (id seul) : appliquer les valeurs live.
+    if (live.accent_color) {
+      theme.color_accent = live.accent_color;
+      if (id !== 'creative' && id !== 'bold') theme.color_section_title = live.accent_color;
+    }
+    if (live.header_color) theme.color_header = live.header_color;
+    if (live.sidebar_color) theme.color_sidebar = live.sidebar_color;
+    if (live.font) {
+      theme.font_heading = fontStackFromTemplateOption(live.font);
+      theme.font_body = id === 'executive' || id === 'minimal' || id === 'elegant'
+        ? 'Inter, sans-serif'
+        : theme.font_heading;
+    }
   }
   if (id === 'creative') theme.color_section_title = theme.color_sidebar;
   return theme;
@@ -337,9 +372,13 @@ function sidebarCompetenceBlocksDetailed(x, w, startY, style, z) {
   ];
 }
 
-export function buildTemplateBlocks(template) {
+/**
+ * @param {object} template
+ * @param {Record<string, unknown>|null|undefined} [optionValues]
+ */
+export function buildTemplateBlocks(template, optionValues = null) {
   const id = template?.id;
-  const t = parseCanvasTheme(template);
+  const t = parseCanvasTheme(template, optionValues);
   const { SB, MAIN_L, MAIN_R, SB_R, H } = LAYOUT;
   const sx = SIDE_PAD_X;
   const sy = SIDE_PAD_Y;

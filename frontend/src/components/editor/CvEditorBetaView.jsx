@@ -379,12 +379,14 @@ function CvEditorBeta({
   }, [refreshCanvasDrafts]);
 
   const buildTemplateCanvasLayout = useCallback((template) => {
-    let next = template ? createCanvasLayoutForTemplate(template) : createCanvasLayoutBlank();
+    let next = template
+      ? createCanvasLayoutForTemplate(template, templateOptions)
+      : createCanvasLayoutBlank();
     for (let pi = 0; pi < (next.pages?.length || 0); pi += 1) {
       next = reflowColumnBlocksOnPage(next, pi);
     }
     return next;
-  }, []);
+  }, [templateOptions]);
 
   const saveCurrentCanvasDraft = useCallback(() => {
     const currentLayout = layoutRef.current;
@@ -705,7 +707,10 @@ function CvEditorBeta({
     setDesignBridgeConfirming(true);
     setDesignBridgeError('');
     try {
-      const applied = applyStableDesignToCanvas(cv, template, { templatesList });
+      const applied = applyStableDesignToCanvas(cv, template, {
+        templatesList,
+        templateOptions,
+      });
       if (!applied.ok || !applied.layout) {
         setDesignBridgeError(
           applied.reason === 'no_canvas_spec'
@@ -722,7 +727,7 @@ function CvEditorBeta({
     } finally {
       setDesignBridgeConfirming(false);
     }
-  }, [cv, templateId, templatesList, onTemplateIdChange, openCanvasContext]);
+  }, [cv, templateId, templateOptions, templatesList, onTemplateIdChange, openCanvasContext]);
 
   const handleDismissDesignBridge = useCallback(() => {
     setDesignBridgeOffer(null);

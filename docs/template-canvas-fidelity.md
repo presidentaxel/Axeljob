@@ -66,7 +66,7 @@ Source de vérité code : `TEMPLATE_CANVAS_FIDELITY` + `STABLE_CANVAS_TEMPLATE_I
 ### Modern — couches Stable à calquer (AXE-391)
 
 1. **HTML** `templates/modern/template.html` — sidebar gauche (photo, identité, CONTACT, compétences…), main PROFIL → EXP → FORMATION → PROJETS
-2. **CSS** `templates/modern/template.css` — sidebar 200px `#2d3748`, titres main underline accent `#3182ce`, photo 80px
+2. **CSS** `templates/modern/template.css` — sidebar 200px `#2d3748`, titres main underline accent `#3182ce`, photo 80px `border: 3px solid rgba(255,255,255,0.3)` (pas de box-shadow)
 3. **Canvas** `buildTemplateBlocks('modern')` + twin CSS + `exp_style: modern` + `title_style: modern-main|modern-sidebar` + `freeform` / `replica_cascade`
 
 ## Critères de « réplique native »

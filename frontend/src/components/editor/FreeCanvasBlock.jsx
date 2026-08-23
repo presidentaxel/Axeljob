@@ -421,7 +421,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
               </p>
             ) : null;
             const bulletsNode = (
-              <ul className={`free-canvas-block__bullets${minimalExp || elegantExp ? ' free-canvas-block__bullets--dash' : ''}`}>
+              <ul className={`free-canvas-block__bullets${minimalExp || elegantExp || classicExp ? ' free-canvas-block__bullets--dash' : ''}`}>
                 {(exp.bullet_points || []).filter((b) => editing || (b || '').trim()).map((b, j) => (
                   <li key={j}>
                     {editing ? (
@@ -476,8 +476,18 @@ function SemanticBlockBody({ block, cv, editing = false }) {
                         {posteNode}
                       </p>
                     ) : null}
-                    {clientsNode}
-                    {bulletsNode}
+                    {/* Stable Classic : bullets puis Clients (filet au-dessus) */}
+                    {classicExp ? (
+                      <>
+                        {bulletsNode}
+                        {clientsNode}
+                      </>
+                    ) : (
+                      <>
+                        {clientsNode}
+                        {bulletsNode}
+                      </>
+                    )}
                   </>
                 )}
               </div>

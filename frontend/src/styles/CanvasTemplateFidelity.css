@@ -212,11 +212,20 @@
   border: 0.8mm solid var(--free-canvas-accent);
 }
 
+.free-canvas-page--tpl-bold .free-canvas-block__inner--zone-header .free-canvas-block__resume {
+  color: rgba(255, 255, 255, 0.88) !important;
+  font-size: 9pt !important;
+  line-height: 1.45;
+  margin: 0;
+  text-align: justify;
+}
+
 .free-canvas-page--tpl-bold .free-canvas-block__contact--header-bar {
   text-align: center;
   justify-content: center;
   margin: 0;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.75) !important;
+  gap: 2mm;
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block__contact--header-bar .free-canvas-block__contact-icon {
@@ -224,10 +233,19 @@
   vertical-align: middle;
 }
 
+.free-canvas-page--tpl-bold .free-canvas-block__contact--header-bar .free-canvas-block__contact-spacer {
+  white-space: pre;
+  margin: 0 1.5mm;
+}
+
 .free-canvas-page--tpl-bold .free-canvas-block__contact--uppercase {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-size: 8.5pt;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__pdf-fidelity-badge {
+  display: none;
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block__exp--bold {
@@ -251,7 +269,7 @@
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block__exp-dates {
-  color: var(--free-canvas-accent);
+  color: var(--free-canvas-accent) !important;
   font-weight: 700;
   font-size: 8.5pt;
 }

@@ -396,18 +396,21 @@ export function buildTemplateBlocks(template) {
       const PHOTO_TOP = px(20);
       const PHOTO_H = px(64);
       const GAP = px(10);
-      // Hauteur initiale courte : replica_cascade ajuste au contenu (Stable = auto).
       const RESUME_H = px(36);
       const CONTACT_H = px(14);
-      const headerH = PHOTO_TOP + PHOTO_H + GAP + RESUME_H + GAP + CONTACT_H + px(16);
+      const headerPadBottom = px(16);
+      const headerH = PHOTO_TOP + PHOTO_H + GAP + RESUME_H + GAP + CONTACT_H + headerPadBottom;
       const bodyY = headerH + px(4);
       const resumeY = PHOTO_TOP + PHOTO_H + GAP;
       const contactY = resumeY + RESUME_H + GAP;
       const bodyH = H - bodyY;
+      // Header figé : sinon replica_cascade empile identity sous la photo (même lane).
+      const headerLock = { lock_geometry: true };
       const hdr = (extra = {}) => ({
         zone: 'header',
         color: '#ffffff',
         font_family: t.font_heading,
+        ...headerLock,
         ...extra,
       });
       const mainCol = (extra = {}) => ({
@@ -428,7 +431,15 @@ export function buildTemplateBlocks(template) {
         bg(0, 0, PAGE_WIDTH_MM, headerH, t.color_header, 0),
         bar(0, headerH, PAGE_WIDTH_MM, px(4), t.color_accent, 1),
         bg(SB_X, bodyY, SB, bodyH, t.color_sidebar, 0),
-        { type: 'photo', x: px(24), y: PHOTO_TOP, w: PHOTO_H, h: PHOTO_H, z: 5, style: { shape: 'circle', zone: 'header', photo_border: 'accent-thick' } },
+        {
+          type: 'photo',
+          x: px(24),
+          y: PHOTO_TOP,
+          w: PHOTO_H,
+          h: PHOTO_H,
+          z: 5,
+          style: { shape: 'circle', zone: 'header', photo_border: 'accent-thick', ...headerLock },
+        },
         {
           type: 'identity',
           bind: ['prenom', 'nom', 'titre_professionnel'],
@@ -453,11 +464,18 @@ export function buildTemplateBlocks(template) {
           w: PAGE_WIDTH_MM - px(48),
           h: RESUME_H,
           z: 5,
-          style: { ...hdr(), align: 'justify', font_size: 9, color: 'rgba(255,255,255,0.88)' },
+          style: {
+            ...hdr(),
+            align: 'justify',
+            font_size: 9,
+            color: 'rgba(255,255,255,0.88)',
+            // Stable : résumé dans le header, pas de titre « Profil »
+            show_section_title: false,
+          },
         },
         {
           type: 'contact',
-          bind: ['email', 'telephone', 'linkedin'],
+          bind: ['telephone', 'email', 'linkedin'],
           x: px(24),
           y: contactY,
           w: PAGE_WIDTH_MM - px(48),
@@ -470,6 +488,7 @@ export function buildTemplateBlocks(template) {
             font_size: 8.5,
             contact_icons: true,
             contact_uppercase: true,
+            contact_separator: ' ',
           },
         },
         {

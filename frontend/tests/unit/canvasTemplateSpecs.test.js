@@ -121,12 +121,20 @@ test('bold réplique Stable : header Impact + freeform + cascade', () => {
 
   assert.ok(photo && identity && contact && resume);
   assert.equal(photo.style?.photo_border, 'accent-thick');
+  assert.equal(photo.style?.lock_geometry, true);
   assert.equal(identity.style?.header_layout, 'inline-title');
   assert.equal(identity.style?.title_accent, true);
+  assert.equal(identity.style?.lock_geometry, true);
   assert.notEqual(identity.style?.bold, true, 'pas de bold inline 700 (twin CSS 800)');
+  assert.equal(resume.style?.show_section_title, false, 'pas de titre Profil dans le header');
+  assert.equal(resume.style?.lock_geometry, true);
   assert.equal(contact.style?.contact_layout, 'header-bar');
   assert.equal(contact.style?.align, 'center');
   assert.equal(contact.style?.contact_uppercase, true);
+  assert.equal(contact.style?.lock_geometry, true);
+  assert.deepEqual(contact.bind, ['telephone', 'email', 'linkedin']);
+  assert.ok(resume.y > identity.y, 'résumé sous identity');
+  assert.ok(contact.y > resume.y, 'contact sous résumé');
   assert.equal(experiences.style?.exp_style, 'bold');
   assert.equal(experiences.style?.title_style, 'bold-main');
   assert.equal(formations.style?.formation_style, 'minimal');

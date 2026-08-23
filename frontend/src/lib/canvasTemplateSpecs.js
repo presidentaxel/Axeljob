@@ -444,7 +444,7 @@ export function buildTemplateBlocks(template) {
           type: 'identity',
           bind: ['prenom', 'nom', 'titre_professionnel'],
           x: px(24) + PHOTO_H + px(16),
-          y: PHOTO_TOP + px(2),
+          y: PHOTO_TOP,
           w: PAGE_WIDTH_MM - px(24) - PHOTO_H - px(16) - px(24),
           h: PHOTO_H,
           z: 5,

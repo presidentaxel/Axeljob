@@ -214,6 +214,12 @@
 .free-canvas-page--tpl-bold .free-canvas-block[data-block-type='identity'] .free-canvas-block__inner--zone-header {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
+  height: 100%;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block[data-block-type='identity'] .free-canvas-block__identity--inline-title {
+  width: 100%;
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block__inner--zone-header .free-canvas-block__identity-title--accent {

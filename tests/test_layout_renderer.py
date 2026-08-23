@@ -504,6 +504,77 @@ class TestLayoutRenderer(unittest.TestCase):
         self.assertIn("cv-layout-section-title--pill", html)
         self.assertIn(">Parcours<", html)
 
+    def test_twin_title_and_exp_styles(self):
+        """AXE-38 tranche 2 : mapping title_style / exp_style catalogue."""
+        layout = {
+            "version": 3,
+            "theme": {
+                "color_accent": "#f59e0b",
+                "color_section_title": "#6366f1",
+                "color_sidebar": "#64748b",
+            },
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "exp",
+                            "type": "experiences",
+                            "x": 10,
+                            "y": 10,
+                            "w": 180,
+                            "h": 60,
+                            "z": 1,
+                            "style": {
+                                "section_label": "EXPÉRIENCE",
+                                "title_style": "creative-main",
+                                "exp_style": "creative",
+                            },
+                        },
+                        {
+                            "id": "skills",
+                            "type": "skills",
+                            "x": 10,
+                            "y": 80,
+                            "w": 60,
+                            "h": 40,
+                            "z": 2,
+                            "style": {
+                                "section_label": "COMPÉTENCES",
+                                "title_style": "creative-sidebar",
+                            },
+                        },
+                        {
+                            "id": "bold",
+                            "type": "experiences",
+                            "x": 10,
+                            "y": 130,
+                            "w": 180,
+                            "h": 40,
+                            "z": 3,
+                            "limit": 1,
+                            "style": {
+                                "section_label": "PARCOURS",
+                                "title_style": "bold-main",
+                                "exp_style": "bold",
+                            },
+                        },
+                    ],
+                }
+            ],
+        }
+        html = render_html(_sample_cv(), layout)
+        self.assertIn("--layout-section-title: #6366f1", html)
+        self.assertIn("cv-layout-section-title--twin-main", html)
+        self.assertIn("cv-layout-section-title--twin-sidebar", html)
+        self.assertIn("cv-layout-section-title--sidebar-bar", html)
+        self.assertIn("cv-layout-ats-label", html)
+        self.assertIn("cv-layout-bullets--dash", html)
+        self.assertIn("cv-layout-bullets--chevron", html)
+        self.assertIn("Organisation :", html)
+        # Dates twin : tiret ASCII
+        self.assertRegex(html, r"\d{4} - \d{4}|\d{4} - | - \d{4}")
+
 
 if __name__ == "__main__":
     unittest.main()

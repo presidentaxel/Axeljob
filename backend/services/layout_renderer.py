@@ -127,8 +127,8 @@ body.cv-layout-body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: var(--layout-accent, #1e293b);
-  border-bottom: 0.25mm solid rgba(30, 41, 59, 0.35);
+  color: var(--layout-section-title, var(--layout-accent, #1e293b));
+  border-bottom: 0.25mm solid var(--layout-accent, #1e293b);
   padding-bottom: 0.4mm;
 }
 .cv-layout-sidebar-category {
@@ -137,15 +137,34 @@ body.cv-layout-body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--layout-accent, #1e293b);
+  color: var(--layout-section-title, var(--layout-accent, #1e293b));
 }
 .cv-layout-exp { margin-bottom: 2mm; }
-.cv-layout-exp-header { display: flex; justify-content: space-between; gap: 2mm; font-weight: 600; }
-.cv-layout-exp-dates { font-weight: 500; color: #64748b; white-space: nowrap; font-size: 8pt; }
+.cv-layout-exp-header { display: flex; justify-content: space-between; gap: 2mm; align-items: baseline; font-weight: 600; }
+.cv-layout-exp-dates { font-weight: 500; color: var(--layout-sidebar, #64748b); white-space: nowrap; font-size: 8pt; }
 .cv-layout-exp-role { color: #64748b; font-size: 8pt; margin-bottom: 0.5mm; }
 .cv-layout-exp-clients { margin: 0 0 0.5mm; font-size: 8pt; color: #475569; }
+.cv-layout-ats-label { font-size: 0.9em; color: #999; font-weight: 400; }
 .cv-layout-bullets { margin: 0.5mm 0 0 3mm; padding: 0; }
 .cv-layout-bullets li { margin-bottom: 0.3mm; }
+.cv-layout-bullets--dash {
+  list-style: none;
+  margin-left: 0;
+  padding: 0;
+}
+.cv-layout-bullets--dash li {
+  position: relative;
+  padding-left: 2.8mm;
+}
+.cv-layout-bullets--dash li::before {
+  content: '-';
+  position: absolute;
+  left: 0;
+}
+.cv-layout-bullets--dash.cv-layout-bullets--chevron li::before {
+  content: '▸';
+  color: var(--layout-accent, #1e293b);
+}
 .cv-layout-chips { display: flex; flex-wrap: wrap; gap: 1mm; }
 .cv-layout-sidebar-item { margin: 0 0 0.5mm; font-size: 8pt; }
 .cv-layout-chip {
@@ -199,6 +218,18 @@ body.cv-layout-body {
   padding-left: 1.5mm;
   padding-bottom: 0;
 }
+/* Twins catalogue (AXE-38 tranche 2). */
+.cv-layout-section-title--twin-main {
+  border-bottom: 0.55mm solid var(--layout-accent, #1e293b);
+  letter-spacing: 0.04em;
+  padding-bottom: 0.6mm;
+}
+.cv-layout-section-title--twin-sidebar {
+  font-size: 8pt;
+  letter-spacing: 0.08em;
+  color: var(--layout-accent, #1e293b);
+  border-bottom: 0.25mm solid color-mix(in srgb, var(--layout-accent, #1e293b) 35%, transparent);
+}
 .cv-layout-shape-svg {
   width: 100%;
   height: 100%;
@@ -247,6 +278,10 @@ def render_html(
         pages = [{"id": "page-1", "blocks": []}]
 
     accent = _esc(merged_theme.get("color_accent") or "#1e293b")
+    section_title = _esc(
+        merged_theme.get("color_section_title") or merged_theme.get("color_accent") or "#1e293b"
+    )
+    sidebar = _esc(merged_theme.get("color_sidebar") or "#64748b")
     font_heading = _esc(merged_theme.get("font_heading") or "Inter")
     font_body = _esc(merged_theme.get("font_body") or font_heading)
 
@@ -278,6 +313,8 @@ def render_html(
 {LAYOUT_CSS}
 :root {{
   --layout-accent: {accent};
+  --layout-section-title: {section_title};
+  --layout-sidebar: {sidebar};
   --layout-font-heading: {font_heading};
   --layout-font-body: {font_body};
 }}
@@ -459,41 +496,114 @@ def _render_contact(cv: dict, style: dict[str, Any]) -> str:
 
 
 def _render_experiences(cv: dict, limit: Any, fmt: str, style: dict[str, Any] | None = None) -> str:
+    """Expériences : aligne FreeCanvasBlock (exp_style twin / ATS / dates / bullets)."""
     style = style or {}
+    exp_style = str(style.get("exp_style") or "").strip()
+    twin_exp = exp_style in {
+        "bold",
+        "elegant",
+        "classic",
+        "modern",
+        "executive",
+        "creative",
+        "minimal",
+    }
+    ats_labels = twin_exp  # même règle canvas : tous les twins + minimal
+    hyphen_dates = exp_style in {
+        "minimal",
+        "elegant",
+        "bold",
+        "modern",
+        "executive",
+        "creative",
+    }
+    dash_bullets = exp_style in {
+        "minimal",
+        "elegant",
+        "classic",
+        "bold",
+        "modern",
+        "executive",
+        "creative",
+    }
+    chevron_bullets = exp_style == "creative"
+    clients_after_bullets = exp_style in {
+        "classic",
+        "bold",
+        "modern",
+        "executive",
+        "creative",
+    }
+    secteur_inline = exp_style in {"bold", "modern", "executive", "creative"}
+    minimal_exp = exp_style == "minimal"
+
     items = bind.resolve_experiences(cv, limit if isinstance(limit, int | float) else None)
     if not items:
         return _section_with_style(
             "experiences", _placeholder("Expériences"), style, default_title=True
         )
+
+    ats_org = '<span class="cv-layout-ats-label">Organisation : </span>' if ats_labels else ""
+    ats_fn = '<span class="cv-layout-ats-label">Fonction : </span>' if ats_labels else ""
+    date_sep = " - " if hyphen_dates else " – "
+    bullet_cls = "cv-layout-bullets"
+    if dash_bullets:
+        bullet_cls += " cv-layout-bullets--dash"
+        if chevron_bullets:
+            bullet_cls += " cv-layout-bullets--chevron"
+
     rows = []
     for exp in items:
         ent = (exp.get("entreprise") or "").strip()
         poste = (exp.get("poste") or "").strip()
         lieu = (exp.get("lieu") or "").strip()
+        secteur = (exp.get("secteur") or "").strip()
         date_parts = [
             x
             for x in [(exp.get("date_debut") or "").strip(), (exp.get("date_fin") or "").strip()]
             if x
         ]
-        dates = " – ".join(date_parts)
-        date_line = " · ".join(x for x in [dates, lieu] if x)
-        header = f"<strong>{_text(ent or poste)}</strong>"
-        if date_line:
-            header += f'<span class="cv-layout-exp-dates">{_text(date_line)}</span>'
-        role = f'<div class="cv-layout-exp-role">{_text(poste)}</div>' if poste and ent else ""
+        dates = date_sep.join(date_parts)
+        if minimal_exp:
+            date_line = dates
+        else:
+            date_line = " · ".join(x for x in [dates, lieu] if x)
+
+        if minimal_exp:
+            left = f"{ats_org}<strong>{_text(ent or poste)}</strong>"
+            if poste and ent:
+                left += f" - {ats_fn}{_text(poste)}"
+            header = left
+            if date_line:
+                header += f'<span class="cv-layout-exp-dates">{_text(date_line)}</span>'
+            role = ""
+        else:
+            header = f"{ats_org}<strong>{_text(ent or poste)}</strong>"
+            if date_line:
+                header += f'<span class="cv-layout-exp-dates">{_text(date_line)}</span>'
+            role = ""
+            if poste and ent:
+                role_body = f"{ats_fn}{_text(poste)}"
+                if secteur_inline and secteur:
+                    role_body += f" - {_text(secteur)}"
+                role = f'<div class="cv-layout-exp-role">{role_body}</div>'
+
         clients = (exp.get("clients") or "").strip()
         clients_html = (
-            f'<p class="cv-layout-exp-clients"><strong>Clients :</strong> {_text(clients)}</p>'
-            if clients
-            else ""
+            f'<p class="cv-layout-exp-clients">Clients : {_text(clients)}</p>' if clients else ""
         )
         bullets = exp.get("bullet_points") or []
         bl = "".join(f"<li>{_text((b or '').strip())}</li>" for b in bullets if (b or "").strip())
+        bullets_html = f'<ul class="{bullet_cls}">{bl}</ul>' if bl else ""
         compact = " cv-layout-exp--compact" if fmt == "compact" else ""
+        mid = (
+            f"{bullets_html}{clients_html}"
+            if clients_after_bullets
+            else f"{clients_html}{bullets_html}"
+        )
         rows.append(
             f'<div class="cv-layout-exp{compact}">'
-            f'<div class="cv-layout-exp-header">{header}</div>{role}{clients_html}'
-            f'<ul class="cv-layout-bullets">{bl}</ul></div>'
+            f'<div class="cv-layout-exp-header">{header}</div>{role}{mid}</div>'
         )
     return _section_with_style("experiences", "".join(rows), style, default_title=True)
 
@@ -618,6 +728,38 @@ def _section(key: str, body: str) -> str:
     return _section_with_style(key, body, {}, default_title=True)
 
 
+def _title_style_modifier(title_style: str) -> str:
+    """Classe BEM pour title_style canvas twin / legacy."""
+    ts = (title_style or "").strip()
+    if not ts:
+        return ""
+    if ts in {"underline-accent", "pill", "sidebar-bar"}:
+        return f" cv-layout-section-title--{ts}"
+    if ts == "bold-main":
+        return " cv-layout-section-title--sidebar-bar"
+    if ts in {
+        "modern-main",
+        "creative-main",
+        "classic-main",
+        "executive-main",
+        "elegant-section",
+        "minimal-section",
+    }:
+        return " cv-layout-section-title--twin-main"
+    if ts in {
+        "modern-sidebar",
+        "creative-sidebar",
+        "sidebar-creative",
+        "sidebar",
+        "bold-sidebar-section",
+        "executive-sidebar-section",
+        "bold-sidebar-category",
+        "executive-sidebar-category",
+    }:
+        return " cv-layout-section-title--twin-sidebar"
+    return ""
+
+
 def _section_with_style(
     key: str,
     body: str,
@@ -630,9 +772,7 @@ def _section_with_style(
     custom = str(style.get("section_label") or "").strip()
     category = str(style.get("sidebar_category") or "").strip()
     title_style = str(style.get("title_style") or "").strip()
-    title_class = "cv-layout-section-title"
-    if title_style in {"underline-accent", "pill", "sidebar-bar"}:
-        title_class = f"{title_class} {title_class}--{title_style}"
+    title_class = f"cv-layout-section-title{_title_style_modifier(title_style)}"
     headings: list[str] = []
     if custom:
         headings.append(f'<h3 class="{title_class}">{_esc(custom)}</h3>')

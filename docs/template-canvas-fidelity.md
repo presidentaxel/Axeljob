@@ -30,7 +30,7 @@ Le template virtuel `beta` (`betaCanvasTemplate.js`) n’est **pas** une twin HT
 | `minimal` | single-column | near-replica | **rich** | Checklist visuelle OK (PR #170) |
 | `classic` | sidebar-right | near-replica | **rich** | Checklist visuelle + densité PDF (AXE-389 / PR #177) |
 | `modern` | sidebar-left | near-replica | **rich** | Checklist visuelle + densité PDF (AXE-391) |
-| `creative` | sidebar-left | near-replica | **rich** | Checklist visuelle + densité PDF (AXE-393) |
+| `creative` | sidebar-left | near-replica | **rich** | Checklist visuelle OK (PR #185 / AXE-393) |
 | `elegant` | single-column | near-replica | **rich** | Checklist visuelle OK (PR #174 / AXE-388) |
 | `executive` | sidebar-right | near-replica | **rich** | Checklist visuelle + densité PDF (AXE-392) |
 | `bold` | sidebar-right | **near-replica** | rich | Checklist visuelle (AXE-390) |
@@ -99,8 +99,8 @@ Pour un id catalogue :
 5. ~~Bold / Impact~~ (AXE-390 / PR #179) — near-replica
 6. ~~Modern~~ (AXE-391 / PR #181) — near-replica
 7. ~~Executive~~ (AXE-392 / PR #183) — near-replica
-8. **Creative** (AXE-393) — dernier twin sidebar-left
-9. Option ultérieure : assets `default_layout.json` ; close AXE-346 après checklist Creative
+8. ~~Creative~~ (AXE-393 / PR #185) — near-replica ; catalogue twins **complet**
+9. Option ultérieure : assets `default_layout.json` ; canvas↔PDF → [AXE-38](https://linear.app/axel-project/issue/AXE-38)
 
 ## Alignement contact header-bar
 

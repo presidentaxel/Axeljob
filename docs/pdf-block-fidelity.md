@@ -26,7 +26,7 @@ Classification UI : `frontend/src/lib/canvasPdfFidelity.js`
 | `contact` | oui | oui | ok | `contact_uppercase` / `contact_divider` exportés ; icônes téléphone/email/lien |
 | `photo` | oui | oui | ok | Focal, zoom, formes, bordures |
 | `resume` | oui | oui | ok | Typo bloc + rich text sanitize |
-| `experiences` | oui | oui | ok / **partial** | `exp_style: bold` → partial |
+| `experiences` | oui | oui | ok | `exp_style` twin (ATS, dates `-`/`–`, bullets dash / ▸ creative) |
 | `formations` | oui | oui | ok | |
 | `certifications` | oui | oui | ok | |
 | `projets` | oui | oui | ok | |
@@ -46,12 +46,12 @@ Classification UI : `frontend/src/lib/canvasPdfFidelity.js`
 | `shape:circle` … `shape:heart` | SVG | SVG | ok | Paths alignés sur `canvasShapePresets.js` |
 | Autres formes | — | — | **unsupported** | Doivent être ajoutées au renderer + matrice |
 
-## Styles template encore partiels
+## Styles template (twins)
 
-Les `title_style` template (`creative-main`, `executive-main`, `bold-main`,
-`elegant-section`, `minimal-section`, …) restent **partial** : le PDF utilise
-un titre de section générique (éventuellement `underline-accent` / `pill` /
-`sidebar-bar`).
+Les `title_style` catalogue (`modern-main`, `creative-main`, `classic-main`,
+`executive-main`, `bold-main`, `elegant-section`, `minimal-section`, variants
+sidebar) sont mappés en PDF (`twin-main` / `twin-sidebar` / `sidebar-bar`) via
+`--layout-section-title` / `--layout-accent` / `--layout-sidebar` du thème.
 
 Les effets de bloc (`style.effect`) ne sont pas exportés → **partial**.
 

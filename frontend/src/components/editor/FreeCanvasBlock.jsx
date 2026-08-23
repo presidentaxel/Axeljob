@@ -1001,7 +1001,10 @@ export default function FreeCanvasBlock({
   const h = validBlock ? block.h : 0;
   const z = validBlock ? block.z : 0;
   const blockStyle = validBlock ? block.style : undefined;
-  const autoHeight = validBlock && isAutoHeightBlockType(type);
+  // Répliques figées (Bold/Classic header) : garder h preset pour centrer vs photo.
+  const autoHeight = validBlock
+    && isAutoHeightBlockType(type)
+    && !blockStyle?.lock_geometry;
 
   const reportHeight = useCallback((newHmm) => {
     if (!autoHeight || typeof onBlockAutoHeight !== 'function' || !id) return;

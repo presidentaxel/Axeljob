@@ -212,14 +212,18 @@
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block[data-block-type='identity'] .free-canvas-block__inner--zone-header {
-  display: flex;
-  align-items: center;
+  display: flex !important;
+  align-items: center !important;
   justify-content: flex-start;
-  height: 100%;
+  height: 100% !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block[data-block-type='identity'] .free-canvas-block__identity--inline-title {
   width: 100%;
+  margin: 0;
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block__inner--zone-header .free-canvas-block__identity-title--accent {

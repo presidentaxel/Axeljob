@@ -1175,6 +1175,7 @@ function CvEditorBeta({
     for (const [blockId, newHmm] of pending.entries()) {
       const found = findBlock(next, blockId);
       if (!found?.block) continue;
+      if (found.block.style?.lock_geometry) continue;
       const cur = found.block.h ?? 0;
       if (Math.abs(newHmm - cur) < 0.4) continue;
       next = updateBlock(next, blockId, { h: newHmm });

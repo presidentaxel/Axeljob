@@ -449,12 +449,17 @@ test('bold header : lock_geometry garde photo | identity | résumé | contact', 
   const contact = page0.find((b) => b.type === 'contact');
   assert.ok(photo && identity && resume && contact);
   assert.ok(
-    Math.abs(identity.y - photo.y) < 2,
-    'identity reste à côté de la photo (pas empilée dessous)',
+    Math.abs(identity.y - photo.y) < 0.05,
+    'identity même y que la photo',
+  );
+  assert.ok(
+    Math.abs(identity.h - photo.h) < 0.05,
+    'identity même hauteur que la photo (centrage vertical)',
   );
   assert.ok(resume.y >= photo.y + photo.h - 0.05, 'résumé sous la rangée photo');
   assert.ok(contact.y >= resume.y + resume.h - 0.05, 'contact sous résumé');
   assert.equal(resume.style?.show_section_title, false);
+  assert.equal(identity.style?.lock_geometry, true);
 });
 
 test('classic sidebar : cascade resserre les blocs (pas de trous après shrink)', () => {

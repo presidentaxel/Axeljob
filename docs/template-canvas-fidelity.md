@@ -30,7 +30,7 @@ Le template virtuel `beta` (`betaCanvasTemplate.js`) n’est **pas** une twin HT
 | `minimal` | single-column | near-replica | **rich** | Checklist visuelle OK (PR #170) |
 | `classic` | sidebar-right | near-replica | **rich** | Checklist visuelle + densité PDF (AXE-389 / PR #177) |
 | `modern` | sidebar-left | near-replica | **rich** | Checklist visuelle + densité PDF (AXE-391) |
-| `creative` | sidebar-left | projection | medium | Titres creative-main |
+| `creative` | sidebar-left | near-replica | **rich** | Checklist visuelle + densité PDF (AXE-393) |
 | `elegant` | single-column | near-replica | **rich** | Checklist visuelle OK (PR #174 / AXE-388) |
 | `executive` | sidebar-right | near-replica | **rich** | Checklist visuelle + densité PDF (AXE-392) |
 | `bold` | sidebar-right | **near-replica** | rich | Checklist visuelle (AXE-390) |
@@ -75,6 +75,12 @@ Source de vérité code : `TEMPLATE_CANVAS_FIDELITY` + `STABLE_CANVAS_TEMPLATE_I
 2. **CSS** `templates/executive/template.css` — header `#0f172a` + barre 3px `#b8860b`, photo 60px, sidebar `#f8f6f0`, Georgia titres
 3. **Canvas** `buildTemplateBlocks('executive')` + twin CSS + `exp_style: executive` + `freeform` / `replica_cascade`
 
+### Creative — couches Stable à calquer (AXE-393)
+
+1. **HTML** `templates/creative/template.html` — sidebar gauche (photo, identité, CONTACT, compétences…), main PROFIL → EXP → FORMATION → PROJETS
+2. **CSS** `templates/creative/template.css` — sidebar 200px `#6366f1`, accent `#f59e0b` (photo / filets / labels sidebar / bullets ▸) ; titres main Beta = indigo sidebar (brand), filet ambre
+3. **Canvas** `buildTemplateBlocks('creative')` + twin CSS + `exp_style: creative` + `title_style: creative-main|creative-sidebar` + `freeform` / `replica_cascade`
+
 ## Critères de « réplique native »
 
 Pour un id catalogue :
@@ -92,8 +98,9 @@ Pour un id catalogue :
 4. ~~Classic~~ (AXE-389 / PR #177) — near-replica ; checklist visuelle + densité PDF à valider
 5. ~~Bold / Impact~~ (AXE-390 / PR #179) — near-replica
 6. ~~Modern~~ (AXE-391 / PR #181) — near-replica
-7. **Executive** (AXE-392) — sidebar-right + header band near-replica
-8. Option ultérieure : Creative ; assets `default_layout.json`
+7. ~~Executive~~ (AXE-392 / PR #183) — near-replica
+8. **Creative** (AXE-393) — dernier twin sidebar-left
+9. Option ultérieure : assets `default_layout.json` ; close AXE-346 après checklist Creative
 
 ## Alignement contact header-bar
 

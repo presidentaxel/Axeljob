@@ -57,9 +57,9 @@ export const TEMPLATE_CANVAS_FIDELITY = Object.freeze({
   creative: {
     name: 'Créatif',
     layoutFamily: 'sidebar-left',
-    readiness: 'projection',
-    fidelityCss: 'medium',
-    gaps: ['Titres creative-main et bordures photo à valider visuellement'],
+    readiness: 'near-replica',
+    fidelityCss: 'rich',
+    gaps: ['Checklist visuelle Stable↔Beta (AXE-393)', 'Densité PDF compacte à valider'],
   },
   elegant: {
     name: 'Élégant',
@@ -136,6 +136,7 @@ export function parseCanvasTheme(template, optionValues = null) {
   };
   const defaults = {
     modern: { color_header: '#2d3748', color_sidebar: '#2d3748', color_accent: '#3182ce', color_section_title: '#3182ce', font: 'Inter' },
+    // Titres main = indigo sidebar (comme twin historique) ; accent ambre = filets / photo / labels.
     creative: { color_header: '#6366f1', color_sidebar: '#6366f1', color_accent: '#f59e0b', color_section_title: '#6366f1', font: 'Plus Jakarta Sans' },
     executive: { color_header: '#0f172a', color_sidebar: '#f8f6f0', color_accent: '#b8860b', color_section_title: '#0f172a', font: 'Georgia' },
     bold: { color_header: '#1e293b', color_sidebar: '#f1f5f9', color_accent: '#dc2626', color_section_title: '#1e293b', font: 'Plus Jakarta Sans' },
@@ -171,7 +172,7 @@ export function parseCanvasTheme(template, optionValues = null) {
         const val = resolveOpt('accent_color', o.default);
         if (val) {
           theme.color_accent = val;
-          // Bold / Executive Stable : titres corps restent slate ; accent = filets/dates seulement.
+          // Bold / Executive : titres slate. Creative : titres = sidebar indigo (pas accent ambre).
           if (id !== 'creative' && id !== 'bold' && id !== 'executive') {
             theme.color_section_title = val;
           }
@@ -187,7 +188,11 @@ export function parseCanvasTheme(template, optionValues = null) {
       }
       if (o?.key === 'sidebar_color') {
         const val = resolveOpt('sidebar_color', o.default);
-        if (val) theme.color_sidebar = val;
+        if (val) {
+          theme.color_sidebar = val;
+          // Creative : titres main calés sur la sidebar (indigo brand).
+          if (id === 'creative') theme.color_section_title = val;
+        }
       }
       if (o?.key === 'font') {
         const val = resolveOpt('font', o.default);
@@ -211,7 +216,10 @@ export function parseCanvasTheme(template, optionValues = null) {
       theme.color_header = live.header_color;
       if (id === 'executive') theme.color_section_title = live.header_color;
     }
-    if (live.sidebar_color) theme.color_sidebar = live.sidebar_color;
+    if (live.sidebar_color) {
+      theme.color_sidebar = live.sidebar_color;
+      if (id === 'creative') theme.color_section_title = live.sidebar_color;
+    }
     if (live.font) {
       theme.font_heading = fontStackFromTemplateOption(live.font);
       theme.font_body = id === 'executive' || id === 'minimal' || id === 'elegant'
@@ -219,6 +227,7 @@ export function parseCanvasTheme(template, optionValues = null) {
         : theme.font_heading;
     }
   }
+  // Creative : titres main = sidebar (Stable preview / twin historique), accent = filets uniquement.
   if (id === 'creative') theme.color_section_title = theme.color_sidebar;
   return theme;
 }
@@ -278,32 +287,6 @@ function rightSidebarMetrics() {
     MAIN_W: PAGE_WIDTH_MM - SB - px(36),
     SB_INSET: px(12),
   };
-}
-
-/** Blocs compétences + outils (reflow ajuste les y). */
-function sidebarCompetenceBlocks(x, w, startY, style, z, labels = {}) {
-  return [
-    {
-      type: 'skills',
-      bind: 'competences.techniques',
-      x,
-      y: startY,
-      w,
-      h: 30,
-      z,
-      style: { ...style, section_label: labels.tech || 'COMPÉTENCES', list_format: 'list' },
-    },
-    {
-      type: 'skills',
-      bind: 'competences.logiciels',
-      x,
-      y: startY + 34,
-      w,
-      h: 26,
-      z,
-      style: { ...style, section_label: labels.tools || 'OUTILS', list_format: 'list' },
-    },
-  ];
 }
 
 /** Sidebar type Executive / Classic / Bold (sous-titres catégorie). */
@@ -374,11 +357,7 @@ function sidebarCompetenceBlocksDetailed(x, w, startY, style, z) {
 export function buildTemplateBlocks(template, optionValues = null) {
   const id = template?.id;
   const t = parseCanvasTheme(template, optionValues);
-  const { SB, MAIN_L, MAIN_R, SB_R, H } = LAYOUT;
-  const sx = SIDE_PAD_X;
-  const sy = SIDE_PAD_Y;
-  const mx = MAIN_L.x + MAIN_PAD_X;
-  const mw = MAIN_L.w - MAIN_PAD_X * 2;
+  const { H } = LAYOUT;
   switch (id) {
     case 'modern': {
       // Réplique templates/modern : sidebar gauche (photo, identité, contact, skills…),
@@ -545,21 +524,172 @@ export function buildTemplateBlocks(template, optionValues = null) {
       ];
     }
 
-    case 'creative':
+    case 'creative': {
+      // Réplique templates/creative : sidebar gauche indigo (photo bordure accent,
+      // identité centrée + divider, CONTACT/COMPÉTENCES/OUTILS/CERTIFS/LANGUES/AUTRES),
+      // main PROFIL → EXP → FORMATION → PROJETS ; titres section = accent ambre.
+      const { SB, SX, SY, MAIN_X, MAIN_W, MAIN_Y } = leftSidebarMetrics();
+      const PHOTO = px(80);
+      const photoX = (SB - PHOTO) / 2;
+      const identityY = SY + PHOTO + px(10);
+      const identityH = px(42);
+      const contactY = identityY + identityH + px(10);
+      const sideW = SB - SX * 2;
+      const sideLock = { lock_geometry: true };
+      const sideCol = (extra = {}) => ({
+        ...sideCreative(),
+        title_style: 'creative-sidebar',
+        font_family: t.font_heading,
+        align: 'left',
+        ...extra,
+      });
+      const mainCol = (extra = {}) => ({
+        ...main(),
+        title_style: 'creative-main',
+        font_family: t.font_heading,
+        ...extra,
+      });
       return [
         bg(0, 0, SB, H, t.color_sidebar, 0),
-        { type: 'photo', x: SB / 2 - 11, y: sy, w: 22, h: 22, z: 2, style: { shape: 'circle', zone: 'sidebar', photo_border: 'accent' } },
-        { type: 'identity', bind: ['prenom', 'nom', 'titre_professionnel'], x: sx, y: sy + 24, w: SB - sx * 2, h: 24, z: 2, style: { ...sideCreative(), font_size: 14, identity_divider: true, font_style: 'italic' } },
-        { type: 'contact', bind: ['email', 'telephone', 'linkedin'], x: sx, y: sy + 50, w: SB - sx * 2, h: 22, z: 2, style: { ...sideCreative(), section_label: 'CONTACT', contact_divider: true } },
-        ...sidebarCompetenceBlocks(sx, SB - sx * 2, sy + 76, sideCreative(), 2, { tools: 'OUTILS' }),
-        { type: 'languages', x: sx, y: sy + 112, w: SB - sx * 2, h: 18, z: 2, style: { ...sideCreative(), section_label: 'LANGUES', list_format: 'list' } },
-        { type: 'certifications', bind: 'certifications', x: sx, y: sy + 132, w: SB - sx * 2, h: 22, z: 2, style: { ...sideCreative(), section_label: 'CERTIFICATIONS', list_format: 'list' } },
-        { type: 'skills', bind: 'competences.autres', x: sx, y: sy + 156, w: SB - sx * 2, h: 22, z: 2, style: { ...sideCreative(), section_label: 'AUTRES', list_format: 'list' } },
-        { type: 'resume', bind: 'resume', x: mx, y: MAIN_PAD_Y, w: mw, h: 22, z: 1, style: { ...main(), section_label: 'PROFIL', title_style: 'creative-main', font_style: 'italic' } },
-        { type: 'experiences', bind: 'experiences', x: mx, y: MAIN_PAD_Y + 26, w: mw, h: 130, z: 1, style: { ...main(), section_label: 'EXPÉRIENCE PROFESSIONNELLE', title_style: 'creative-main' } },
-        { type: 'formations', bind: 'formations', x: mx, y: MAIN_PAD_Y + 160, w: mw, h: 30, z: 1, style: { ...main(), section_label: 'FORMATION', title_style: 'creative-main' } },
-        { type: 'projets', bind: 'projets', x: mx, y: MAIN_PAD_Y + 194, w: mw, h: 26, z: 1, style: { ...main(), section_label: 'PROJETS', title_style: 'creative-main' } },
+        {
+          type: 'photo',
+          x: photoX,
+          y: SY,
+          w: PHOTO,
+          h: PHOTO,
+          z: 2,
+          style: { shape: 'circle', zone: 'sidebar', photo_border: 'accent', align: 'center', ...sideLock },
+        },
+        {
+          type: 'identity',
+          bind: ['prenom', 'nom', 'titre_professionnel'],
+          x: SX,
+          y: identityY,
+          w: sideW,
+          h: identityH,
+          z: 2,
+          style: {
+            ...sideCol(),
+            align: 'center',
+            identity_divider: true,
+            identity_layout: 'creative-sidebar',
+            ...sideLock,
+          },
+        },
+        {
+          type: 'contact',
+          bind: ['telephone', 'email', 'linkedin'],
+          x: SX,
+          y: contactY,
+          w: sideW,
+          h: px(48),
+          z: 2,
+          style: { ...sideCol(), section_label: 'CONTACT', contact_divider: true },
+        },
+        {
+          type: 'skills',
+          bind: 'competences.techniques',
+          x: SX,
+          y: contactY + px(52),
+          w: sideW,
+          h: px(40),
+          z: 2,
+          style: { ...sideCol(), section_label: 'COMPÉTENCES' },
+        },
+        {
+          type: 'skills',
+          bind: 'competences.logiciels',
+          x: SX,
+          y: contactY + px(96),
+          w: sideW,
+          h: px(34),
+          z: 2,
+          style: { ...sideCol(), section_label: 'OUTILS' },
+        },
+        {
+          type: 'certifications',
+          bind: 'certifications',
+          x: SX,
+          y: contactY + px(134),
+          w: sideW,
+          h: px(28),
+          z: 2,
+          style: { ...sideCol(), section_label: 'CERTIFICATIONS' },
+        },
+        {
+          type: 'languages',
+          x: SX,
+          y: contactY + px(166),
+          w: sideW,
+          h: px(24),
+          z: 2,
+          style: { ...sideCol(), section_label: 'LANGUES' },
+        },
+        {
+          type: 'skills',
+          bind: 'competences.autres',
+          x: SX,
+          y: contactY + px(194),
+          w: sideW,
+          h: px(28),
+          z: 2,
+          style: { ...sideCol(), section_label: 'AUTRES' },
+        },
+        {
+          type: 'resume',
+          bind: 'resume',
+          x: MAIN_X,
+          y: MAIN_Y,
+          w: MAIN_W,
+          h: px(36),
+          z: 1,
+          style: {
+            ...mainCol(),
+            section_label: 'PROFIL',
+            font_style: 'italic',
+            align: 'justify',
+          },
+        },
+        {
+          type: 'experiences',
+          bind: 'experiences',
+          x: MAIN_X,
+          y: MAIN_Y + px(42),
+          w: MAIN_W,
+          h: px(160),
+          z: 1,
+          style: {
+            ...mainCol(),
+            section_label: 'EXPÉRIENCE PROFESSIONNELLE',
+            exp_style: 'creative',
+          },
+        },
+        {
+          type: 'formations',
+          bind: 'formations',
+          x: MAIN_X,
+          y: MAIN_Y + px(208),
+          w: MAIN_W,
+          h: px(36),
+          z: 1,
+          style: {
+            ...mainCol(),
+            section_label: 'FORMATION',
+            formation_style: 'minimal',
+          },
+        },
+        {
+          type: 'projets',
+          bind: 'projets',
+          x: MAIN_X,
+          y: MAIN_Y + px(250),
+          w: MAIN_W,
+          h: px(28),
+          z: 1,
+          style: { ...mainCol(), section_label: 'PROJETS' },
+        },
       ];
+    }
 
     case 'executive': {
       // Réplique templates/executive : header sombre + barre accent 3px, photo 60px,

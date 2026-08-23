@@ -277,6 +277,77 @@ test('modern réplique Stable : sidebar gauche + main PROFIL/EXP/FORMATION', () 
   assert.equal(getTemplateCanvasFidelity('modern')?.fidelityCss, 'rich');
 });
 
+test('creative réplique Stable : sidebar indigo + accent ambre + freeform', () => {
+  const blocks = buildTemplateBlocks({ id: 'creative' });
+  const photo = blocks.find((b) => b.type === 'photo');
+  const identity = blocks.find((b) => b.type === 'identity');
+  const contact = blocks.find((b) => b.type === 'contact');
+  const resume = blocks.find((b) => b.type === 'resume');
+  const experiences = blocks.find((b) => b.type === 'experiences');
+  const formations = blocks.find((b) => b.type === 'formations');
+  const projets = blocks.find((b) => b.type === 'projets');
+  const sidebarSkills = blocks.filter((b) => b.type === 'skills' && b.style?.zone === 'sidebar');
+  const shapes = blocks.filter((b) => b.type === 'shape:rect');
+
+  assert.ok(photo && identity && contact && resume && experiences);
+  assert.equal(photo.style?.zone, 'sidebar');
+  assert.equal(photo.style?.photo_border, 'accent');
+  assert.equal(photo.style?.lock_geometry, true);
+  assert.ok(photo.w > 18 && photo.w < 24, 'photo ~80px');
+
+  assert.equal(identity.style?.zone, 'sidebar');
+  assert.equal(identity.style?.align, 'center');
+  assert.equal(identity.style?.identity_layout, 'creative-sidebar');
+  assert.equal(identity.style?.identity_divider, true);
+  assert.equal(identity.style?.lock_geometry, true);
+
+  assert.equal(contact.style?.section_label, 'CONTACT');
+  assert.equal(contact.style?.title_style, 'creative-sidebar');
+  assert.equal(contact.style?.contact_divider, true);
+  assert.deepEqual(contact.bind, ['telephone', 'email', 'linkedin']);
+  assert.ok(contact.x < 60, 'contact en sidebar gauche');
+
+  assert.equal(resume.style?.zone, 'main');
+  assert.equal(resume.style?.section_label, 'PROFIL');
+  assert.equal(resume.style?.title_style, 'creative-main');
+  assert.equal(resume.style?.font_style, 'italic');
+  assert.ok(resume.x > 50, 'profil en main');
+
+  assert.equal(experiences.style?.exp_style, 'creative');
+  assert.equal(experiences.style?.title_style, 'creative-main');
+  assert.equal(formations.style?.formation_style, 'minimal');
+  assert.ok(projets, 'projets en main');
+  assert.ok(sidebarSkills.length >= 3, 'COMPÉTENCES / OUTILS / AUTRES');
+  assert.ok(sidebarSkills.every((b) => b.x < 60), 'skills sidebar gauche');
+  assert.equal(shapes.length, 1, 'bandeau sidebar uniquement');
+
+  const theme = parseCanvasTheme({ id: 'creative' });
+  assert.match(theme.font_heading, /Plus Jakarta Sans/);
+  assert.equal(theme.color_sidebar, '#6366f1');
+  assert.equal(theme.color_accent, '#f59e0b');
+  assert.equal(theme.color_section_title, '#6366f1', 'titres main = sidebar indigo');
+
+  const live = parseCanvasTheme(
+    {
+      id: 'creative',
+      options: [
+        { key: 'sidebar_color', type: 'color', default: '#6366f1' },
+        { key: 'accent_color', type: 'color', default: '#f59e0b' },
+      ],
+    },
+    { accent_color: '#e11d48', sidebar_color: '#4f46e5' },
+  );
+  assert.equal(live.color_accent, '#e11d48');
+  assert.equal(live.color_sidebar, '#4f46e5');
+  assert.equal(live.color_section_title, '#4f46e5', 'titres suivent sidebar, pas accent');
+
+  const layout = createCanvasLayoutForTemplate({ id: 'creative' });
+  assert.equal(layout.freeform, true);
+  assert.equal(layout.replica_cascade, true);
+  assert.equal(getTemplateCanvasFidelity('creative')?.readiness, 'near-replica');
+  assert.equal(getTemplateCanvasFidelity('creative')?.fidelityCss, 'rich');
+});
+
 test('parseCanvasTheme applique template_options live (Modern)', () => {
   const template = {
     id: 'modern',

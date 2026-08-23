@@ -24,6 +24,7 @@ export function createCanvasLayoutForTemplate(template, optionValues = null) {
     || template.id === 'bold'
     || template.id === 'modern'
     || template.id === 'executive'
+    || template.id === 'creative'
   ) {
     layout.freeform = true;
     layout.replica_cascade = true;

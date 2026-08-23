@@ -477,12 +477,12 @@ function SemanticBlockBody({ block, cv, editing = false }) {
                       <p className="free-canvas-block__exp-role">
                         {atsLabels ? <span className="free-canvas-block__ats-label">Fonction : </span> : null}
                         {posteNode}
-                        {impactExp && (exp.secteur || '').trim() ? (
+                        {impactExp && (editing || (exp.secteur || '').trim()) ? (
                           <>
                             {' - '}
                             {editing ? (
                               <CanvasEditableField path={`experiences.${idx}.secteur`} editing>
-                                {exp.secteur}
+                                {exp.secteur || 'Secteur'}
                               </CanvasEditableField>
                             ) : (
                               exp.secteur

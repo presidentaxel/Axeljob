@@ -30,10 +30,9 @@ export const TEMPLATE_CANVAS_FIDELITY = Object.freeze({
   minimal: {
     name: 'Minimal',
     layoutFamily: 'single-column',
-    readiness: 'projection',
+    readiness: 'near-replica',
     fidelityCss: 'rich',
     gaps: [
-      'Checklist visuelle Stable↔Beta en cours (header + page 1)',
       'Typos injectées (--cv-fs-*) / densités Compact–Confort non projetées',
       'Pagination multi-page CV longs à valider',
     ],
@@ -65,9 +64,9 @@ export const TEMPLATE_CANVAS_FIDELITY = Object.freeze({
   elegant: {
     name: 'Élégant',
     layoutFamily: 'single-column',
-    readiness: 'projection',
-    fidelityCss: 'thin',
-    gaps: ['Centrage / chips compétences vs HTML Stable'],
+    readiness: 'near-replica',
+    fidelityCss: 'rich',
+    gaps: ['Checklist visuelle Stable↔Beta avant merge'],
   },
   executive: {
     name: 'Executive',
@@ -703,40 +702,160 @@ export function buildTemplateBlocks(template) {
     }
 
     case 'elegant': {
-      const pad = (30 * 25.4) / 96;
+      // Réplique templates/elegant : header centré + photo, titres uppercase via twin CSS,
+      // chips Compétences (+ outils nestés), géométrie verrouillée.
+      const ePx = (n) => (n * 25.4) / 96;
+      const pad = ePx(30);
       const W = PAGE_WIDTH_MM - pad * 2;
-      const cy = (22 * 25.4) / 96;
+      const photoSize = ePx(56);
+      // Stable .cv-header { padding: 22px 30px 16px }
+      const yPhoto = ePx(22);
+      // .header-photo { margin-bottom: 8px }
+      const yIdentity = yPhoto + photoSize + ePx(8);
+      // name ~20pt×1.15 + title mt 4px + 10.5pt×1.3 ≈ 42–44px
+      const identityH = ePx(44);
+      // .header-contact { margin-top: 8px } sous le titre
+      const yContact = yIdentity + identityH + ePx(8);
+      const contactH = ePx(14);
+      // padding-bottom header 16px puis border
+      const yRule = yContact + contactH + ePx(16);
+      const yBody = yRule + ePx(8);
+      const section = (label, extra = {}) => ({
+        ...main(),
+        section_label: label,
+        title_style: 'elegant-section',
+        ...extra,
+      });
+      const headerLock = { lock_geometry: true };
       return [
-        bar(pad, cy + 52, W, 0.15, '#e2e8f0', 0),
-        { type: 'photo', x: PAGE_WIDTH_MM / 2 - 7, y: cy, w: 14, h: 14, z: 3, style: { shape: 'circle', zone: 'main', photo_border: 'accent-thin' } },
-        { type: 'identity', bind: ['prenom', 'nom', 'titre_professionnel'], x: pad, y: cy + 16, w: W, h: 20, z: 3, style: { ...main(), align: 'center', font_size: 20, font_family: t.font_heading, color: t.color_section_title } },
-        { type: 'contact', bind: ['email', 'telephone', 'linkedin'], x: pad, y: cy + 38, w: W, h: 8, z: 3, style: { ...main(), align: 'center', font_size: 8.5, color: '#64748b' } },
-        { type: 'resume', bind: 'resume', x: pad, y: cy + 56, w: W, h: 22, z: 2, style: { ...main(), section_label: 'PROFIL', title_style: 'elegant-section', font_style: 'italic', color: '#2d3748' } },
-        { type: 'experiences', bind: 'experiences', x: pad, y: cy + 82, w: W, h: 118, z: 1, style: { ...main(), section_label: 'EXPÉRIENCE PROFESSIONNELLE', title_style: 'elegant-section', font_family: t.font_heading, exp_style: 'bold' } },
-        { type: 'formations', bind: 'formations', x: pad, y: cy + 204, w: W, h: 28, z: 1, style: { ...main(), section_label: 'FORMATION', title_style: 'elegant-section', font_family: t.font_heading } },
+        {
+          type: 'photo',
+          x: PAGE_WIDTH_MM / 2 - photoSize / 2,
+          y: yPhoto,
+          w: photoSize,
+          h: photoSize,
+          z: 3,
+          style: {
+            ...headerLock,
+            shape: 'circle',
+            zone: 'main',
+            photo_border: 'accent-thin',
+            image_border_width_mm: (2 * 25.4) / 96,
+            image_border_color: t.color_accent,
+          },
+        },
+        {
+          type: 'identity',
+          bind: ['prenom', 'nom', 'titre_professionnel'],
+          x: pad,
+          y: yIdentity,
+          w: W,
+          h: identityH,
+          z: 3,
+          style: {
+            ...main(),
+            // Pas de lock : auto-height + replica_cascade gardent l’écart Stable sous le titre
+            align: 'center',
+            font_family: t.font_heading,
+            identity_layout: 'elegant-header',
+          },
+        },
+        {
+          type: 'contact',
+          bind: ['telephone', 'email', 'linkedin'],
+          x: pad,
+          y: yContact,
+          w: W,
+          h: contactH,
+          z: 3,
+          style: {
+            ...main(),
+            align: 'center',
+            contact_layout: 'header-bar',
+            // Stable : <span class="contact-sep">·</span> + margin 0 8px
+            contact_separator: '·',
+            contact_icons: false,
+          },
+        },
+        bar(pad, yRule, W, 0.15, '#e2e8f0', 0),
+        {
+          type: 'resume',
+          bind: 'resume',
+          x: pad,
+          y: yBody,
+          w: W,
+          h: ePx(42),
+          z: 2,
+          style: section('Profil', { font_style: 'italic' }),
+        },
+        {
+          type: 'experiences',
+          bind: 'experiences',
+          x: pad,
+          y: yBody + ePx(48),
+          w: W,
+          h: ePx(118),
+          z: 1,
+          style: section('Expérience professionnelle', {
+            font_family: t.font_heading,
+            exp_style: 'elegant',
+          }),
+        },
+        {
+          type: 'formations',
+          bind: 'formations',
+          x: pad,
+          y: yBody + ePx(172),
+          w: W,
+          h: ePx(28),
+          z: 1,
+          style: section('Formation', {
+            font_family: t.font_heading,
+            formation_style: 'minimal',
+          }),
+        },
         {
           type: 'skills',
           bind: 'competences.techniques',
           x: pad,
-          y: cy + 236,
+          y: yBody + ePx(206),
           w: W,
-          h: 28,
+          h: ePx(32),
           z: 1,
-          style: { ...main(), section_label: 'COMPÉTENCES', title_style: 'elegant-section', format: 'chips' },
+          style: section('Compétences', {
+            format: 'chips',
+            skills_nested_outils: true,
+          }),
         },
         {
-          type: 'skills',
-          bind: 'competences.logiciels',
+          type: 'certifications',
+          bind: 'certifications',
           x: pad,
-          y: cy + 268,
+          y: yBody + ePx(244),
           w: W,
-          h: 22,
+          h: ePx(22),
           z: 1,
-          style: { ...main(), section_label: 'OUTILS', title_style: 'elegant-section', format: 'chips' },
+          style: section('Certifications', { list_format: 'list' }),
         },
-        { type: 'certifications', bind: 'certifications', x: pad, y: cy + 294, w: W, h: 22, z: 1, style: { ...main(), section_label: 'CERTIFICATIONS', title_style: 'elegant-section', list_format: 'list' } },
-        { type: 'languages', x: pad, y: cy + 320, w: W, h: 18, z: 1, style: { ...main(), section_label: 'LANGUES', title_style: 'elegant-section', list_format: 'list' } },
-        { type: 'projets', bind: 'projets', x: pad, y: cy + 342, w: W, h: 24, z: 1, style: { ...main(), section_label: 'PROJETS', title_style: 'elegant-section' } },
+        {
+          type: 'languages',
+          x: pad,
+          y: yBody + ePx(272),
+          w: W,
+          h: ePx(18),
+          z: 1,
+          style: section('Langues', { list_format: 'list' }),
+        },
+        {
+          type: 'projets',
+          bind: 'projets',
+          x: pad,
+          y: yBody + ePx(296),
+          w: W,
+          h: ePx(24),
+          z: 1,
+          style: section('Projets'),
+        },
       ];
     }
 

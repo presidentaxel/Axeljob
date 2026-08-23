@@ -392,6 +392,8 @@ export function sanitizeLayoutV3(input, { idHelpers } = {}) {
   // Layout "libre" (copie fidèle d'un PDF importé) : positions absolues à
   // préserver telles quelles, on ne doit JAMAIS le re-flow en colonnes.
   if (safe.freeform === true) out.freeform = true;
+  // Répliques Stable→Beta : freeform + cascade colonne après auto-height.
+  if (safe.replica_cascade === true) out.replica_cascade = true;
   // Polices embarquées du PDF (@font-face data-URL) : rendu fidèle.
   if (Array.isArray(safe.fonts) && safe.fonts.length) {
     const fonts = safe.fonts

@@ -10,6 +10,8 @@ import {
 } from './cvLayoutModelV3.js';
 
 const REFLOW_GAP_MM = 2;
+/** Gap nul pour répliques Stable : le padding CSS `.cv-section` (8px) fait l’écart. */
+const REFLOW_GAP_REPLICA_MM = 0;
 
 import { isVectorShapeType } from './canvasShapePresets.js';
 
@@ -25,7 +27,7 @@ const REFLOW_SKIP_TYPES = new Set([
 function laneKey(block) {
   if (!block || REFLOW_SKIP_TYPES.has(block.type) || isVectorShapeType(block.type)) return null;
   if (block.style?.zone === 'header') return null;
-  if (block.style?.lock_geometry) return null;
+  // lock_geometry : reste dans la lane comme ancre (y figé), les suivants poussent.
   if (block.style?.zone) return block.style.zone;
   const x = Number(block.x) || 0;
   if (x > PAGE_WIDTH_MM * 0.62) return 'sidebar';
@@ -34,19 +36,23 @@ function laneKey(block) {
 
 function shouldReflowBlock(block) {
   if (!block || REFLOW_SKIP_TYPES.has(block.type)) return false;
+  if (block.style?.lock_geometry) return true;
   return isAutoHeightBlockType(block.type);
 }
 
 /**
  * Réorganise les blocs d'une page par lane : chaque bloc suit le précédent (y + h + gap).
  * Le premier bloc de chaque lane conserve son y d'origine.
+ * Les blocs `lock_geometry` ne bougent pas mais bloquent la cascade.
  */
 export function reflowColumnBlocksOnPage(layout, pageIndex = 0) {
   if (!layout?.pages?.[pageIndex]?.blocks) return layout;
   // Import "copie fidèle" : les blocs sont positionnés en absolu d'après le
   // PDF (titre + dates côte à côte, espacements serrés…). Les ré-empiler par
   // colonne casserait tout le rendu → on n'y touche pas.
-  if (layout.freeform === true) return layout;
+  // Exception : répliques Stable (minimal/elegant) avec `replica_cascade` —
+  // auto-height doit pousser les sections suivantes sans chevauchement.
+  if (layout.freeform === true && layout.replica_cascade !== true) return layout;
 
   const blocks = layout.pages[pageIndex].blocks;
   const lanes = new Map();
@@ -61,6 +67,7 @@ export function reflowColumnBlocksOnPage(layout, pageIndex = 0) {
 
   let next = layout;
   const patches = new Map();
+  const gapMm = layout.replica_cascade === true ? REFLOW_GAP_REPLICA_MM : REFLOW_GAP_MM;
 
   for (const laneBlocks of lanes.values()) {
     const sorted = [...laneBlocks].sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0));
@@ -68,17 +75,22 @@ export function reflowColumnBlocksOnPage(layout, pageIndex = 0) {
     for (let i = 0; i < sorted.length; i += 1) {
       const b = sorted[i];
       const h = Number(b.h) || 0;
+      const locked = Boolean(b.style?.lock_geometry);
       if (bottom === null) {
-        bottom = (Number(b.y) || 0) + h + REFLOW_GAP_MM;
+        bottom = (Number(b.y) || 0) + h + gapMm;
+        continue;
+      }
+      const curY = Number(b.y) || 0;
+      if (locked) {
+        bottom = Math.max(bottom, curY + h + gapMm);
         continue;
       }
       const minY = bottom;
-      const curY = Number(b.y) || 0;
       const y = curY < minY - 0.05 ? minY : curY;
       if (Math.abs(y - curY) > 0.08) {
         patches.set(b.id, { x: Number(b.x) || 0, y });
       }
-      bottom = y + h + REFLOW_GAP_MM;
+      bottom = y + h + gapMm;
     }
   }
 

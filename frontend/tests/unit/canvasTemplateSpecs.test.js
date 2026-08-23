@@ -119,3 +119,46 @@ test('bold reste le plus proche d’une réplique (near-replica)', () => {
 test('minimal fidelity CSS marquée rich (twin page 1)', () => {
   assert.equal(getTemplateCanvasFidelity('minimal')?.fidelityCss, 'rich');
 });
+
+test('elegant réplique Stable : header centré + photo, chips, freeform', () => {
+  const blocks = buildTemplateBlocks({ id: 'elegant' });
+  const photo = blocks.find((b) => b.type === 'photo');
+  const identity = blocks.find((b) => b.type === 'identity');
+  const contact = blocks.find((b) => b.type === 'contact');
+  const experiences = blocks.find((b) => b.type === 'experiences');
+  const formations = blocks.find((b) => b.type === 'formations');
+  const skills = blocks.filter((b) => b.type === 'skills');
+  const shapes = blocks.filter((b) => b.type === 'shape:rect');
+
+  assert.ok(photo, 'elegant Stable show_photo=true : bloc photo');
+  assert.equal(photo.style?.lock_geometry, true);
+  assert.equal(photo.style?.photo_border, 'accent-thin');
+  assert.ok(Math.abs(photo.x + photo.w / 2 - 105) < 0.5, 'photo centrée A4');
+
+  assert.equal(identity.style?.align, 'center');
+  assert.equal(identity.style?.identity_layout, 'elegant-header');
+  assert.ok(identity.y >= photo.y + photo.h - 0.01, 'identity sous photo');
+
+  assert.equal(contact.style?.contact_layout, 'header-bar');
+  assert.equal(contact.style?.contact_separator, '·');
+  assert.equal(contact.style?.align, 'center');
+  assert.ok(contact.y >= identity.y + identity.h - 0.01, 'contact sous identity');
+  assert.deepEqual(contact.bind, ['telephone', 'email', 'linkedin']);
+
+  assert.equal(experiences.style?.exp_style, 'elegant');
+  assert.equal(experiences.style?.section_label, 'Expérience professionnelle');
+  assert.equal(formations.style?.formation_style, 'minimal');
+
+  assert.equal(skills.length, 1, 'un seul bloc Compétences (outils nestés en chips)');
+  assert.equal(skills[0].style?.format, 'chips');
+  assert.equal(skills[0].style?.skills_nested_outils, true);
+
+  assert.equal(shapes.length, 1, 'filet header uniquement');
+  assert.ok(blocks.every((b) => b.type !== 'skills' || b.style?.section_label !== 'OUTILS'));
+
+  const layout = createCanvasLayoutForTemplate({ id: 'elegant' });
+  assert.equal(layout.freeform, true);
+  assert.equal(layout.replica_cascade, true);
+  assert.equal(getTemplateCanvasFidelity('elegant')?.fidelityCss, 'rich');
+  assert.equal(getTemplateCanvasFidelity('elegant')?.readiness, 'near-replica');
+});

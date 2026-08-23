@@ -225,40 +225,55 @@ function SemanticBlockBody({ block, cv, editing = false }) {
 
       if (style.contact_layout === 'header-bar') {
         const separator = style.contact_separator != null ? String(style.contact_separator) : ' ';
-        const segments = [];
+        /** @type {{ id: string, node: import('react').ReactNode }[]} */
+        const parts = [];
         if (showTel) {
-          segments.push(
-            <span key="tel" className="free-canvas-block__contact-segment">
-              {maybeIcon(HiPhone)}
-              {showIcons ? ' ' : null}
-              {renderContactValue('telephone', tel, 'Téléphone')}
-            </span>,
-          );
+          parts.push({
+            id: 'tel',
+            node: (
+              <>
+                {maybeIcon(HiPhone)}
+                {showIcons ? ' ' : null}
+                {renderContactValue('telephone', tel, 'Téléphone')}
+              </>
+            ),
+          });
         }
         if (showEmail) {
-          segments.push(
-            <span key="email" className="free-canvas-block__contact-segment">
-              {maybeIcon(HiEnvelope)}
-              {showIcons ? ' ' : null}
-              {renderContactValue('email', email, 'Email')}
-            </span>,
-          );
+          parts.push({
+            id: 'email',
+            node: (
+              <>
+                {maybeIcon(HiEnvelope)}
+                {showIcons ? ' ' : null}
+                {renderContactValue('email', email, 'Email')}
+              </>
+            ),
+          });
         }
         if (showLinkedin) {
-          segments.push(
-            <span key="linkedin" className="free-canvas-block__contact-segment">
-              {maybeIcon(HiLink)}
-              {showIcons ? ' ' : null}
-              {renderContactValue('linkedin', linkedin, 'LinkedIn')}
-            </span>,
-          );
+          parts.push({
+            id: 'linkedin',
+            node: (
+              <>
+                {maybeIcon(HiLink)}
+                {showIcons ? ' ' : null}
+                {renderContactValue('linkedin', linkedin, 'LinkedIn')}
+              </>
+            ),
+          });
         }
         return (
-          <p className={contactCls}>
-            {segments.map((seg, i) => (
-              <span key={seg.key}>
+          <p
+            className={contactCls}
+            style={style.align === 'left' || style.align === 'right'
+              ? { justifyContent: style.align === 'right' ? 'flex-end' : 'flex-start' }
+              : undefined}
+          >
+            {parts.map((part, i) => (
+              <span key={part.id}>
                 {i > 0 ? <span className="free-canvas-block__contact-spacer">{separator}</span> : null}
-                {seg}
+                <span className="free-canvas-block__contact-segment">{part.node}</span>
               </span>
             ))}
           </p>
@@ -321,11 +336,13 @@ function SemanticBlockBody({ block, cv, editing = false }) {
     case 'experiences': {
       const items = resolveExperiences(cv, limit);
       if (items.length === 0) return <p className="free-canvas-block__placeholder">Expériences</p>;
-      const boldExp = style.exp_style === 'bold';
+      const boldExp = style.exp_style === 'bold' || style.exp_style === 'elegant';
+      const elegantExp = style.exp_style === 'elegant';
       const minimalExp = style.exp_style === 'minimal';
       const atsLabels = boldExp || minimalExp;
+      const hyphenDates = minimalExp || elegantExp;
       return (
-        <div className={`free-canvas-block__section-list${boldExp ? ' free-canvas-block__section-list--bold-exp' : ''}${minimalExp ? ' free-canvas-block__section-list--minimal-exp' : ''}`}>
+        <div className={`free-canvas-block__section-list${boldExp ? ' free-canvas-block__section-list--bold-exp' : ''}${minimalExp ? ' free-canvas-block__section-list--minimal-exp' : ''}${elegantExp ? ' free-canvas-block__section-list--elegant-exp' : ''}`}>
           <SectionHeading
             label={style.section_label || SECTION_LABELS.experiences}
             titleStyle={style.title_style}
@@ -334,7 +351,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
           {items.map((exp, i) => {
             const idx = findCvArrayIndex(cv, 'experiences', exp);
             if (idx < 0) return null;
-            const dateParts = [exp.date_debut, exp.date_fin].filter(Boolean).join(minimalExp ? ' - ' : ' – ');
+            const dateParts = [exp.date_debut, exp.date_fin].filter(Boolean).join(hyphenDates ? ' - ' : ' – ');
             const dateLine = minimalExp
               ? dateParts
               : [dateParts, exp.lieu].filter(Boolean).join(' · ');
@@ -359,7 +376,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
                     <CanvasEditableField path={`experiences.${idx}.date_debut`} editing>
                       {exp.date_debut || 'Début'}
                     </CanvasEditableField>
-                    {minimalExp ? ' - ' : ' – '}
+                    {hyphenDates ? ' - ' : ' – '}
                     <CanvasEditableField path={`experiences.${idx}.date_fin`} editing>
                       {exp.date_fin || 'Fin'}
                     </CanvasEditableField>
@@ -390,7 +407,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
               </p>
             ) : null;
             const bulletsNode = (
-              <ul className={`free-canvas-block__bullets${minimalExp ? ' free-canvas-block__bullets--dash' : ''}`}>
+              <ul className={`free-canvas-block__bullets${minimalExp || elegantExp ? ' free-canvas-block__bullets--dash' : ''}`}>
                 {(exp.bullet_points || []).filter((b) => editing || (b || '').trim()).map((b, j) => (
                   <li key={j}>
                     {editing ? (
@@ -407,7 +424,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
             return (
               <div
                 key={exp.id || i}
-                className={`free-canvas-block__exp${format === 'compact' ? ' free-canvas-block__exp--compact' : ''}${boldExp ? ' free-canvas-block__exp--bold' : ''}${minimalExp ? ' free-canvas-block__exp--minimal' : ''}`}
+                className={`free-canvas-block__exp${format === 'compact' ? ' free-canvas-block__exp--compact' : ''}${boldExp ? ' free-canvas-block__exp--bold' : ''}${minimalExp ? ' free-canvas-block__exp--minimal' : ''}${elegantExp ? ' free-canvas-block__exp--elegant' : ''}`}
               >
                 {minimalExp ? (
                   <>
@@ -631,7 +648,10 @@ function SemanticBlockBody({ block, cv, editing = false }) {
           ) : null}
           {chips ? (
             <div className="free-canvas-block__chips">
-              {items.map((s, i) => <span key={i} className="free-canvas-block__chip">{s}</span>)}
+              {items.map((s, i) => <span key={`t-${i}`} className="free-canvas-block__chip">{s}</span>)}
+              {outils.map((s, i) => (
+                <span key={`o-${i}`} className="free-canvas-block__chip free-canvas-block__chip--tool">{s}</span>
+              ))}
             </div>
           ) : asList ? (
             items.map((s, i) => <p key={i} className="free-canvas-block__sidebar-item">{s}</p>)
@@ -640,7 +660,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
               {items.join(', ')}
             </p>
           )}
-          {outils.length > 0 ? (
+          {!chips && outils.length > 0 ? (
             <p className="free-canvas-block__skills-outils">
               <strong>Outils :</strong>
               {' '}

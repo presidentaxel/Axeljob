@@ -649,9 +649,12 @@ export function buildLayoutFromVisionDetection(cv, visionMeta = {}, templatesLis
   layout = applyVisionPhotoShape(layout, visionMeta);
 
   const analysis2 = analyzeCvProfile(cv);
-  layout = reorderSemanticBlocksByPriority(layout, cv, analysis2, mergedHints);
-  for (let pi = 0; pi < (layout.pages?.length || 0); pi += 1) {
-    layout = reflowColumnBlocksOnPage(layout, pi);
+  // Répliques freeform (elegant/minimal) : ne pas réordonner / reflow ATS.
+  if (!layout.freeform) {
+    layout = reorderSemanticBlocksByPriority(layout, cv, analysis2, mergedHints);
+    for (let pi = 0; pi < (layout.pages?.length || 0); pi += 1) {
+      layout = reflowColumnBlocksOnPage(layout, pi);
+    }
   }
   layout = applyLayoutPagination(layout);
 
@@ -733,28 +736,35 @@ function blockHasRenderableContent(block, cv, analysis) {
 function estimateExperiencesHeight(cv) {
   const exps = resolveExperiences(cv);
   if (!exps.length) return 0;
-  let h = 14;
+  let h = 8; // titre de section
   for (const e of exps) {
     const bullets = (e.bullet_points || []).filter((b) => String(b || '').trim()).length;
-    h += 10 + bullets * 3.8;
+    h += 8 + bullets * 3.2;
   }
-  return Math.min(220, Math.max(28, h));
+  return Math.min(220, Math.max(18, h));
 }
 
-function estimateListHeight(count, itemHmm = 4.2, base = 10, max = 80) {
+function estimateListHeight(count, itemHmm = 4.2, base = 8, max = 80) {
   if (!count) return 0;
-  return Math.min(max, Math.max(14, base + count * itemHmm));
+  // Floor bas : le padding CSS twin + auto-height finalisent la hauteur réelle.
+  return Math.min(max, Math.max(7, base + count * itemHmm));
 }
 
 function estimateSkillsHeight(block, cv) {
   const items = resolveCompetenceList(cv, block.bind || 'competences.techniques');
-  if (!items.length) return 0;
+  const outils = block.style?.skills_nested_outils
+    ? resolveCompetenceList(cv, 'competences.logiciels')
+    : [];
+  const total = items.length + outils.length;
+  if (!total) return 0;
   const isChips = block.style?.format === 'chips';
   if (isChips) {
-    const rows = Math.ceil(items.length / 5);
+    const rows = Math.ceil(total / 5);
     return Math.min(55, Math.max(16, 12 + rows * 5.5));
   }
-  return estimateListHeight(items.length, 3.8, 10, 50);
+  // Ligne « Outils : … » si nestés
+  const base = estimateListHeight(items.length, 3.8, 10, 50);
+  return outils.length ? Math.min(60, base + 6) : base;
 }
 
 const SEMANTIC_MIN_HEIGHT_MM = 10;
@@ -779,18 +789,19 @@ export function estimateSemanticBlockHeight(block, cv, { respectCurrentMin = fal
       if (block.style?.zone === 'header') {
         return Math.min(14, Math.max(10, 8 + chars * 0.06));
       }
-      return Math.max(16, Math.min(52, 12 + chars * 0.22));
+      // Titre section + corps 9pt : ancien 0.22 mm/char gonflait Profil→Expérience.
+      return Math.max(11, Math.min(40, 8 + chars * 0.12));
     }
     case 'experiences':
       return Math.max(floor, estimateExperiencesHeight(cv));
     case 'formations':
-      return Math.max(floor, estimateListHeight(resolveFormations(cv).length, 9, 12, 70));
+      return Math.max(floor, estimateListHeight(resolveFormations(cv).length, 6, 8, 70));
     case 'certifications':
-      return Math.max(floor, estimateListHeight(resolveCertifications(cv).length, 7, 10, 45));
+      return Math.max(floor, estimateListHeight(resolveCertifications(cv).length, 5, 7, 45));
     case 'projets':
-      return Math.max(floor, estimateListHeight(resolveProjets(cv).length, 11, 12, 65));
+      return Math.max(floor, estimateListHeight(resolveProjets(cv).length, 8, 8, 65));
     case 'languages':
-      return Math.max(floor, estimateListHeight(resolveLangues(cv).length, 4.5, 10, 35));
+      return Math.max(floor, estimateListHeight(resolveLangues(cv).length, 4, 7, 35));
     case 'skills':
       return Math.max(floor, estimateSkillsHeight(block, cv));
     default:
@@ -806,6 +817,49 @@ function patchBlockHeight(layout, blockId, h) {
     )),
   }));
   return { ...layout, pages };
+}
+
+const REPLICA_CASCADE_GAP_MM = 0;
+
+/**
+ * Réplique Stable (freeform) : ajuste h au contenu et empile sans chevauchement,
+ * en respectant `lock_geometry` / photo (header figé).
+ * Ne réordonne PAS les types (contrairement à ATS spatial).
+ */
+export function fitReplicaLayoutToContent(layout, cv) {
+  if (!layout?.pages?.length) return layout;
+  let next = layout;
+  for (let pageIndex = 0; pageIndex < next.pages.length; pageIndex += 1) {
+    const page = next.pages[pageIndex];
+    const blocks = [...(page.blocks || [])];
+    const sorted = [...blocks].sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0));
+    let cursorBottom = null;
+    for (const block of sorted) {
+      const locked = Boolean(block.style?.lock_geometry)
+        || block.type === 'photo'
+        || DECORATIVE_TYPES.has(block.type);
+      let h = Number(block.h) || 0;
+      let y = Number(block.y) || 0;
+      if (!locked && !DECORATIVE_TYPES.has(block.type)) {
+        // Shrink to content — les hauteurs preset trop larges créaient des « trous » entre sections.
+        const est = estimateSemanticBlockHeight(block, cv, { respectCurrentMin: false });
+        if (est > 0 && Math.abs(est - h) > 0.8) {
+          h = est;
+          next = patchBlockHeight(next, block.id, h);
+        }
+      }
+      if (!locked && cursorBottom != null) {
+        const minY = cursorBottom + REPLICA_CASCADE_GAP_MM;
+        if (y < minY - 0.05) {
+          y = minY;
+          next = setBlockPosition(next, block.id, { x: Number(block.x) || 0, y });
+        }
+      }
+      const bottom = y + Math.max(h, 0.2);
+      cursorBottom = cursorBottom == null ? bottom : Math.max(cursorBottom, bottom);
+    }
+  }
+  return next;
 }
 
 function blockLane(block) {
@@ -932,11 +986,18 @@ export function adaptCanvasLayoutForCv(cv, layout, {
     }
   }
 
-  next = applyLayoutPagination(next);
-  next = applyAtsLayoutOptimizations(next);
-
+  // ATS spatial réordonne identity→contact→photo et casse les répliques Stable
+  // (ex. Élégant : photo centrée au-dessus du nom). Skip si géométrie préservée.
+  // Cascade verticale uniquement pour les répliques déclarées (`replica_cascade`),
+  // pas pour un freeform PDF multi-colonnes.
   if (keepGeometry) {
-    next = { ...next, freeform: true };
+    if (next.replica_cascade === true) {
+      next = fitReplicaLayoutToContent(next, cv);
+    }
+    next = applyLayoutPagination(next);
+  } else {
+    next = applyLayoutPagination(next);
+    next = applyAtsLayoutOptimizations(next);
   }
 
   if (!fromVision && !forImport) {
@@ -971,6 +1032,7 @@ export function buildAdaptedCanvasLayoutForCv(cv, template, options = {}) {
   const preserveReplicaGeometry = Boolean(
     options.preserveReplicaGeometry
     || templateId === 'minimal'
+    || templateId === 'elegant'
     || base?.freeform,
   );
   const result = adaptCanvasLayoutForCv(cv, base, {

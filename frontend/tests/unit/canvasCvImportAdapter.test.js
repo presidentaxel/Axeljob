@@ -80,6 +80,13 @@ test('estimateSemanticBlockHeight : expériences volumineuses', () => {
   assert.ok(h > 50);
 });
 
+test('estimateSemanticBlockHeight : résumé court reste compact (Profil→Exp)', () => {
+  const cv = { resume: "J'ai fait un stage de 20 mois en tant que Product Owner chez Michelin." };
+  const h = estimateSemanticBlockHeight({ type: 'resume', h: 40, style: { zone: 'main' } }, cv);
+  assert.ok(h < 22, `resume trop haut: ${h}mm`);
+  assert.ok(h >= 11);
+});
+
 test('inferThemeFromProfile : hints accent prioritaire', () => {
   const analysis = analyzeCvProfile(DENSE_CV);
   const theme = inferThemeFromProfile(analysis, { accent_color: '#ff5500' });
@@ -301,6 +308,114 @@ test('reflowColumnBlocksOnPage : ne touche pas un layout freeform', () => {
   const out = reflowColumnBlocksOnPage(layout, 0);
   assert.equal(out, layout); // identité : aucun repositionnement
   assert.equal(out.pages[0].blocks[1].y, 50);
+});
+
+test('reflowColumnBlocksOnPage : replica_cascade empile malgré freeform', () => {
+  const layout = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    freeform: true,
+    replica_cascade: true,
+    pages: [{
+      id: 'p1',
+      blocks: [
+        { id: 'a', type: 'experiences', bind: 'experiences', x: 8, y: 40, w: 180, h: 40, z: 1, style: { zone: 'main' } },
+        { id: 'b', type: 'formations', bind: 'formations', x: 8, y: 50, w: 180, h: 20, z: 1, style: { zone: 'main' } },
+      ],
+    }],
+    theme: {},
+  };
+  const out = reflowColumnBlocksOnPage(layout, 0);
+  const formations = out.pages[0].blocks.find((b) => b.id === 'b');
+  assert.ok(formations.y >= 80, `formations poussé sous expériences, got y=${formations.y}`);
+});
+
+test('elegant preserveReplicaGeometry : photo au-dessus du nom, pas de restack ATS', () => {
+  const cv = {
+    prenom: 'Louis',
+    nom: 'Vedovato',
+    titre_professionnel: 'Product Owner',
+    telephone: '06',
+    email: 'a@b.fr',
+    resume: 'Stage Product Owner.',
+    experiences: [
+      {
+        entreprise: 'LOUITOS',
+        poste: 'Dirigeant',
+        date_debut: '2022',
+        date_fin: "Aujourd'hui",
+        lieu: 'Cusset',
+        bullet_points: ['Chef'],
+        clients: 'clients',
+      },
+      {
+        entreprise: 'AXEL',
+        poste: 'Président',
+        date_debut: '2024',
+        date_fin: "Aujourd'hui",
+        lieu: 'Cusset',
+        bullet_points: ['Crea'],
+        clients: 'monde',
+      },
+    ],
+    formations: [{ etablissement: 'ESSEC', diplome: 'BBA', date: '2023-2027' }],
+    competences: { techniques: ['Python'], logiciels: ['Notion'], langues: [{ langue: 'Français', niveau: 'Natif' }] },
+    certifications: [{ nom: 'Cert', organisme: 'Org', date: '2026' }],
+    projets: [{ nom: 'CRM', description: 'Desc' }],
+    photo_url: 'https://example.com/p.jpg',
+  };
+  const base = createCanvasLayoutForTemplate({ id: 'elegant' });
+  const { layout } = adaptCanvasLayoutForCv(cv, base, {
+    preserveReplicaGeometry: true,
+    templateId: 'elegant',
+  });
+  assert.equal(layout.freeform, true);
+  assert.equal(layout.replica_cascade, true);
+  const blocks = layout.pages[0].blocks;
+  const photo = blocks.find((b) => b.type === 'photo');
+  const identity = blocks.find((b) => b.type === 'identity');
+  const contact = blocks.find((b) => b.type === 'contact');
+  const experiences = blocks.find((b) => b.type === 'experiences');
+  const formations = blocks.find((b) => b.type === 'formations');
+  assert.ok(photo && identity && contact);
+  assert.ok(photo.y < identity.y, 'photo Stable au-dessus du nom');
+  assert.ok(identity.y < contact.y, 'contact sous identity');
+  assert.ok(experiences.y + experiences.h <= formations.y + 0.05, 'pas de chevauchement exp/formation');
+});
+
+test('adaptCanvasLayoutForCv : freeform sans replica_cascade ne cascade pas', () => {
+  const freeformNoCascade = {
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    freeform: true,
+    pages: [{
+      id: 'p1',
+      blocks: [
+        {
+          id: 'exp', type: 'experiences', bind: 'experiences',
+          x: 10, y: 40, w: 90, h: 20, z: 3, style: { zone: 'main' },
+        },
+        {
+          id: 'side', type: 'formations', bind: 'formations',
+          x: 110, y: 40, w: 80, h: 30, z: 3, style: { zone: 'sidebar' },
+        },
+      ],
+    }],
+    theme: {},
+  };
+  const cv = {
+    experiences: [{ entreprise: 'A', poste: 'B', bullet_points: ['x', 'y', 'z'] }],
+    formations: [{ etablissement: 'ESSEC', diplome: 'BBA', date: '2023' }],
+  };
+  const { layout } = adaptCanvasLayoutForCv(cv, freeformNoCascade, { forImport: true });
+  assert.notEqual(layout.replica_cascade, true);
+  const side = layout.pages[0].blocks.find((b) => b.id === 'side');
+  assert.ok(side, 'bloc sidebar conservé');
+  assert.equal(side.y, 40, 'colonne latérale non déplacée par cascade réplique');
 });
 
 test('reflowColumnBlocksOnPage : empile bien hors freeform (régression du flag)', () => {

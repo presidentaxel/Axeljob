@@ -353,8 +353,11 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       const elegantExp = style.exp_style === 'elegant';
       const minimalExp = style.exp_style === 'minimal';
       const classicExp = style.exp_style === 'classic';
+      const impactExp = style.exp_style === 'bold';
       const atsLabels = boldExp || minimalExp;
-      const hyphenDates = minimalExp || elegantExp;
+      const hyphenDates = minimalExp || elegantExp || impactExp;
+      const dashBullets = minimalExp || elegantExp || classicExp || impactExp;
+      const clientsAfterBullets = classicExp || impactExp;
       return (
         <div className={`free-canvas-block__section-list${boldExp ? ' free-canvas-block__section-list--bold-exp' : ''}${minimalExp ? ' free-canvas-block__section-list--minimal-exp' : ''}${elegantExp ? ' free-canvas-block__section-list--elegant-exp' : ''}`}>
           <SectionHeading
@@ -421,7 +424,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
               </p>
             ) : null;
             const bulletsNode = (
-              <ul className={`free-canvas-block__bullets${minimalExp || elegantExp || classicExp ? ' free-canvas-block__bullets--dash' : ''}`}>
+              <ul className={`free-canvas-block__bullets${dashBullets ? ' free-canvas-block__bullets--dash' : ''}`}>
                 {(exp.bullet_points || []).filter((b) => editing || (b || '').trim()).map((b, j) => (
                   <li key={j}>
                     {editing ? (
@@ -474,10 +477,22 @@ function SemanticBlockBody({ block, cv, editing = false }) {
                       <p className="free-canvas-block__exp-role">
                         {atsLabels ? <span className="free-canvas-block__ats-label">Fonction : </span> : null}
                         {posteNode}
+                        {impactExp && (exp.secteur || '').trim() ? (
+                          <>
+                            {' - '}
+                            {editing ? (
+                              <CanvasEditableField path={`experiences.${idx}.secteur`} editing>
+                                {exp.secteur}
+                              </CanvasEditableField>
+                            ) : (
+                              exp.secteur
+                            )}
+                          </>
+                        ) : null}
                       </p>
                     ) : null}
-                    {/* Stable Classic : bullets puis Clients (filet au-dessus) */}
-                    {classicExp ? (
+                    {/* Stable Bold/Classic : bullets puis Clients */}
+                    {clientsAfterBullets ? (
                       <>
                         {bulletsNode}
                         {clientsNode}

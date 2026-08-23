@@ -13,7 +13,12 @@ export function createCanvasLayoutForTemplate(template) {
   layout.theme = { ...layout.theme, ...parseCanvasTheme(template) };
   // Répliques mono-colonne : géométrie mm calquée Stable — ne pas ré-empiler au reflow ATS.
   // `replica_cascade` : autorise le reflow colonne après auto-height (sans toucher lock_geometry).
-  if (template.id === 'minimal' || template.id === 'elegant' || template.id === 'classic') {
+  if (
+    template.id === 'minimal'
+    || template.id === 'elegant'
+    || template.id === 'classic'
+    || template.id === 'bold'
+  ) {
     layout.freeform = true;
     layout.replica_cascade = true;
   }

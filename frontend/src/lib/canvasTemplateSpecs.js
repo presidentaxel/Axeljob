@@ -80,7 +80,7 @@ export const TEMPLATE_CANVAS_FIDELITY = Object.freeze({
     layoutFamily: 'sidebar-right',
     readiness: 'near-replica',
     fidelityCss: 'rich',
-    gaps: ['Écarts résiduels typo/exp (meilleure base actuelle)'],
+    gaps: ['Checklist visuelle Stable↔Beta (AXE-390)'],
   },
 });
 
@@ -148,12 +148,20 @@ export function parseCanvasTheme(template) {
     color_section_title: defaults.color_section_title ?? theme.color_accent,
   });
 
+  if (defaults.font) {
+    theme.font_heading = fontStackFromTemplateOption(defaults.font);
+    theme.font_body = id === 'executive' || id === 'minimal' || id === 'elegant'
+      ? 'Inter, sans-serif'
+      : theme.font_heading;
+  }
+
   const opts = template?.options;
   if (Array.isArray(opts)) {
     opts.forEach((o) => {
       if (o?.key === 'accent_color' && o.default) {
         theme.color_accent = o.default;
-        if (id !== 'creative') theme.color_section_title = o.default;
+        // Bold Stable : titres corps restent slate ; accent = filets/dates seulement.
+        if (id !== 'creative' && id !== 'bold') theme.color_section_title = o.default;
       }
       if (o?.key === 'header_color' && o.default) theme.color_header = o.default;
       if (o?.key === 'sidebar_color' && o.default) theme.color_sidebar = o.default;
@@ -388,7 +396,8 @@ export function buildTemplateBlocks(template) {
       const PHOTO_TOP = px(20);
       const PHOTO_H = px(64);
       const GAP = px(10);
-      const RESUME_H = px(52);
+      // Hauteur initiale courte : replica_cascade ajuste au contenu (Stable = auto).
+      const RESUME_H = px(36);
       const CONTACT_H = px(14);
       const headerH = PHOTO_TOP + PHOTO_H + GAP + RESUME_H + GAP + CONTACT_H + px(16);
       const bodyY = headerH + px(4);
@@ -431,7 +440,7 @@ export function buildTemplateBlocks(template) {
           style: {
             ...hdr(),
             font_size: 20,
-            bold: true,
+            // Pas de `bold: true` (inline 700) — twin CSS force 800 Stable.
             header_layout: 'inline-title',
             title_accent: true,
           },
@@ -486,7 +495,12 @@ export function buildTemplateBlocks(template) {
           w: MAIN_W,
           h: px(38),
           z: 2,
-          style: { ...mainCol(), section_label: 'FORMATION', title_style: 'bold-main' },
+          style: {
+            ...mainCol(),
+            section_label: 'FORMATION',
+            title_style: 'bold-main',
+            formation_style: 'minimal',
+          },
         },
         {
           type: 'projets',

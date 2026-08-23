@@ -109,6 +109,41 @@ test('minimal réplique Stable : contact inline ·, titres Title Case, exp ATS',
   assert.equal(layout.freeform, true, 'minimal freeform pour préserver la géométrie Stable');
 });
 
+test('bold réplique Stable : header Impact + freeform + cascade', () => {
+  const blocks = buildTemplateBlocks({ id: 'bold' });
+  const photo = blocks.find((b) => b.type === 'photo');
+  const identity = blocks.find((b) => b.type === 'identity');
+  const contact = blocks.find((b) => b.type === 'contact');
+  const resume = blocks.find((b) => b.type === 'resume');
+  const experiences = blocks.find((b) => b.type === 'experiences');
+  const formations = blocks.find((b) => b.type === 'formations');
+  const shapes = blocks.filter((b) => b.type === 'shape:rect');
+
+  assert.ok(photo && identity && contact && resume);
+  assert.equal(photo.style?.photo_border, 'accent-thick');
+  assert.equal(identity.style?.header_layout, 'inline-title');
+  assert.equal(identity.style?.title_accent, true);
+  assert.notEqual(identity.style?.bold, true, 'pas de bold inline 700 (twin CSS 800)');
+  assert.equal(contact.style?.contact_layout, 'header-bar');
+  assert.equal(contact.style?.align, 'center');
+  assert.equal(contact.style?.contact_uppercase, true);
+  assert.equal(experiences.style?.exp_style, 'bold');
+  assert.equal(experiences.style?.title_style, 'bold-main');
+  assert.equal(formations.style?.formation_style, 'minimal');
+  assert.ok(shapes.length >= 3, 'header + barre accent + sidebar');
+
+  const theme = parseCanvasTheme({ id: 'bold' });
+  assert.match(theme.font_heading, /Plus Jakarta Sans/);
+  assert.equal(theme.color_section_title, '#1e293b');
+  assert.equal(theme.color_accent, '#dc2626');
+
+  const layout = createCanvasLayoutForTemplate({ id: 'bold' });
+  assert.equal(layout.freeform, true);
+  assert.equal(layout.replica_cascade, true);
+  assert.equal(getTemplateCanvasFidelity('bold')?.readiness, 'near-replica');
+  assert.equal(getTemplateCanvasFidelity('bold')?.fidelityCss, 'rich');
+});
+
 test('bold reste le plus proche d’une réplique (near-replica)', () => {
   assert.equal(getTemplateCanvasFidelity('bold')?.readiness, 'near-replica');
   assert.equal(getTemplateCanvasFidelity('bold')?.fidelityCss, 'rich');

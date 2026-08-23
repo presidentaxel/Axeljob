@@ -450,8 +450,8 @@ export function buildTemplateBlocks(template) {
           z: 5,
           style: {
             ...hdr(),
-            font_size: 20,
-            // Pas de `bold: true` (inline 700) — twin CSS force 800 Stable.
+            // Pas de font_size ici : sinon --typography force titre = 20pt (inherit !important).
+            // Tailles via twin CSS : nom 20pt / titre 11pt.
             header_layout: 'inline-title',
             title_accent: true,
           },

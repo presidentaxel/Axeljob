@@ -138,74 +138,87 @@
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block__section-title--bold-main {
-  font-size: 10pt;
-  font-weight: 800;
-  color: #1e293b;
+  font-size: 10pt !important;
+  font-weight: 800 !important;
+  color: #1e293b !important;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  border-left: 1.05mm solid var(--free-canvas-accent);
-  padding: 0.8mm 0 0.8mm 2.1mm;
-  margin: 0 0 1.6mm;
-  border-bottom: none;
+  border-left: 4px solid var(--free-canvas-accent);
+  padding: 3px 0 3px 8px;
+  margin: 0 0 6px;
+  border-bottom: none !important;
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block__section-title--bold-sidebar-section {
-  font-size: 10pt;
-  font-weight: 800;
-  color: #1e293b;
+  font-size: 10pt !important;
+  font-weight: 800 !important;
+  color: #1e293b !important;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  border-left: 1.05mm solid var(--free-canvas-accent);
-  padding: 0.8mm 0 0.8mm 2.1mm;
-  margin: 0 0 2.1mm;
-  border-bottom: none;
+  border-left: 4px solid var(--free-canvas-accent);
+  padding: 3px 0 3px 8px;
+  margin: 0 0 8px;
+  border-bottom: none !important;
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block__sidebar-category,
 .free-canvas-page--tpl-bold .free-canvas-block__sidebar-category--bold-sidebar-category {
-  font-size: 8.5pt;
-  font-weight: 800;
-  color: #1e293b;
+  font-size: 8.5pt !important;
+  font-weight: 800 !important;
+  color: #1e293b !important;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  border-left: 0.8mm solid var(--free-canvas-accent);
-  padding-left: 1.6mm;
-  margin: 0 0 1.3mm;
+  border-left: 3px solid var(--free-canvas-accent);
+  padding-left: 6px;
+  margin: 0 0 5px;
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block__identity--inline-title {
   margin: 0;
-  font-size: 20pt;
-  font-weight: 800 !important;
   line-height: 1.1;
   letter-spacing: -0.01em;
-}
-
-.free-canvas-page--tpl-bold .free-canvas-block__identity--inline-title .free-canvas-block__identity-name {
-  display: inline;
-  white-space: nowrap;
-  font-weight: 800 !important;
-}
-
-.free-canvas-page--tpl-bold .free-canvas-block__identity--inline-title .free-canvas-block__identity-sep {
-  font-weight: 400;
-  opacity: 0.4;
-  margin: 0 1mm;
   color: #fff;
 }
 
-.free-canvas-page--tpl-bold .free-canvas-block__identity--inline-title .free-canvas-block__identity-title--accent {
-  font-size: 11pt;
-  font-weight: 600;
-  color: var(--free-canvas-accent) !important;
-  font-style: normal !important;
-  opacity: 1;
+/* Battre `.inner--typography … { font-size: inherit !important }` (sinon titre = 20pt). */
+.free-canvas-page--tpl-bold .free-canvas-block__identity--inline-title .free-canvas-block__identity-name {
   display: inline;
+  white-space: nowrap;
+  font-family: var(--free-canvas-font-heading, 'Plus Jakarta Sans', Arial, sans-serif) !important;
+  font-size: 20pt !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  letter-spacing: -0.01em;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__identity--inline-title .free-canvas-block__identity-sep {
+  font-size: 20pt !important;
+  font-weight: 400 !important;
+  opacity: 0.4;
+  margin: 0 4px;
+  color: #ffffff !important;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block__identity--inline-title .free-canvas-block__identity-title,
+.free-canvas-page--tpl-bold .free-canvas-block__identity--inline-title .free-canvas-block__identity-title--accent {
+  font-family: var(--free-canvas-font-heading, 'Plus Jakarta Sans', Arial, sans-serif) !important;
+  font-size: 11pt !important;
+  font-weight: 600 !important;
+  color: var(--free-canvas-accent, #dc2626) !important;
+  font-style: normal !important;
+  opacity: 1 !important;
+  display: inline;
+  margin: 0 !important;
+}
+
+.free-canvas-page--tpl-bold .free-canvas-block[data-block-type='identity'] .free-canvas-block__inner--zone-header {
+  display: flex;
+  align-items: center;
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block__inner--zone-header .free-canvas-block__identity-title--accent {
-  font-style: normal;
-  opacity: 1;
+  font-style: normal !important;
+  opacity: 1 !important;
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block__photo--border-accent {
@@ -215,6 +228,8 @@
 .free-canvas-page--tpl-bold .free-canvas-block__inner--zone-header .free-canvas-block__resume {
   color: rgba(255, 255, 255, 0.88) !important;
   font-size: 9pt !important;
+  font-weight: 400 !important;
+  font-family: var(--free-canvas-font-heading, 'Plus Jakarta Sans', Arial, sans-serif) !important;
   line-height: 1.45;
   margin: 0;
   text-align: justify;
@@ -225,23 +240,30 @@
   justify-content: center;
   margin: 0;
   color: rgba(255, 255, 255, 0.75) !important;
-  gap: 2mm;
+  font-size: 8.5pt !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.04em;
+  gap: 0;
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block__contact--header-bar .free-canvas-block__contact-icon {
-  color: var(--free-canvas-accent);
+  color: var(--free-canvas-accent) !important;
   vertical-align: middle;
+  width: 0.9em;
+  height: 0.9em;
+  margin-right: 3px;
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block__contact--header-bar .free-canvas-block__contact-spacer {
   white-space: pre;
-  margin: 0 1.5mm;
+  /* Stable .contact-spacer { margin: 0 8px } */
+  margin: 0 8px;
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block__contact--uppercase {
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  font-size: 8.5pt;
+  font-size: 8.5pt !important;
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block__pdf-fidelity-badge {
@@ -265,20 +287,21 @@
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block__exp--bold .free-canvas-block__exp-entreprise strong {
-  color: #1e293b;
+  font-weight: 700 !important;
+  color: #1e293b !important;
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block__exp-dates {
   color: var(--free-canvas-accent) !important;
-  font-weight: 700;
-  font-size: 8.5pt;
+  font-weight: 700 !important;
+  font-size: 8.5pt !important;
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block__exp--bold .free-canvas-block__exp-role {
-  font-size: 9pt;
-  font-weight: 600;
-  color: #64748b;
-  margin: 0.3mm 0 0.8mm;
+  font-size: 9pt !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
+  margin: 1px 0 3px;
 }
 
 .free-canvas-page--tpl-bold .free-canvas-block__exp-clients {

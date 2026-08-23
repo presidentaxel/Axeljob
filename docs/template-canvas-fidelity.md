@@ -33,7 +33,7 @@ Le template virtuel `beta` (`betaCanvasTemplate.js`) n’est **pas** une twin HT
 | `creative` | sidebar-left | projection | medium | Titres creative-main |
 | `elegant` | single-column | near-replica | **rich** | Checklist visuelle OK (PR #174 / AXE-388) |
 | `executive` | sidebar-right | projection | medium | Header band |
-| `bold` | sidebar-right | **near-replica** | rich | Écarts typo/exp résiduels |
+| `bold` | sidebar-right | **near-replica** | rich | Checklist visuelle (AXE-390) |
 
 Source de vérité code : `TEMPLATE_CANVAS_FIDELITY` + `STABLE_CANVAS_TEMPLATE_IDS`.
 
@@ -57,6 +57,12 @@ Source de vérité code : `TEMPLATE_CANVAS_FIDELITY` + `STABLE_CANVAS_TEMPLATE_I
 2. **CSS** `templates/classic/template.css` — pad header `12/16`, photo 52px, sidebar 200px, titres uppercase + filet accent
 3. **Canvas** `buildTemplateBlocks('classic')` + twin CSS + `exp_style: classic` + `freeform` / `replica_cascade`
 
+### Bold / Impact — couches Stable à calquer (AXE-390)
+
+1. **HTML** `templates/bold/template.html` — header sombre + barre rouge 4px, photo 64px bordure accent, nom inline + titre accent, résumé justifié, contact uppercase centré
+2. **CSS** `templates/bold/template.css` — titres 800 + border-left accent, exp ATS, bullets `-`, formations flex + dates accent
+3. **Canvas** `buildTemplateBlocks('bold')` + twin CSS + `exp_style: bold` + `formation_style: minimal` + `freeform` / `replica_cascade`
+
 ## Critères de « réplique native »
 
 Pour un id catalogue :
@@ -72,7 +78,7 @@ Pour un id catalogue :
 2. ~~Tranche Minimal~~ validée checklist visuelle
 3. ~~Élégant~~ (AXE-388 / PR #174) — near-replica
 4. ~~Classic~~ (AXE-389 / PR #177) — near-replica ; checklist visuelle + densité PDF à valider
-5. Finir `bold` (écarts typo/exp résiduels)
+5. **Bold / Impact** (AXE-390) — polish near-replica (cascade + typo/exp)
 6. Option ultérieure : assets `default_layout.json` par template (voir `docs/editor-vision.md`)
 
 ## Alignement contact header-bar

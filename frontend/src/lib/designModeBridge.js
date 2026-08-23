@@ -54,6 +54,7 @@ export function applyStableDesignToCanvas(cv, template, options = {}) {
     templatesList: options.templatesList,
     templateId: template.id,
     preserveReplicaGeometry: true,
+    optionValues: options.optionValues || options.templateOptions || null,
   });
   return {
     ok: true,

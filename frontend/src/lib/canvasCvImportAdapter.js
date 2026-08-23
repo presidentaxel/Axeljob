@@ -1045,7 +1045,10 @@ export function adaptCanvasLayoutForCv(cv, layout, {
  * Pipeline complet : template → layout → adaptation au CV importé.
  */
 export function buildAdaptedCanvasLayoutForCv(cv, template, options = {}) {
-  const base = createCanvasLayoutForTemplate(template);
+  const base = createCanvasLayoutForTemplate(
+    template,
+    options.optionValues || options.templateOptions || null,
+  );
   const templateId = template?.id || options.templateId || '';
   const preserveReplicaGeometry = Boolean(
     options.preserveReplicaGeometry

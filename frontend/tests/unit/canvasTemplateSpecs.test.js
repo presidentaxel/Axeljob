@@ -325,7 +325,7 @@ test('creative réplique Stable : sidebar indigo + accent ambre + freeform', () 
   assert.match(theme.font_heading, /Plus Jakarta Sans/);
   assert.equal(theme.color_sidebar, '#6366f1');
   assert.equal(theme.color_accent, '#f59e0b');
-  assert.equal(theme.color_section_title, '#f59e0b', 'titres = accent Stable');
+  assert.equal(theme.color_section_title, '#6366f1', 'titres main = sidebar indigo');
 
   const live = parseCanvasTheme(
     {
@@ -335,10 +335,11 @@ test('creative réplique Stable : sidebar indigo + accent ambre + freeform', () 
         { key: 'accent_color', type: 'color', default: '#f59e0b' },
       ],
     },
-    { accent_color: '#e11d48' },
+    { accent_color: '#e11d48', sidebar_color: '#4f46e5' },
   );
   assert.equal(live.color_accent, '#e11d48');
-  assert.equal(live.color_section_title, '#e11d48', 'titres suivent accent live');
+  assert.equal(live.color_sidebar, '#4f46e5');
+  assert.equal(live.color_section_title, '#4f46e5', 'titres suivent sidebar, pas accent');
 
   const layout = createCanvasLayoutForTemplate({ id: 'creative' });
   assert.equal(layout.freeform, true);

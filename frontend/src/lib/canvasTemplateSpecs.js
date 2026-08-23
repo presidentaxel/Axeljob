@@ -136,8 +136,8 @@ export function parseCanvasTheme(template, optionValues = null) {
   };
   const defaults = {
     modern: { color_header: '#2d3748', color_sidebar: '#2d3748', color_accent: '#3182ce', color_section_title: '#3182ce', font: 'Inter' },
-    // Stable : --cv-color-section-title = accent (#f59e0b), pas la sidebar indigo.
-    creative: { color_header: '#6366f1', color_sidebar: '#6366f1', color_accent: '#f59e0b', color_section_title: '#f59e0b', font: 'Plus Jakarta Sans' },
+    // Titres main = indigo sidebar (comme twin historique) ; accent ambre = filets / photo / labels.
+    creative: { color_header: '#6366f1', color_sidebar: '#6366f1', color_accent: '#f59e0b', color_section_title: '#6366f1', font: 'Plus Jakarta Sans' },
     executive: { color_header: '#0f172a', color_sidebar: '#f8f6f0', color_accent: '#b8860b', color_section_title: '#0f172a', font: 'Georgia' },
     bold: { color_header: '#1e293b', color_sidebar: '#f1f5f9', color_accent: '#dc2626', color_section_title: '#1e293b', font: 'Plus Jakarta Sans' },
     classic: { color_header: '#1e2a3a', color_sidebar: '#f4f4f2', color_accent: '#1e2a3a', color_section_title: '#1e2a3a', font: 'Plus Jakarta Sans' },
@@ -172,9 +172,8 @@ export function parseCanvasTheme(template, optionValues = null) {
         const val = resolveOpt('accent_color', o.default);
         if (val) {
           theme.color_accent = val;
-          // Bold / Executive Stable : titres corps restent slate ; accent = filets/dates seulement.
-          // Creative Stable : titres main = accent (ambre).
-          if (id !== 'bold' && id !== 'executive') {
+          // Bold / Executive : titres slate. Creative : titres = sidebar indigo (pas accent ambre).
+          if (id !== 'creative' && id !== 'bold' && id !== 'executive') {
             theme.color_section_title = val;
           }
         }
@@ -189,7 +188,11 @@ export function parseCanvasTheme(template, optionValues = null) {
       }
       if (o?.key === 'sidebar_color') {
         const val = resolveOpt('sidebar_color', o.default);
-        if (val) theme.color_sidebar = val;
+        if (val) {
+          theme.color_sidebar = val;
+          // Creative : titres main calés sur la sidebar (indigo brand).
+          if (id === 'creative') theme.color_section_title = val;
+        }
       }
       if (o?.key === 'font') {
         const val = resolveOpt('font', o.default);
@@ -205,7 +208,7 @@ export function parseCanvasTheme(template, optionValues = null) {
     // Template catalogue sans schema options (id seul) : appliquer les valeurs live.
     if (live.accent_color) {
       theme.color_accent = live.accent_color;
-      if (id !== 'bold' && id !== 'executive') {
+      if (id !== 'creative' && id !== 'bold' && id !== 'executive') {
         theme.color_section_title = live.accent_color;
       }
     }
@@ -213,7 +216,10 @@ export function parseCanvasTheme(template, optionValues = null) {
       theme.color_header = live.header_color;
       if (id === 'executive') theme.color_section_title = live.header_color;
     }
-    if (live.sidebar_color) theme.color_sidebar = live.sidebar_color;
+    if (live.sidebar_color) {
+      theme.color_sidebar = live.sidebar_color;
+      if (id === 'creative') theme.color_section_title = live.sidebar_color;
+    }
     if (live.font) {
       theme.font_heading = fontStackFromTemplateOption(live.font);
       theme.font_body = id === 'executive' || id === 'minimal' || id === 'elegant'
@@ -221,6 +227,8 @@ export function parseCanvasTheme(template, optionValues = null) {
         : theme.font_heading;
     }
   }
+  // Creative : titres main = sidebar (Stable preview / twin historique), accent = filets uniquement.
+  if (id === 'creative') theme.color_section_title = theme.color_sidebar;
   return theme;
 }
 

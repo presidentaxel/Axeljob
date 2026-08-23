@@ -78,7 +78,7 @@ Source de vérité code : `TEMPLATE_CANVAS_FIDELITY` + `STABLE_CANVAS_TEMPLATE_I
 ### Creative — couches Stable à calquer (AXE-393)
 
 1. **HTML** `templates/creative/template.html` — sidebar gauche (photo, identité, CONTACT, compétences…), main PROFIL → EXP → FORMATION → PROJETS
-2. **CSS** `templates/creative/template.css` — sidebar 200px `#6366f1`, titres accent `#f59e0b`, photo 80px `border: 3px solid accent`, bullets `▸`
+2. **CSS** `templates/creative/template.css` — sidebar 200px `#6366f1`, accent `#f59e0b` (photo / filets / labels sidebar / bullets ▸) ; titres main Beta = indigo sidebar (brand), filet ambre
 3. **Canvas** `buildTemplateBlocks('creative')` + twin CSS + `exp_style: creative` + `title_style: creative-main|creative-sidebar` + `freeform` / `replica_cascade`
 
 ## Critères de « réplique native »

@@ -263,7 +263,8 @@
   font-family: var(--free-canvas-font-heading, 'Plus Jakarta Sans', Arial, sans-serif) !important;
   font-size: 9.5pt !important;
   font-weight: 700 !important;
-  color: var(--free-canvas-section-title, var(--free-canvas-accent, #f59e0b)) !important;
+  /* Indigo sidebar (brand) — accent ambre réservé au filet / bullets / photo. */
+  color: var(--free-canvas-section-title, var(--free-canvas-sidebar, #6366f1)) !important;
   border-bottom: 2px solid var(--free-canvas-accent, #f59e0b) !important;
   letter-spacing: 0.04em;
   text-transform: uppercase;

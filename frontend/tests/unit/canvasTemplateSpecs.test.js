@@ -347,6 +347,23 @@ test('executive réplique Stable : header band + sidebar droite + freeform', () 
   assert.equal(getTemplateCanvasFidelity('executive')?.fidelityCss, 'rich');
 });
 
+test('executive : accent or ne remplace pas les titres slate', () => {
+  const template = {
+    id: 'executive',
+    options: [
+      { key: 'header_color', type: 'color', default: '#0f172a' },
+      { key: 'accent_color', type: 'color', default: '#b8860b' },
+      { key: 'sidebar_color', type: 'color', default: '#f8f6f0' },
+    ],
+  };
+  const theme = parseCanvasTheme(template);
+  assert.equal(theme.color_accent, '#b8860b');
+  assert.equal(theme.color_section_title, '#0f172a', 'titres ≠ accent (Stable --cv-color-section-title)');
+  const live = parseCanvasTheme(template, { accent_color: '#d4a017', header_color: '#0f172a' });
+  assert.equal(live.color_accent, '#d4a017');
+  assert.equal(live.color_section_title, '#0f172a');
+});
+
 test('classic réplique Stable : header sombre + résumé + sidebar droite', () => {
   const blocks = buildTemplateBlocks({ id: 'classic' });
   const photo = blocks.find((b) => b.type === 'photo');

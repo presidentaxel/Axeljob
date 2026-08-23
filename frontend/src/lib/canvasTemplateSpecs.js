@@ -171,13 +171,19 @@ export function parseCanvasTheme(template, optionValues = null) {
         const val = resolveOpt('accent_color', o.default);
         if (val) {
           theme.color_accent = val;
-          // Bold Stable : titres corps restent slate ; accent = filets/dates seulement.
-          if (id !== 'creative' && id !== 'bold') theme.color_section_title = val;
+          // Bold / Executive Stable : titres corps restent slate ; accent = filets/dates seulement.
+          if (id !== 'creative' && id !== 'bold' && id !== 'executive') {
+            theme.color_section_title = val;
+          }
         }
       }
       if (o?.key === 'header_color') {
         const val = resolveOpt('header_color', o.default);
-        if (val) theme.color_header = val;
+        if (val) {
+          theme.color_header = val;
+          // Executive : titres de section calés sur l’en-tête (Stable #0f172a).
+          if (id === 'executive') theme.color_section_title = val;
+        }
       }
       if (o?.key === 'sidebar_color') {
         const val = resolveOpt('sidebar_color', o.default);
@@ -197,9 +203,14 @@ export function parseCanvasTheme(template, optionValues = null) {
     // Template catalogue sans schema options (id seul) : appliquer les valeurs live.
     if (live.accent_color) {
       theme.color_accent = live.accent_color;
-      if (id !== 'creative' && id !== 'bold') theme.color_section_title = live.accent_color;
+      if (id !== 'creative' && id !== 'bold' && id !== 'executive') {
+        theme.color_section_title = live.accent_color;
+      }
     }
-    if (live.header_color) theme.color_header = live.header_color;
+    if (live.header_color) {
+      theme.color_header = live.header_color;
+      if (id === 'executive') theme.color_section_title = live.header_color;
+    }
     if (live.sidebar_color) theme.color_sidebar = live.sidebar_color;
     if (live.font) {
       theme.font_heading = fontStackFromTemplateOption(live.font);
@@ -579,7 +590,7 @@ export function buildTemplateBlocks(template, optionValues = null) {
         zone: 'main',
         font_size: 9.5,
         color: '#1a1a1a',
-        font_family: t.font_heading,
+        // Corps Inter (page) ; Georgia uniquement via twin CSS sur les titres.
         ...extra,
       });
       const sideCol = (extra = {}) => ({
@@ -587,7 +598,6 @@ export function buildTemplateBlocks(template, optionValues = null) {
         font_size: 8.5,
         color: '#333333',
         list_format: 'list',
-        font_family: t.font_heading,
         ...extra,
       });
       const photoX = px(22);

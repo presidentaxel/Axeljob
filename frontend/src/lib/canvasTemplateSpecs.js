@@ -1018,9 +1018,10 @@ export function buildTemplateBlocks(template, optionValues = null) {
           type: 'identity',
           bind: ['prenom', 'nom', 'titre_professionnel'],
           x: px(16) + PHOTO_H + px(12),
-          y: PHOTO_TOP + px(4),
+          // Même bande que la photo + flex center (Stable .header-top-row align-items:center).
+          y: PHOTO_TOP,
           w: PAGE_WIDTH_MM - px(16) - PHOTO_H - px(12) - px(16),
-          h: PHOTO_H - px(8),
+          h: PHOTO_H,
           z: 5,
           style: {
             ...hdr(),

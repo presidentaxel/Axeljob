@@ -382,6 +382,8 @@ test('classic réplique Stable : header sombre + résumé + sidebar droite', () 
   assert.equal(photo.style?.zone, 'header');
   assert.equal(identity.style?.header_layout, 'inline-title');
   assert.equal(identity.style?.zone, 'header');
+  assert.equal(identity.y, photo.y, 'identity alignée verticalement avec la photo');
+  assert.equal(identity.h, photo.h, 'identity même hauteur que la photo (centrage flex)');
   assert.equal(resume.style?.zone, 'header');
   assert.equal(resume.style?.show_section_title, false);
   assert.ok(resume.y > identity.y, 'résumé sous identity dans le header');

@@ -757,6 +757,22 @@
   margin: 0;
 }
 
+/* Stable .header-top-row { align-items: center } — centrer le nom vs photo. */
+.free-canvas-page--tpl-classic .free-canvas-block[data-block-type='identity'] .free-canvas-block__inner--zone-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start;
+  height: 100% !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block[data-block-type='identity'] .free-canvas-block__identity--inline-title {
+  width: 100%;
+  margin: 0;
+}
+
 .free-canvas-page--tpl-classic .free-canvas-block__identity--inline-title .free-canvas-block__identity-name,
 .free-canvas-page--tpl-classic .free-canvas-block__identity--classic-header .free-canvas-block__identity-name {
   font-family: var(--free-canvas-font-heading) !important;

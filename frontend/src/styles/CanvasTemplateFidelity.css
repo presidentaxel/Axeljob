@@ -443,6 +443,21 @@
   padding-bottom: 0.26mm;
 }
 
+/* Catégories sidebar (pas de filet pleine largeur comme les titres LANGUES/AUTRES) */
+.free-canvas-page--tpl-classic .free-canvas-block__section-title--bold-sidebar-category,
+.free-canvas-page--tpl-classic .free-canvas-block__sidebar-category {
+  font-size: 9.5pt !important;
+  text-transform: none;
+  letter-spacing: 0;
+  border-bottom: 0;
+  margin: 0 0 1.06mm;
+  padding-bottom: 0;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block__pdf-fidelity-badge {
+  display: none;
+}
+
 /* ---------- Minimal (réplique mono-colonne — AXE-346) ---------- */
 .free-canvas-page--tpl-minimal {
   color: #1a1a1a;

@@ -421,6 +421,44 @@ test('classic preserveReplicaGeometry : contenu main reste page 1 (lanes sépar�
   assert.ok(experiences.y > contact.y, 'main sous le header');
 });
 
+test('classic sidebar : cascade resserre les blocs (pas de trous après shrink)', () => {
+  const cv = {
+    prenom: 'L',
+    nom: 'V',
+    titre_professionnel: 'PO',
+    telephone: '06',
+    email: 'a@b.fr',
+    resume: 'Résumé.',
+    experiences: [{ entreprise: 'A', poste: 'B', bullet_points: ['x'] }],
+    formations: [{ etablissement: 'E', diplome: 'D', date: '2023' }],
+    projets: [{ nom: 'P', description: 'D' }],
+    competences: {
+      techniques: ['Python', 'Lire'],
+      logiciels: ['Excel', 'Claude'],
+      autres: ['Permis B'],
+      langues: [
+        { langue: 'Français', niveau: 'Natif' },
+        { langue: 'Japonais', niveau: 'C2' },
+      ],
+    },
+    certifications: [{ nom: 'Cert', organisme: 'AXEL', date: '2026' }],
+    photo_url: 'https://example.com/p.jpg',
+  };
+  const { layout } = adaptCanvasLayoutForCv(cv, createCanvasLayoutForTemplate({ id: 'classic' }), {
+    preserveReplicaGeometry: true,
+    templateId: 'classic',
+  });
+  const side = layout.pages[0].blocks
+    .filter((b) => b.style?.zone === 'sidebar-light')
+    .sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0));
+  assert.ok(side.length >= 4, `sidebar trop courte: ${side.length}`);
+  for (let i = 1; i < side.length; i += 1) {
+    const prev = side[i - 1];
+    const gap = side[i].y - (prev.y + prev.h);
+    assert.ok(gap < 1.5, `trou sidebar ${prev.type}→${side[i].type}: ${gap.toFixed(1)}mm`);
+  }
+});
+
 test('minimal : contact sous identity sans overlap (hauteur nom+titre)', () => {
   const blocks = createCanvasLayoutForTemplate({ id: 'minimal' }).pages[0].blocks;
   const identity = blocks.find((b) => b.type === 'identity');

@@ -80,6 +80,9 @@ body.cv-layout-body {
   color: var(--layout-accent, #1e293b);
 }
 .cv-layout-identity-title { font-size: 10pt; margin-top: 1mm; color: #475569; }
+.cv-layout-identity-title--accent {
+  color: var(--layout-accent, #dc2626);
+}
 .cv-layout-identity--inline-title {
   display: flex;
   flex-wrap: wrap;
@@ -117,6 +120,9 @@ body.cv-layout-body {
 .cv-layout-block[data-zone="sidebar"] .cv-layout-identity-sep,
 .cv-layout-block[data-zone="header"] .cv-layout-identity-sep {
   color: rgba(255, 255, 255, 0.85);
+}
+.cv-layout-block[data-zone="header"] .cv-layout-identity-title--accent {
+  color: var(--layout-accent, #dc2626);
 }
 .cv-layout-block[data-zone="sidebar"] .cv-layout-contact p,
 .cv-layout-block[data-zone="sidebar"] .cv-layout-contact--header-bar,
@@ -175,8 +181,42 @@ body.cv-layout-body {
   color: var(--layout-section-title, var(--layout-accent, #1e293b));
 }
 .cv-layout-exp { margin-bottom: 2mm; }
-.cv-layout-exp-header { display: flex; justify-content: space-between; gap: 2mm; align-items: baseline; font-weight: 600; }
-.cv-layout-exp-dates { font-weight: 500; color: var(--layout-sidebar, #64748b); white-space: nowrap; font-size: 8pt; }
+.cv-layout-exp-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 2mm;
+  align-items: baseline;
+  font-weight: 600;
+}
+.cv-layout-exp-left {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.cv-layout-exp-dates {
+  flex: 0 0 auto;
+  font-weight: 500;
+  /* Jamais color_sidebar (souvent un fond clair) — texte secondaire lisible. */
+  color: var(--layout-muted, #64748b);
+  white-space: nowrap;
+  font-size: 8pt;
+}
+.cv-layout-doc--tpl-bold .cv-layout-exp-dates,
+.cv-layout-doc--tpl-classic .cv-layout-exp-dates {
+  color: var(--layout-accent, #dc2626);
+  font-weight: 700;
+}
+.cv-layout-doc--tpl-creative .cv-layout-exp-dates {
+  color: var(--layout-section-title, var(--layout-sidebar, #6366f1));
+  font-weight: 600;
+}
+.cv-layout-doc--tpl-modern .cv-layout-exp-dates {
+  color: #1a1a1a;
+  font-weight: 700;
+}
+.cv-layout-doc--tpl-executive .cv-layout-exp-dates {
+  color: var(--layout-accent, #b8860b);
+  font-weight: 600;
+}
 .cv-layout-exp-role { color: #64748b; font-size: 8pt; margin-bottom: 0.5mm; }
 .cv-layout-exp-clients { margin: 0 0 0.5mm; font-size: 8pt; color: #475569; }
 .cv-layout-ats-label { font-size: 0.9em; color: #999; font-weight: 400; }
@@ -230,9 +270,16 @@ body.cv-layout-body {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+/* Un seul filet sous le bloc contact (comme canvas), pas une ligne par entrée. */
+.cv-layout-contact--with-divider {
+  padding-bottom: 2mm;
+  margin-bottom: 1mm;
+  border-bottom: 0.25mm solid rgba(30, 41, 59, 0.18);
+}
+.cv-layout-block[data-zone="sidebar"] .cv-layout-contact--with-divider {
+  border-bottom-color: rgba(255, 255, 255, 0.2);
+}
 .cv-layout-contact--with-divider p {
-  border-bottom: 0.15mm solid rgba(30, 41, 59, 0.18);
-  padding-bottom: 0.6mm;
   margin-bottom: 0.8mm;
 }
 .cv-layout-section-title--underline-accent {
@@ -329,6 +376,10 @@ def render_html(
     font_body = _esc(merged_theme.get("font_body") or font_heading)
     template_id = str(merged_theme.get("template_id") or "").strip().lower()
     tpl_class = f" cv-layout-doc--tpl-{_esc(template_id)}" if template_id else ""
+    font_link = _google_fonts_link(
+        str(merged_theme.get("font_heading") or ""),
+        str(merged_theme.get("font_body") or ""),
+    )
 
     pages_html: list[str] = []
     for page in pages:
@@ -354,13 +405,14 @@ def render_html(
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>CV layout</title>
-<style>
+{font_link}<style>
 {LAYOUT_CSS}
 :root {{
   --layout-accent: {accent};
   --layout-section-title: {section_title};
   --layout-sidebar: {sidebar};
   --layout-header: {header};
+  --layout-muted: #64748b;
   --layout-font-heading: {font_heading};
   --layout-font-body: {font_body};
 }}
@@ -405,6 +457,10 @@ def _render_semantic(cv: dict, block: dict) -> str:
         name = bind.resolve_bound_text(cv, ["prenom", "nom"])
         title = bind.resolve_bound_text(cv, "titre_professionnel")
         align = _esc(str(style.get("align") or "left"))
+        title_accent = bool(style.get("title_accent"))
+        title_cls = "cv-layout-identity-title"
+        if title_accent:
+            title_cls += " cv-layout-identity-title--accent"
         name_html = (
             f'<div class="cv-layout-identity-name" style="text-align:{align}">'
             f'{_text(name or "Prénom Nom")}</div>'
@@ -413,7 +469,7 @@ def _render_semantic(cv: dict, block: dict) -> str:
             parts = [f'<span class="cv-layout-identity-name">{_text(name or "Prénom Nom")}</span>']
             if title:
                 parts.append('<span class="cv-layout-identity-sep"> - </span>')
-                parts.append(f'<span class="cv-layout-identity-title">{_text(title)}</span>')
+                parts.append(f'<span class="{title_cls}">{_text(title)}</span>')
             body = (
                 f'<div class="cv-layout-identity cv-layout-identity--inline-title" '
                 f'style="text-align:{align}">{"".join(parts)}</div>'
@@ -421,9 +477,10 @@ def _render_semantic(cv: dict, block: dict) -> str:
         else:
             parts = [name_html]
             if title:
-                parts.append(f'<div class="cv-layout-identity-title">{_text(title)}</div>')
+                parts.append(f'<div class="{title_cls}">{_text(title)}</div>')
             body = f'<div class="cv-layout-identity">{"".join(parts)}</div>'
-        if style.get("identity_divider") or style.get("title_accent"):
+        # title_accent = couleur titre (canvas), pas un filet. Filet = identity_divider.
+        if style.get("identity_divider"):
             body += '<div class="cv-layout-identity-divider" aria-hidden="true"></div>'
         return body
 
@@ -622,12 +679,13 @@ def _render_experiences(cv: dict, limit: Any, fmt: str, style: dict[str, Any] | 
             left = f"{ats_org}<strong>{_text(ent or poste)}</strong>"
             if poste and ent:
                 left += f" - {ats_fn}{_text(poste)}"
-            header = left
+            header = f'<span class="cv-layout-exp-left">{left}</span>'
             if date_line:
                 header += f'<span class="cv-layout-exp-dates">{_text(date_line)}</span>'
             role = ""
         else:
-            header = f"{ats_org}<strong>{_text(ent or poste)}</strong>"
+            left = f"{ats_org}<strong>{_text(ent or poste)}</strong>"
+            header = f'<span class="cv-layout-exp-left">{left}</span>'
             if date_line:
                 header += f'<span class="cv-layout-exp-dates">{_text(date_line)}</span>'
             role = ""
@@ -1093,6 +1151,34 @@ def _icon_svg(name: str) -> str:
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" '
         'fill="currentColor" aria-hidden="true">'
         f"{path}</svg>"
+    )
+
+
+def _google_fonts_link(*font_stacks: str) -> str:
+    """Charge Inter / Plus Jakarta Sans via Google Fonts pour WeasyPrint."""
+    families: list[str] = []
+    seen: set[str] = set()
+    known = {
+        "inter": "Inter:wght@400;500;600;700",
+        "plus jakarta sans": "Plus+Jakarta+Sans:wght@400;500;600;700;800",
+    }
+    for stack in font_stacks:
+        if not stack:
+            continue
+        primary = stack.split(",")[0].strip().strip("'\"")
+        key = primary.lower()
+        if key in known and key not in seen:
+            seen.add(key)
+            families.append(known[key])
+    if not families:
+        return ""
+    # family=A&family=B
+    query = "&family=".join(families)
+    href = f"https://fonts.googleapis.com/css2?family={query}&display=swap"
+    return (
+        f'<link rel="preconnect" href="https://fonts.googleapis.com"/>\n'
+        f'<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>\n'
+        f'<link href="{_esc(href)}" rel="stylesheet"/>\n'
     )
 
 

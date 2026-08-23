@@ -325,11 +325,13 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       const resumeText = resolveBoundText(cv, resumeBind);
       return (
         <div className="free-canvas-block__section-list">
-          <SectionHeading
-            label={style.section_label || 'PROFIL'}
-            titleStyle={style.title_style}
-            zone={style.zone}
-          />
+          {style.show_section_title === false ? null : (
+            <SectionHeading
+              label={style.section_label || 'PROFIL'}
+              titleStyle={style.title_style}
+              zone={style.zone}
+            />
+          )}
           <p className="free-canvas-block__resume">
             {editing ? (
               <CanvasEditableField path={resumePath} editing tag="span">
@@ -347,9 +349,10 @@ function SemanticBlockBody({ block, cv, editing = false }) {
     case 'experiences': {
       const items = resolveExperiences(cv, limit);
       if (items.length === 0) return <p className="free-canvas-block__placeholder">Expériences</p>;
-      const boldExp = style.exp_style === 'bold' || style.exp_style === 'elegant';
+      const boldExp = style.exp_style === 'bold' || style.exp_style === 'elegant' || style.exp_style === 'classic';
       const elegantExp = style.exp_style === 'elegant';
       const minimalExp = style.exp_style === 'minimal';
+      const classicExp = style.exp_style === 'classic';
       const atsLabels = boldExp || minimalExp;
       const hyphenDates = minimalExp || elegantExp;
       return (
@@ -435,7 +438,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
             return (
               <div
                 key={exp.id || i}
-                className={`free-canvas-block__exp${format === 'compact' ? ' free-canvas-block__exp--compact' : ''}${boldExp ? ' free-canvas-block__exp--bold' : ''}${minimalExp ? ' free-canvas-block__exp--minimal' : ''}${elegantExp ? ' free-canvas-block__exp--elegant' : ''}`}
+                className={`free-canvas-block__exp${format === 'compact' ? ' free-canvas-block__exp--compact' : ''}${boldExp ? ' free-canvas-block__exp--bold' : ''}${minimalExp ? ' free-canvas-block__exp--minimal' : ''}${elegantExp ? ' free-canvas-block__exp--elegant' : ''}${classicExp ? ' free-canvas-block__exp--classic' : ''}`}
               >
                 {minimalExp ? (
                   <>
@@ -486,7 +489,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
     case 'formations': {
       const items = resolveFormations(cv, limit);
       if (items.length === 0) return <p className="free-canvas-block__placeholder">Formations</p>;
-      const minimalForm = style.formation_style === 'minimal';
+      const minimalForm = style.formation_style === 'minimal' || style.formation_style === 'classic';
       return (
         <div className="free-canvas-block__section-list">
           <SectionHeading

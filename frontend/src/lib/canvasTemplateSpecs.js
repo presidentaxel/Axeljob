@@ -40,11 +40,11 @@ export const TEMPLATE_CANVAS_FIDELITY = Object.freeze({
   classic: {
     name: 'Classique',
     layoutFamily: 'sidebar-right',
-    readiness: 'thin',
-    fidelityCss: 'thin',
+    readiness: 'near-replica',
+    fidelityCss: 'rich',
     gaps: [
-      'CSS Stable très dense vs twin canvas mince',
-      'Sidebar compétences / typo header à rapprocher',
+      'Checklist visuelle Stable↔Beta (AXE-389)',
+      'Densité PDF (pad compact) vs preview à valider',
     ],
   },
   modern: {
@@ -556,22 +556,152 @@ export function buildTemplateBlocks(template) {
     }
 
     case 'classic': {
+      // Réplique templates/classic : header sombre (photo + nom inline + résumé + contact
+      // centré icônes), accent optionnel, main gauche, sidebar droite compétences.
       const { SB, SB_X, PAD, MAIN_W, SB_INSET } = rightSidebarMetrics();
-      const headerH = 46;
-      const bodyY = headerH + 1;
+      const PHOTO_TOP = px(12);
+      const PHOTO_H = px(52);
+      const GAP = px(6);
+      const RESUME_H = px(42);
+      const CONTACT_H = px(14);
+      const headerPadBottom = px(12);
+      const headerH = PHOTO_TOP + PHOTO_H + GAP + RESUME_H + GAP + CONTACT_H + headerPadBottom;
+      const bodyY = headerH;
+      const resumeY = PHOTO_TOP + PHOTO_H + GAP;
+      const contactY = resumeY + RESUME_H + GAP;
       const bodyH = H - bodyY;
+      const headerLock = { lock_geometry: true };
+      const hdr = (extra = {}) => ({
+        zone: 'header',
+        color: '#ffffff',
+        font_family: t.font_heading,
+        ...headerLock,
+        ...extra,
+      });
+      const mainCol = (extra = {}) => ({
+        zone: 'main',
+        font_size: 9,
+        color: '#1a1a1a',
+        font_family: t.font_heading,
+        ...extra,
+      });
+      const sideCol = (extra = {}) => ({
+        zone: 'sidebar-light',
+        font_size: 8.5,
+        color: '#333333',
+        list_format: 'list',
+        ...extra,
+      });
       return [
         bg(0, 0, PAGE_WIDTH_MM, headerH, t.color_header, 0),
-        bar(0, headerH, PAGE_WIDTH_MM, 0.8, t.color_accent, 1),
         bg(SB_X, bodyY, SB, bodyH, t.color_sidebar, 0),
-        { type: 'photo', x: 8, y: 6, w: 14, h: 14, z: 4, style: { shape: 'circle', zone: 'header' } },
-        { type: 'identity', bind: ['prenom', 'nom', 'titre_professionnel'], x: 26, y: 8, w: PAGE_WIDTH_MM - SB - 34, h: 14, z: 4, style: { ...header(), font_size: 15 } },
-        { type: 'contact', bind: ['email', 'telephone', 'linkedin'], x: 8, y: 30, w: PAGE_WIDTH_MM - SB - 16, h: 10, z: 4, style: { ...header(), contact_layout: 'header-bar', contact_icons: true, font_size: 8.5 } },
-        { type: 'experiences', bind: 'experiences', x: PAD, y: bodyY + 4, w: MAIN_W, h: 120, z: 2, style: { ...main(), section_label: 'EXPÉRIENCE PROFESSIONNELLE', title_style: 'classic-main', exp_style: 'bold' } },
-        { type: 'formations', bind: 'formations', x: PAD, y: bodyY + 128, w: MAIN_W, h: 28, z: 2, style: { ...main(), section_label: 'FORMATION', title_style: 'classic-main' } },
-        { type: 'resume', bind: 'resume', x: PAD, y: bodyY + 160, w: MAIN_W, h: 20, z: 2, style: { ...main(), section_label: 'PROFIL', font_style: 'italic' } },
-        { type: 'projets', bind: 'projets', x: PAD, y: bodyY + 184, w: MAIN_W, h: 24, z: 2, style: { ...main(), section_label: 'PROJETS', title_style: 'classic-main' } },
-        ...sidebarCompetenceBlocksDetailed(SB_X + SB_INSET, SB - SB_INSET * 2, bodyY + 6, sideLight(), 3),
+        {
+          type: 'photo',
+          x: px(16),
+          y: PHOTO_TOP,
+          w: PHOTO_H,
+          h: PHOTO_H,
+          z: 5,
+          style: { shape: 'circle', zone: 'header', photo_border: 'light', ...headerLock },
+        },
+        {
+          type: 'identity',
+          bind: ['prenom', 'nom', 'titre_professionnel'],
+          x: px(16) + PHOTO_H + px(12),
+          y: PHOTO_TOP + px(4),
+          w: PAGE_WIDTH_MM - px(16) - PHOTO_H - px(12) - px(16),
+          h: PHOTO_H - px(8),
+          z: 5,
+          style: {
+            ...hdr(),
+            font_size: 15,
+            bold: true,
+            header_layout: 'inline-title',
+            identity_layout: 'classic-header',
+          },
+        },
+        {
+          type: 'resume',
+          bind: 'resume',
+          x: px(16),
+          y: resumeY,
+          w: PAGE_WIDTH_MM - px(32),
+          h: RESUME_H,
+          z: 5,
+          style: {
+            ...hdr(),
+            align: 'justify',
+            font_size: 9,
+            font_style: 'italic',
+            color: 'rgba(255,255,255,0.95)',
+            // Pas de section_label : résumé dans le header Stable (pas « Profil » main)
+            show_section_title: false,
+          },
+        },
+        {
+          type: 'contact',
+          bind: ['telephone', 'email', 'linkedin'],
+          x: px(16),
+          y: contactY,
+          w: PAGE_WIDTH_MM - px(32),
+          h: CONTACT_H,
+          z: 5,
+          style: {
+            ...hdr(),
+            align: 'center',
+            contact_layout: 'header-bar',
+            contact_icons: true,
+            contact_separator: ' ',
+            font_size: 9,
+          },
+        },
+        {
+          type: 'experiences',
+          bind: 'experiences',
+          x: PAD,
+          y: bodyY + px(8),
+          w: MAIN_W,
+          h: px(200),
+          z: 2,
+          style: {
+            ...mainCol(),
+            section_label: 'EXPÉRIENCE PROFESSIONNELLE',
+            title_style: 'classic-main',
+            exp_style: 'classic',
+          },
+        },
+        {
+          type: 'formations',
+          bind: 'formations',
+          x: PAD,
+          y: bodyY + px(214),
+          w: MAIN_W,
+          h: px(36),
+          z: 2,
+          style: {
+            ...mainCol(),
+            section_label: 'FORMATION',
+            title_style: 'classic-main',
+            formation_style: 'classic',
+          },
+        },
+        {
+          type: 'projets',
+          bind: 'projets',
+          x: PAD,
+          y: bodyY + px(254),
+          w: MAIN_W,
+          h: px(28),
+          z: 2,
+          style: { ...mainCol(), section_label: 'PROJETS', title_style: 'classic-main' },
+        },
+        ...sidebarCompetenceBlocksDetailed(
+          SB_X + SB_INSET,
+          SB - SB_INSET * 2,
+          bodyY + px(12),
+          sideCol(),
+          3,
+        ),
       ];
     }
 

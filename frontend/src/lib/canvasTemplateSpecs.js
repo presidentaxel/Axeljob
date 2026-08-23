@@ -71,9 +71,9 @@ export const TEMPLATE_CANVAS_FIDELITY = Object.freeze({
   executive: {
     name: 'Executive',
     layoutFamily: 'sidebar-right',
-    readiness: 'projection',
-    fidelityCss: 'medium',
-    gaps: ['Bandeau header + barre accent vs CSS Stable'],
+    readiness: 'near-replica',
+    fidelityCss: 'rich',
+    gaps: ['Checklist visuelle Stable↔Beta (AXE-392)', 'Densité PDF compacte à valider'],
   },
   bold: {
     name: 'Impact',
@@ -171,13 +171,19 @@ export function parseCanvasTheme(template, optionValues = null) {
         const val = resolveOpt('accent_color', o.default);
         if (val) {
           theme.color_accent = val;
-          // Bold Stable : titres corps restent slate ; accent = filets/dates seulement.
-          if (id !== 'creative' && id !== 'bold') theme.color_section_title = val;
+          // Bold / Executive Stable : titres corps restent slate ; accent = filets/dates seulement.
+          if (id !== 'creative' && id !== 'bold' && id !== 'executive') {
+            theme.color_section_title = val;
+          }
         }
       }
       if (o?.key === 'header_color') {
         const val = resolveOpt('header_color', o.default);
-        if (val) theme.color_header = val;
+        if (val) {
+          theme.color_header = val;
+          // Executive : titres de section calés sur l’en-tête (Stable #0f172a).
+          if (id === 'executive') theme.color_section_title = val;
+        }
       }
       if (o?.key === 'sidebar_color') {
         const val = resolveOpt('sidebar_color', o.default);
@@ -197,9 +203,14 @@ export function parseCanvasTheme(template, optionValues = null) {
     // Template catalogue sans schema options (id seul) : appliquer les valeurs live.
     if (live.accent_color) {
       theme.color_accent = live.accent_color;
-      if (id !== 'creative' && id !== 'bold') theme.color_section_title = live.accent_color;
+      if (id !== 'creative' && id !== 'bold' && id !== 'executive') {
+        theme.color_section_title = live.accent_color;
+      }
     }
-    if (live.header_color) theme.color_header = live.header_color;
+    if (live.header_color) {
+      theme.color_header = live.header_color;
+      if (id === 'executive') theme.color_section_title = live.header_color;
+    }
     if (live.sidebar_color) theme.color_sidebar = live.sidebar_color;
     if (live.font) {
       theme.font_heading = fontStackFromTemplateOption(live.font);
@@ -238,22 +249,6 @@ const main = (extra = {}) => ({
   zone: 'main',
   font_size: 9,
   color: '#1a1a1a',
-  ...extra,
-});
-
-const header = (extra = {}) => ({
-  zone: 'header',
-  color: '#ffffff',
-  ...extra,
-});
-
-const sideLight = (extra = {}) => ({
-  zone: 'sidebar-light',
-  font_size: 8.5,
-  color: '#333333',
-  show_section_title: true,
-  title_style: 'sidebar-category',
-  list_format: 'list',
   ...extra,
 });
 
@@ -567,29 +562,209 @@ export function buildTemplateBlocks(template, optionValues = null) {
       ];
 
     case 'executive': {
-      const { SB_X, PAD, MAIN_W, SB_INSET } = rightSidebarMetrics();
-      const headerH = 50;
-      const bodyY = headerH + 1.2;
+      // Réplique templates/executive : header sombre + barre accent 3px, photo 60px,
+      // identity inline, résumé sans titre, contact icônes centré ; main EXP/FORMATION/PROJETS ;
+      // sidebar droite crème + filet accent.
+      const { SB, SB_X, PAD, MAIN_W, SB_INSET } = rightSidebarMetrics();
+      const PHOTO_TOP = px(18);
+      const PHOTO_H = px(60);
+      const GAP = px(8);
+      const RESUME_H = px(36);
+      const CONTACT_H = px(14);
+      const headerPadBottom = px(14);
+      const ACCENT_BAR = px(3);
+      const headerH = PHOTO_TOP + PHOTO_H + GAP + RESUME_H + GAP + CONTACT_H + headerPadBottom;
+      const bodyY = headerH + ACCENT_BAR;
+      const resumeY = PHOTO_TOP + PHOTO_H + GAP;
+      const contactY = resumeY + RESUME_H + GAP;
       const bodyH = H - bodyY;
+      const headerLock = { lock_geometry: true };
+      const hdr = (extra = {}) => ({
+        zone: 'header',
+        color: '#ffffff',
+        font_family: t.font_heading,
+        ...headerLock,
+        ...extra,
+      });
+      const mainCol = (extra = {}) => ({
+        zone: 'main',
+        font_size: 9.5,
+        color: '#1a1a1a',
+        // Corps Inter (page) ; Georgia uniquement via twin CSS sur les titres.
+        ...extra,
+      });
       const sideCol = (extra = {}) => ({
-        ...sideLight(),
-        title_color: t.color_accent,
+        zone: 'sidebar-light',
+        font_size: 8.5,
+        color: '#333333',
         list_format: 'list',
         ...extra,
       });
+      const photoX = px(22);
+      const identityX = photoX + PHOTO_H + px(16);
       return [
         bg(0, 0, PAGE_WIDTH_MM, headerH, t.color_header, 0),
-        bar(0, headerH, PAGE_WIDTH_MM, 1.2, t.color_accent, 1),
+        bar(0, headerH, PAGE_WIDTH_MM, ACCENT_BAR, t.color_accent, 1),
         bg(SB_X, bodyY, SB, bodyH, t.color_sidebar, 0),
-        bar(SB_X, bodyY, 0.5, bodyH, t.color_accent, 2),
-        { type: 'photo', x: 8, y: 6, w: 16, h: 16, z: 5, style: { shape: 'circle', zone: 'header', photo_border: 'accent' } },
-        { type: 'identity', bind: ['prenom', 'nom', 'titre_professionnel'], x: 28, y: 6, w: PAGE_WIDTH_MM - SB - 36, h: 14, z: 5, style: { ...header(), font_size: 18, font_family: t.font_heading, align: 'left' } },
-        { type: 'resume', bind: 'resume', x: 28, y: 22, w: PAGE_WIDTH_MM - SB - 36, h: 12, z: 5, style: { ...header(), font_style: 'italic', align: 'justify', font_size: 9 } },
-        { type: 'contact', bind: ['email', 'telephone', 'linkedin'], x: 8, y: 36, w: PAGE_WIDTH_MM - SB - 16, h: 10, z: 5, style: { ...header(), contact_layout: 'header-bar', font_size: 8.5, contact_icons: true } },
-        { type: 'experiences', bind: 'experiences', x: PAD, y: bodyY + 4, w: MAIN_W, h: 118, z: 2, style: { ...main(), section_label: 'EXPÉRIENCE PROFESSIONNELLE', title_style: 'executive-main', font_family: t.font_heading, exp_style: 'bold' } },
-        { type: 'formations', bind: 'formations', x: PAD, y: bodyY + 126, w: MAIN_W, h: 30, z: 2, style: { ...main(), section_label: 'FORMATION', title_style: 'executive-main', font_family: t.font_heading } },
-        { type: 'projets', bind: 'projets', x: PAD, y: bodyY + 160, w: MAIN_W, h: 26, z: 2, style: { ...main(), section_label: 'PROJETS', title_style: 'executive-main', font_family: t.font_heading } },
-        ...sidebarCompetenceBlocksDetailed(SB_X + SB_INSET, SB - SB_INSET * 2, bodyY + 8, sideCol(), 3),
+        bar(SB_X, bodyY, px(1.5), bodyH, t.color_accent, 2),
+        {
+          type: 'photo',
+          x: photoX,
+          y: PHOTO_TOP,
+          w: PHOTO_H,
+          h: PHOTO_H,
+          z: 5,
+          style: { shape: 'circle', zone: 'header', photo_border: 'accent', ...headerLock },
+        },
+        {
+          type: 'identity',
+          bind: ['prenom', 'nom', 'titre_professionnel'],
+          x: identityX,
+          y: PHOTO_TOP,
+          w: PAGE_WIDTH_MM - identityX - px(22),
+          h: PHOTO_H,
+          z: 5,
+          style: {
+            ...hdr(),
+            header_layout: 'inline-title',
+            identity_layout: 'executive-header',
+          },
+        },
+        {
+          type: 'resume',
+          bind: 'resume',
+          x: photoX,
+          y: resumeY,
+          w: PAGE_WIDTH_MM - px(44),
+          h: RESUME_H,
+          z: 5,
+          style: {
+            ...hdr(),
+            align: 'justify',
+            font_size: 9,
+            color: 'rgba(255,255,255,0.9)',
+            show_section_title: false,
+          },
+        },
+        {
+          type: 'contact',
+          bind: ['telephone', 'email', 'linkedin'],
+          x: photoX,
+          y: contactY,
+          w: PAGE_WIDTH_MM - px(44),
+          h: CONTACT_H,
+          z: 5,
+          style: {
+            ...hdr(),
+            align: 'center',
+            contact_layout: 'header-bar',
+            font_size: 8.5,
+            contact_icons: true,
+            contact_separator: ' ',
+          },
+        },
+        {
+          type: 'experiences',
+          bind: 'experiences',
+          x: PAD,
+          y: bodyY + px(10),
+          w: MAIN_W,
+          h: px(160),
+          z: 2,
+          style: {
+            ...mainCol(),
+            section_label: 'EXPÉRIENCE PROFESSIONNELLE',
+            title_style: 'executive-main',
+            exp_style: 'executive',
+          },
+        },
+        {
+          type: 'formations',
+          bind: 'formations',
+          x: PAD,
+          y: bodyY + px(176),
+          w: MAIN_W,
+          h: px(36),
+          z: 2,
+          style: {
+            ...mainCol(),
+            section_label: 'FORMATION',
+            title_style: 'executive-main',
+            formation_style: 'minimal',
+          },
+        },
+        {
+          type: 'projets',
+          bind: 'projets',
+          x: PAD,
+          y: bodyY + px(218),
+          w: MAIN_W,
+          h: px(28),
+          z: 2,
+          style: { ...mainCol(), section_label: 'PROJETS', title_style: 'executive-main' },
+        },
+        {
+          type: 'skills',
+          bind: 'competences.techniques',
+          x: SB_X + SB_INSET,
+          y: bodyY + px(18),
+          w: SB - SB_INSET * 2,
+          h: px(52),
+          z: 3,
+          style: {
+            ...sideCol(),
+            section_label: 'COMPÉTENCES',
+            sidebar_category: 'Compétences techniques',
+            title_style: 'executive-sidebar-section',
+          },
+        },
+        {
+          type: 'skills',
+          bind: 'competences.logiciels',
+          x: SB_X + SB_INSET,
+          y: bodyY + px(72),
+          w: SB - SB_INSET * 2,
+          h: px(40),
+          z: 3,
+          style: {
+            ...sideCol(),
+            sidebar_category: 'Logiciels & outils',
+            title_style: 'executive-sidebar-category',
+          },
+        },
+        {
+          type: 'certifications',
+          bind: 'certifications',
+          x: SB_X + SB_INSET,
+          y: bodyY + px(114),
+          w: SB - SB_INSET * 2,
+          h: px(28),
+          z: 3,
+          style: {
+            ...sideCol(),
+            sidebar_category: 'Certifications',
+            title_style: 'executive-sidebar-category',
+          },
+        },
+        {
+          type: 'languages',
+          x: SB_X + SB_INSET,
+          y: bodyY + px(146),
+          w: SB - SB_INSET * 2,
+          h: px(22),
+          z: 3,
+          style: { ...sideCol(), section_label: 'LANGUES', title_style: 'executive-main' },
+        },
+        {
+          type: 'skills',
+          bind: 'competences.autres',
+          x: SB_X + SB_INSET,
+          y: bodyY + px(170),
+          w: SB - SB_INSET * 2,
+          h: px(30),
+          z: 3,
+          style: { ...sideCol(), section_label: 'AUTRES', title_style: 'executive-main' },
+        },
       ];
     }
 
@@ -843,9 +1018,10 @@ export function buildTemplateBlocks(template, optionValues = null) {
           type: 'identity',
           bind: ['prenom', 'nom', 'titre_professionnel'],
           x: px(16) + PHOTO_H + px(12),
-          y: PHOTO_TOP + px(4),
+          // Même bande que la photo + flex center (Stable .header-top-row align-items:center).
+          y: PHOTO_TOP,
           w: PAGE_WIDTH_MM - px(16) - PHOTO_H - px(12) - px(16),
-          h: PHOTO_H - px(8),
+          h: PHOTO_H,
           z: 5,
           style: {
             ...hdr(),

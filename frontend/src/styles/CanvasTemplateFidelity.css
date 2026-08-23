@@ -216,49 +216,261 @@
   letter-spacing: 0.04em;
 }
 
-/* ---------- Executive ---------- */
-.free-canvas-page--tpl-executive .free-canvas-block__inner--zone-main {
+/* ---------- Executive (réplique templates/executive — AXE-392) ---------- */
+.free-canvas-page--tpl-executive {
   font-family: Inter, Arial, sans-serif;
+  color: #1a1a1a;
 }
 
-.free-canvas-page--tpl-executive .free-canvas-block__section-title--executive-main {
-  font-family: var(--free-canvas-font-heading);
-  font-size: 10pt;
-  font-weight: 700;
-  color: var(--free-canvas-section-title, #0f172a);
-  border-bottom: 0.4mm solid var(--free-canvas-accent);
+.free-canvas-page--tpl-executive .free-canvas-block__inner {
+  padding: 0;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__photo--border-accent,
+.free-canvas-page--tpl-executive .free-canvas-block__image-frame-inner.free-canvas-block__photo--border-accent {
+  border-radius: 50%;
+  /* Stable : border 2.5px accent — pas de box-shadow (clippé → arcs). */
+  border: 2.5px solid var(--free-canvas-accent, #b8860b);
+  box-shadow: none;
+  box-sizing: border-box;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__photo {
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__identity--inline-title,
+.free-canvas-page--tpl-executive .free-canvas-block__identity--executive-header {
+  color: #ffffff;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__identity--inline-title .free-canvas-block__identity-name,
+.free-canvas-page--tpl-executive .free-canvas-block__identity--executive-header .free-canvas-block__identity-name {
+  font-family: var(--free-canvas-font-heading, Georgia, 'Times New Roman', serif) !important;
+  font-size: 18pt !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em;
+  color: #ffffff !important;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__identity--inline-title .free-canvas-block__identity-sep {
+  font-weight: 400 !important;
+  opacity: 0.5;
+  margin: 0 1.5mm;
+  color: #ffffff !important;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__identity--inline-title .free-canvas-block__identity-title,
+.free-canvas-page--tpl-executive .free-canvas-block__identity--inline-title .free-canvas-block__identity-title--accent {
+  font-family: var(--free-canvas-font-heading, Georgia, 'Times New Roman', serif) !important;
+  font-size: 10.5pt !important;
+  font-weight: 400 !important;
+  font-style: italic !important;
+  opacity: 0.9 !important;
+  color: #ffffff !important;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block[data-block-type='identity'] .free-canvas-block__inner--zone-header {
+  display: flex;
+  align-items: center;
+  overflow: hidden !important;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__inner--zone-header .free-canvas-block__resume {
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-size: 9pt !important;
+  font-style: italic !important;
+  text-align: justify;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__contact--header-bar {
+  text-align: center;
+  justify-content: center;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.85) !important;
+  font-size: 8.5pt !important;
+  letter-spacing: 0.03em;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__contact--header-bar .free-canvas-block__contact-icon {
+  color: var(--free-canvas-accent, #b8860b) !important;
+  vertical-align: middle;
+  width: 0.9em;
+  height: 0.9em;
+  margin-right: 3px;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__section-title--executive-main,
+.free-canvas-page--tpl-executive .free-canvas-block__inner--zone-main .free-canvas-block__section-title {
+  font-family: var(--free-canvas-font-heading, Georgia, 'Times New Roman', serif) !important;
+  font-size: 10pt !important;
+  font-weight: 700 !important;
+  /* Stable --cv-color-section-title (#0f172a), pas l’accent or */
+  color: var(--free-canvas-section-title, #0f172a) !important;
+  border-bottom: 1.5px solid var(--free-canvas-accent, #b8860b) !important;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  margin: 0 0 1.5mm;
+  padding-bottom: 0.5mm;
 }
 
-.free-canvas-page--tpl-executive .free-canvas-block__section-title--sidebar-category {
-  font-family: var(--free-canvas-font-heading);
-  font-size: 9pt;
-  font-weight: 700;
-  color: var(--free-canvas-accent);
+.free-canvas-page--tpl-executive .free-canvas-block__section-title--executive-sidebar-section,
+.free-canvas-page--tpl-executive .free-canvas-block__inner--zone-sidebar-light .free-canvas-block__section-title--executive-sidebar-section,
+.free-canvas-page--tpl-executive .free-canvas-block__inner--zone-sidebar-light .free-canvas-block__section-title:not(.free-canvas-block__section-title--executive-sidebar-category) {
+  font-family: var(--free-canvas-font-heading, Georgia, 'Times New Roman', serif) !important;
+  font-size: 10pt !important;
+  font-weight: 700 !important;
+  color: var(--free-canvas-section-title, #0f172a) !important;
+  border-bottom: 1.5px solid var(--free-canvas-accent, #b8860b) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 2mm;
+  padding-bottom: 0.5mm;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__sidebar-category,
+.free-canvas-page--tpl-executive .free-canvas-block__sidebar-category--executive-sidebar-category,
+.free-canvas-page--tpl-executive .free-canvas-block__section-title--executive-sidebar-category {
+  font-family: var(--free-canvas-font-heading, Georgia, 'Times New Roman', serif) !important;
+  font-size: 9pt !important;
+  font-weight: 700 !important;
+  color: var(--free-canvas-accent, #b8860b) !important;
   letter-spacing: 0.04em;
-  border: none;
+  border: none !important;
   text-transform: none;
+  margin: 0 0 1mm;
 }
 
-.free-canvas-page--tpl-executive .free-canvas-block__exp-dates {
-  color: var(--free-canvas-accent);
-  font-weight: 600;
+.free-canvas-page--tpl-executive .free-canvas-block__exp--executive {
+  margin-bottom: 2mm;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__exp--executive .free-canvas-block__exp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 3mm;
+  margin-bottom: 0.5mm;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__exp--executive .free-canvas-block__ats-label {
+  font-size: 0.9em;
+  color: #999999;
+  font-weight: 400;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__exp--executive .free-canvas-block__exp-entreprise strong {
+  color: #1a1a1a !important;
+  font-weight: 700 !important;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__exp--executive .free-canvas-block__exp-dates {
+  color: var(--free-canvas-accent, #b8860b) !important;
+  font-weight: 600 !important;
+  font-size: 8.5pt !important;
+  white-space: nowrap;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__exp--executive .free-canvas-block__exp-role {
+  font-size: 9pt !important;
+  font-style: italic !important;
+  color: #555555 !important;
+  margin: 0 0 0.8mm;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__exp-clients {
+  font-style: italic;
+  font-size: 8pt;
+  color: #777777;
+  margin: 1mm 0 0;
+  padding-top: 0.8mm;
+  border-top: 1px solid #eeeeee;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__bullets--dash {
+  list-style: none;
+  margin: 0.4mm 0 0;
+  padding: 0;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__bullets--dash li {
+  position: relative;
+  padding-left: 2.8mm;
+  margin: 0 0 0.4mm;
+  font-size: 9pt;
+  line-height: 1.4;
+  /* Stable : var(--cv-color-body) → #1a1a1a */
+  color: #1a1a1a;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__bullets--dash li::before {
+  content: '-';
+  position: absolute;
+  left: 0;
+  color: #1a1a1a;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__formation--minimal .free-canvas-block__formation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 3mm;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__formation--minimal .free-canvas-block__formation-diplome {
+  font-weight: 700;
+  color: #1a1a1a !important;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__formation--minimal .free-canvas-block__formation-date {
   font-size: 8.5pt;
+  font-weight: 600;
+  color: var(--free-canvas-accent, #b8860b) !important;
+  white-space: nowrap;
 }
 
-.free-canvas-page--tpl-executive .free-canvas-block__exp-role {
+.free-canvas-page--tpl-executive .free-canvas-block__formation--minimal .free-canvas-block__formation-mention {
   font-style: italic;
-  color: #555;
+  color: #555555 !important;
+  margin: 0;
 }
 
-.free-canvas-page--tpl-executive .free-canvas-block__inner--zone-header .free-canvas-block__identity-title {
-  font-style: italic;
-  opacity: 0.9;
+.free-canvas-page--tpl-executive .free-canvas-block__section-list strong {
+  color: #1a1a1a !important;
+  font-weight: 700;
 }
 
-.free-canvas-page--tpl-executive .free-canvas-block__contact--icons .free-canvas-block__contact-icon {
-  color: var(--free-canvas-accent);
+.free-canvas-page--tpl-executive .free-canvas-block[data-block-type='projets'] .free-canvas-block__section-list p {
+  font-size: 8.5pt;
+  color: #555555;
+  line-height: 1.4;
+  margin: 0 0 1mm;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block[data-block-type='projets'] .free-canvas-block__section-list p strong {
+  font-size: 9.5pt;
+  color: #1a1a1a !important;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__sidebar-item {
+  font-size: 8.5pt !important;
+  color: #333333 !important;
+  line-height: 1.4;
+  margin: 0 0 0.3mm;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__inner--zone-sidebar-light {
+  color: #1a1a1a;
+}
+
+.free-canvas-page--tpl-executive .free-canvas-block__pdf-fidelity-badge {
+  display: none;
 }
 
 /* ---------- Impact (bold) ---------- */
@@ -542,6 +754,22 @@
 .free-canvas-page--tpl-classic .free-canvas-block__identity--classic-header {
   color: #ffffff;
   line-height: 1.2;
+  margin: 0;
+}
+
+/* Stable .header-top-row { align-items: center } — centrer le nom vs photo. */
+.free-canvas-page--tpl-classic .free-canvas-block[data-block-type='identity'] .free-canvas-block__inner--zone-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start;
+  height: 100% !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+}
+
+.free-canvas-page--tpl-classic .free-canvas-block[data-block-type='identity'] .free-canvas-block__identity--inline-title {
+  width: 100%;
   margin: 0;
 }
 

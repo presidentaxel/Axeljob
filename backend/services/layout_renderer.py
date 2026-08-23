@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import re
 from typing import Any
 
 from backend.services import layout_bindings as bind
@@ -67,10 +68,29 @@ body.cv-layout-body {
   overflow: hidden;
   padding: 0;
 }
+/* Centrage vertical header (photo / identity / contact) — comme CanvasTemplateFidelity. */
+.cv-layout-block[data-type="identity"][data-zone="header"] .cv-layout-block__inner,
+.cv-layout-block[data-type="contact"][data-zone="header"] .cv-layout-block__inner,
+.cv-layout-block[data-type="identity"][data-zone="sidebar"] .cv-layout-block__inner {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+}
+.cv-layout-block[data-type="contact"][data-zone="header"] .cv-layout-block__inner {
+  align-items: center;
+}
 .cv-layout-block[data-type="text"] .cv-layout-block__inner,
 .cv-layout-block[data-type="title"] .cv-layout-block__inner,
 .cv-layout-block[data-type="resume"] .cv-layout-block__inner {
   padding: 1mm 1.5mm;
+}
+.cv-layout-doc--tpl-bold .cv-layout-block[data-type="resume"] .cv-layout-block__inner,
+.cv-layout-doc--tpl-classic .cv-layout-block[data-type="resume"] .cv-layout-block__inner,
+.cv-layout-doc--tpl-creative .cv-layout-block[data-type="resume"] .cv-layout-block__inner,
+.cv-layout-doc--tpl-modern .cv-layout-block[data-type="resume"] .cv-layout-block__inner,
+.cv-layout-doc--tpl-executive .cv-layout-block[data-type="resume"] .cv-layout-block__inner {
+  padding: 0;
 }
 .cv-layout-identity-name {
   font-family: var(--layout-font-heading, var(--layout-font-body, 'Inter', sans-serif));
@@ -78,6 +98,21 @@ body.cv-layout-body {
   font-weight: 700;
   line-height: 1.2;
   color: var(--layout-accent, #1e293b);
+}
+.cv-layout-doc--tpl-bold .cv-layout-identity-name {
+  font-size: 20pt;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.cv-layout-doc--tpl-classic .cv-layout-identity-name,
+.cv-layout-doc--tpl-executive .cv-layout-identity-name {
+  font-size: 18pt;
+  font-weight: 700;
+}
+.cv-layout-doc--tpl-creative .cv-layout-identity-name,
+.cv-layout-doc--tpl-modern .cv-layout-identity-name {
+  font-size: 13pt;
+  font-weight: 700;
 }
 .cv-layout-identity-title { font-size: 10pt; margin-top: 1mm; color: #475569; }
 .cv-layout-identity-title--accent {
@@ -181,6 +216,30 @@ body.cv-layout-body {
   color: var(--layout-section-title, var(--layout-accent, #1e293b));
 }
 .cv-layout-exp { margin-bottom: 2mm; }
+.cv-layout-exp--bold,
+.cv-layout-exp--classic {
+  margin-bottom: 1.8mm;
+  padding-bottom: 1.6mm;
+  border-bottom: 0.26mm solid #f1f5f9;
+}
+.cv-layout-exp--bold:last-child,
+.cv-layout-exp--classic:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.cv-layout-exp--modern,
+.cv-layout-exp--creative,
+.cv-layout-exp--executive {
+  margin-bottom: 2mm;
+  padding-bottom: 1.2mm;
+  border-bottom: 0.2mm solid #eeeeee;
+}
+.cv-layout-exp--modern:last-child,
+.cv-layout-exp--creative:last-child,
+.cv-layout-exp--executive:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
 .cv-layout-exp-header {
   display: flex;
   justify-content: space-between;
@@ -266,6 +325,16 @@ body.cv-layout-body {
   opacity: 0.55;
   width: 100%;
 }
+/* Filet identité canvas : border sur le bloc (évite clipping du child). */
+.cv-layout-identity--with-divider {
+  border-bottom: 0.26mm solid rgba(255, 255, 255, 0.22);
+  padding-bottom: 2mm;
+  margin-bottom: 1mm;
+}
+.cv-layout-block[data-zone="sidebar"] .cv-layout-identity--with-divider .cv-layout-identity-divider,
+.cv-layout-block[data-zone="header"] .cv-layout-identity--with-divider .cv-layout-identity-divider {
+  display: none;
+}
 .cv-layout-contact--uppercase {
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -311,13 +380,18 @@ body.cv-layout-body {
   font-size: 8pt;
   letter-spacing: 0.08em;
   color: var(--layout-section-title, var(--layout-accent, #1e293b));
-  border-bottom: 0.25mm solid color-mix(in srgb, var(--layout-accent, #1e293b) 35%, transparent);
+  border-bottom: 0.25mm solid rgba(186, 230, 253, 0.35);
 }
 .cv-layout-section-title--creative-sidebar {
   font-size: 8pt;
   letter-spacing: 0.08em;
   color: var(--layout-accent, #f59e0b);
   border-bottom: 0.25mm solid rgba(255, 255, 255, 0.28);
+}
+.cv-layout-doc--tpl-bold .cv-layout-section-title--sidebar-bar {
+  font-weight: 800;
+  border-left-width: 1.1mm;
+  padding: 0.8mm 0 0.8mm 2mm;
 }
 .cv-layout-shape-svg {
   width: 100%;
@@ -366,20 +440,17 @@ def render_html(
     if not isinstance(pages, list) or not pages:
         pages = [{"id": "page-1", "blocks": []}]
 
-    accent = _esc(merged_theme.get("color_accent") or "#1e293b")
-    section_title = _esc(
+    accent = _css_color(merged_theme.get("color_accent") or "#1e293b")
+    section_title = _css_color(
         merged_theme.get("color_section_title") or merged_theme.get("color_accent") or "#1e293b"
     )
-    sidebar = _esc(merged_theme.get("color_sidebar") or "#64748b")
-    header = _esc(merged_theme.get("color_header") or sidebar)
-    font_heading = _esc(merged_theme.get("font_heading") or "Inter")
-    font_body = _esc(merged_theme.get("font_body") or font_heading)
+    sidebar = _css_color(merged_theme.get("color_sidebar") or "#64748b")
+    header = _css_color(merged_theme.get("color_header") or sidebar)
+    font_heading = _css_font_stack(str(merged_theme.get("font_heading") or "Inter, sans-serif"))
+    font_body = _css_font_stack(str(merged_theme.get("font_body") or font_heading))
     template_id = str(merged_theme.get("template_id") or "").strip().lower()
     tpl_class = f" cv-layout-doc--tpl-{_esc(template_id)}" if template_id else ""
-    font_link = _google_fonts_link(
-        str(merged_theme.get("font_heading") or ""),
-        str(merged_theme.get("font_body") or ""),
-    )
+    font_faces = _local_font_faces_css()
 
     pages_html: list[str] = []
     for page in pages:
@@ -405,7 +476,8 @@ def render_html(
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>CV layout</title>
-{font_link}<style>
+<style>
+{font_faces}
 {LAYOUT_CSS}
 :root {{
   --layout-accent: {accent};
@@ -470,18 +542,18 @@ def _render_semantic(cv: dict, block: dict) -> str:
             if title:
                 parts.append('<span class="cv-layout-identity-sep"> - </span>')
                 parts.append(f'<span class="{title_cls}">{_text(title)}</span>')
-            body = (
-                f'<div class="cv-layout-identity cv-layout-identity--inline-title" '
-                f'style="text-align:{align}">{"".join(parts)}</div>'
-            )
+            id_cls = "cv-layout-identity cv-layout-identity--inline-title"
+            if style.get("identity_divider"):
+                id_cls += " cv-layout-identity--with-divider"
+            body = f'<div class="{id_cls}" ' f'style="text-align:{align}">{"".join(parts)}</div>'
         else:
             parts = [name_html]
             if title:
                 parts.append(f'<div class="{title_cls}">{_text(title)}</div>')
-            body = f'<div class="cv-layout-identity">{"".join(parts)}</div>'
-        # title_accent = couleur titre (canvas), pas un filet. Filet = identity_divider.
-        if style.get("identity_divider"):
-            body += '<div class="cv-layout-identity-divider" aria-hidden="true"></div>'
+            id_cls = "cv-layout-identity"
+            if style.get("identity_divider"):
+                id_cls += " cv-layout-identity--with-divider"
+            body = f'<div class="{id_cls}">{"".join(parts)}</div>'
         return body
 
     if btype == "photo":
@@ -703,13 +775,14 @@ def _render_experiences(cv: dict, limit: Any, fmt: str, style: dict[str, Any] | 
         bl = "".join(f"<li>{_text((b or '').strip())}</li>" for b in bullets if (b or "").strip())
         bullets_html = f'<ul class="{bullet_cls}">{bl}</ul>' if bl else ""
         compact = " cv-layout-exp--compact" if fmt == "compact" else ""
+        exp_mod = f" cv-layout-exp--{exp_style}" if exp_style else ""
         mid = (
             f"{bullets_html}{clients_html}"
             if clients_after_bullets
             else f"{clients_html}{bullets_html}"
         )
         rows.append(
-            f'<div class="cv-layout-exp{compact}">'
+            f'<div class="cv-layout-exp{compact}{exp_mod}">'
             f'<div class="cv-layout-exp-header">{header}</div>{role}{mid}</div>'
         )
     return _section_with_style("experiences", "".join(rows), style, default_title=True)
@@ -842,7 +915,12 @@ def _title_style_modifier(title_style: str) -> str:
         return ""
     if ts in {"underline-accent", "pill", "sidebar-bar"}:
         return f" cv-layout-section-title--{ts}"
-    if ts == "bold-main":
+    if ts in {
+        "bold-main",
+        "bold-sidebar-section",
+        "bold-sidebar-category",
+        "executive-sidebar-section",
+    }:
         return " cv-layout-section-title--sidebar-bar"
     if ts in {
         "modern-main",
@@ -857,12 +935,7 @@ def _title_style_modifier(title_style: str) -> str:
         return " cv-layout-section-title--modern-sidebar"
     if ts in {"creative-sidebar", "sidebar-creative"}:
         return " cv-layout-section-title--creative-sidebar"
-    if ts in {
-        "bold-sidebar-section",
-        "executive-sidebar-section",
-        "bold-sidebar-category",
-        "executive-sidebar-category",
-    }:
+    if ts in {"executive-sidebar-category"}:
         return " cv-layout-section-title--twin-sidebar"
     return ""
 
@@ -901,12 +974,14 @@ def _typography_declarations(style: dict[str, Any]) -> list[str]:
     declarations: list[str] = []
     font_family = style.get("font_family")
     if isinstance(font_family, str) and font_family.strip():
-        declarations.append(f"font-family:{_css_value(font_family)}")
+        declarations.append(f"font-family:{_css_font_stack(font_family)}")
     if style.get("font_size") is not None:
         declarations.append(f"font-size:{_num(style.get('font_size'))}pt")
     color = style.get("color_body") or style.get("color")
     if isinstance(color, str) and color.strip():
-        declarations.append(f"color:{_css_value(color)}")
+        declarations.append(
+            f"color:{_css_color(color) if color.startswith(('#', 'rgb')) else _css_value(color)}"
+        )
     if style.get("bold"):
         declarations.append("font-weight:700")
     if style.get("italic") or style.get("font_style") == "italic":
@@ -1154,32 +1229,44 @@ def _icon_svg(name: str) -> str:
     )
 
 
-def _google_fonts_link(*font_stacks: str) -> str:
-    """Charge Inter / Plus Jakarta Sans via Google Fonts pour WeasyPrint."""
-    families: list[str] = []
-    seen: set[str] = set()
-    known = {
-        "inter": "Inter:wght@400;500;600;700",
-        "plus jakarta sans": "Plus+Jakarta+Sans:wght@400;500;600;700;800",
-    }
-    for stack in font_stacks:
-        if not stack:
-            continue
-        primary = stack.split(",")[0].strip().strip("'\"")
-        key = primary.lower()
-        if key in known and key not in seen:
-            seen.add(key)
-            families.append(known[key])
-    if not families:
-        return ""
-    # family=A&family=B
-    query = "&family=".join(families)
-    href = f"https://fonts.googleapis.com/css2?family={query}&display=swap"
-    return (
-        f'<link rel="preconnect" href="https://fonts.googleapis.com"/>\n'
-        f'<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>\n'
-        f'<link href="{_esc(href)}" rel="stylesheet"/>\n'
-    )
+def _local_font_faces_css() -> str:
+    """@font-face locaux (pdf_export/fonts) — fiables pour WeasyPrint sans réseau."""
+    faces = [
+        ("Inter", 400, "Inter-Regular.ttf"),
+        ("Inter", 600, "Inter-SemiBold.ttf"),
+        ("Inter", 700, "Inter-Bold.ttf"),
+        ("Plus Jakarta Sans", 400, "PlusJakartaSans-Regular.ttf"),
+        ("Plus Jakarta Sans", 600, "PlusJakartaSans-SemiBold.ttf"),
+        ("Plus Jakarta Sans", 700, "PlusJakartaSans-Bold.ttf"),
+        ("Plus Jakarta Sans", 800, "PlusJakartaSans-ExtraBold.ttf"),
+    ]
+    chunks: list[str] = []
+    for family, weight, filename in faces:
+        url = f"pdf_export/fonts/{filename}"
+        chunks.append(
+            "@font-face {\n"
+            f"  font-family: '{family}';\n"
+            f"  font-weight: {weight};\n"
+            "  font-style: normal;\n"
+            f"  src: url('{url}') format('truetype');\n"
+            "}\n"
+        )
+    return "".join(chunks)
+
+
+def _css_font_stack(value: str) -> str:
+    """Stack CSS sûr (pas d'html.escape — WeasyPrint ne décode pas les entités)."""
+    cleaned = re.sub(r"[^a-zA-Z0-9\s,'\"\-]", "", value or "").strip()
+    return cleaned[:180] or "Inter, sans-serif"
+
+
+def _css_color(value: Any) -> str:
+    raw = str(value or "").strip()
+    if re.fullmatch(r"#[0-9a-fA-F]{3,8}", raw):
+        return raw
+    if re.fullmatch(r"rgba?\([^)]+\)", raw):
+        return raw
+    return "#1e293b"
 
 
 def _css_value(value: str) -> str:

@@ -446,7 +446,7 @@ class TestLayoutRenderer(unittest.TestCase):
         cv = _sample_cv()
         cv["photo_url"] = "https://example.com/p.jpg"
         html = render_html(cv, layout)
-        self.assertIn('class="cv-layout-identity-divider"', html)
+        self.assertIn("cv-layout-identity--with-divider", html)
         self.assertIn("border:0.5mm solid #111111", html)
 
     def test_title_accent_is_not_a_divider(self):
@@ -480,10 +480,15 @@ class TestLayoutRenderer(unittest.TestCase):
             ],
         }
         html = render_html(_sample_cv(), layout)
-        self.assertNotIn('class="cv-layout-identity-divider"', html)
-        self.assertIn("cv-layout-identity-title--accent", html)
-        self.assertIn("fonts.googleapis.com", html)
+        body = html.split("<body", 1)[-1]
+        self.assertNotIn("identity--with-divider", body)
+        self.assertIn("cv-layout-identity-title--accent", body)
+        self.assertIn("@font-face", html)
+        self.assertIn("PlusJakartaSans", html)
         self.assertIn("--layout-muted", html)
+        style_block = html.split("<style>")[1].split("</style>")[0]
+        self.assertIn("Plus Jakarta Sans", style_block)
+        self.assertNotIn("&#x27;", style_block)
 
     def test_qrcode_remains_placeholder(self):
         layout = {

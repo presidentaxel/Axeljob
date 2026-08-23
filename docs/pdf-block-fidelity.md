@@ -58,11 +58,16 @@ Zones sombres (`style.zone: sidebar|header`) : texte identité / contact / liste
 en blanc (le fond vient des `shape:rect` du layout). Presets `photo_border`
 (`light`, `accent`, `accent-thick`, `accent-thin`) exportés.
 
+Polices : `@font-face` locaux `pdf_export/fonts/` (Inter + Plus Jakarta Sans)
+pour WeasyPrint (pas de fetch Google Fonts à l’export).
+
+Centrage vertical header/sidebar identité + contact ; séparateurs expériences
+twin ; titres Bold sidebar = barre gauche (pas filet bas).
+
 Les effets de bloc (`style.effect`) ne sont pas exportés → **partial**.
 
-**Limite :** le PDF n’embarque pas tout `CanvasTemplateFidelity.css` (typo fine,
-espacements twin). Objectif = chrome + couleurs + structure lisibles, pas un
-clone pixel-perfect Stable.
+**Limite :** densités / line-height twin CSS ne sont pas toutes portées. Objectif =
+chrome + couleurs + polices + structure lisibles, pas un clone pixel-perfect.
 
 ---
 

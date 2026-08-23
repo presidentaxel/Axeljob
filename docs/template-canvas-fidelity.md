@@ -29,7 +29,7 @@ Le template virtuel `beta` (`betaCanvasTemplate.js`) n’est **pas** une twin HT
 |----|---------|-----------|--------------|-----------------|
 | `minimal` | single-column | near-replica | **rich** | Checklist visuelle OK (PR #170) |
 | `classic` | sidebar-right | near-replica | **rich** | Checklist visuelle + densité PDF (AXE-389 / PR #177) |
-| `modern` | sidebar-left | projection | medium | Sidebar / accents |
+| `modern` | sidebar-left | near-replica | **rich** | Checklist visuelle + densité PDF (AXE-391) |
 | `creative` | sidebar-left | projection | medium | Titres creative-main |
 | `elegant` | single-column | near-replica | **rich** | Checklist visuelle OK (PR #174 / AXE-388) |
 | `executive` | sidebar-right | projection | medium | Header band |
@@ -63,6 +63,12 @@ Source de vérité code : `TEMPLATE_CANVAS_FIDELITY` + `STABLE_CANVAS_TEMPLATE_I
 2. **CSS** `templates/bold/template.css` — titres 800 + border-left accent, exp ATS, bullets `-`, formations flex + dates accent
 3. **Canvas** `buildTemplateBlocks('bold')` + twin CSS + `exp_style: bold` + `formation_style: minimal` + `freeform` / `replica_cascade`
 
+### Modern — couches Stable à calquer (AXE-391)
+
+1. **HTML** `templates/modern/template.html` — sidebar gauche (photo, identité, CONTACT, compétences…), main PROFIL → EXP → FORMATION → PROJETS
+2. **CSS** `templates/modern/template.css` — sidebar 200px `#2d3748`, titres main underline accent `#3182ce`, photo 80px
+3. **Canvas** `buildTemplateBlocks('modern')` + twin CSS + `exp_style: modern` + `title_style: modern-main|modern-sidebar` + `freeform` / `replica_cascade`
+
 ## Critères de « réplique native »
 
 Pour un id catalogue :
@@ -78,8 +84,9 @@ Pour un id catalogue :
 2. ~~Tranche Minimal~~ validée checklist visuelle
 3. ~~Élégant~~ (AXE-388 / PR #174) — near-replica
 4. ~~Classic~~ (AXE-389 / PR #177) — near-replica ; checklist visuelle + densité PDF à valider
-5. **Bold / Impact** (AXE-390) — polish near-replica (cascade + typo/exp)
-6. Option ultérieure : assets `default_layout.json` par template (voir `docs/editor-vision.md`)
+5. ~~Bold / Impact~~ (AXE-390 / PR #179) — near-replica
+6. **Modern** (AXE-391) — sidebar-left near-replica
+7. Option ultérieure : Creative / Executive ; assets `default_layout.json`
 
 ## Alignement contact header-bar
 

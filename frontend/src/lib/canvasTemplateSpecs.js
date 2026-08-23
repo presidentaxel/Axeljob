@@ -50,9 +50,9 @@ export const TEMPLATE_CANVAS_FIDELITY = Object.freeze({
   modern: {
     name: 'Moderne',
     layoutFamily: 'sidebar-left',
-    readiness: 'projection',
-    fidelityCss: 'medium',
-    gaps: ['Détails sidebar (outils/langues) et accents underline à peaufiner'],
+    readiness: 'near-replica',
+    fidelityCss: 'rich',
+    gaps: ['Checklist visuelle Stable↔Beta (AXE-391)', 'Densité PDF compacte à valider'],
   },
   creative: {
     name: 'Créatif',
@@ -224,6 +224,20 @@ const sideLight = (extra = {}) => ({
 
 const px = (n) => (n * 25.4) / 96;
 
+/** Layout colonne gauche type Modern / Creative (sidebar 200px). */
+function leftSidebarMetrics() {
+  const SB = px(200);
+  return {
+    SB,
+    SB_X: 0,
+    SX: px(14),
+    SY: px(20),
+    MAIN_X: SB + px(18),
+    MAIN_W: PAGE_WIDTH_MM - SB - px(36),
+    MAIN_Y: px(16),
+  };
+}
+
 /** Layout colonne droite type Impact / Executive (sidebar 200px). */
 function rightSidebarMetrics() {
   const SB = px(200);
@@ -332,21 +346,170 @@ export function buildTemplateBlocks(template) {
   const mx = MAIN_L.x + MAIN_PAD_X;
   const mw = MAIN_L.w - MAIN_PAD_X * 2;
   switch (id) {
-    case 'modern':
+    case 'modern': {
+      // Réplique templates/modern : sidebar gauche (photo, identité, contact, skills…),
+      // main droite PROFIL → EXP → FORMATION → PROJETS.
+      const { SB, SX, SY, MAIN_X, MAIN_W, MAIN_Y } = leftSidebarMetrics();
+      const PHOTO = px(80);
+      const photoX = (SB - PHOTO) / 2;
+      const identityY = SY + PHOTO + px(10);
+      const identityH = px(40);
+      const contactY = identityY + identityH + px(10);
+      const sideW = SB - SX * 2;
+      const sideLock = { lock_geometry: true };
+      const sideCol = (extra = {}) => ({
+        ...side(),
+        title_style: 'modern-sidebar',
+        font_family: t.font_heading,
+        ...extra,
+      });
+      const mainCol = (extra = {}) => ({
+        ...main(),
+        title_style: 'modern-main',
+        font_family: t.font_heading,
+        ...extra,
+      });
       return [
         bg(0, 0, SB, H, t.color_sidebar, 0),
-        { type: 'photo', x: SB / 2 - 11, y: sy, w: 22, h: 22, z: 2, style: { shape: 'circle', zone: 'sidebar', photo_border: 'light' } },
-        { type: 'identity', bind: ['prenom', 'nom', 'titre_professionnel'], x: sx, y: sy + 24, w: SB - sx * 2, h: 22, z: 2, style: { ...side(), font_size: 13, identity_divider: true } },
-        { type: 'contact', bind: ['email', 'telephone', 'linkedin'], x: sx, y: sy + 48, w: SB - sx * 2, h: 26, z: 2, style: { ...side(), section_label: 'CONTACT' } },
-        ...sidebarCompetenceBlocks(sx, SB - sx * 2, sy + 76, side(), 2, { tools: 'OUTILS' }),
-        { type: 'languages', x: sx, y: sy + 112, w: SB - sx * 2, h: 20, z: 2, style: { ...side(), section_label: 'LANGUES', list_format: 'list' } },
-        { type: 'certifications', bind: 'certifications', x: sx, y: sy + 134, w: SB - sx * 2, h: 24, z: 2, style: { ...side(), section_label: 'CERTIFICATIONS', list_format: 'list' } },
-        { type: 'skills', bind: 'competences.autres', x: sx, y: sy + 160, w: SB - sx * 2, h: 22, z: 2, style: { ...side(), section_label: 'AUTRES', list_format: 'list' } },
-        { type: 'resume', bind: 'resume', x: mx, y: MAIN_PAD_Y, w: mw, h: 20, z: 1, style: { ...main(), section_label: 'PROFIL', font_style: 'italic', align: 'justify' } },
-        { type: 'experiences', bind: 'experiences', x: mx, y: MAIN_PAD_Y + 24, w: mw, h: 128, z: 1, style: { ...main(), section_label: 'EXPÉRIENCE PROFESSIONNELLE', title_style: 'underline-accent' } },
-        { type: 'formations', bind: 'formations', x: mx, y: MAIN_PAD_Y + 156, w: mw, h: 36, z: 1, style: { ...main(), section_label: 'FORMATION', title_style: 'underline-accent' } },
-        { type: 'projets', bind: 'projets', x: mx, y: MAIN_PAD_Y + 196, w: mw, h: 28, z: 1, style: { ...main(), section_label: 'PROJETS', title_style: 'underline-accent' } },
+        {
+          type: 'photo',
+          x: photoX,
+          y: SY,
+          w: PHOTO,
+          h: PHOTO,
+          z: 2,
+          style: { shape: 'circle', zone: 'sidebar', photo_border: 'light', align: 'center', ...sideLock },
+        },
+        {
+          type: 'identity',
+          bind: ['prenom', 'nom', 'titre_professionnel'],
+          x: SX,
+          y: identityY,
+          w: sideW,
+          h: identityH,
+          z: 2,
+          style: {
+            ...sideCol(),
+            align: 'center',
+            identity_divider: true,
+            identity_layout: 'modern-sidebar',
+            ...sideLock,
+          },
+        },
+        {
+          type: 'contact',
+          bind: ['telephone', 'email', 'linkedin'],
+          x: SX,
+          y: contactY,
+          w: sideW,
+          h: px(48),
+          z: 2,
+          style: { ...sideCol(), section_label: 'CONTACT', align: 'left' },
+        },
+        {
+          type: 'skills',
+          bind: 'competences.techniques',
+          x: SX,
+          y: contactY + px(52),
+          w: sideW,
+          h: px(40),
+          z: 2,
+          style: { ...sideCol(), section_label: 'COMPÉTENCES', align: 'left' },
+        },
+        {
+          type: 'skills',
+          bind: 'competences.logiciels',
+          x: SX,
+          y: contactY + px(96),
+          w: sideW,
+          h: px(34),
+          z: 2,
+          style: { ...sideCol(), section_label: 'OUTILS', align: 'left' },
+        },
+        {
+          type: 'certifications',
+          bind: 'certifications',
+          x: SX,
+          y: contactY + px(134),
+          w: sideW,
+          h: px(28),
+          z: 2,
+          style: { ...sideCol(), section_label: 'CERTIFICATIONS', align: 'left' },
+        },
+        {
+          type: 'languages',
+          x: SX,
+          y: contactY + px(166),
+          w: sideW,
+          h: px(24),
+          z: 2,
+          style: { ...sideCol(), section_label: 'LANGUES', align: 'left' },
+        },
+        {
+          type: 'skills',
+          bind: 'competences.autres',
+          x: SX,
+          y: contactY + px(194),
+          w: sideW,
+          h: px(28),
+          z: 2,
+          style: { ...sideCol(), section_label: 'AUTRES', align: 'left' },
+        },
+        {
+          type: 'resume',
+          bind: 'resume',
+          x: MAIN_X,
+          y: MAIN_Y,
+          w: MAIN_W,
+          h: px(36),
+          z: 1,
+          style: {
+            ...mainCol(),
+            section_label: 'PROFIL',
+            font_style: 'italic',
+            align: 'justify',
+          },
+        },
+        {
+          type: 'experiences',
+          bind: 'experiences',
+          x: MAIN_X,
+          y: MAIN_Y + px(42),
+          w: MAIN_W,
+          h: px(160),
+          z: 1,
+          style: {
+            ...mainCol(),
+            section_label: 'EXPÉRIENCE PROFESSIONNELLE',
+            exp_style: 'modern',
+          },
+        },
+        {
+          type: 'formations',
+          bind: 'formations',
+          x: MAIN_X,
+          y: MAIN_Y + px(208),
+          w: MAIN_W,
+          h: px(36),
+          z: 1,
+          style: {
+            ...mainCol(),
+            section_label: 'FORMATION',
+            formation_style: 'minimal',
+          },
+        },
+        {
+          type: 'projets',
+          bind: 'projets',
+          x: MAIN_X,
+          y: MAIN_Y + px(250),
+          w: MAIN_W,
+          h: px(28),
+          z: 1,
+          style: { ...mainCol(), section_label: 'PROJETS' },
+        },
       ];
+    }
 
     case 'creative':
       return [

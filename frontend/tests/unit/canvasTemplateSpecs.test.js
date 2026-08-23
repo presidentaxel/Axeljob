@@ -207,6 +207,76 @@ test('elegant réplique Stable : header centré + photo, chips, freeform', () =>
   assert.equal(getTemplateCanvasFidelity('elegant')?.readiness, 'near-replica');
 });
 
+test('modern réplique Stable : sidebar gauche + main PROFIL/EXP/FORMATION', () => {
+  const blocks = buildTemplateBlocks({ id: 'modern' });
+  const photo = blocks.find((b) => b.type === 'photo');
+  const identity = blocks.find((b) => b.type === 'identity');
+  const contact = blocks.find((b) => b.type === 'contact');
+  const resume = blocks.find((b) => b.type === 'resume');
+  const experiences = blocks.find((b) => b.type === 'experiences');
+  const formations = blocks.find((b) => b.type === 'formations');
+  const projets = blocks.find((b) => b.type === 'projets');
+  const sidebarSkills = blocks.filter((b) => b.type === 'skills' && b.style?.zone === 'sidebar');
+  const shapes = blocks.filter((b) => b.type === 'shape:rect');
+
+  assert.ok(photo && identity && contact && resume && experiences);
+  assert.equal(photo.style?.zone, 'sidebar');
+  assert.equal(photo.style?.photo_border, 'light');
+  assert.equal(photo.style?.lock_geometry, true);
+  assert.ok(photo.w > 18 && photo.w < 24, 'photo ~80px');
+  assert.ok(photo.x > 0, 'photo centrée dans la sidebar');
+
+  assert.equal(identity.style?.zone, 'sidebar');
+  assert.equal(identity.style?.align, 'center');
+  assert.equal(identity.style?.identity_layout, 'modern-sidebar');
+  assert.equal(identity.style?.identity_divider, true);
+  assert.equal(identity.style?.lock_geometry, true);
+  assert.ok(identity.y > photo.y, 'identity sous photo');
+
+  assert.equal(contact.style?.section_label, 'CONTACT');
+  assert.equal(contact.style?.title_style, 'modern-sidebar');
+  assert.equal(contact.style?.align, 'left');
+  assert.deepEqual(contact.bind, ['telephone', 'email', 'linkedin']);
+  assert.ok(contact.y > identity.y, 'contact sous identity');
+  assert.ok(contact.x < 60, 'contact en sidebar gauche');
+
+  assert.equal(resume.style?.zone, 'main');
+  assert.equal(resume.style?.section_label, 'PROFIL');
+  assert.equal(resume.style?.title_style, 'modern-main');
+  assert.equal(resume.style?.font_style, 'italic');
+  assert.equal(resume.style?.align, 'justify');
+  assert.ok(resume.x > 50, 'profil en main (droite)');
+
+  assert.equal(experiences.style?.exp_style, 'modern');
+  assert.equal(experiences.style?.title_style, 'modern-main');
+  assert.equal(experiences.style?.section_label, 'EXPÉRIENCE PROFESSIONNELLE');
+  assert.equal(formations.style?.formation_style, 'minimal');
+  assert.equal(formations.style?.section_label, 'FORMATION');
+  assert.ok(projets, 'projets en main');
+  assert.equal(projets.style?.section_label, 'PROJETS');
+
+  assert.ok(sidebarSkills.length >= 3, 'COMPÉTENCES / OUTILS / AUTRES');
+  assert.ok(sidebarSkills.every((b) => b.x < 60), 'skills sidebar gauche');
+  assert.ok(
+    sidebarSkills.some((b) => b.style?.section_label === 'COMPÉTENCES'),
+    'label COMPÉTENCES',
+  );
+  assert.ok(sidebarSkills.some((b) => b.style?.section_label === 'OUTILS'), 'label OUTILS');
+  assert.equal(shapes.length, 1, 'bandeau sidebar uniquement');
+
+  const theme = parseCanvasTheme({ id: 'modern' });
+  assert.match(theme.font_heading, /Inter/);
+  assert.equal(theme.color_sidebar, '#2d3748');
+  assert.equal(theme.color_accent, '#3182ce');
+  assert.equal(theme.color_section_title, '#3182ce');
+
+  const layout = createCanvasLayoutForTemplate({ id: 'modern' });
+  assert.equal(layout.freeform, true);
+  assert.equal(layout.replica_cascade, true);
+  assert.equal(getTemplateCanvasFidelity('modern')?.readiness, 'near-replica');
+  assert.equal(getTemplateCanvasFidelity('modern')?.fidelityCss, 'rich');
+});
+
 test('classic réplique Stable : header sombre + résumé + sidebar droite', () => {
   const blocks = buildTemplateBlocks({ id: 'classic' });
   const photo = blocks.find((b) => b.type === 'photo');

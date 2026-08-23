@@ -418,7 +418,10 @@ test('classic preserveReplicaGeometry : contenu main reste page 1 (lanes sépar�
   assert.ok(page0.some((b) => b.type === 'shape:rect'), 'fonds couleurs sur page 1');
   const contact = page0.find((b) => b.type === 'contact');
   const experiences = page0.find((b) => b.type === 'experiences');
-  assert.ok(experiences.y > contact.y, 'main sous le header');
+  assert.ok(
+    experiences.y >= contact.y + contact.h - 0.05,
+    'main sous le header (pas de chevauchement contact)',
+  );
 });
 
 test('classic sidebar : cascade resserre les blocs (pas de trous après shrink)', () => {
@@ -455,7 +458,10 @@ test('classic sidebar : cascade resserre les blocs (pas de trous après shrink)'
   for (let i = 1; i < side.length; i += 1) {
     const prev = side[i - 1];
     const gap = side[i].y - (prev.y + prev.h);
-    assert.ok(gap < 1.5, `trou sidebar ${prev.type}→${side[i].type}: ${gap.toFixed(1)}mm`);
+    assert.ok(
+      gap >= -0.05 && gap < 1.5,
+      `gap sidebar ${prev.type}→${side[i].type}: ${gap.toFixed(1)}mm`,
+    );
   }
 });
 

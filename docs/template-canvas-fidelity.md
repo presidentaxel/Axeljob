@@ -28,7 +28,7 @@ Le template virtuel `beta` (`betaCanvasTemplate.js`) n’est **pas** une twin HT
 | ID | Famille | Readiness | Fidelity CSS | Gaps principaux |
 |----|---------|-----------|--------------|-----------------|
 | `minimal` | single-column | near-replica | **rich** | Checklist visuelle OK (PR #170) |
-| `classic` | sidebar-right | near-replica | **rich** | Checklist visuelle (AXE-389) |
+| `classic` | sidebar-right | near-replica | **rich** | Checklist visuelle + densité PDF (AXE-389 / PR #177) |
 | `modern` | sidebar-left | projection | medium | Sidebar / accents |
 | `creative` | sidebar-left | projection | medium | Titres creative-main |
 | `elegant` | single-column | near-replica | **rich** | Checklist visuelle OK (PR #174 / AXE-388) |
@@ -71,13 +71,17 @@ Pour un id catalogue :
 1. ~~Inventaire + contrat tests + premier lift `minimal`~~ (PR #165 / #170)
 2. ~~Tranche Minimal~~ validée checklist visuelle
 3. ~~Élégant~~ (AXE-388 / PR #174) — near-replica
-4. **Classic** (sidebar-right) — prochain twin
+4. ~~Classic~~ (AXE-389 / PR #177) — near-replica ; checklist visuelle + densité PDF à valider
 5. Finir `bold` (écarts typo/exp résiduels)
 6. Option ultérieure : assets `default_layout.json` par template (voir `docs/editor-vision.md`)
 
 ## Alignement contact header-bar
 
-Le bloc contact `header-bar` est **gauche par défaut**. Le centrage est opt-in via `style.align: 'center'` (+ classe `--align-center`) — Élégant / Bold. Ne pas remettre `justify-content: center` sur le sélecteur global `.free-canvas-block__contact--header-bar`.
+Le bloc contact `header-bar` est **gauche par défaut**. Le centrage est opt-in via `style.align: 'center'` (+ classe `--align-center`) — Classic / Élégant / Bold. Ne pas remettre `justify-content: center` sur le sélecteur global `.free-canvas-block__contact--header-bar`.
+
+## Twin CSS vs design system app
+
+`CanvasTemplateFidelity.css` calque volontairement les couleurs / graisses Stable (`templates/*/template.css`) — hex et `font-weight` 600/700 inclus. Ce n’est pas du chrome produit : la règle `--ds-*` / poids 400–500 s’applique à l’UI éditeur, pas aux répliques CV.
 
 ## Hors scope
 

@@ -204,12 +204,18 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       const email = showEmail ? getFieldDisplayValue(cv, 'email') : '';
       const linkedin = showLinkedin ? getFieldDisplayValue(cv, 'linkedin') : '';
       const showIcons = Boolean(style.contact_icons);
+      // Alignement explicite : défaut gauche (Minimal). Élégant/Bold = center via style.align.
+      // Évite qu’un justify-content global centre tous les header-bar.
+      const contactAlign = style.align === 'center' || style.align === 'right' || style.align === 'left'
+        ? style.align
+        : 'left';
       const contactCls = [
         'free-canvas-block__contact',
         style.contact_divider ? 'free-canvas-block__contact--divider' : '',
         style.contact_uppercase ? 'free-canvas-block__contact--uppercase' : '',
         showIcons ? 'free-canvas-block__contact--icons' : '',
         style.contact_layout === 'header-bar' ? 'free-canvas-block__contact--header-bar' : '',
+        style.contact_layout === 'header-bar' ? `free-canvas-block__contact--align-${contactAlign}` : '',
       ].filter(Boolean).join(' ');
 
       const renderContactValue = (path, value, placeholder) => {
@@ -266,9 +272,14 @@ function SemanticBlockBody({ block, cv, editing = false }) {
         return (
           <p
             className={contactCls}
-            style={style.align === 'left' || style.align === 'right'
-              ? { justifyContent: style.align === 'right' ? 'flex-end' : 'flex-start' }
-              : undefined}
+            style={{
+              justifyContent: contactAlign === 'right'
+                ? 'flex-end'
+                : contactAlign === 'center'
+                  ? 'center'
+                  : 'flex-start',
+              textAlign: contactAlign,
+            }}
           >
             {parts.map((part, i) => (
               <span key={part.id}>

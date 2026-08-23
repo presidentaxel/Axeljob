@@ -456,6 +456,7 @@ export function buildTemplateBlocks(template) {
           z: 5,
           style: {
             ...hdr(),
+            align: 'center',
             contact_layout: 'header-bar',
             font_size: 8.5,
             contact_icons: true,
@@ -621,6 +622,7 @@ export function buildTemplateBlocks(template) {
           style: {
             ...main(),
             ...headerLock,
+            align: 'left',
             contact_layout: 'header-bar',
             contact_separator: ' · ',
             contact_icons: false,

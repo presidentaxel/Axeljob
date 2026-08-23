@@ -213,6 +213,7 @@
 
 .free-canvas-page--tpl-bold .free-canvas-block__contact--header-bar {
   text-align: center;
+  justify-content: center;
   margin: 0;
   color: rgba(255, 255, 255, 0.75);
 }
@@ -324,6 +325,7 @@
   margin: 0;
   line-height: 1.35;
   text-align: left !important;
+  justify-content: flex-start !important;
 }
 
 .free-canvas-page--tpl-minimal .free-canvas-block__contact--header-bar .free-canvas-block__contact-spacer {

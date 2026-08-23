@@ -31,7 +31,7 @@ Le template virtuel `beta` (`betaCanvasTemplate.js`) n’est **pas** une twin HT
 | `classic` | sidebar-right | thin | thin | CSS Stable dense vs twin mince |
 | `modern` | sidebar-left | projection | medium | Sidebar / accents |
 | `creative` | sidebar-left | projection | medium | Titres creative-main |
-| `elegant` | single-column | near-replica | **rich** | Checklist visuelle Stable↔Beta (AXE-388) |
+| `elegant` | single-column | near-replica | **rich** | Checklist visuelle OK (PR #174 / AXE-388) |
 | `executive` | sidebar-right | projection | medium | Header band |
 | `bold` | sidebar-right | **near-replica** | rich | Écarts typo/exp résiduels |
 
@@ -64,9 +64,14 @@ Pour un id catalogue :
 
 1. ~~Inventaire + contrat tests + premier lift `minimal`~~ (PR #165 / #170)
 2. ~~Tranche Minimal~~ validée checklist visuelle
-3. **Élégant** (AXE-388) — cette PR ; ne merger que si checklist visuelle OK
-4. Monter `classic` puis finir `bold`
-5. Option ultérieure : assets `default_layout.json` par template (voir `docs/editor-vision.md`)
+3. ~~Élégant~~ (AXE-388 / PR #174) — near-replica
+4. **Classic** (sidebar-right) — prochain twin
+5. Finir `bold` (écarts typo/exp résiduels)
+6. Option ultérieure : assets `default_layout.json` par template (voir `docs/editor-vision.md`)
+
+## Alignement contact header-bar
+
+Le bloc contact `header-bar` est **gauche par défaut**. Le centrage est opt-in via `style.align: 'center'` (+ classe `--align-center`) — Élégant / Bold. Ne pas remettre `justify-content: center` sur le sélecteur global `.free-canvas-block__contact--header-bar`.
 
 ## Hors scope
 

@@ -85,6 +85,7 @@ test('minimal réplique Stable : contact inline ·, titres Title Case, exp ATS',
   assert.equal(identity.style?.lock_geometry, true);
   assert.equal(contact.style?.lock_geometry, true);
   assert.equal(contact.style?.contact_layout, 'header-bar');
+  assert.equal(contact.style?.align, 'left', 'Minimal : contact à gauche (pas center Élégant)');
   assert.equal(contact.style?.contact_separator, ' · ');
   assert.equal(contact.style?.contact_icons, false);
   assert.deepEqual(contact.bind, ['telephone', 'email', 'linkedin']);

@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { decideBetaCanvasHydration } from '../../src/lib/canvasBetaHydration.js';
 import { createBlankLayoutV3 } from '../../src/lib/cvLayoutModelV3.js';
 
-test('page blanche persistée (layout: null) : pas de seed au refresh', () => {
+test('page blanche persistée (layout: null) : panel, pas de seed', () => {
   const d = decideBetaCanvasHydration({
     hasLayoutField: true,
     rawLayout: null,
@@ -16,7 +16,7 @@ test('page blanche persistée (layout: null) : pas de seed au refresh', () => {
   });
   assert.equal(d.mode, 'blank');
   assert.equal(d.seed, false);
-  assert.equal(d.startup, false);
+  assert.equal(d.startup, true);
 });
 
 test('layout serveur rempli : on le garde, pas de toast/seed', () => {
@@ -29,6 +29,7 @@ test('layout serveur rempli : on le garde, pas de toast/seed', () => {
   });
   assert.equal(d.mode, 'server');
   assert.equal(d.seed, false);
+  assert.equal(d.startup, false);
 });
 
 test('brouillon local plein + pas de layout serveur : restaurer le draft', () => {
@@ -42,17 +43,18 @@ test('brouillon local plein + pas de layout serveur : restaurer le draft', () =>
   });
   assert.equal(d.mode, 'draft');
   assert.equal(d.seed, false);
+  assert.equal(d.startup, false);
 });
 
-test('onboarding data-only sans clé layout : seed silencieux', () => {
+test('onboarding data-only sans layout : panel Comment commencer, pas de seed', () => {
   const d = decideBetaCanvasHydration({
     hasLayoutField: false,
     rawLayout: null,
     seedableProfile: true,
   });
-  assert.equal(d.mode, 'seed');
-  assert.equal(d.seed, true);
-  assert.equal(d.startup, false);
+  assert.equal(d.mode, 'blank');
+  assert.equal(d.seed, false);
+  assert.equal(d.startup, true);
 });
 
 test('profil vide sans layout : panel Comment commencer', () => {

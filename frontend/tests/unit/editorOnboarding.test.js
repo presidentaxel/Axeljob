@@ -6,10 +6,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  EDITOR_FIRST_RUN_SURFACES,
   EDITOR_ONBOARDING_DISMISSED_KEY,
   EDITOR_ONBOARDING_STEPS,
   dismissEditorOnboarding,
   isEditorOnboardingDismissed,
+  resolveEditorFirstRunSurface,
+  shouldLockCanvasScrollForFirstRun,
   shouldShowEditorOnboarding,
 } from '../../src/lib/editorOnboarding.js';
 
@@ -55,6 +58,70 @@ test('shouldShowEditorOnboarding : masqué pendant loading ou startup AXE-28', (
     shouldShowEditorOnboarding({ dismissed: false, loading: false, startupPromptOpen: false }),
     true,
   );
+});
+
+test('AXE-345 : une seule surface first-run à la fois', () => {
+  assert.equal(
+    resolveEditorFirstRunSurface({
+      loading: false,
+      startupPromptOpen: true,
+      importOpen: false,
+      designBridgeOpen: true,
+      canvasEmpty: true,
+    }),
+    EDITOR_FIRST_RUN_SURFACES.STARTUP,
+  );
+  assert.equal(
+    resolveEditorFirstRunSurface({
+      loading: false,
+      startupPromptOpen: true,
+      importOpen: true,
+      designBridgeOpen: false,
+      canvasEmpty: true,
+    }),
+    EDITOR_FIRST_RUN_SURFACES.IMPORT,
+  );
+  assert.equal(
+    resolveEditorFirstRunSurface({
+      loading: false,
+      startupPromptOpen: false,
+      importOpen: false,
+      designBridgeOpen: true,
+      dismissed: false,
+      canvasEmpty: true,
+    }),
+    EDITOR_FIRST_RUN_SURFACES.DESIGN_BRIDGE,
+  );
+  assert.equal(
+    resolveEditorFirstRunSurface({
+      loading: false,
+      startupPromptOpen: false,
+      importOpen: false,
+      designBridgeOpen: false,
+      dismissed: false,
+      canvasEmpty: true,
+    }),
+    EDITOR_FIRST_RUN_SURFACES.NONE,
+  );
+  assert.equal(
+    resolveEditorFirstRunSurface({
+      loading: false,
+      startupPromptOpen: false,
+      importOpen: false,
+      designBridgeOpen: false,
+      dismissed: false,
+      canvasEmpty: false,
+    }),
+    EDITOR_FIRST_RUN_SURFACES.ONBOARDING,
+  );
+});
+
+test('AXE-345 : lock scroll canvas pour overlays internes seulement', () => {
+  assert.equal(shouldLockCanvasScrollForFirstRun(EDITOR_FIRST_RUN_SURFACES.STARTUP), true);
+  assert.equal(shouldLockCanvasScrollForFirstRun(EDITOR_FIRST_RUN_SURFACES.ONBOARDING), true);
+  assert.equal(shouldLockCanvasScrollForFirstRun(EDITOR_FIRST_RUN_SURFACES.DESIGN_BRIDGE), true);
+  assert.equal(shouldLockCanvasScrollForFirstRun(EDITOR_FIRST_RUN_SURFACES.IMPORT), false);
+  assert.equal(shouldLockCanvasScrollForFirstRun(EDITOR_FIRST_RUN_SURFACES.NONE), false);
 });
 
 test('dismissEditorOnboarding : storage absent -> false', () => {

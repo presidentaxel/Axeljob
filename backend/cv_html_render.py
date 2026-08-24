@@ -169,6 +169,11 @@ def render_cv_html(
     ctx = dict(cv)
     ctx["for_preview"] = for_preview
     ctx["for_pdf"] = bool(for_pdf)
+    from backend.services.cv_language import resolve_cv_display_lang, template_copy_for_lang
+
+    display_lang = resolve_cv_display_lang(cv)
+    ctx["st"] = template_copy_for_lang(display_lang)
+    ctx["html_lang"] = ctx["st"]["html_lang"]
     base_doc = base_cv or {}
     titre_cv = _strip_h_f((cv.get("titre_professionnel") or "").strip())
     titre_base = _strip_h_f((base_doc.get("titre_professionnel") or "").strip())

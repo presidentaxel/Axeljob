@@ -1,0 +1,66 @@
+/**
+ * Libellés de sections CV (FR/EN) — aligné sur backend.services.cv_language.TEMPLATE_COPY.
+ */
+
+const COPY = {
+  fr: {
+    html_lang: 'fr',
+    contact: 'CONTACT',
+    contact_title: 'Contact',
+    skills: 'COMPÉTENCES',
+    skills_title: 'Compétences',
+    skills_technical: 'Compétences techniques',
+    tools: 'OUTILS',
+    tools_software: 'Logiciels & outils',
+    certs: 'CERTIFICATIONS',
+    certs_title: 'Certifications',
+    languages: 'LANGUES',
+    languages_title: 'Langues',
+    other: 'AUTRES',
+    other_title: 'Autres',
+    profile: 'PROFIL',
+    profile_title: 'Profil',
+    experience: 'EXPÉRIENCE PROFESSIONNELLE',
+    experience_title: 'Expérience professionnelle',
+    education: 'FORMATION',
+    education_title: 'Formation',
+    projects: 'PROJETS',
+    projects_title: 'Projets',
+    ats_keywords: 'Mots-clés ATS',
+    clients: 'Clients :',
+    organization: 'Organisation : ',
+    function: 'Fonction : ',
+  },
+  en: {
+    html_lang: 'en',
+    contact: 'CONTACT',
+    contact_title: 'Contact',
+    skills: 'SKILLS',
+    skills_title: 'Skills',
+    skills_technical: 'Technical skills',
+    tools: 'TOOLS',
+    tools_software: 'Software & tools',
+    certs: 'CERTIFICATIONS',
+    certs_title: 'Certifications',
+    languages: 'LANGUAGES',
+    languages_title: 'Languages',
+    other: 'OTHER',
+    other_title: 'Other',
+    profile: 'PROFILE',
+    profile_title: 'Profile',
+    experience: 'PROFESSIONAL EXPERIENCE',
+    experience_title: 'Professional experience',
+    education: 'EDUCATION',
+    education_title: 'Education',
+    projects: 'PROJECTS',
+    projects_title: 'Projects',
+    ats_keywords: 'ATS keywords',
+    clients: 'Clients:',
+    organization: 'Organization: ',
+    function: 'Role: ',
+  },
+};
+
+export function cvTemplateCopy(langue) {
+  return COPY[langue === 'en' ? 'en' : 'fr'];
+}

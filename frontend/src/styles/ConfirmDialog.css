@@ -80,3 +80,21 @@
   gap: var(--ds-space-sm);
   margin-top: var(--ds-space-lg);
 }
+
+.confirm-dialog__remember {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-space-sm);
+  margin-top: var(--ds-space-md);
+  min-height: var(--ds-size-touch-min);
+  color: var(--ds-color-text-default);
+  cursor: pointer;
+}
+
+.confirm-dialog__remember input {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.2rem;
+  accent-color: var(--ds-color-action-primary-bg);
+}

@@ -3085,7 +3085,11 @@ def _adapt_run_prepare(request: Request, body: AdaptRunBody) -> dict:
                 status_code=429, detail="Quota temporairement atteint. Réessaie plus tard."
             )
         except Exception:
-            cv_working = deepcopy(cv_base)
+            from backend.services.cv_language import apply_deterministic_localization
+
+            cv_working = apply_deterministic_localization(
+                cv_base, lang_meta.get("output_language_code") or "en"
+            )
     return {
         "user_id": user_id,
         "plan_payload": plan_payload,
@@ -3114,6 +3118,10 @@ def _adapt_run_finalize_result(
     selected_steps = prep["selected_steps"]
     titre_request = prep["titre_request"]
     entreprise_request = prep["entreprise_request"]
+    lang_meta = prep.get("lang_meta") or {}
+    out_code = lang_meta.get("output_language_code")
+    if out_code in {"fr", "en"}:
+        merged["langue"] = out_code
     adaptation_id = _adaptation_id_from_user_and_offer(user_id, description)
     poste_offre = (tweaks.get("poste_offre") or "").strip()
     entreprise_offre = (offre.get("entreprise") or "").strip()
@@ -3608,7 +3616,11 @@ def api_adapt(request: Request, body: AdaptBody):
                 status_code=429, detail="Quota temporairement atteint. Réessaie plus tard."
             )
         except Exception:
-            cv_working = deepcopy(cv_base)
+            from backend.services.cv_language import apply_deterministic_localization
+
+            cv_working = apply_deterministic_localization(
+                cv_base, lang_meta.get("output_language_code") or "en"
+            )
 
     try:
         tweaks = adapter_cv(
@@ -3634,6 +3646,9 @@ def api_adapt(request: Request, body: AdaptBody):
         output_policy=lang_meta.get("output_language"),
         offre=offre,
     )
+    out_code = lang_meta.get("output_language_code")
+    if out_code in {"fr", "en"}:
+        merged["langue"] = out_code
     poste_offre = (tweaks.get("poste_offre") or "").strip()
     entreprise_offre = (offre.get("entreprise") or "").strip()
     user_titre = (body.titre or "").strip()

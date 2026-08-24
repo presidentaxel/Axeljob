@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr" class="{% if for_preview %}cv-preview{% endif %}">
+<html lang="{{ html_lang }}" class="{% if for_preview %}cv-preview{% endif %}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -34,26 +34,26 @@
     <div class="cv-body">
       {% if resume_display %}
       <section class="cv-section">
-        <h2 class="section-title">Profil</h2>
+        <h2 class="section-title">{{ st.profile_title }}</h2>
         <p class="resume-text">{{ resume_display|safe }}</p>
       </section>
       {% endif %}
 
       {% if experiences_for_display %}
       <section class="cv-section">
-        <h2 class="section-title">Expérience professionnelle</h2>
+        <h2 class="section-title">{{ st.experience_title }}</h2>
         {% for exp in experiences_for_display %}
         <div class="experience-item" itemscope itemtype="https://schema.org/JobPosition">
           <div class="exp-header">
-            <span class="exp-entreprise"><span class="ats-label">Organisation : </span><span itemprop="worksFor" itemscope itemtype="https://schema.org/Organization"><span itemprop="name">{{ exp.entreprise_display|safe }}</span></span></span>
+            <span class="exp-entreprise"><span class="ats-label">{{ st.organization }}</span><span itemprop="worksFor" itemscope itemtype="https://schema.org/Organization"><span itemprop="name">{{ exp.entreprise_display|safe }}</span></span></span>
             <span class="exp-dates">{% if exp.date_debut or exp.date_fin %}{{ exp.date_debut_display|safe }} - {{ exp.date_fin_display|safe }}{% endif %}{% if exp.lieu %}{% if exp.date_debut or exp.date_fin %} · {% endif %}{{ exp.lieu_display|safe }}{% endif %}</span>
           </div>
-          <p class="exp-poste"><span class="ats-label">Fonction : </span><span itemprop="name">{{ exp.poste_display|safe }}{% if exp.secteur %} - {{ exp.secteur_display|safe }}{% endif %}</span></p>
+          <p class="exp-poste"><span class="ats-label">{{ st.function }}</span><span itemprop="name">{{ exp.poste_display|safe }}{% if exp.secteur %} - {{ exp.secteur_display|safe }}{% endif %}</span></p>
           {% for bullet in exp.bullet_points %}
           <p class="bullet">{{ bullet.html|safe }}</p>
           {% endfor %}
           {% if exp.clients %}
-          <p class="exp-clients">Clients : {{ exp.clients_display|safe }}</p>
+          <p class="exp-clients">{{ st.clients }} {{ exp.clients_display|safe }}</p>
           {% endif %}
         </div>
         {% endfor %}
@@ -62,7 +62,7 @@
 
       {% if formations_for_display %}
       <section class="cv-section">
-        <h2 class="section-title">Formation</h2>
+        <h2 class="section-title">{{ st.education_title }}</h2>
         {% for form in formations_for_display %}
         <div class="formation-item">
           <div class="formation-header">
@@ -79,7 +79,7 @@
       {% set has_skills = (competences.techniques and competences.techniques|select()|list) or (competences.logiciels and competences.logiciels|select()|list) %}
       {% if has_skills %}
       <section class="cv-section">
-        <h2 class="section-title">Compétences</h2>
+        <h2 class="section-title">{{ st.skills_title }}</h2>
         <div class="skills-grid">
           {% if competences.techniques %}
           {% for item in competences.techniques %}{% if item %}<span class="skill-tag">{{ item }}</span>{% endif %}{% endfor %}
@@ -93,7 +93,7 @@
 
       {% if certifications_for_display %}
       <section class="cv-section">
-        <h2 class="section-title">Certifications</h2>
+        <h2 class="section-title">{{ st.certs_title }}</h2>
         {% for c in certifications_for_display %}
         <p class="cert-item">{% if c.nom %}{{ c.nom }}{% endif %}{% if c.organisme %}{% if c.nom %} - {% endif %}{{ c.organisme }}{% endif %}{% if c.date %}{% if c.nom or c.organisme %} · {% endif %}{{ c.date }}{% endif %}</p>
         {% endfor %}
@@ -102,7 +102,7 @@
 
       {% if langues_for_display %}
       <section class="cv-section">
-        <h2 class="section-title">Langues</h2>
+        <h2 class="section-title">{{ st.languages_title }}</h2>
         {% for l in langues_for_display %}
         <p class="lang-item">{{ l.langue }} - {{ l.niveau }}</p>
         {% endfor %}
@@ -111,7 +111,7 @@
 
       {% if projets_for_display %}
       <section class="cv-section">
-        <h2 class="section-title">Projets</h2>
+        <h2 class="section-title">{{ st.projects_title }}</h2>
         {% for proj in projets_for_display %}
         <div class="projet-item">
           <p class="projet-nom">{{ proj.nom }}</p>

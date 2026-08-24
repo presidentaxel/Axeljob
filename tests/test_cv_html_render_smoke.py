@@ -46,7 +46,28 @@ class TestCvHtmlRenderSmoke(unittest.TestCase):
         )
         self.assertIn("cv-changed", html)
 
-    def test_render_pdf_aligned_preview_dual_flags(self):
+    def test_english_output_uses_english_section_titles(self):
+        cv = {
+            "prenom": "Ada",
+            "nom": "Lovelace",
+            "langue": "en",
+            "titre_professionnel": "Risk Analyst",
+            "resume": "Risk analyst with three years of experience in portfolio management.",
+            "experiences": [
+                {
+                    "id": "exp_1",
+                    "poste": "Risk Analyst",
+                    "entreprise": "Banque Demo",
+                    "date_debut": "Jan 2022",
+                    "date_fin": "Present",
+                    "bullet_points": ["Managed market limit monitoring for the trading team."],
+                }
+            ],
+        }
+        html = render_cv_html(cv, for_preview=True, template_id="classic")
+        self.assertIn("PROFESSIONAL EXPERIENCE", html)
+        self.assertIn('lang="en"', html)
+        self.assertNotIn("EXPÉRIENCE PROFESSIONNELLE", html)
         cv = _sample_cv(self.cv_path)
         html = render_cv_html(
             cv,

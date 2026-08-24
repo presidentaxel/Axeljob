@@ -5,14 +5,17 @@ import unittest
 from backend.services.adapter import SYSTEM_PROMPT, _build_user_prompt, _infer_profile_anchor
 from backend.services.cv_language import (
     adaptation_language_payload,
+    apply_deterministic_localization,
     detect_cv_language,
     detect_offer_language,
     detect_text_language,
     language_lock_instruction,
     langue_cv_xml,
+    localize_date_phrase,
     merge_localized_fields,
     resolve_output_language,
     should_prompt_language_choice,
+    template_copy_for_lang,
 )
 
 
@@ -29,6 +32,9 @@ def _fr_cv() -> dict:
                 "id": "exp_1",
                 "poste": "Analyste risque",
                 "entreprise": "Banque Demo",
+                "date_debut": "janv. 2022",
+                "date_fin": "aujourd'hui",
+                "lieu": "Télétravail",
                 "bullet_points": [
                     "Pilotage du suivi des limites de marché pour l'équipe trading.",
                     "Mise en place d'un reporting hebdomadaire pour le comité des risques.",
@@ -40,6 +46,7 @@ def _fr_cv() -> dict:
             {
                 "intitule": "Master finance",
                 "etablissement": "Université Paris Dauphine",
+                "date": "sept. 2020",
             }
         ],
     }
@@ -342,6 +349,25 @@ class TestProfileAnchorLanguage(unittest.TestCase):
         }
         self.assertIn("Étudiant", _infer_profile_anchor(cv, "fr"))
         self.assertIn("Student", _infer_profile_anchor(cv, "en"))
+
+
+class TestDeterministicLocalization(unittest.TestCase):
+    def test_dates_and_remote_to_english(self):
+        self.assertEqual(localize_date_phrase("janv. 2022", "en"), "Jan 2022")
+        self.assertEqual(localize_date_phrase("aujourd'hui", "en"), "Present")
+        out = apply_deterministic_localization(_fr_cv(), "en")
+        self.assertEqual(out["experiences"][0]["date_debut"], "Jan 2022")
+        self.assertEqual(out["experiences"][0]["date_fin"], "Present")
+        self.assertEqual(out["experiences"][0]["lieu"], "Remote")
+        self.assertEqual(out["formations"][0]["date"], "Sept 2020")
+        self.assertEqual(out["langue"], "en")
+        self.assertEqual(out["experiences"][0]["entreprise"], "Banque Demo")
+
+    def test_section_titles_en(self):
+        copy = template_copy_for_lang("en")
+        self.assertEqual(copy["experience"], "PROFESSIONAL EXPERIENCE")
+        self.assertEqual(copy["education_title"], "Education")
+        self.assertEqual(template_copy_for_lang("fr")["experience"], "EXPÉRIENCE PROFESSIONNELLE")
 
 
 class TestTextLanguageSmoke(unittest.TestCase):

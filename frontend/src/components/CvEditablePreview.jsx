@@ -7,6 +7,7 @@ import {
   attachEditableFieldBehavior,
   getEditableFieldConfig,
 } from '../lib/editableFieldBehavior';
+import { cvTemplateCopy } from '../lib/cvTemplateCopy.js';
 import './CvEditablePreview.css';
 
 /** Aligné sur le rendu serveur sans selection_a4 (main.py max_exp). */
@@ -268,6 +269,8 @@ export default function CvEditablePreview({
     };
   }, [templateId, cv, effectiveCss, previewHtmlWithInlineCss, layoutRefreshKey]);
 
+  const st = cvTemplateCopy(cv?.langue);
+
   const handleBlur = useCallback(() => {
     if (!containerRef.current || !onChange) return;
     const el = containerRef.current;
@@ -347,14 +350,14 @@ export default function CvEditablePreview({
       </header>
       <div className="cv-body">
         <section className="section section-resume" data-cv-section="resume">
-          <h2 className="section-title">Profil</h2>
+          <h2 className="section-title">{st.profile_title}</h2>
           <p className="resume-text">
             <span data-cv-field="resume" className={isChanged('resume') ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{cv.resume || ''}</span>
           </p>
         </section>
         {experiences.length > 0 && (
           <section className="section" data-cv-section="experiences">
-            <h2 className="section-title">Expérience professionnelle</h2>
+            <h2 className="section-title">{st.experience_title}</h2>
             {experiences.slice(0, EDITABLE_PREVIEW_MAX_EXPERIENCES).map((exp, i) => {
               const oi = experiencesAll.indexOf(exp);
               return (
@@ -362,10 +365,10 @@ export default function CvEditablePreview({
                   <div className="exp-header">
                     <span className="exp-left">
                       <span className="exp-entreprise">
-                        <span className="ats-label">Organisation : </span>
+                        <span className="ats-label">{st.organization}</span>
                         <span data-cv-field={`experiences.${oi}.entreprise`} className={isChanged(`experiences.${oi}.entreprise`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.entreprise || ''}</span>
                       </span>
-                      {exp.poste ? <> - <span className="exp-poste-inline"><span className="ats-label">Fonction : </span><span data-cv-field={`experiences.${oi}.poste`} className={isChanged(`experiences.${oi}.poste`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.poste || ''}</span></span></> : null}
+                      {exp.poste ? <> - <span className="exp-poste-inline"><span className="ats-label">{st.function}</span><span data-cv-field={`experiences.${oi}.poste`} className={isChanged(`experiences.${oi}.poste`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.poste || ''}</span></span></> : null}
                     </span>
                     <span className="exp-dates">
                       <span data-cv-field={`experiences.${oi}.date_debut`} className={isChanged(`experiences.${oi}.date_debut`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.date_debut || ''}</span>
@@ -376,7 +379,7 @@ export default function CvEditablePreview({
                   {(exp.bullet_points || ['', '']).map((b, j) => (
                     <p key={j} className="bullet">- <span data-cv-field={`experiences.${oi}.bullet_points.${j}`} className={isChanged(`experiences.${oi}.bullet_points.${j}`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{b || ''}</span></p>
                   ))}
-                  {(exp.clients || '').trim() ? <p className="exp-clients">Clients : <span data-cv-field={`experiences.${oi}.clients`} className={isChanged(`experiences.${oi}.clients`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.clients || ''}</span></p> : null}
+                  {(exp.clients || '').trim() ? <p className="exp-clients">{st.clients} <span data-cv-field={`experiences.${oi}.clients`} className={isChanged(`experiences.${oi}.clients`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.clients || ''}</span></p> : null}
                 </div>
               );
             })}
@@ -384,7 +387,7 @@ export default function CvEditablePreview({
         )}
         {formations.length > 0 && (
           <section className="section" data-cv-section="formations">
-            <h2 className="section-title">Formation</h2>
+            <h2 className="section-title">{st.education_title}</h2>
             {formations.map((form, i) => {
               const oi = formationsAll.indexOf(form);
               return (
@@ -401,7 +404,7 @@ export default function CvEditablePreview({
         )}
         {(techWithContent.length > 0 || logicielsWithContent.length > 0) && (
           <section className="section" data-cv-section="competences">
-            <h2 className="section-title">Compétences</h2>
+            <h2 className="section-title">{st.skills_title}</h2>
             <p className="skills-line">
               {(competences.techniques || []).map((item, i) => (
                 <span key={i}><span data-cv-field={`competences.techniques.${i}`} className={isChanged(`competences.techniques.${i}`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{typeof item === 'string' ? item : ''}</span>{i < (competences.techniques || []).length - 1 ? ', ' : ''}</span>
@@ -412,7 +415,7 @@ export default function CvEditablePreview({
         )}
         {certifications.length > 0 && (
           <section className="section" data-cv-section="certifications">
-            <h2 className="section-title">Certifications</h2>
+            <h2 className="section-title">{st.certs_title}</h2>
             {certifications.map((cert, i) => {
               const oi = certificationsAll.indexOf(cert);
               return (
@@ -427,7 +430,7 @@ export default function CvEditablePreview({
         )}
         {languesWithContent.length > 0 && (
           <section className="section">
-            <h2 className="section-title">Langues</h2>
+            <h2 className="section-title">{st.languages_title}</h2>
             <p className="skills-line">
               {(competences.langues || []).map((l, i) => (
                 <span key={i}><span data-cv-field={`competences.langues.${i}.langue`} className={isChanged(`competences.langues.${i}.langue`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{l?.langue || ''}</span> (<span data-cv-field={`competences.langues.${i}.niveau`} className={isChanged(`competences.langues.${i}.niveau`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{l?.niveau || ''}</span>){i < (competences.langues || []).length - 1 ? ', ' : ''}</span>
@@ -437,7 +440,7 @@ export default function CvEditablePreview({
         )}
         {projets.length > 0 && (
           <section className="section" data-cv-section="projets">
-            <h2 className="section-title">Projets</h2>
+            <h2 className="section-title">{st.projects_title}</h2>
             {projets.map((proj, i) => {
               const oi = projetsAll.indexOf(proj);
               return (
@@ -452,7 +455,7 @@ export default function CvEditablePreview({
         )}
         {autresWithContent.length > 0 && (
           <section className="section">
-            <h2 className="section-title">Autres</h2>
+            <h2 className="section-title">{st.other_title}</h2>
             <p className="skills-line">{(competences.autres || []).map((item, i) => <span key={i}><span data-cv-field={`competences.autres.${i}`} className={isChanged(`competences.autres.${i}`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{typeof item === 'string' ? item : ''}</span>{(i < (competences.autres || []).length - 1) ? ', ' : ''}</span>)}</p>
           </section>
         )}
@@ -489,26 +492,26 @@ export default function CvEditablePreview({
           <p className="sidebar-titre"><span data-cv-field="titre_professionnel" className={isChanged('titre_professionnel') ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{cv.titre_professionnel || ''}</span></p>
         </div>
         <div className="sidebar-contact">
-          <h2 className="sidebar-section-title">CONTACT</h2>
+          <h2 className="sidebar-section-title">{st.contact}</h2>
           <p className="sidebar-item"><span data-cv-field="telephone" className={isChanged('telephone') ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{cv.telephone || ''}</span></p>
           <p className="sidebar-item"><span data-cv-field="email" className={isChanged('email') ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{cv.email || ''}</span></p>
           <p className="sidebar-item"><span data-cv-field="linkedin" className={isChanged('linkedin') ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{cv.linkedin || ''}</span></p>
         </div>
         {techWithContent.length > 0 && (
           <div className="sidebar-section">
-            <h2 className="sidebar-section-title">COMPÉTENCES</h2>
+            <h2 className="sidebar-section-title">{st.skills}</h2>
             {(competences.techniques || []).map((item, i) => <p key={i} className="sidebar-item"><span data-cv-field={`competences.techniques.${i}`} className={isChanged(`competences.techniques.${i}`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{typeof item === 'string' ? item : ''}</span></p>)}
           </div>
         )}
         {logicielsWithContent.length > 0 && (
           <div className="sidebar-section">
-            <h2 className="sidebar-section-title">OUTILS</h2>
+            <h2 className="sidebar-section-title">{st.tools}</h2>
             {(competences.logiciels || []).map((item, i) => <p key={i} className="sidebar-item"><span data-cv-field={`competences.logiciels.${i}`} className={isChanged(`competences.logiciels.${i}`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{typeof item === 'string' ? item : ''}</span></p>)}
           </div>
         )}
         {certifications.length > 0 && (
           <div className="sidebar-section">
-            <h2 className="sidebar-section-title">CERTIFICATIONS</h2>
+            <h2 className="sidebar-section-title">{st.certs}</h2>
             {certifications.map((cert, i) => {
               const oi = certificationsAll.indexOf(cert);
               return (
@@ -523,13 +526,13 @@ export default function CvEditablePreview({
         )}
         {languesWithContent.length > 0 && (
           <div className="sidebar-section">
-            <h2 className="sidebar-section-title">LANGUES</h2>
+            <h2 className="sidebar-section-title">{st.languages}</h2>
             {(competences.langues || []).map((l, i) => <p key={i} className="sidebar-item"><span data-cv-field={`competences.langues.${i}.langue`} className={isChanged(`competences.langues.${i}.langue`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{l?.langue || ''}</span> - <span data-cv-field={`competences.langues.${i}.niveau`} className={isChanged(`competences.langues.${i}.niveau`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{l?.niveau || ''}</span></p>)}
           </div>
         )}
         {autresWithContent.length > 0 && (
           <div className="sidebar-section">
-            <h2 className="sidebar-section-title">AUTRES</h2>
+            <h2 className="sidebar-section-title">{st.other}</h2>
             {(competences.autres || []).map((item, i) => <p key={i} className="sidebar-item"><span data-cv-field={`competences.autres.${i}`} className={isChanged(`competences.autres.${i}`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{typeof item === 'string' ? item : ''}</span></p>)}
           </div>
         )}
@@ -541,12 +544,12 @@ export default function CvEditablePreview({
       </div>
       <div className="cv-main">
         <section className="main-section section-resume" data-cv-section="resume">
-          <h2 className="main-section-title">PROFIL</h2>
+          <h2 className="main-section-title">{st.profile}</h2>
           <p className="resume-text"><span data-cv-field="resume" className={isChanged('resume') ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{cv.resume || ''}</span></p>
         </section>
         {experiences.length > 0 && (
           <section className="main-section section-experiences" data-cv-section="experiences">
-            <h2 className="main-section-title">EXPÉRIENCE PROFESSIONNELLE</h2>
+            <h2 className="main-section-title">{st.experience}</h2>
             <div className="experiences-list">
               {experiences.slice(0, EDITABLE_PREVIEW_MAX_EXPERIENCES).map((exp, i) => {
                 const oi = experiencesAll.indexOf(exp);
@@ -554,7 +557,7 @@ export default function CvEditablePreview({
                   <div key={exp.id || i} className="experience-item">
                     <div className="exp-header">
                       <span className="exp-entreprise">
-                        <span className="ats-label">Organisation : </span>
+                        <span className="ats-label">{st.organization}</span>
                         <span data-cv-field={`experiences.${oi}.entreprise`} className={isChanged(`experiences.${oi}.entreprise`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.entreprise || ''}</span>
                       </span>
                       <span className="exp-dates">
@@ -565,12 +568,12 @@ export default function CvEditablePreview({
                       </span>
                     </div>
                     <p className="exp-poste">
-                      <span className="ats-label">Fonction : </span>
+                      <span className="ats-label">{st.function}</span>
                       <span data-cv-field={`experiences.${oi}.poste`} className={isChanged(`experiences.${oi}.poste`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.poste || ''}</span>
                       {exp.secteur ? <> - <span data-cv-field={`experiences.${oi}.secteur`} className={isChanged(`experiences.${oi}.secteur`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.secteur || ''}</span></> : null}
                     </p>
                     {(exp.bullet_points || ['', '']).map((b, j) => <p key={j} className="bullet">- <span data-cv-field={`experiences.${oi}.bullet_points.${j}`} className={isChanged(`experiences.${oi}.bullet_points.${j}`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{b || ''}</span></p>)}
-                    {(exp.clients || '').trim() ? <p className="exp-clients">Clients : <span data-cv-field={`experiences.${oi}.clients`} className={isChanged(`experiences.${oi}.clients`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.clients || ''}</span></p> : null}
+                    {(exp.clients || '').trim() ? <p className="exp-clients">{st.clients} <span data-cv-field={`experiences.${oi}.clients`} className={isChanged(`experiences.${oi}.clients`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.clients || ''}</span></p> : null}
                   </div>
                 );
               })}
@@ -579,7 +582,7 @@ export default function CvEditablePreview({
         )}
         {formations.length > 0 && (
           <section className="main-section section-formation" data-cv-section="formations">
-            <h2 className="main-section-title">FORMATION</h2>
+            <h2 className="main-section-title">{st.education}</h2>
             {formations.map((form, i) => {
               const oi = formationsAll.indexOf(form);
               return (
@@ -596,7 +599,7 @@ export default function CvEditablePreview({
         )}
         {projets.length > 0 && (
           <section className="main-section section-projets" data-cv-section="projets">
-            <h2 className="main-section-title">PROJETS</h2>
+            <h2 className="main-section-title">{st.projects}</h2>
             {projets.map((proj, i) => {
               const oi = projetsAll.indexOf(proj);
               return (
@@ -643,21 +646,21 @@ export default function CvEditablePreview({
       </header>
       <div className="cv-body">
         <section className="cv-section" data-cv-section="resume">
-          <h2 className="section-title">Profil</h2>
+          <h2 className="section-title">{st.profile_title}</h2>
           <p className="resume-text">
             <span data-cv-field="resume" className={isChanged('resume') ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{cv.resume || ''}</span>
           </p>
         </section>
         {experiences.length > 0 && (
           <section className="cv-section" data-cv-section="experiences">
-            <h2 className="section-title">Expérience professionnelle</h2>
+            <h2 className="section-title">{st.experience_title}</h2>
             {experiences.slice(0, EDITABLE_PREVIEW_MAX_EXPERIENCES).map((exp, i) => {
               const oi = experiencesAll.indexOf(exp);
               return (
                 <div key={exp.id || i} className="experience-item">
                   <div className="exp-header">
                     <span className="exp-entreprise">
-                      <span className="ats-label">Organisation : </span>
+                      <span className="ats-label">{st.organization}</span>
                       <span data-cv-field={`experiences.${oi}.entreprise`} className={isChanged(`experiences.${oi}.entreprise`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.entreprise || ''}</span>
                     </span>
                     <span className="exp-dates">
@@ -668,7 +671,7 @@ export default function CvEditablePreview({
                     </span>
                   </div>
                   <p className="exp-poste">
-                    <span className="ats-label">Fonction : </span>
+                    <span className="ats-label">{st.function}</span>
                     <span data-cv-field={`experiences.${oi}.poste`} className={isChanged(`experiences.${oi}.poste`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.poste || ''}</span>
                     {exp.secteur ? <> - <span data-cv-field={`experiences.${oi}.secteur`} className={isChanged(`experiences.${oi}.secteur`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.secteur || ''}</span></> : null}
                   </p>
@@ -679,7 +682,7 @@ export default function CvEditablePreview({
                   ))}
                   {(exp.clients || '').trim() ? (
                     <p className="exp-clients">
-                      Clients : <span data-cv-field={`experiences.${oi}.clients`} className={isChanged(`experiences.${oi}.clients`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.clients || ''}</span>
+                      {st.clients} <span data-cv-field={`experiences.${oi}.clients`} className={isChanged(`experiences.${oi}.clients`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.clients || ''}</span>
                     </p>
                   ) : null}
                 </div>
@@ -689,7 +692,7 @@ export default function CvEditablePreview({
         )}
         {formations.length > 0 && (
           <section className="cv-section" data-cv-section="formations">
-            <h2 className="section-title">Formation</h2>
+            <h2 className="section-title">{st.education_title}</h2>
             {formations.map((form, i) => {
               const oi = formationsAll.indexOf(form);
               return (
@@ -712,7 +715,7 @@ export default function CvEditablePreview({
         )}
         {(techWithContent.length > 0 || logicielsWithContent.length > 0) && (
           <section className="cv-section" data-cv-section="competences">
-            <h2 className="section-title">Compétences</h2>
+            <h2 className="section-title">{st.skills_title}</h2>
             <div className="skills-grid">
               {(competences.techniques || []).map((item, i) => (
                 <span key={`t-${i}`} className="skill-tag">
@@ -729,7 +732,7 @@ export default function CvEditablePreview({
         )}
         {certifications.length > 0 && (
           <section className="cv-section" data-cv-section="certifications">
-            <h2 className="section-title">Certifications</h2>
+            <h2 className="section-title">{st.certs_title}</h2>
             {certifications.map((cert, i) => {
               const oi = certificationsAll.indexOf(cert);
               return (
@@ -746,7 +749,7 @@ export default function CvEditablePreview({
         )}
         {languesWithContent.length > 0 && (
           <section className="cv-section">
-            <h2 className="section-title">Langues</h2>
+            <h2 className="section-title">{st.languages_title}</h2>
             {(competences.langues || []).map((l, i) => (
               <p key={i} className="lang-item">
                 <span data-cv-field={`competences.langues.${i}.langue`} className={isChanged(`competences.langues.${i}.langue`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{l?.langue || ''}</span>
@@ -758,7 +761,7 @@ export default function CvEditablePreview({
         )}
         {projets.length > 0 && (
           <section className="cv-section" data-cv-section="projets">
-            <h2 className="section-title">Projets</h2>
+            <h2 className="section-title">{st.projects_title}</h2>
             {projets.map((proj, i) => {
               const oi = projetsAll.indexOf(proj);
               return (
@@ -772,7 +775,7 @@ export default function CvEditablePreview({
         )}
         {autresWithContent.length > 0 && (
           <section className="cv-section">
-            <h2 className="section-title">Autres</h2>
+            <h2 className="section-title">{st.other_title}</h2>
             <div className="skills-grid">
               {(competences.autres || []).map((item, i) => (
                 <span key={i} className="skill-tag">
@@ -880,7 +883,7 @@ export default function CvEditablePreview({
           <div className="cv-main">
             {experiences.length > 0 && (
             <section className="section-experiences" data-cv-section="experiences">
-              <h2 className="section-title">EXPÉRIENCE PROFESSIONNELLE</h2>
+              <h2 className="section-title">{st.experience}</h2>
               <div className="experiences-list">
                 {experiences.slice(0, EDITABLE_PREVIEW_MAX_EXPERIENCES).map((exp, i) => {
                   const origIndex = experiencesAll.indexOf(exp);
@@ -888,7 +891,7 @@ export default function CvEditablePreview({
                   <div key={exp.id || i} className="experience-item">
                     <div className="exp-header">
                       <span className="exp-entreprise">
-                        <span className="ats-label">Organisation : </span>
+                        <span className="ats-label">{st.organization}</span>
                         <span data-cv-field={`experiences.${origIndex}.entreprise`} className={isChanged(`experiences.${origIndex}.entreprise`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.entreprise || ''}</span>
                       </span>
                       <span className="exp-dates">
@@ -903,7 +906,7 @@ export default function CvEditablePreview({
                       </span>
                     </div>
                     <p className="exp-poste">
-                      <span className="ats-label">Fonction : </span>
+                      <span className="ats-label">{st.function}</span>
                       <span data-cv-field={`experiences.${origIndex}.poste`} className={isChanged(`experiences.${origIndex}.poste`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.poste || ''}</span>
                       {' - '}
                       <span data-cv-field={`experiences.${origIndex}.secteur`} className={isChanged(`experiences.${origIndex}.secteur`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.secteur || ''}</span>
@@ -914,7 +917,7 @@ export default function CvEditablePreview({
                       </p>
                     ))}
                     {(exp.clients || '').trim() ? (
-                      <p className="exp-clients">Clients : <span data-cv-field={`experiences.${origIndex}.clients`} className={isChanged(`experiences.${origIndex}.clients`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.clients || ''}</span></p>
+                      <p className="exp-clients">{st.clients} <span data-cv-field={`experiences.${origIndex}.clients`} className={isChanged(`experiences.${origIndex}.clients`) ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{exp.clients || ''}</span></p>
                     ) : null}
                   </div>
                 );
@@ -925,7 +928,7 @@ export default function CvEditablePreview({
 
             {formations.length > 0 && (
             <section className="section-formation" data-cv-section="formations">
-              <h2 className="section-title">FORMATION</h2>
+              <h2 className="section-title">{st.education}</h2>
               {formations.map((form, i) => {
                 const origIndex = formationsAll.indexOf(form);
                 return (
@@ -953,7 +956,7 @@ export default function CvEditablePreview({
 
             {projets.length > 0 && (
               <section className="section-projets" data-cv-section="projets">
-                <h2 className="section-title">PROJETS</h2>
+                <h2 className="section-title">{st.projects}</h2>
                 {projets.map((proj, i) => {
                   const origIndex = projetsAll.indexOf(proj);
                   return (
@@ -974,8 +977,8 @@ export default function CvEditablePreview({
           <div className="cv-sidebar">
             {techWithContent.length > 0 && (
               <section className="section-sidebar" data-cv-section="competences">
-                <h2 className="section-title">COMPÉTENCES</h2>
-                <h3 className="sidebar-category">Compétences techniques</h3>
+                <h2 className="section-title">{st.skills}</h2>
+                <h3 className="sidebar-category">{st.skills_technical}</h3>
                 {(competences.techniques || []).map((item, i) => (
                   <p key={i} className="sidebar-item">
                     <span data-cv-field={`competences.techniques.${i}`} suppressContentEditableWarning contentEditable="true">{typeof item === 'string' ? item : ''}</span>
@@ -985,7 +988,7 @@ export default function CvEditablePreview({
             )}
             {logicielsWithContent.length > 0 && (
               <section className="section-sidebar">
-                <h3 className="sidebar-category">Logiciels & outils</h3>
+                <h3 className="sidebar-category">{st.tools_software}</h3>
                 {(competences.logiciels || []).map((item, i) => (
                   <p key={i} className="sidebar-item">
                     <span data-cv-field={`competences.logiciels.${i}`} suppressContentEditableWarning contentEditable="true">{typeof item === 'string' ? item : ''}</span>
@@ -995,7 +998,7 @@ export default function CvEditablePreview({
             )}
             {certifications.length > 0 && (
               <section className="section-sidebar" id="certifications" data-cv-section="certifications">
-                <h3 className="sidebar-category">Certifications</h3>
+                <h3 className="sidebar-category">{st.certs_title}</h3>
                 {certifications.map((cert, i) => {
                   const origIndex = certificationsAll.indexOf(cert);
                   return (
@@ -1012,7 +1015,7 @@ export default function CvEditablePreview({
             )}
             {languesWithContent.length > 0 && (
               <section className="section-sidebar">
-                <h2 className="section-title">LANGUES</h2>
+                <h2 className="section-title">{st.languages}</h2>
                 {(competences.langues || []).map((l, i) => (
                   <p key={i} className="sidebar-item">
                     <span data-cv-field={`competences.langues.${i}.langue`} suppressContentEditableWarning contentEditable="true">{l?.langue || ''}</span>
@@ -1024,7 +1027,7 @@ export default function CvEditablePreview({
             )}
             {autresWithContent.length > 0 && (
               <section className="section-sidebar">
-                <h2 className="section-title">AUTRES</h2>
+                <h2 className="section-title">{st.other}</h2>
                 {(competences.autres || []).map((item, i) => (
                   <p key={i} className="sidebar-item">
                     <span data-cv-field={`competences.autres.${i}`} suppressContentEditableWarning contentEditable="true">{typeof item === 'string' ? item : ''}</span>
@@ -1034,14 +1037,14 @@ export default function CvEditablePreview({
             )}
             {showMotsClesAts && ((cv.mots_cles_cache || '').trim() ? (
               <section className="section-sidebar section-mots-cles-ats" id="mots-cles-ats">
-                <h3 className="sidebar-category mots-cles-ats-titre">Mots-clés ATS</h3>
+                <h3 className="sidebar-category mots-cles-ats-titre">{st.ats_keywords}</h3>
                 <p className="mots-cles-ats-invisible" aria-hidden="true">
                   <span data-cv-field="mots_cles_cache" className={isChanged('mots_cles_cache') ? 'cv-changed' : ''} suppressContentEditableWarning contentEditable="true">{cv.mots_cles_cache || ''}</span>
                 </p>
               </section>
             ) : (
               <section className="section-sidebar section-mots-cles-ats" id="mots-cles-ats">
-                <h3 className="sidebar-category mots-cles-ats-titre">Mots-clés ATS</h3>
+                <h3 className="sidebar-category mots-cles-ats-titre">{st.ats_keywords}</h3>
                 <p className="mots-cles-ats-invisible" aria-hidden="true">
                   <span data-cv-field="mots_cles_cache" className={`cv-editable-empty ${isChanged('mots_cles_cache') ? 'cv-changed' : ''}`} suppressContentEditableWarning contentEditable="true" title="Sera rempli par l’IA à l’adaptation"> </span>
                 </p>

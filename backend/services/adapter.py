@@ -16,6 +16,7 @@ from pathlib import Path
 
 from backend.config import GEMINI_MODEL_DEFAULT
 from backend.services.cv_language import (
+    apply_deterministic_localization,
     detect_cv_language,
     detect_offer_language,
     language_label,
@@ -474,8 +475,10 @@ def _adapt_gemini_json(system: str, user: str, user_id: str | None, operation: s
 
 
 LOCALIZE_SYSTEM = """Tu traduis un CV vers une langue cible SANS inventer.
-Tu ne changes pas les faits, chiffres, dates, entreprises, écoles, outils, identifiants.
-Tu traduis uniquement le texte rédigé (titre, résumé, intitulés de poste, bullets, diplômes, descriptions, niveaux de langue).
+Tu ne changes pas les faits, chiffres, entreprises, écoles, outils, identifiants.
+Tu traduis le texte rédigé : titre, résumé, intitulés de poste, bullets, diplômes,
+mentions, descriptions, niveaux de langue, secteur, lieu générique (Télétravail → Remote).
+Tu traduis aussi les dates rédigées (janv. 2023 → Jan 2023, aujourd'hui → Present) sans changer les années.
 Les noms propres restent identiques. Les listes gardent le même nombre d'éléments et les mêmes ids.
 Retourne UNIQUEMENT un JSON valide, sans markdown."""
 
@@ -499,6 +502,10 @@ def localize_cv_for_language(
                 "id": e.get("id", ""),
                 "poste": e.get("poste", ""),
                 "contexte": e.get("contexte", ""),
+                "date_debut": e.get("date_debut", ""),
+                "date_fin": e.get("date_fin", ""),
+                "lieu": e.get("lieu", ""),
+                "secteur": e.get("secteur", ""),
                 "bullet_points": e.get("bullet_points") or [],
             }
             for e in (cv_base.get("experiences") or [])
@@ -508,12 +515,18 @@ def localize_cv_for_language(
             {
                 "id": f.get("id", ""),
                 "diplome": f.get("diplome") or f.get("intitule") or "",
+                "date": f.get("date", ""),
+                "mention": f.get("mention", ""),
             }
             for f in (cv_base.get("formations") or [])
             if isinstance(f, dict)
         ],
         "certifications": [
-            {"id": c.get("id", ""), "nom": c.get("nom", "")}
+            {
+                "id": c.get("id", ""),
+                "nom": c.get("nom", ""),
+                "date": c.get("date", ""),
+            }
             for c in (cv_base.get("certifications") or [])
             if isinstance(c, dict)
         ],
@@ -531,6 +544,7 @@ def localize_cv_for_language(
     user = f"""Langue cible : {target_name} ({target_code}).
 Traduis le JSON ci-dessous vers cette langue. Même structure, mêmes ids, mêmes longueurs de listes.
 Ne traduis pas les noms d'entreprise, d'école, d'outils (Python, Excel) ni les identifiants.
+Traduis les dates (mois, aujourd'hui/Present) et les lieux génériques (Télétravail/Remote).
 
 <cv_a_traduire>
 {json.dumps(payload, ensure_ascii=False)}
@@ -541,13 +555,13 @@ Ne traduis pas les noms d'entreprise, d'école, d'outils (Python, Excel) ni les 
         try:
             from backend.gemini_usage import GeminiQuotaExceeded as QuotaExceeded
         except ImportError:
-            return deepcopy(cv_base)
+            return apply_deterministic_localization(cv_base, target_code)
         if isinstance(exc, QuotaExceeded):
             raise
-        return deepcopy(cv_base)
+        return apply_deterministic_localization(cv_base, target_code)
     if not isinstance(data, dict):
-        return deepcopy(cv_base)
-    return merge_localized_fields(cv_base, data)
+        return apply_deterministic_localization(cv_base, target_code)
+    return apply_deterministic_localization(merge_localized_fields(cv_base, data), target_code)
 
 
 def adapter_cv_for_step(

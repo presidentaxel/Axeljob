@@ -364,6 +364,296 @@ def language_label(code: str) -> str:
     return "anglais" if code == "en" else "français"
 
 
+# Titres de section / libellés UI des templates (casse naturelle vs uppercase).
+TEMPLATE_COPY: dict[str, dict[str, str]] = {
+    "fr": {
+        "html_lang": "fr",
+        "contact": "CONTACT",
+        "contact_title": "Contact",
+        "skills": "COMPÉTENCES",
+        "skills_title": "Compétences",
+        "skills_technical": "Compétences techniques",
+        "tools": "OUTILS",
+        "tools_software": "Logiciels & outils",
+        "certs": "CERTIFICATIONS",
+        "certs_title": "Certifications",
+        "languages": "LANGUES",
+        "languages_title": "Langues",
+        "other": "AUTRES",
+        "other_title": "Autres",
+        "profile": "PROFIL",
+        "profile_title": "Profil",
+        "experience": "EXPÉRIENCE PROFESSIONNELLE",
+        "experience_title": "Expérience professionnelle",
+        "education": "FORMATION",
+        "education_title": "Formation",
+        "projects": "PROJETS",
+        "projects_title": "Projets",
+        "ats_keywords": "Mots-clés ATS",
+        "clients": "Clients :",
+        "organization": "Organisation : ",
+        "function": "Fonction : ",
+    },
+    "en": {
+        "html_lang": "en",
+        "contact": "CONTACT",
+        "contact_title": "Contact",
+        "skills": "SKILLS",
+        "skills_title": "Skills",
+        "skills_technical": "Technical skills",
+        "tools": "TOOLS",
+        "tools_software": "Software & tools",
+        "certs": "CERTIFICATIONS",
+        "certs_title": "Certifications",
+        "languages": "LANGUAGES",
+        "languages_title": "Languages",
+        "other": "OTHER",
+        "other_title": "Other",
+        "profile": "PROFILE",
+        "profile_title": "Profile",
+        "experience": "PROFESSIONAL EXPERIENCE",
+        "experience_title": "Professional experience",
+        "education": "EDUCATION",
+        "education_title": "Education",
+        "projects": "PROJECTS",
+        "projects_title": "Projects",
+        "ats_keywords": "ATS keywords",
+        "clients": "Clients:",
+        "organization": "Organization: ",
+        "function": "Role: ",
+    },
+}
+
+_MONTHS_FR_TO_EN: tuple[tuple[str, str], ...] = (
+    (r"\bjanvier\b", "January"),
+    (r"\bjanv\.?", "Jan"),
+    (r"\bfévrier\b", "February"),
+    (r"\bfevrier\b", "February"),
+    (r"\bfévr\.?", "Feb"),
+    (r"\bfevr\.?", "Feb"),
+    (r"\bmars\b", "March"),
+    (r"\bavril\b", "April"),
+    (r"\bavr\.?", "Apr"),
+    (r"\bmai\b", "May"),
+    (r"\bjuin\b", "June"),
+    (r"\bjuillet\b", "July"),
+    (r"\bjuil\.?", "Jul"),
+    (r"\baoût\b", "August"),
+    (r"\baout\b", "August"),
+    (r"\bseptembre\b", "September"),
+    (r"\bsept\.?", "Sept"),
+    (r"\boctobre\b", "October"),
+    (r"\boct\.?", "Oct"),
+    (r"\bnovembre\b", "November"),
+    (r"\bnov\.?", "Nov"),
+    (r"\bdécembre\b", "December"),
+    (r"\bdecembre\b", "December"),
+    (r"\bdéc\.?", "Dec"),
+    (r"\bdec\.?", "Dec"),
+)
+
+_MONTHS_EN_TO_FR: tuple[tuple[str, str], ...] = (
+    (r"\bjanuary\b", "janvier"),
+    (r"\bfebruary\b", "février"),
+    (r"\bmarch\b", "mars"),
+    (r"\bapril\b", "avril"),
+    (r"\baugust\b", "août"),
+    (r"\bseptember\b", "septembre"),
+    (r"\boctober\b", "octobre"),
+    (r"\bnovember\b", "novembre"),
+    (r"\bdecember\b", "décembre"),
+    (r"\bjan\.?\b", "janv."),
+    (r"\bfeb\.?\b", "févr."),
+    (r"\bapr\.?\b", "avr."),
+    (r"\bjun\.?\b", "juin"),
+    (r"\bjune\b", "juin"),
+    (r"\bjul\.?\b", "juil."),
+    (r"\bjuly\b", "juillet"),
+    (r"\bmay\b", "mai"),
+    (r"\bsept\.?\b", "sept."),
+    (r"\boct\.?\b", "oct."),
+    (r"\bnov\.?\b", "nov."),
+    (r"\bdec\.?\b", "déc."),
+)
+
+_PRESENT_TO_EN = re.compile(
+    r"\b(aujourd['’]?hui|aujourdhui|en cours|à ce jour|a ce jour|présent|present)\b",
+    re.IGNORECASE,
+)
+_PRESENT_TO_FR = re.compile(r"\b(present|current|now)\b", re.IGNORECASE)
+
+_LIEU_FR_TO_EN: tuple[tuple[str, str], ...] = (
+    (r"\btélétravail\b", "Remote"),
+    (r"\bteletravail\b", "Remote"),
+    (r"\bà distance\b", "Remote"),
+    (r"\ba distance\b", "Remote"),
+    (r"\bhybride\b", "Hybrid"),
+    (r"\bprésentiel\b", "On-site"),
+    (r"\bpresentiel\b", "On-site"),
+)
+_LIEU_EN_TO_FR: tuple[tuple[str, str], ...] = (
+    (r"\bremote\b", "Télétravail"),
+    (r"\bhybrid\b", "Hybride"),
+    (r"\bon[ -]?site\b", "Présentiel"),
+)
+
+_KNOWN_SECTION_LABELS_FR_TO_EN: dict[str, str] = {
+    "expérience professionnelle": "Professional experience",
+    "experience professionnelle": "Professional experience",
+    "expériences": "Experience",
+    "experiences": "Experience",
+    "formation": "Education",
+    "formations": "Education",
+    "compétences": "Skills",
+    "competences": "Skills",
+    "profil": "Profile",
+    "langues": "Languages",
+    "projets": "Projects",
+    "certifications": "Certifications",
+    "contact": "Contact",
+    "outils": "Tools",
+    "autres": "Other",
+    "compétences techniques": "Technical skills",
+    "logiciels & outils": "Software & tools",
+    "logiciels et outils": "Software & tools",
+}
+_KNOWN_SECTION_LABELS_EN_TO_FR: dict[str, str] = {
+    "professional experience": "Expérience professionnelle",
+    "experience": "Expériences",
+    "education": "Formation",
+    "skills": "Compétences",
+    "profile": "Profil",
+    "languages": "Langues",
+    "projects": "Projets",
+    "certifications": "Certifications",
+    "contact": "Contact",
+    "tools": "Outils",
+    "other": "Autres",
+    "technical skills": "Compétences techniques",
+    "software & tools": "Logiciels & outils",
+    "software and tools": "Logiciels & outils",
+}
+
+
+def template_copy_for_lang(code: str | None) -> dict[str, str]:
+    return dict(TEMPLATE_COPY["en" if code == "en" else "fr"])
+
+
+def _apply_regex_pairs(text: str, pairs: tuple[tuple[str, str], ...]) -> str:
+    out = text
+    for pattern, repl in pairs:
+        out = re.sub(pattern, repl, out, flags=re.IGNORECASE)
+    return out
+
+
+def localize_date_phrase(text: str | None, target_code: str) -> str:
+    """Traduit mois / aujourd'hui dans un champ date, sans inventer de période."""
+    raw = text if isinstance(text, str) else ""
+    if not raw.strip():
+        return raw
+    if target_code == "en":
+        out = _PRESENT_TO_EN.sub("Present", raw)
+        return _apply_regex_pairs(out, _MONTHS_FR_TO_EN)
+    if target_code == "fr":
+        out = _PRESENT_TO_FR.sub("aujourd'hui", raw)
+        return _apply_regex_pairs(out, _MONTHS_EN_TO_FR)
+    return raw
+
+
+def localize_lieu_phrase(text: str | None, target_code: str) -> str:
+    raw = text if isinstance(text, str) else ""
+    if not raw.strip():
+        return raw
+    if target_code == "en":
+        return _apply_regex_pairs(raw, _LIEU_FR_TO_EN)
+    if target_code == "fr":
+        return _apply_regex_pairs(raw, _LIEU_EN_TO_FR)
+    return raw
+
+
+def localize_known_section_label(label: str | None, target_code: str) -> str:
+    raw = (label or "").strip()
+    if not raw:
+        return label or ""
+    folded = raw.lower()
+    table = (
+        _KNOWN_SECTION_LABELS_FR_TO_EN if target_code == "en" else _KNOWN_SECTION_LABELS_EN_TO_FR
+    )
+    mapped = table.get(folded)
+    if not mapped:
+        return raw
+    if raw.isupper() and len(raw) > 2:
+        return mapped.upper()
+    return mapped
+
+
+def apply_deterministic_localization(cv: dict | None, target_code: str) -> dict:
+    """Dates / lieu générique / titres de canvas, même si Gemini omet ces champs."""
+    from copy import deepcopy
+
+    out = deepcopy(cv) if isinstance(cv, dict) else {}
+    if target_code not in {"fr", "en"}:
+        return out
+    for exp in out.get("experiences") or []:
+        if not isinstance(exp, dict):
+            continue
+        for key in ("date_debut", "date_fin"):
+            if exp.get(key):
+                exp[key] = localize_date_phrase(str(exp.get(key) or ""), target_code)
+        if exp.get("lieu"):
+            exp["lieu"] = localize_lieu_phrase(str(exp.get("lieu") or ""), target_code)
+    for form in out.get("formations") or []:
+        if isinstance(form, dict) and form.get("date"):
+            form["date"] = localize_date_phrase(str(form.get("date") or ""), target_code)
+    for cert in out.get("certifications") or []:
+        if isinstance(cert, dict) and cert.get("date"):
+            cert["date"] = localize_date_phrase(str(cert.get("date") or ""), target_code)
+    layout = out.get("layout")
+    if isinstance(layout, dict):
+        out["layout"] = localize_layout_section_labels(layout, target_code)
+    out["langue"] = target_code
+    return out
+
+
+def localize_layout_section_labels(layout: dict | None, target_code: str) -> dict:
+    from copy import deepcopy
+
+    out = deepcopy(layout) if isinstance(layout, dict) else {}
+    pages = out.get("pages")
+    if not isinstance(pages, list):
+        return out
+    for page in pages:
+        if not isinstance(page, dict):
+            continue
+        for block in page.get("blocks") or []:
+            if not isinstance(block, dict):
+                continue
+            style = block.get("style")
+            if not isinstance(style, dict):
+                continue
+            if style.get("section_label"):
+                style["section_label"] = localize_known_section_label(
+                    str(style.get("section_label") or ""), target_code
+                )
+            if style.get("sidebar_category"):
+                style["sidebar_category"] = localize_known_section_label(
+                    str(style.get("sidebar_category") or ""), target_code
+                )
+    return out
+
+
+def resolve_cv_display_lang(cv: dict | None) -> str:
+    """Langue d'affichage des titres de template (stamp `langue` ou détection)."""
+    data = cv if isinstance(cv, dict) else {}
+    stamped = data.get("langue")
+    if stamped in {"fr", "en"}:
+        return stamped
+    meta = detect_cv_language(data)
+    if (meta.get("confidence") or 0) > 0:
+        return meta.get("code") or "fr"
+    return "fr"
+
+
 OUTPUT_CV = "cv"
 OUTPUT_OFFER = "offer"
 
@@ -518,6 +808,13 @@ def _replace_str_list(src: Any, new: Any) -> Any:
     return out
 
 
+def _copy_str_fields(dst: dict, src: dict, keys: tuple[str, ...]) -> None:
+    for key in keys:
+        val = _nonempty_str(src.get(key))
+        if val:
+            dst[key] = val
+
+
 def merge_localized_fields(cv: dict | None, delta: dict | None) -> dict:
     """Fusionne une traduction fidèle (ids conservés, pas d'invention de lignes)."""
     from copy import deepcopy
@@ -542,12 +839,11 @@ def merge_localized_fields(cv: dict | None, delta: dict | None) -> dict:
             row = by_id.get(str(exp.get("id") or ""))
             if not row:
                 continue
-            poste = _nonempty_str(row.get("poste"))
-            if poste:
-                exp["poste"] = poste
-            contexte = _nonempty_str(row.get("contexte"))
-            if contexte:
-                exp["contexte"] = contexte
+            _copy_str_fields(
+                exp,
+                row,
+                ("poste", "contexte", "date_debut", "date_fin", "lieu", "secteur", "clients"),
+            )
             if isinstance(row.get("bullet_points"), list):
                 exp["bullet_points"] = _replace_str_list(
                     exp.get("bullet_points") or [], row.get("bullet_points")
@@ -573,6 +869,7 @@ def merge_localized_fields(cv: dict | None, delta: dict | None) -> dict:
                     form["diplome"] = diplome
                 if form.get("intitule") is not None or "intitule" in form:
                     form["intitule"] = diplome
+            _copy_str_fields(form, row, ("date", "mention"))
 
     loc_certs = data.get("certifications")
     if isinstance(loc_certs, list):
@@ -585,9 +882,7 @@ def merge_localized_fields(cv: dict | None, delta: dict | None) -> dict:
             row = by_id.get(str(cert.get("id") or ""))
             if not row:
                 continue
-            nom = _nonempty_str(row.get("nom"))
-            if nom:
-                cert["nom"] = nom
+            _copy_str_fields(cert, row, ("nom", "date"))
 
     loc_proj = data.get("projets")
     if isinstance(loc_proj, list):
@@ -600,12 +895,7 @@ def merge_localized_fields(cv: dict | None, delta: dict | None) -> dict:
             row = by_id.get(str(proj.get("id") or ""))
             if not row:
                 continue
-            nom = _nonempty_str(row.get("nom"))
-            if nom:
-                proj["nom"] = nom
-            desc = _nonempty_str(row.get("description"))
-            if desc:
-                proj["description"] = desc
+            _copy_str_fields(proj, row, ("nom", "description"))
 
     loc_comp = data.get("competences")
     if isinstance(loc_comp, dict):

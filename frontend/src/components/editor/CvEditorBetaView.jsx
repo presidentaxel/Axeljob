@@ -170,6 +170,7 @@ import {
   resolveEditorFirstRunSurface,
   shouldLockCanvasScrollForFirstRun,
 } from '../../lib/editorOnboarding.js';
+import { decideBetaCanvasHydration } from '../../lib/canvasBetaHydration.js';
 import {
   listNonFaithfulBlocks,
   summarizeNonFaithfulBlocks,
@@ -457,26 +458,28 @@ function CvEditorBeta({
         setCv(mergedCv);
         // Source de vérité pour le pont : template du profil API (pas localStorage).
         profileTemplateIdRef.current = String(mergedCv.template_id || '').trim();
-        const hydratedLayout = rawLayout
-          ? migrateLayoutToV3(rawLayout)
-          : createBlankLayoutV3();
         const contextKey = getActiveCanvasContext();
         const templates = templatesListRef.current;
+        const draft = loadCanvasDraft(contextKey);
+        const hydration = decideBetaCanvasHydration({
+          hasLayoutField: Object.prototype.hasOwnProperty.call(incoming, 'layout'),
+          rawLayout,
+          seedableProfile: cvHasSeedableProfileContent(mergedCv),
+          localDraftLayout: draft?.layout || null,
+        });
+        const hydratedLayout = hydration.mode === 'draft'
+          ? migrateLayoutToV3(draft.layout)
+          : (rawLayout ? migrateLayoutToV3(rawLayout) : createBlankLayoutV3());
         setActiveLayoutContextKey(contextKey);
         setActiveCanvasContext(contextKey);
-        if (rawLayout) {
+        if (hydration.mode === 'server' || hydration.mode === 'draft') {
           saveCanvasDraft(contextKey, hydratedLayout, {
             label: canvasContextLabel(contextKey, templates),
           });
           setCanvasDrafts(listCanvasDrafts(templates));
-          pendingProfileSeedRef.current = false;
-          setStartupPromptOpen(false);
-        } else {
-          // Import onboarding = données sans layout → peupler Beta dès que templates OK.
-          const seedable = cvHasSeedableProfileContent(mergedCv);
-          pendingProfileSeedRef.current = seedable;
-          setStartupPromptOpen(!seedable);
         }
+        pendingProfileSeedRef.current = hydration.seed;
+        setStartupPromptOpen(hydration.startup);
         resetLayout(hydratedLayout);
         setLoading(false);
       })
@@ -525,7 +528,6 @@ function CvEditorBeta({
       openCanvasContext(IMPORTED_CANVAS_CONTEXT_KEY, seeded, {
         template_id: persistId,
       });
-      setImportToast('Canvas généré depuis ton profil');
     } catch {
       setStartupPromptOpen(true);
     }

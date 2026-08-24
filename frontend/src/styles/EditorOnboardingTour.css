@@ -1,7 +1,7 @@
 .editor-onboarding {
   position: absolute;
   inset: 0;
-  z-index: 40;
+  z-index: var(--ds-z-modal, 400);
   display: flex;
   align-items: center;
   justify-content: center;

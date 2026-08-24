@@ -65,14 +65,70 @@ export function dismissEditorOnboarding(storage) {
 }
 
 /**
+ * Surfaces first-run de l’éditeur Beta (AXE-345).
+ * Une seule à la fois, priorité décroissante.
+ */
+export const EDITOR_FIRST_RUN_SURFACES = Object.freeze({
+  NONE: 'none',
+  IMPORT: 'import',
+  STARTUP: 'startup',
+  DESIGN_BRIDGE: 'designBridge',
+  ONBOARDING: 'onboarding',
+});
+
+/**
+ * Quelle overlay first-run afficher. Logique pure, testable.
+ *
+ * Priorité : import (opt-in) > « Comment veux-tu commencer ? » >
+ * pont design (opt-in) > tour onboarding (jamais sur canvas vide).
+ *
+ * @param {{
+ *   dismissed?: boolean,
+ *   loading?: boolean,
+ *   startupPromptOpen?: boolean,
+ *   importOpen?: boolean,
+ *   designBridgeOpen?: boolean,
+ *   canvasEmpty?: boolean,
+ * }} state
+ * @returns {typeof EDITOR_FIRST_RUN_SURFACES[keyof typeof EDITOR_FIRST_RUN_SURFACES]}
+ */
+export function resolveEditorFirstRunSurface(state = {}) {
+  if (state.loading) return EDITOR_FIRST_RUN_SURFACES.NONE;
+  if (state.importOpen) return EDITOR_FIRST_RUN_SURFACES.IMPORT;
+  if (state.startupPromptOpen) return EDITOR_FIRST_RUN_SURFACES.STARTUP;
+  if (state.designBridgeOpen) return EDITOR_FIRST_RUN_SURFACES.DESIGN_BRIDGE;
+  // Canvas vide : les CTAs in-page suffisent ; pas de 2e modal (tour).
+  if (state.canvasEmpty) return EDITOR_FIRST_RUN_SURFACES.NONE;
+  if (state.dismissed) return EDITOR_FIRST_RUN_SURFACES.NONE;
+  return EDITOR_FIRST_RUN_SURFACES.ONBOARDING;
+}
+
+/**
  * Décide si le tour doit s'afficher (logique pure, testable).
- * @param {{ dismissed?: boolean, loading?: boolean, startupPromptOpen?: boolean }} state
+ * @param {{
+ *   dismissed?: boolean,
+ *   loading?: boolean,
+ *   startupPromptOpen?: boolean,
+ *   importOpen?: boolean,
+ *   designBridgeOpen?: boolean,
+ *   canvasEmpty?: boolean,
+ * }} state
  * @returns {boolean}
  */
 export function shouldShowEditorOnboarding(state = {}) {
-  if (state.dismissed) return false;
-  if (state.loading) return false;
-  // Le démarrage guidé AXE-28 a priorité quand le layout serveur est absent.
-  if (state.startupPromptOpen) return false;
-  return true;
+  return resolveEditorFirstRunSurface(state) === EDITOR_FIRST_RUN_SURFACES.ONBOARDING;
+}
+
+/**
+ * Verrouiller le scroll du canvas pendant une overlay interne (absolute).
+ * L’import est `position: fixed` sur le viewport — pas besoin de lock.
+ * @param {string} surface
+ * @returns {boolean}
+ */
+export function shouldLockCanvasScrollForFirstRun(surface) {
+  return (
+    surface === EDITOR_FIRST_RUN_SURFACES.STARTUP
+    || surface === EDITOR_FIRST_RUN_SURFACES.DESIGN_BRIDGE
+    || surface === EDITOR_FIRST_RUN_SURFACES.ONBOARDING
+  );
 }

@@ -610,10 +610,16 @@
   background: var(--color-soft-stone);
 }
 
+/* AXE-345 : l’overlay first-run est absolute dans ce scrollport.
+   Sans lock, on scrolle et on voit la page vide / CTAs derrière. */
+.cv-editor-beta-canvas--overlay-lock {
+  overflow: hidden;
+}
+
 .cv-editor-beta-start-panel {
   position: absolute;
   inset: 0;
-  z-index: 20;
+  z-index: var(--ds-z-modal, 400);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -623,7 +629,7 @@
 .cv-editor-beta-start-panel__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(238, 236, 231, 0.88);
+  background: color-mix(in srgb, var(--color-soft-stone) 88%, transparent);
 }
 
 .cv-editor-beta-start-panel__card {

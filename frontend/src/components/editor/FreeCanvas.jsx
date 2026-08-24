@@ -141,6 +141,7 @@ export default function FreeCanvas({
   onSpillOverflow,
   onEmptyAddSection,
   onEmptyChooseTemplate,
+  hideEmptyState = false,
 }) {
   const viewportRef = useRef(null);
   const blockElementsRef = useRef({});
@@ -910,7 +911,7 @@ export default function FreeCanvas({
                   />
                   );
                 })}
-                {blocks.length === 0 && !placing && (
+                {blocks.length === 0 && !placing && !hideEmptyState && (
                   <div className="free-canvas-page-empty" role="status">
                     <p className="free-canvas-page-empty__title">Cette page est vide</p>
                     <p className="free-canvas-page-empty__text">

@@ -121,10 +121,10 @@
   background: var(--ds-color-bg-subtle);
   color: var(--ds-color-text-default);
   padding: 0.55rem 0.85rem;
-  border-radius: var(--ds-radius-sm, 6px);
+  border-radius: var(--ds-radius-sm);
   margin-bottom: 1rem;
   font-size: 0.85rem;
-  border: 1px solid var(--ds-color-border-default, var(--border));
+  border: 1px solid var(--ds-color-border-default);
   text-align: left;
 }
 

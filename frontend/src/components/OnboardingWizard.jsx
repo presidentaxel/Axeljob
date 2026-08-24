@@ -1,7 +1,15 @@
-import { useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apiPost, apiPostFile, apiPut, trackEvent } from '../api';
-import { cvFromImportPayload } from '../lib/cvImportUtils.js';
+import {
+  cvFromImportPayload,
+  finishImportLoadingAnimation,
+  isSparseImportedCv,
+  ONBOARDING_IMPORT_STEPS,
+  onboardingImportErrorMessage,
+  startImportLoadingAnimation,
+} from '../lib/cvImportUtils.js';
 import '../styles/OnboardingWizard.css';
+import CvImportLoadingOverlay from './CvImportLoadingOverlay.jsx';
 
 const STEPS = ['Importer', 'Vérifier', 'C\'est parti'];
 
@@ -30,43 +38,62 @@ export default function OnboardingWizard({ session, onComplete }) {
   const [method, setMethod] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [sparseHint, setSparseHint] = useState(false);
   const [parsedCv, setParsedCv] = useState(null);
   const [cvText, setCvText] = useState('');
+  const [importStepIndex, setImportStepIndex] = useState(0);
   const fileRef = useRef(null);
+  const importCleanupRef = useRef(null);
+
+  useEffect(() => () => {
+    if (importCleanupRef.current) importCleanupRef.current();
+  }, []);
+
+  const runCvAnalysis = async (requestFn) => {
+    setError('');
+    setSparseHint(false);
+    setLoading(true);
+    setImportStepIndex(0);
+    if (importCleanupRef.current) importCleanupRef.current();
+    importCleanupRef.current = startImportLoadingAnimation(setImportStepIndex, {
+      steps: ONBOARDING_IMPORT_STEPS,
+    });
+    try {
+      const data = await requestFn();
+      finishImportLoadingAnimation(setImportStepIndex, { steps: ONBOARDING_IMPORT_STEPS });
+      const cv = cvFromImportPayload(data?.cv || data);
+      setParsedCv(cv);
+      setSparseHint(isSparseImportedCv(cv));
+      await new Promise((resolve) => window.setTimeout(resolve, 280));
+      setStep(1);
+    } catch (err) {
+      setError(onboardingImportErrorMessage(err));
+    } finally {
+      if (importCleanupRef.current) {
+        importCleanupRef.current();
+        importCleanupRef.current = null;
+      }
+      setLoading(false);
+    }
+  };
 
   const handleFileUpload = async (e) => {
     const file = e?.target?.files?.[0];
     if (!file) return;
     setMethod('upload');
-    setError('');
-    setLoading(true);
     trackEvent('onboarding_method_chosen', { method: 'file_upload' });
     try {
-      const data = await apiPostFile('/api/cv/import', file);
-      setParsedCv(cvFromImportPayload(data?.cv || data));
-      setStep(1);
-    } catch (err) {
-      setError(err.message || 'Impossible de lire le CV. Essaie le copier-coller.');
+      await runCvAnalysis(() => apiPostFile('/api/cv/import', file));
     } finally {
-      setLoading(false);
+      if (fileRef.current) fileRef.current.value = '';
     }
   };
 
   const handleTextImport = async () => {
     if (!cvText.trim()) return;
     setMethod('text');
-    setError('');
-    setLoading(true);
     trackEvent('onboarding_method_chosen', { method: 'text_paste' });
-    try {
-      const data = await apiPost('/api/cv/import-text', { text: cvText.trim() });
-      setParsedCv(cvFromImportPayload(data?.cv || data));
-      setStep(1);
-    } catch (err) {
-      setError(err.message || 'Impossible de parser le texte.');
-    } finally {
-      setLoading(false);
-    }
+    await runCvAnalysis(() => apiPost('/api/cv/import-text', { text: cvText.trim() }));
   };
 
   const handleManual = () => {
@@ -109,8 +136,10 @@ export default function OnboardingWizard({ session, onComplete }) {
     onComplete('profil');
   };
 
+  const analyzing = loading && step === 0 && (method === 'upload' || method === 'text');
+
   return (
-    <div className="onb-overlay">
+    <div className="onb-overlay" aria-busy={analyzing || undefined}>
       <div className="onb-card">
         <StepIndicator current={step} />
 
@@ -120,7 +149,7 @@ export default function OnboardingWizard({ session, onComplete }) {
             <p className="onb-subtitle">
               Pour commencer, on a besoin de tes informations. Choisis comment les importer :
             </p>
-            {error && <div className="onb-error">{error}</div>}
+            {error && <div className="onb-error" role="alert">{error}</div>}
 
             <div className="onb-methods">
               <button type="button" className="onb-method-card" onClick={() => fileRef.current?.click()} disabled={loading}>
@@ -153,6 +182,7 @@ export default function OnboardingWizard({ session, onComplete }) {
                   onChange={(e) => setCvText(e.target.value)}
                   placeholder="Copie-colle le contenu de ton CV ici..."
                   rows={6}
+                  disabled={loading}
                 />
                 <button
                   type="button"
@@ -171,13 +201,8 @@ export default function OnboardingWizard({ session, onComplete }) {
               accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
               className="onb-file-hidden"
               onChange={handleFileUpload}
+              disabled={loading}
             />
-            {loading && method === 'upload' && (
-              <div className="onb-loading">
-                <span className="onb-spinner" />
-                <span>Analyse du CV en cours…</span>
-              </div>
-            )}
           </div>
         )}
 
@@ -187,7 +212,12 @@ export default function OnboardingWizard({ session, onComplete }) {
             <p className="onb-subtitle">
               Voici ce qu'on a extrait. Tu pourras tout modifier en détail après.
             </p>
-            {error && <div className="onb-error">{error}</div>}
+            {error && <div className="onb-error" role="alert">{error}</div>}
+            {sparseHint && (
+              <div className="onb-sparse" role="status">
+                Peu d’infos extraites. Tu peux continuer, puis compléter ton profil à la main.
+              </div>
+            )}
 
             <div className="onb-review">
               <div className="onb-review-section">
@@ -268,11 +298,25 @@ export default function OnboardingWizard({ session, onComplete }) {
         )}
 
         {step === 0 && (
-          <button type="button" className="onb-skip" onClick={() => { trackEvent('onboarding_skipped', {}); onComplete('candidatures'); }}>
+          <button
+            type="button"
+            className="onb-skip"
+            disabled={loading}
+            onClick={() => { trackEvent('onboarding_skipped', {}); onComplete('candidatures'); }}
+          >
             Passer pour l'instant
           </button>
         )}
       </div>
+
+      {analyzing && (
+        <CvImportLoadingOverlay
+          stepIndex={importStepIndex}
+          steps={ONBOARDING_IMPORT_STEPS}
+          title="Analyse de ton CV en cours"
+          subtitle="On lit ton document, puis on structure le profil. Ça peut prendre jusqu’à une minute."
+        />
+      )}
     </div>
   );
 }

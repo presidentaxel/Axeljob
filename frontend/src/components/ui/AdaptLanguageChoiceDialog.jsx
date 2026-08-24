@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import Button from './Button.jsx';
 import '../../styles/ConfirmDialog.css';
@@ -27,14 +27,23 @@ export default function AdaptLanguageChoiceDialog({
   open = false,
   cvLanguage,
   offerLanguage,
+  rememberDefault = false,
   onKeepCv,
   onUseOffer,
 }) {
   const copy = adaptLanguageChoiceCopy(cvLanguage, offerLanguage);
   const titleId = useId();
   const descriptionId = useId();
+  const rememberId = useId();
   const cardRef = useRef(null);
   const previouslyFocusedRef = useRef(null);
+  const [remember, setRemember] = useState(Boolean(rememberDefault));
+
+  useEffect(() => {
+    if (!open) return undefined;
+    setRemember(Boolean(rememberDefault));
+    return undefined;
+  }, [open, rememberDefault]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -47,7 +56,7 @@ export default function AdaptLanguageChoiceDialog({
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();
-        onKeepCv?.();
+        onKeepCv?.({ remember });
         return;
       }
       if (event.key !== 'Tab') return;
@@ -80,7 +89,7 @@ export default function AdaptLanguageChoiceDialog({
       const prev = previouslyFocusedRef.current;
       if (prev && typeof prev.focus === 'function') prev.focus();
     };
-  }, [open, onKeepCv]);
+  }, [open, onKeepCv, remember]);
 
   if (!open || !copy) return null;
 
@@ -95,7 +104,7 @@ export default function AdaptLanguageChoiceDialog({
       <div
         className="confirm-dialog__backdrop"
         aria-hidden="true"
-        onClick={() => onKeepCv?.()}
+        onClick={() => onKeepCv?.({ remember })}
       />
       <div className="confirm-dialog__card" ref={cardRef}>
         <header className="confirm-dialog__head">
@@ -108,7 +117,7 @@ export default function AdaptLanguageChoiceDialog({
           <button
             type="button"
             className="confirm-dialog__close"
-            onClick={() => onKeepCv?.()}
+            onClick={() => onKeepCv?.({ remember })}
             aria-label="Fermer"
           >
             ×
@@ -117,8 +126,22 @@ export default function AdaptLanguageChoiceDialog({
         <p id={descriptionId} className="confirm-dialog__copy ds-body-md">
           {copy.message}
         </p>
+        <label className="confirm-dialog__remember ds-body-md" htmlFor={rememberId}>
+          <input
+            id={rememberId}
+            type="checkbox"
+            checked={remember}
+            onChange={(event) => setRemember(event.target.checked)}
+          />
+          <span>{copy.rememberLabel}</span>
+        </label>
         <footer className="confirm-dialog__actions">
-          <Button type="button" variant="secondary" size="md" onClick={() => onUseOffer?.()}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="md"
+            onClick={() => onUseOffer?.({ remember })}
+          >
             {copy.offerLabel}
           </Button>
           <Button
@@ -126,7 +149,7 @@ export default function AdaptLanguageChoiceDialog({
             variant="primary"
             size="md"
             data-confirm-primary=""
-            onClick={() => onKeepCv?.()}
+            onClick={() => onKeepCv?.({ remember })}
           >
             {copy.keepLabel}
           </Button>

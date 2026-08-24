@@ -35,6 +35,7 @@ export function adaptLanguageChoiceCopy(cvLanguage, offerLanguage) {
       `Relis-le, puis appuie sur Valider et lancer. La traduction reprend tes faits, sans rien inventer.`,
     keepLabel: `Garder le ${cvLabel} (CV)`,
     offerLabel: `Traduire vers le ${offerLabel} (annonce)`,
+    rememberLabel: 'Se souvenir de ce choix pour les prochaines candidatures',
   };
 }
 
@@ -88,8 +89,15 @@ export function withAdaptLanguageNotice(summary, cvLanguage, offerLanguage, outp
  * @param {object | null | undefined} offerLanguage
  * @param {'cv' | 'offer' | string | null | undefined} outputPolicy
  * @param {'idle' | 'loading' | 'ready' | 'error' | string} status
+ * @param {boolean} [remembered]
  */
-export function adaptLanguagePreviewCopy(cvLanguage, offerLanguage, outputPolicy, status = 'ready') {
+export function adaptLanguagePreviewCopy(
+  cvLanguage,
+  offerLanguage,
+  outputPolicy,
+  status = 'ready',
+  remembered = false,
+) {
   if (!shouldPromptLanguageChoice(cvLanguage, offerLanguage)) return null;
   const cvCode = cvLanguage.code === 'en' ? 'en' : 'fr';
   const offerCode = offerLanguage.code === 'en' ? 'en' : 'fr';
@@ -99,6 +107,7 @@ export function adaptLanguagePreviewCopy(cvLanguage, offerLanguage, outputPolicy
   const langLabel = policy === 'offer' ? offerLabel : cvLabel;
   const changeLabel = 'Changer';
   const retryLabel = 'Réessayer l’aperçu';
+  const forgetLabel = 'Oublier ce choix';
 
   if (!outputPolicy) {
     return {
@@ -112,6 +121,7 @@ export function adaptLanguagePreviewCopy(cvLanguage, offerLanguage, outputPolicy
       title: `Traduction de l’aperçu en ${langLabel}…`,
       body: 'On prépare le CV dans la langue choisie, sans changer la mise en page ni les polices.',
       changeLabel,
+      forgetLabel: remembered ? forgetLabel : undefined,
     };
   }
   if (status === 'error') {
@@ -120,6 +130,20 @@ export function adaptLanguagePreviewCopy(cvLanguage, offerLanguage, outputPolicy
       body: 'La mise à jour de l’aperçu a échoué. Réessaie, ou change de langue.',
       changeLabel,
       retryLabel,
+      forgetLabel: remembered ? forgetLabel : undefined,
+    };
+  }
+  if (remembered) {
+    return {
+      title:
+        policy === 'offer'
+          ? `Choix mémorisé : traduire en ${langLabel}`
+          : `Choix mémorisé : garder le ${langLabel}`,
+      body:
+        `On ne te redemande plus à chaque candidature. Valide pour lancer. ` +
+        `Tu peux changer pour cette fois, ou oublier ce choix.`,
+      changeLabel,
+      forgetLabel,
     };
   }
   if (policy === 'offer') {

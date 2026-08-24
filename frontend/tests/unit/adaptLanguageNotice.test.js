@@ -38,6 +38,7 @@ test('CV FR + offre EN : popup + notice de non-traduction (choix CV)', () => {
   assert.match(copy.message, /Valider et lancer/);
   assert.match(copy.keepLabel, /français/);
   assert.match(copy.offerLabel, /anglais/);
+  assert.match(copy.rememberLabel, /Se souvenir/);
 });
 
 test('choix langue de l’annonce : notice de traduction', () => {
@@ -99,4 +100,8 @@ test('aperçu avant validation : copie keep / translate / loading', () => {
   const err = adaptLanguagePreviewCopy(cv, offer, 'offer', 'error');
   assert.match(err.title, /pas encore/);
   assert.ok(err.retryLabel);
+  const remembered = adaptLanguagePreviewCopy(cv, offer, 'cv', 'ready', true);
+  assert.match(remembered.title, /mémorisé/i);
+  assert.match(remembered.body, /ne te redemande plus/i);
+  assert.equal(remembered.forgetLabel, 'Oublier ce choix');
 });

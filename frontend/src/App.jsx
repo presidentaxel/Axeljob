@@ -39,6 +39,12 @@ import './styles/TemplatePicker.css';
 import './styles/GuidedTour.css';
 import { formatApplicationDateLabel, formatApplicationRelativeLabel } from './lib/applicationDates';
 import { adaptLanguageNotice, adaptLanguagePreviewCopy, shouldPromptLanguageChoice, withAdaptLanguageNotice } from './lib/adaptLanguageNotice.js';
+import {
+  clearAdaptLanguagePreference,
+  getAdaptLanguagePreference,
+  resolveAdaptLanguageAutoChoice,
+  setAdaptLanguagePreference,
+} from './lib/adaptLanguagePreference.js';
 import { computeApplicationMetrics, isApplicationToFollowUp } from './lib/applicationStats.js';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from './lib/cvPreviewA4Pages';
 import {
@@ -1735,6 +1741,11 @@ export default function App() {
       .then((data) => {
         if (cancelled) return;
         const todo = Array.isArray(data?.todo) ? data.todo : [];
+        const mismatch = Boolean(
+          data?.language_mismatch
+          || shouldPromptLanguageChoice(data?.cv_language, data?.offer_language),
+        );
+        const restoreLang = resolveAdaptLanguageAutoChoice(mismatch, session?.user?.id);
         setAdaptRunStepIds([]);
         setAdaptStreamRunningStepId(null);
         setAdaptStreamDoneStepIds([]);
@@ -1745,24 +1756,14 @@ export default function App() {
           assistantMessage: data?.assistant_message || 'Plan restauré. Tu peux valider ou ajuster les étapes.',
           cvLanguage: data?.cv_language || null,
           offerLanguage: data?.offer_language || null,
-          languageMismatch: Boolean(
-            data?.language_mismatch
-            || shouldPromptLanguageChoice(data?.cv_language, data?.offer_language),
-          ),
-          outputLanguage: null,
+          languageMismatch: mismatch,
+          outputLanguage: restoreLang.outputLanguage,
+          languageRemembered: restoreLang.remembered,
         });
-        setLanguagePreviewStatus(
-          data?.language_mismatch
-          || shouldPromptLanguageChoice(data?.cv_language, data?.offer_language)
-            ? 'idle'
-            : 'ready',
-        );
+        setLanguagePreviewStatus(mismatch && restoreLang.prompt ? 'idle' : mismatch ? 'idle' : 'ready');
         languagePreviewCvRef.current = null;
         setAnnonce((data?.description || '').trim());
-        if (
-          data?.language_mismatch
-          || shouldPromptLanguageChoice(data?.cv_language, data?.offer_language)
-        ) {
+        if (restoreLang.prompt) {
           setAdaptLanguageMeta({
             cvLanguage: data?.cv_language || null,
             offerLanguage: data?.offer_language || null,
@@ -2263,10 +2264,14 @@ export default function App() {
     }
   };
 
-  const applyAdaptLanguageChoice = (policy) => {
+  const applyAdaptLanguageChoice = (policy, options = {}) => {
     const choice = policy === 'offer' ? 'offer' : 'cv';
+    const remember = Boolean(options?.remember);
+    const uid = session?.user?.id;
+    if (remember) setAdaptLanguagePreference(uid, choice);
+    else clearAdaptLanguagePreference(uid);
     setAdaptLanguageModalOpen(false);
-    setAdaptTodoPlan((prev) => (prev ? { ...prev, outputLanguage: choice } : prev));
+    setAdaptTodoPlan((prev) => (prev ? { ...prev, outputLanguage: choice, languageRemembered: remember } : prev));
     const pending = pendingAdaptAfterLanguageRef.current;
     pendingAdaptAfterLanguageRef.current = null;
     if (pending?.type === 'setup') {
@@ -2274,6 +2279,11 @@ export default function App() {
       return;
     }
     applyLanguagePreview(choice);
+  };
+
+  const forgetStoredLanguageChoice = () => {
+    clearAdaptLanguagePreference(session?.user?.id);
+    setAdaptTodoPlan((prev) => (prev ? { ...prev, languageRemembered: false } : prev));
   };
 
   const openAdaptLanguageDialog = () => {
@@ -2285,6 +2295,14 @@ export default function App() {
     });
     setAdaptLanguageModalOpen(true);
   };
+
+  useEffect(() => {
+    if (!adaptTodoPlan?.languageMismatch || !adaptTodoPlan.languageRemembered) return undefined;
+    if (!adaptTodoPlan.outputLanguage || lastAdaptedCv) return undefined;
+    if (languagePreviewStatus !== 'idle') return undefined;
+    applyLanguagePreview(adaptTodoPlan.outputLanguage);
+    return undefined;
+  }, [adaptTodoPlan, languagePreviewStatus, lastAdaptedCv]);
 
   const runDirectAdaptFromSetup = async ({ fiche, pos, ent, userPreview, outputLanguage = 'cv' }) => {
     setAdapting(true);
@@ -2380,6 +2398,7 @@ export default function App() {
       adaptTodoPlan.languageMismatch
       && adaptTodoPlan.outputLanguage === 'offer'
       && languagePreviewStatus !== 'ready'
+      && !adaptTodoPlan.languageRemembered
     ) {
       if (languagePreviewStatus !== 'loading') {
         applyLanguagePreview('offer');
@@ -2422,6 +2441,7 @@ export default function App() {
           plan?.language_mismatch
           || shouldPromptLanguageChoice(plan?.cv_language, plan?.offer_language),
         );
+        const autoLang = resolveAdaptLanguageAutoChoice(mismatch, session?.user?.id);
         setAnnonce(text);
         setAdaptRunStepIds([]);
         setAdaptStreamRunningStepId(null);
@@ -2434,7 +2454,8 @@ export default function App() {
           cvLanguage: plan?.cv_language || null,
           offerLanguage: plan?.offer_language || null,
           languageMismatch: mismatch,
-          outputLanguage: mismatch ? null : 'cv',
+          outputLanguage: autoLang.outputLanguage,
+          languageRemembered: autoLang.remembered,
         });
         setLanguagePreviewStatus(mismatch ? 'idle' : 'ready');
         languagePreviewCvRef.current = null;
@@ -2443,7 +2464,7 @@ export default function App() {
           content: plan?.assistant_message || "Voici un plan d'adaptation. Ajuste les étapes puis valide.",
           kind: 'todo_plan',
         }]);
-        if (mismatch) {
+        if (autoLang.prompt) {
           setAdaptLanguageMeta({
             cvLanguage: plan?.cv_language || null,
             offerLanguage: plan?.offer_language || null,
@@ -3508,16 +3529,22 @@ export default function App() {
                               adaptTodoPlan.offerLanguage,
                               adaptTodoPlan.outputLanguage,
                               languagePreviewStatus,
+                              Boolean(adaptTodoPlan.languageRemembered),
                             );
                             if (!langCopy) return null;
                             return (
                               <div
-                                className={`cv-chat-todo-lang${languagePreviewStatus === 'error' ? ' cv-chat-todo-lang--error' : ''}`}
+                                className={`cv-chat-todo-lang${languagePreviewStatus === 'error' ? ' cv-chat-todo-lang--error' : ''}${languagePreviewStatus === 'loading' ? ' cv-chat-todo-lang--loading' : ''}`}
                                 role="status"
                                 aria-live="polite"
                                 aria-busy={languagePreviewStatus === 'loading' || undefined}
                               >
-                                <p className="cv-chat-todo-lang-title ds-label-sm">{langCopy.title}</p>
+                                <div className="cv-chat-todo-lang-head">
+                                  {languagePreviewStatus === 'loading' ? (
+                                    <span className="cv-lang-spinner" aria-hidden="true" />
+                                  ) : null}
+                                  <p className="cv-chat-todo-lang-title ds-label-sm">{langCopy.title}</p>
+                                </div>
                                 <p className="cv-chat-todo-lang-body ds-body-md">{langCopy.body}</p>
                                 <div className="cv-chat-todo-lang-actions">
                                   <Button
@@ -3525,10 +3552,21 @@ export default function App() {
                                     variant="ghost"
                                     size="sm"
                                     onClick={openAdaptLanguageDialog}
-                                    disabled={adapting || languagePreviewStatus === 'loading'}
+                                    disabled={adapting}
                                   >
                                     {langCopy.changeLabel}
                                   </Button>
+                                  {langCopy.forgetLabel ? (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={forgetStoredLanguageChoice}
+                                      disabled={adapting}
+                                    >
+                                      {langCopy.forgetLabel}
+                                    </Button>
+                                  ) : null}
                                   {languagePreviewStatus === 'error' && langCopy.retryLabel ? (
                                     <Button
                                       type="button"
@@ -3553,11 +3591,16 @@ export default function App() {
                                 onClick={handleRunTodoPlan}
                                 disabled={
                                   adapting
-                                  || languagePreviewStatus === 'loading'
                                   || (
-                                    Boolean(adaptTodoPlan.languageMismatch)
-                                    && adaptTodoPlan.outputLanguage === 'offer'
-                                    && languagePreviewStatus !== 'ready'
+                                    !adaptTodoPlan.languageRemembered
+                                    && (
+                                      languagePreviewStatus === 'loading'
+                                      || (
+                                        Boolean(adaptTodoPlan.languageMismatch)
+                                        && adaptTodoPlan.outputLanguage === 'offer'
+                                        && languagePreviewStatus !== 'ready'
+                                      )
+                                    )
                                   )
                                 }
                               >
@@ -3753,11 +3796,15 @@ export default function App() {
                   adaptTodoPlan.offerLanguage,
                   adaptTodoPlan.outputLanguage,
                   languagePreviewStatus,
+                  Boolean(adaptTodoPlan.languageRemembered),
                 );
                 if (!langCopy) return null;
                 return (
                   <p className="cv-preview-lang-banner ds-body-md" role="status">
-                    {langCopy.title}
+                    {languagePreviewStatus === 'loading' ? (
+                      <span className="cv-lang-spinner" aria-hidden="true" />
+                    ) : null}
+                    <span>{langCopy.title}</span>
                   </p>
                 );
               })() : null}
@@ -3802,6 +3849,12 @@ export default function App() {
                       title="Aperçu du CV"
                       onLoad={(e) => resizeIframeToContent(e.target)}
                     />
+                    {!lastAdaptedCv && languagePreviewStatus === 'loading' ? (
+                      <div className="preview-lang-loading" role="status" aria-live="polite">
+                        <span className="cv-lang-spinner" aria-hidden="true" />
+                        <span className="ds-label-sm">Traduction de l’aperçu…</span>
+                      </div>
+                    ) : null}
                   </div>
                 )}
                 </div>
@@ -4462,6 +4515,17 @@ export default function App() {
                       entreprise: ent || undefined,
                     });
                     if (shouldPromptLanguageChoice(langMeta.cv_language, langMeta.offer_language)) {
+                      const autoLang = resolveAdaptLanguageAutoChoice(true, session?.user?.id);
+                      if (!autoLang.prompt && autoLang.outputLanguage) {
+                        await runDirectAdaptFromSetup({
+                          fiche,
+                          pos,
+                          ent,
+                          userPreview,
+                          outputLanguage: autoLang.outputLanguage,
+                        });
+                        return;
+                      }
                       setAdapting(false);
                       pendingAdaptAfterLanguageRef.current = { type: 'setup', fiche, pos, ent, userPreview };
                       setAdaptLanguageMeta({
@@ -4636,8 +4700,9 @@ export default function App() {
           open={adaptLanguageModalOpen}
           cvLanguage={adaptLanguageMeta?.cvLanguage}
           offerLanguage={adaptLanguageMeta?.offerLanguage}
-          onKeepCv={() => applyAdaptLanguageChoice('cv')}
-          onUseOffer={() => applyAdaptLanguageChoice('offer')}
+          rememberDefault={Boolean(getAdaptLanguagePreference(session?.user?.id))}
+          onKeepCv={(opts) => applyAdaptLanguageChoice('cv', opts)}
+          onUseOffer={(opts) => applyAdaptLanguageChoice('offer', opts)}
         />
 
         {upgradeModalVisible && (

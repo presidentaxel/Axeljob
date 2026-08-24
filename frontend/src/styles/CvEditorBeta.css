@@ -629,7 +629,7 @@
 .cv-editor-beta-start-panel__backdrop {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--color-soft-stone) 88%, transparent);
+  background: color-mix(in srgb, var(--ds-color-bg-subtle) 88%, transparent);
 }
 
 .cv-editor-beta-start-panel__card {

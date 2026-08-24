@@ -37,6 +37,7 @@ import './App.css';
 import './styles/TemplatePicker.css';
 import './styles/GuidedTour.css';
 import { formatApplicationDateLabel, formatApplicationRelativeLabel } from './lib/applicationDates';
+import { adaptLanguageNotice, withAdaptLanguageNotice } from './lib/adaptLanguageNotice.js';
 import { computeApplicationMetrics, isApplicationToFollowUp } from './lib/applicationStats.js';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from './lib/cvPreviewA4Pages';
 import {
@@ -1860,6 +1861,10 @@ export default function App() {
         setModifiedPreviewHtml(pending.modifiedPreviewHtml);
       }
       // Flux silencieux: pas de récapitulatif automatique dans le chat après adaptation.
+      // Exception AXE-357 : notice si CV mixte ou langue offre ≠ langue CV.
+      if (pending.languageNotice) {
+        setChatMessages((prev) => [...prev, { role: 'assistant', content: pending.languageNotice }]);
+      }
       if (pending.baseCv != null) setLastBaseCv(pending.baseCv);
       if (pending.export_hints != null && pending.adaptation_id != null) {
         exportHintsRef.current = { ...pending.export_hints, adaptation_id: pending.adaptation_id };
@@ -2054,9 +2059,11 @@ export default function App() {
       if (selectedSteps.includes('rewrite_experiences')) touchedSections.push('expériences');
       if (selectedSteps.includes('optimize_ats')) touchedSections.push('ATS');
       const sectionsText = touchedSections.length ? `Sections modifiées: ${touchedSections.join(', ')}.` : '';
-      const summary = data.rapport?.score_global != null
+      const summaryBase = data.rapport?.score_global != null
         ? `CV adapté (score ATS : ${data.rapport.score_global}/100). ${sectionsText} Tu peux affiner en envoyant un autre message ou modifier le texte avant téléchargement.`
         : `CV adapté à l'offre. ${sectionsText} Envoie un message pour affiner ou clique sur « Modifier le CV » pour éditer le texte.`;
+      const languageNotice = adaptLanguageNotice(data.cv_language, data.offer_language);
+      const summary = withAdaptLanguageNotice(summaryBase, data.cv_language, data.offer_language);
       setSourceOffreValue('');
       pendingAdaptResultRef.current = {
         cv: data.cv,
@@ -2069,6 +2076,7 @@ export default function App() {
         previewHtml: '',
         modifiedPreviewHtml: html,
         summary,
+        languageNotice,
         baseCv: baseCv ?? lastBaseCv ?? undefined,
       };
       const labelsLen = streamStepLabels.length > 0 ? streamStepLabels.length : adaptStepLabels.length;
@@ -4161,9 +4169,13 @@ export default function App() {
                     });
                     setPreviewHtml(html);
                     setModifiedPreviewHtml(html);
-                    const summary = data.rapport?.score_global != null
-                      ? `CV adapté (score ${data.rapport.score_global}/100). Tu peux affiner en envoyant un autre message.`
-                      : 'CV adapté. Envoie un message pour affiner ou clique sur le texte pour éditer.';
+                    const summary = withAdaptLanguageNotice(
+                      data.rapport?.score_global != null
+                        ? `CV adapté (score ${data.rapport.score_global}/100). Tu peux affiner en envoyant un autre message.`
+                        : 'CV adapté. Envoie un message pour affiner ou clique sur le texte pour éditer.',
+                      data.cv_language,
+                      data.offer_language,
+                    );
                     setChatMessages([{ role: 'user', content: userPreview }, { role: 'assistant', content: summary }]);
                     if (openPhase2AfterFirstAdaptRef.current) {
                       openPhase2AfterFirstAdaptRef.current = false;

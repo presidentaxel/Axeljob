@@ -3137,6 +3137,9 @@ def _adapt_run_finalize_result(
         )
     if (body.plan_id or "").strip():
         _delete_adapt_plan((body.plan_id or "").strip())
+    from backend.services.cv_language import adaptation_language_payload
+
+    lang_meta = adaptation_language_payload(cv_base, offre)
     return {
         "cv": merged,
         "rapport": rapport_after or rapport,
@@ -3146,6 +3149,7 @@ def _adapt_run_finalize_result(
         "selection_a4": selection_a4,
         "export_hints": export_hints,
         "todo_selected_steps": sorted(selected_steps),
+        **lang_meta,
     }
 
 
@@ -3605,6 +3609,9 @@ def api_adapt(request: Request, body: AdaptBody):
         _track_analytics(
             request, event_log.EVENT_ADAPTATION_COMPLETED, user_id, {"adaptation_id": adaptation_id}
         )
+    from backend.services.cv_language import adaptation_language_payload
+
+    lang_meta = adaptation_language_payload(cv_base, offre)
     return {
         "cv": merged,
         "rapport": rapport_after or rapport,
@@ -3613,6 +3620,7 @@ def api_adapt(request: Request, body: AdaptBody):
         "adaptation_id": adaptation_id,
         "selection_a4": selection_a4,
         "export_hints": export_hints,
+        **lang_meta,
     }
 
 

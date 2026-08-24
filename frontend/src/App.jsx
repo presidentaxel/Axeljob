@@ -26,6 +26,7 @@ import CompanyLogo from './components/CompanyLogo';
 import CandidatureBoardCard from './components/CandidatureBoardCard';
 import { NotFoundPage } from './components/ErrorPages';
 import Button from './components/ui/Button.jsx';
+import AdaptLanguageChoiceDialog from './components/ui/AdaptLanguageChoiceDialog.jsx';
 import { CONTACT_EMAIL, STORAGE_EXPORT_DIR, STORAGE_EXPORT_ATS_BLOCK_SNOOZE, STORAGE_PRE_EXPORT_TEMPLATE_OPTIONS_DONE, STORAGE_PDF_EXPORT_FILENAME_PATTERN, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
 import { buildAdaptedPdfFilename } from './lib/pdfExportFilename';
 import { getPdfSaveStartInDirectoryHandle } from './lib/pdfExportStartDirIdb';
@@ -37,7 +38,7 @@ import './App.css';
 import './styles/TemplatePicker.css';
 import './styles/GuidedTour.css';
 import { formatApplicationDateLabel, formatApplicationRelativeLabel } from './lib/applicationDates';
-import { adaptLanguageNotice, withAdaptLanguageNotice } from './lib/adaptLanguageNotice.js';
+import { adaptLanguageNotice, shouldPromptLanguageChoice, withAdaptLanguageNotice } from './lib/adaptLanguageNotice.js';
 import { computeApplicationMetrics, isApplicationToFollowUp } from './lib/applicationStats.js';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from './lib/cvPreviewA4Pages';
 import {
@@ -809,6 +810,9 @@ export default function App() {
   /** En attente de la réponse /api/adapt-plan après envoi de l’offre. */
   const [adaptPlanLoading, setAdaptPlanLoading] = useState(false);
   const [adaptTodoLastAction, setAdaptTodoLastAction] = useState('');
+  const [adaptLanguageModalOpen, setAdaptLanguageModalOpen] = useState(false);
+  const [adaptLanguageMeta, setAdaptLanguageMeta] = useState(null);
+  const pendingAdaptAfterLanguageRef = useRef(null);
   const [adaptRunStepIds, setAdaptRunStepIds] = useState([]);
   /** Suivi des étapes par id (ordre backend ≠ ordre d’affichage de la todo). */
   const [adaptStreamRunningStepId, setAdaptStreamRunningStepId] = useState(null);
@@ -1718,8 +1722,25 @@ export default function App() {
           description: data?.description || '',
           todo,
           assistantMessage: data?.assistant_message || 'Plan restauré. Tu peux valider ou ajuster les étapes.',
+          cvLanguage: data?.cv_language || null,
+          offerLanguage: data?.offer_language || null,
+          languageMismatch: Boolean(
+            data?.language_mismatch
+            || shouldPromptLanguageChoice(data?.cv_language, data?.offer_language),
+          ),
+          outputLanguage: null,
         });
         setAnnonce((data?.description || '').trim());
+        if (
+          data?.language_mismatch
+          || shouldPromptLanguageChoice(data?.cv_language, data?.offer_language)
+        ) {
+          setAdaptLanguageMeta({
+            cvLanguage: data?.cv_language || null,
+            offerLanguage: data?.offer_language || null,
+          });
+          setAdaptLanguageModalOpen(true);
+        }
         setChatMessages((prev) => (
           prev.some((m) => m.kind === 'todo_plan')
             ? prev
@@ -1928,7 +1949,7 @@ export default function App() {
     setApplicationDetailId(null);
   };
 
-  const runPlannedAdaptation = async ({ description, selectedStepIds, source = 'chat_send', planId = null }) => {
+  const runPlannedAdaptation = async ({ description, selectedStepIds, source = 'chat_send', planId = null, outputLanguage = 'cv' }) => {
     try {
       adaptRunAbortRef.current?.abort();
     } catch (_) { /* ignore */ }
@@ -1967,6 +1988,7 @@ export default function App() {
         entreprise: entrepriseNom || undefined,
         plan_id: planId || undefined,
         selected_step_ids: selected,
+        output_language: outputLanguage === 'offer' ? 'offer' : 'cv',
         ...templateParams,
       }, {
         signal: adaptSignal,
@@ -2062,8 +2084,17 @@ export default function App() {
       const summaryBase = data.rapport?.score_global != null
         ? `CV adapté (score ATS : ${data.rapport.score_global}/100). ${sectionsText} Tu peux affiner en envoyant un autre message ou modifier le texte avant téléchargement.`
         : `CV adapté à l'offre. ${sectionsText} Envoie un message pour affiner ou clique sur « Modifier le CV » pour éditer le texte.`;
-      const languageNotice = adaptLanguageNotice(data.cv_language, data.offer_language);
-      const summary = withAdaptLanguageNotice(summaryBase, data.cv_language, data.offer_language);
+      const languageNotice = adaptLanguageNotice(
+        data.cv_language,
+        data.offer_language,
+        data.output_language,
+      );
+      const summary = withAdaptLanguageNotice(
+        summaryBase,
+        data.cv_language,
+        data.offer_language,
+        data.output_language,
+      );
       setSourceOffreValue('');
       pendingAdaptResultRef.current = {
         cv: data.cv,
@@ -2139,6 +2170,110 @@ export default function App() {
     });
   };
 
+  const applyAdaptLanguageChoice = (policy) => {
+    const choice = policy === 'offer' ? 'offer' : 'cv';
+    setAdaptLanguageModalOpen(false);
+    setAdaptTodoPlan((prev) => (prev ? { ...prev, outputLanguage: choice } : prev));
+    const pending = pendingAdaptAfterLanguageRef.current;
+    pendingAdaptAfterLanguageRef.current = null;
+    if (pending?.type === 'run') {
+      const plan = adaptTodoPlan;
+      if (!plan || adapting) return;
+      const selected = (plan.todo || []).map((s) => s.id);
+      if (!selected.length) return;
+      runPlannedAdaptation({
+        description: plan.description,
+        selectedStepIds: selected,
+        source: 'todo_confirm',
+        planId: plan.planId || null,
+        outputLanguage: choice,
+      });
+      return;
+    }
+    if (pending?.type === 'setup') {
+      runDirectAdaptFromSetup({ ...pending, outputLanguage: choice });
+    }
+  };
+
+  const runDirectAdaptFromSetup = async ({ fiche, pos, ent, userPreview, outputLanguage = 'cv' }) => {
+    setAdapting(true);
+    try {
+      const data = await apiPost('/api/adapt', {
+        description: fiche,
+        titre: pos || undefined,
+        entreprise: ent || undefined,
+        output_language: outputLanguage === 'offer' ? 'offer' : 'cv',
+        ...templateParams,
+      });
+      setLastAdaptedCv(data.cv);
+      setLastAdaptationId(data.adaptation_id || null);
+      if (data.export_hints && data.adaptation_id) {
+        exportHintsRef.current = { ...data.export_hints, adaptation_id: data.adaptation_id };
+      } else if (data.adaptation_id) {
+        exportHintsRef.current = {
+          adaptation_id: data.adaptation_id,
+          poste: '',
+          entreprise: '',
+          entreprise_confidence: 0,
+        };
+      }
+      entrepriseFieldTouchedRef.current = false;
+      if (data.export_hints) {
+        setPosteNom((p) => ((p && p.trim()) ? p : (data.export_hints.poste || '')));
+        setEntrepriseNom((e) => ((e && e.trim()) ? e : (data.export_hints.entreprise || '')));
+      }
+      setLastSelectionA4(data.selection_a4 || null);
+      setRapport(data.rapport || {});
+      setRapportBefore(data.rapport_before || null);
+      setExportBlockVisible(true);
+      setPreviewVariant('modified');
+      loadApplications();
+      loadUsage();
+      let baseCv = null;
+      try {
+        baseCv = await apiGet('/api/cv');
+      } catch {
+        /* ignore */
+      }
+      if (baseCv) setLastBaseCv(baseCv);
+      const html = await postRenderHtml({
+        ...templateParams,
+        cv: data.cv,
+        base_cv: baseCv ?? undefined,
+        highlight_changes: true,
+        selection_a4: data.selection_a4 || undefined,
+      });
+      setPreviewHtml(html);
+      setModifiedPreviewHtml(html);
+      const summary = withAdaptLanguageNotice(
+        data.rapport?.score_global != null
+          ? `CV adapté (score ${data.rapport.score_global}/100). Tu peux affiner en envoyant un autre message.`
+          : 'CV adapté. Envoie un message pour affiner ou clique sur le texte pour éditer.',
+        data.cv_language,
+        data.offer_language,
+        data.output_language,
+      );
+      setChatMessages([{ role: 'user', content: userPreview }, { role: 'assistant', content: summary }]);
+      if (openPhase2AfterFirstAdaptRef.current) {
+        openPhase2AfterFirstAdaptRef.current = false;
+        bumpPostFirstAdaptTour();
+      }
+    } catch (e) {
+      openPhase2AfterFirstAdaptRef.current = false;
+      if (e.status === 402 || (e.status === 403 && (e.message || '').toLowerCase().includes('plafond')) || (e.message && e.message.includes('épuisé'))) {
+        setUpgradeModalVisible(true);
+      } else {
+        showError(e.message || "Erreur lors de l'adaptation.");
+      }
+      setChatMessages([
+        { role: 'user', content: userPreview },
+        { role: 'assistant', content: 'Erreur : ' + (e.message || '') },
+      ]);
+    } finally {
+      setAdapting(false);
+    }
+  };
+
   const handleRunTodoPlan = async () => {
     if (!adaptTodoPlan || adapting) return;
     const selected = (adaptTodoPlan.todo || []).map((s) => s.id);
@@ -2146,11 +2281,21 @@ export default function App() {
       setError('Active au moins une étape avant de lancer.');
       return;
     }
+    if (adaptTodoPlan.languageMismatch && !adaptTodoPlan.outputLanguage) {
+      pendingAdaptAfterLanguageRef.current = { type: 'run' };
+      setAdaptLanguageMeta({
+        cvLanguage: adaptTodoPlan.cvLanguage,
+        offerLanguage: adaptTodoPlan.offerLanguage,
+      });
+      setAdaptLanguageModalOpen(true);
+      return;
+    }
     await runPlannedAdaptation({
       description: adaptTodoPlan.description,
       selectedStepIds: selected,
       source: 'todo_confirm',
       planId: adaptTodoPlan.planId || null,
+      outputLanguage: adaptTodoPlan.outputLanguage || 'cv',
     });
   };
 
@@ -2177,6 +2322,10 @@ export default function App() {
           entreprise: entrepriseNom || undefined,
         });
         const todo = Array.isArray(plan?.todo) ? plan.todo : [];
+        const mismatch = Boolean(
+          plan?.language_mismatch
+          || shouldPromptLanguageChoice(plan?.cv_language, plan?.offer_language),
+        );
         setAnnonce(text);
         setAdaptRunStepIds([]);
         setAdaptStreamRunningStepId(null);
@@ -2186,12 +2335,23 @@ export default function App() {
           description: text,
           todo,
           assistantMessage: plan?.assistant_message || "Voici un plan d'adaptation. Ajuste les étapes puis valide.",
+          cvLanguage: plan?.cv_language || null,
+          offerLanguage: plan?.offer_language || null,
+          languageMismatch: mismatch,
+          outputLanguage: mismatch ? null : 'cv',
         });
         setChatMessages((prev) => [...prev, {
           role: 'assistant',
           content: plan?.assistant_message || "Voici un plan d'adaptation. Ajuste les étapes puis valide.",
           kind: 'todo_plan',
         }]);
+        if (mismatch) {
+          setAdaptLanguageMeta({
+            cvLanguage: plan?.cv_language || null,
+            offerLanguage: plan?.offer_language || null,
+          });
+          setAdaptLanguageModalOpen(true);
+        }
         try {
           const key = getPersistedPlanStorageKey();
           if (key && plan?.plan_id) localStorage.setItem(key, String(plan.plan_id));
@@ -4124,63 +4284,32 @@ export default function App() {
                   setAnnonce(fiche);
                   setAdaptRating(null);
                   openPhase2AfterFirstAdaptRef.current = true;
-                  setAdapting(true);
                   const userPreview = fiche.slice(0, 300) + (fiche.length > 300 ? '…' : '');
                   setChatMessages([{ role: 'user', content: userPreview }]);
                   try {
-                    const data = await apiPost('/api/adapt', { description: fiche, titre: pos || undefined, entreprise: ent || undefined, ...templateParams });
-                    setLastAdaptedCv(data.cv);
-                    setLastAdaptationId(data.adaptation_id || null);
-                    if (data.export_hints && data.adaptation_id) {
-                      exportHintsRef.current = { ...data.export_hints, adaptation_id: data.adaptation_id };
-                    } else if (data.adaptation_id) {
-                      exportHintsRef.current = {
-                        adaptation_id: data.adaptation_id,
-                        poste: '',
-                        entreprise: '',
-                        entreprise_confidence: 0,
-                      };
-                    }
-                    entrepriseFieldTouchedRef.current = false;
-                    if (data.export_hints) {
-                      setPosteNom((p) => ((p && p.trim()) ? p : (data.export_hints.poste || '')));
-                      setEntrepriseNom((e) => ((e && e.trim()) ? e : (data.export_hints.entreprise || '')));
-                    }
-                    setLastSelectionA4(data.selection_a4 || null);
-                    setRapport(data.rapport || {});
-                    setRapportBefore(data.rapport_before || null);
-                    setExportBlockVisible(true);
-                    setPreviewVariant('modified');
-                    loadApplications();
-                    loadUsage();
-                    let baseCv = null;
-                    try {
-                      baseCv = await apiGet('/api/cv');
-                    } catch {
-                      /* ignore */
-                    }
-                    if (baseCv) setLastBaseCv(baseCv);
-                    const html = await postRenderHtml({
-                      ...templateParams,
-                      cv: data.cv,
-                      base_cv: baseCv ?? undefined,
-                      highlight_changes: true,
-                      selection_a4: data.selection_a4 || undefined,
+                    setAdapting(true);
+                    const langMeta = await apiPost('/api/adapt-language', {
+                      description: fiche,
+                      titre: pos || undefined,
+                      entreprise: ent || undefined,
                     });
-                    setPreviewHtml(html);
-                    setModifiedPreviewHtml(html);
-                    const summary = withAdaptLanguageNotice(
-                      data.rapport?.score_global != null
-                        ? `CV adapté (score ${data.rapport.score_global}/100). Tu peux affiner en envoyant un autre message.`
-                        : 'CV adapté. Envoie un message pour affiner ou clique sur le texte pour éditer.',
-                      data.cv_language,
-                      data.offer_language,
-                    );
-                    setChatMessages([{ role: 'user', content: userPreview }, { role: 'assistant', content: summary }]);
-                    if (openPhase2AfterFirstAdaptRef.current) {
-                      openPhase2AfterFirstAdaptRef.current = false;
-                      bumpPostFirstAdaptTour();
+                    if (shouldPromptLanguageChoice(langMeta.cv_language, langMeta.offer_language)) {
+                      setAdapting(false);
+                      pendingAdaptAfterLanguageRef.current = { type: 'setup', fiche, pos, ent, userPreview };
+                      setAdaptLanguageMeta({
+                        cvLanguage: langMeta.cv_language,
+                        offerLanguage: langMeta.offer_language,
+                      });
+                      setAdaptLanguageModalOpen(true);
+                      return;
                     }
+                    await runDirectAdaptFromSetup({
+                      fiche,
+                      pos,
+                      ent,
+                      userPreview,
+                      outputLanguage: 'cv',
+                    });
                   } catch (e) {
                     openPhase2AfterFirstAdaptRef.current = false;
                     if (e.status === 402 || (e.status === 403 && (e.message || '').toLowerCase().includes('plafond')) || (e.message && e.message.includes('épuisé'))) {
@@ -4192,7 +4321,6 @@ export default function App() {
                       { role: 'user', content: userPreview },
                       { role: 'assistant', content: 'Erreur : ' + (e.message || '') },
                     ]);
-                  } finally {
                     setAdapting(false);
                   }
                 }} disabled={!setupFiche.trim()}>
@@ -4335,6 +4463,14 @@ export default function App() {
             </div>
           </div>
         )}
+
+        <AdaptLanguageChoiceDialog
+          open={adaptLanguageModalOpen}
+          cvLanguage={adaptLanguageMeta?.cvLanguage}
+          offerLanguage={adaptLanguageMeta?.offerLanguage}
+          onKeepCv={() => applyAdaptLanguageChoice('cv')}
+          onUseOffer={() => applyAdaptLanguageChoice('offer')}
+        />
 
         {upgradeModalVisible && (
           <div className="application-detail-overlay linkedin-sync-overlay" onClick={() => setUpgradeModalVisible(false)} role="dialog" aria-modal="true" aria-labelledby="upgrade-modal-title">

@@ -2,7 +2,7 @@
 
 import unittest
 
-from backend.services.adapter import SYSTEM_PROMPT, _build_user_prompt
+from backend.services.adapter import SYSTEM_PROMPT, _build_user_prompt, _infer_profile_anchor
 from backend.services.cv_language import (
     adaptation_language_payload,
     detect_cv_language,
@@ -10,6 +10,9 @@ from backend.services.cv_language import (
     detect_text_language,
     language_lock_instruction,
     langue_cv_xml,
+    merge_localized_fields,
+    resolve_output_language,
+    should_prompt_language_choice,
 )
 
 
@@ -199,7 +202,8 @@ class TestAdapterPromptLock(unittest.TestCase):
     def test_system_prompt_mentions_language(self):
         self.assertIn("LANGUE", SYSTEM_PROMPT)
         self.assertIn("<langue_cv>", SYSTEM_PROMPT)
-        self.assertIn("NE TRADUIS PAS", SYSTEM_PROMPT)
+        self.assertIn("conserver", SYSTEM_PROMPT)
+        self.assertIn("traduire", SYSTEM_PROMPT)
 
     def test_user_prompt_embeds_fr_lock_against_en_offer(self):
         prompt = _build_user_prompt(_fr_cv(), _en_offer(), None)
@@ -225,6 +229,119 @@ class TestAdaptationLanguagePayload(unittest.TestCase):
         self.assertEqual(payload["cv_language"]["code"], "fr")
         self.assertEqual(payload["offer_language"]["code"], "en")
         self.assertFalse(payload["cv_language"]["mixed"])
+        self.assertTrue(payload["language_mismatch"])
+        self.assertEqual(payload["output_language"], "cv")
+        self.assertFalse(payload["translate_cv"])
+
+    def test_offer_policy_same_language_does_not_translate(self):
+        payload = adaptation_language_payload(_fr_cv(), _fr_offer(), "offer")
+        self.assertFalse(payload["translate_cv"])
+        self.assertEqual(payload["output_language"], "cv")
+        self.assertEqual(payload["output_language_code"], "fr")
+
+
+class TestOutputPolicy(unittest.TestCase):
+    def test_should_prompt_on_mismatch(self):
+        self.assertTrue(
+            should_prompt_language_choice(
+                detect_cv_language(_fr_cv()), detect_offer_language(_en_offer())
+            )
+        )
+        self.assertFalse(
+            should_prompt_language_choice(
+                detect_cv_language(_fr_cv()), detect_offer_language(_fr_offer())
+            )
+        )
+
+    def test_resolve_keep_vs_translate(self):
+        cv = detect_cv_language(_fr_cv())
+        offer = detect_offer_language(_en_offer())
+        keep = resolve_output_language(cv, offer, "cv")
+        self.assertFalse(keep["translate"])
+        self.assertEqual(keep["code"], "fr")
+        tr = resolve_output_language(cv, offer, "offer")
+        self.assertTrue(tr["translate"])
+        self.assertEqual(tr["code"], "en")
+
+    def test_user_prompt_translate_mode(self):
+        prompt = _build_user_prompt(_fr_cv(), _en_offer(), None, output_policy="offer")
+        self.assertIn("<mode>traduire</mode>", prompt)
+        self.assertIn("TRADUIS", prompt)
+        xml = langue_cv_xml(_fr_cv(), _en_offer(), "offer")
+        self.assertIn("<code>en</code>", xml)
+        self.assertIn("<langue_source>fr</langue_source>", xml)
+
+
+class TestMergeLocalizedFields(unittest.TestCase):
+    def test_keeps_ids_and_replaces_text(self):
+        cv = _fr_cv()
+        delta = {
+            "titre_professionnel": "Risk Analyst",
+            "resume": "Risk analyst with three years of experience.",
+            "experiences": [
+                {
+                    "id": "exp_1",
+                    "poste": "Risk Analyst",
+                    "bullet_points": [
+                        "Led market limit monitoring for the trading team.",
+                        "Set up a weekly report for the risk committee.",
+                        "Contributed to stress-test analysis for the portfolio.",
+                    ],
+                }
+            ],
+            "formations": [{"intitule": "Master in Finance"}],
+        }
+        out = merge_localized_fields(cv, delta)
+        self.assertEqual(out["experiences"][0]["id"], "exp_1")
+        self.assertEqual(out["experiences"][0]["entreprise"], "Banque Demo")
+        self.assertEqual(out["experiences"][0]["poste"], "Risk Analyst")
+        self.assertEqual(out["formations"][0]["etablissement"], "Université Paris Dauphine")
+        self.assertEqual(out["formations"][0]["intitule"], "Master in Finance")
+        self.assertNotEqual(out["resume"], cv["resume"])
+
+    def test_ignores_empty_overwrite(self):
+        cv = _fr_cv()
+        out = merge_localized_fields(cv, {"resume": "  ", "titre_professionnel": ""})
+        self.assertEqual(out["resume"], cv["resume"])
+        self.assertEqual(out["titre_professionnel"], cv["titre_professionnel"])
+
+    def test_does_not_invent_experiences_or_bullets(self):
+        cv = _fr_cv()
+        delta = {
+            "experiences": [
+                {
+                    "id": "exp_1",
+                    "poste": "Risk Analyst",
+                    "bullet_points": ["Only one invented extra", "two", "three", "four"],
+                },
+                {
+                    "id": "exp_invented",
+                    "poste": "CEO",
+                    "bullet_points": ["Founded a company."],
+                },
+            ]
+        }
+        out = merge_localized_fields(cv, delta)
+        self.assertEqual(len(out["experiences"]), 1)
+        self.assertEqual(out["experiences"][0]["id"], "exp_1")
+        self.assertEqual(
+            out["experiences"][0]["bullet_points"],
+            cv["experiences"][0]["bullet_points"],
+        )
+        self.assertIsNone(
+            next((e for e in out["experiences"] if e.get("id") == "exp_invented"), None)
+        )
+
+
+class TestProfileAnchorLanguage(unittest.TestCase):
+    def test_student_anchor_en(self):
+        cv = {
+            "titre_professionnel": "Étudiant",
+            "resume": "Je suis étudiant en finance.",
+            "formations": [{"etablissement": "HEC Paris"}],
+        }
+        self.assertIn("Étudiant", _infer_profile_anchor(cv, "fr"))
+        self.assertIn("Student", _infer_profile_anchor(cv, "en"))
 
 
 class TestTextLanguageSmoke(unittest.TestCase):

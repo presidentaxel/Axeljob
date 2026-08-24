@@ -364,12 +364,78 @@ def language_label(code: str) -> str:
     return "anglais" if code == "en" else "français"
 
 
-def language_lock_instruction(cv_lang: dict | None, offer_lang: dict | None = None) -> str:
+OUTPUT_CV = "cv"
+OUTPUT_OFFER = "offer"
+
+
+def normalize_output_policy(value: str | None) -> str:
+    raw = (value or "").strip().lower()
+    if raw in {OUTPUT_OFFER, "annonce", "translate", "offer_language"}:
+        return OUTPUT_OFFER
+    return OUTPUT_CV
+
+
+def should_prompt_language_choice(cv_lang: dict | None, offer_lang: dict | None) -> bool:
+    """Popup seulement si les deux langues sont détectées et distinctes."""
+    cv = language_meta(cv_lang)
+    offer = language_meta(offer_lang)
+    return (
+        cv["code"] in {"fr", "en"}
+        and offer["code"] in {"fr", "en"}
+        and cv["code"] != offer["code"]
+        and (cv.get("confidence") or 0) > 0
+        and (offer.get("confidence") or 0) > 0
+    )
+
+
+def resolve_output_language(
+    cv_lang: dict | None,
+    offer_lang: dict | None,
+    policy: str | None = None,
+) -> dict[str, Any]:
+    """Langue de sortie après choix utilisateur (cv = garder, offer = traduire)."""
+    cv = language_meta(cv_lang)
+    offer = language_meta(offer_lang) if offer_lang is not None else language_meta(None)
+    mismatch = should_prompt_language_choice(cv, offer)
+    pol = normalize_output_policy(policy)
+    if pol == OUTPUT_OFFER and mismatch:
+        return {
+            "code": offer["code"],
+            "policy": OUTPUT_OFFER,
+            "translate": True,
+            "mismatch": True,
+        }
+    return {
+        "code": cv["code"],
+        "policy": OUTPUT_CV,
+        "translate": False,
+        "mismatch": mismatch,
+    }
+
+
+def language_lock_instruction(
+    cv_lang: dict | None,
+    offer_lang: dict | None = None,
+    output_policy: str | None = None,
+) -> str:
     """Consigne à coller dans les prompts Gemini (données, pas le schéma JSON)."""
     cv = language_meta(cv_lang)
     offer = language_meta(offer_lang) if offer_lang is not None else None
+    resolved = resolve_output_language(cv, offer, output_policy)
     cv_name = language_label(cv["code"])
     other = "anglais" if cv["code"] == "fr" else "français"
+    if resolved["translate"]:
+        target_name = language_label(resolved["code"])
+        parts = [
+            f"LANGUE CIBLE (OBLIGATOIRE) : l'utilisateur a choisi la langue de l'annonce ({target_name}).",
+            f"Tu TRADUIS tout le texte rédigé du CV ({cv_name} → {target_name}) ET tu l'adaptes à l'offre.",
+            "Ne jamais inventer d'expérience, diplôme, chiffre, outil, compétence ou fait absent du CV source.",
+            "Les noms propres (personne, entreprise, école, ville) et les outils (Python, Excel, etc.) restent identiques.",
+            f"Tu remplaces la langue : mêmes faits, reformulés et améliorés comme une adaptation ATS, en {target_name}.",
+            "resume, bullet_points et titres de poste (experiences.poste) dans cette langue.",
+            "mots_cles_cache dans la langue de l'annonce. poste_offre = intitulé de l'annonce tel quel.",
+        ]
+        return " ".join(parts)
     parts = [
         f"LANGUE DU CV (OBLIGATOIRE) : rédige resume et bullet_points uniquement en {cv_name}.",
         f"Ne traduis pas le CV vers {other}.",
@@ -391,27 +457,179 @@ def language_lock_instruction(cv_lang: dict | None, offer_lang: dict | None = No
     return " ".join(parts)
 
 
-def adaptation_language_payload(cv: dict | None, offre: dict | None) -> dict[str, Any]:
+def adaptation_language_payload(
+    cv: dict | None,
+    offre: dict | None,
+    output_policy: str | None = None,
+) -> dict[str, Any]:
     """Métadonnées langue CV + offre pour l'API d'adaptation."""
+    cv_lang = detect_cv_language(cv)
+    offer_lang = detect_offer_language(offre)
+    resolved = resolve_output_language(cv_lang, offer_lang, output_policy)
     return {
-        "cv_language": language_meta(detect_cv_language(cv)),
-        "offer_language": language_meta(detect_offer_language(offre)),
+        "cv_language": language_meta(cv_lang),
+        "offer_language": language_meta(offer_lang),
+        "language_mismatch": bool(resolved["mismatch"]),
+        "output_language": resolved["policy"],
+        "output_language_code": resolved["code"],
+        "translate_cv": bool(resolved["translate"]),
     }
 
 
-def langue_cv_xml(cv: dict | None, offre: dict | None = None) -> str:
+def langue_cv_xml(
+    cv: dict | None,
+    offre: dict | None = None,
+    output_policy: str | None = None,
+) -> str:
     """Bloc XML à injecter dans le prompt utilisateur."""
     cv_lang = detect_cv_language(cv)
     offer_lang = detect_offer_language(offre) if offre is not None else None
     meta = language_meta(cv_lang)
     offer_meta = language_meta(offer_lang) if offer_lang is not None else {"code": ""}
-    instruction = language_lock_instruction(cv_lang, offer_lang)
+    resolved = resolve_output_language(cv_lang, offer_lang, output_policy)
+    instruction = language_lock_instruction(cv_lang, offer_lang, output_policy)
     mixed = "true" if meta["mixed"] else "false"
+    mode = "traduire" if resolved["translate"] else "conserver"
     return (
         "<langue_cv>\n"
-        f"<code>{meta['code']}</code>\n"
+        f"<code>{resolved['code']}</code>\n"
+        f"<langue_source>{meta['code']}</langue_source>\n"
         f"<mixte>{mixed}</mixte>\n"
         f"<langue_offre>{offer_meta.get('code') or ''}</langue_offre>\n"
+        f"<mode>{mode}</mode>\n"
         f"<consigne>{instruction}</consigne>\n"
         "</langue_cv>"
     )
+
+
+def _nonempty_str(value: Any) -> str | None:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
+def _replace_str_list(src: Any, new: Any) -> Any:
+    if not isinstance(src, list) or not isinstance(new, list) or len(src) != len(new):
+        return src
+    out = []
+    for old, nxt in zip(src, new, strict=False):
+        replaced = _nonempty_str(nxt)
+        out.append(replaced if replaced is not None else old)
+    return out
+
+
+def merge_localized_fields(cv: dict | None, delta: dict | None) -> dict:
+    """Fusionne une traduction fidèle (ids conservés, pas d'invention de lignes)."""
+    from copy import deepcopy
+
+    out = deepcopy(cv) if isinstance(cv, dict) else {}
+    data = delta if isinstance(delta, dict) else {}
+    titre = _nonempty_str(data.get("titre_professionnel"))
+    if titre:
+        out["titre_professionnel"] = titre
+    resume = _nonempty_str(data.get("resume"))
+    if resume:
+        out["resume"] = resume
+
+    loc_exps = data.get("experiences")
+    if isinstance(loc_exps, list):
+        by_id = {
+            str(row.get("id")): row for row in loc_exps if isinstance(row, dict) and row.get("id")
+        }
+        for exp in out.get("experiences") or []:
+            if not isinstance(exp, dict):
+                continue
+            row = by_id.get(str(exp.get("id") or ""))
+            if not row:
+                continue
+            poste = _nonempty_str(row.get("poste"))
+            if poste:
+                exp["poste"] = poste
+            contexte = _nonempty_str(row.get("contexte"))
+            if contexte:
+                exp["contexte"] = contexte
+            if isinstance(row.get("bullet_points"), list):
+                exp["bullet_points"] = _replace_str_list(
+                    exp.get("bullet_points") or [], row.get("bullet_points")
+                )
+
+    loc_forms = data.get("formations")
+    if isinstance(loc_forms, list):
+        by_id = {
+            str(row.get("id")): row for row in loc_forms if isinstance(row, dict) and row.get("id")
+        }
+        by_index = [row for row in loc_forms if isinstance(row, dict)]
+        for i, form in enumerate(out.get("formations") or []):
+            if not isinstance(form, dict):
+                continue
+            row = by_id.get(str(form.get("id") or ""))
+            if row is None and i < len(by_index):
+                row = by_index[i]
+            if not row:
+                continue
+            diplome = _nonempty_str(row.get("diplome") or row.get("intitule"))
+            if diplome:
+                if form.get("diplome") is not None or "diplome" in form:
+                    form["diplome"] = diplome
+                if form.get("intitule") is not None or "intitule" in form:
+                    form["intitule"] = diplome
+
+    loc_certs = data.get("certifications")
+    if isinstance(loc_certs, list):
+        by_id = {
+            str(row.get("id")): row for row in loc_certs if isinstance(row, dict) and row.get("id")
+        }
+        for cert in out.get("certifications") or []:
+            if not isinstance(cert, dict):
+                continue
+            row = by_id.get(str(cert.get("id") or ""))
+            if not row:
+                continue
+            nom = _nonempty_str(row.get("nom"))
+            if nom:
+                cert["nom"] = nom
+
+    loc_proj = data.get("projets")
+    if isinstance(loc_proj, list):
+        by_id = {
+            str(row.get("id")): row for row in loc_proj if isinstance(row, dict) and row.get("id")
+        }
+        for proj in out.get("projets") or []:
+            if not isinstance(proj, dict):
+                continue
+            row = by_id.get(str(proj.get("id") or ""))
+            if not row:
+                continue
+            nom = _nonempty_str(row.get("nom"))
+            if nom:
+                proj["nom"] = nom
+            desc = _nonempty_str(row.get("description"))
+            if desc:
+                proj["description"] = desc
+
+    loc_comp = data.get("competences")
+    if isinstance(loc_comp, dict):
+        comp = out.get("competences") if isinstance(out.get("competences"), dict) else {}
+        for key in ("techniques", "logiciels", "autres"):
+            if key in loc_comp:
+                comp[key] = _replace_str_list(comp.get(key) or [], loc_comp.get(key))
+        loc_langues = loc_comp.get("langues")
+        src_langues = comp.get("langues") if isinstance(comp.get("langues"), list) else []
+        if isinstance(loc_langues, list) and len(loc_langues) == len(src_langues):
+            merged_langues = []
+            for old, nxt in zip(src_langues, loc_langues, strict=False):
+                if not isinstance(old, dict):
+                    merged_langues.append(old)
+                    continue
+                row = nxt if isinstance(nxt, dict) else {}
+                item = dict(old)
+                langue = _nonempty_str(row.get("langue"))
+                niveau = _nonempty_str(row.get("niveau"))
+                if langue:
+                    item["langue"] = langue
+                if niveau:
+                    item["niveau"] = niveau
+                merged_langues.append(item)
+            comp["langues"] = merged_langues
+        out["competences"] = comp
+    return out

@@ -14,6 +14,7 @@ import sys
 import time as _time
 import uuid as uuid_module
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
@@ -314,6 +315,7 @@ class AdaptBody(BaseModel):
     entreprise: str = ""
     template_id: str | None = None
     template_options: dict | None = None
+    output_language: str | None = None  # "cv" | "offer"
 
 
 class AdaptPlanBody(BaseModel):
@@ -330,6 +332,13 @@ class AdaptRunBody(BaseModel):
     selected_step_ids: list[str] | None = None
     template_id: str | None = None
     template_options: dict | None = None
+    output_language: str | None = None  # "cv" | "offer"
+
+
+class AdaptLanguageBody(BaseModel):
+    description: str = ""
+    titre: str = ""
+    entreprise: str = ""
 
 
 class AdaptPlanExplainBody(BaseModel):
@@ -536,10 +545,15 @@ def snapshot_application_pdfs_to_storage(
     return out
 
 
-def _apply_tweaks(cv_base: dict, tweaks: dict) -> dict:
+def _apply_tweaks(
+    cv_base: dict,
+    tweaks: dict,
+    output_policy: str | None = None,
+    offre: dict | None = None,
+) -> dict:
     from backend.services.adapter import apply_tweaks_to_cv
 
-    return apply_tweaks_to_cv(cv_base, tweaks)
+    return apply_tweaks_to_cv(cv_base, tweaks, output_policy=output_policy, offre=offre)
 
 
 def _offre_from_description(description: str, titre: str = "", entreprise: str = "") -> dict:
@@ -2872,12 +2886,39 @@ def api_adapt_plan(request: Request, body: AdaptPlanBody):
             (plan or {}).get("assistant_message") or "Voici le plan d'adaptation proposé."
         ),
     }
+    from backend.services.cv_language import adaptation_language_payload
+
+    lang_meta = adaptation_language_payload(cv_base, offre)
+    payload.update(lang_meta)
     _save_adapt_plan(plan_id, user_id, payload)
     return {
         "plan_id": plan_id,
         "todo": payload["todo"],
         "assistant_message": payload["assistant_message"],
+        **lang_meta,
     }
+
+
+@app.post("/api/adapt-language")
+def api_adapt_language(request: Request, body: AdaptLanguageBody):
+    """Détecte langue CV vs offre (pour le popup de choix, sans lancer l'adaptation)."""
+    user_id = _get_user_id(request)
+    check_rate_limit(user_id, rate_limit_max_adapt())
+    description = (body.description or "").strip()
+    if not description:
+        raise HTTPException(status_code=400, detail="Collez l'annonce dans le champ 'description'")
+    try:
+        cv_base = load_cv_base(user_id)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    offre = _offre_from_description(
+        description,
+        titre=(body.titre or "").strip(),
+        entreprise=(body.entreprise or "").strip(),
+    )
+    from backend.services.cv_language import adaptation_language_payload
+
+    return adaptation_language_payload(cv_base, offre)
 
 
 @app.get("/api/adapt-plan/{plan_id}")
@@ -3022,10 +3063,29 @@ def _adapt_run_prepare(request: Request, body: AdaptRunBody) -> dict:
         titre=titre_request,
         entreprise=entreprise_request,
     )
+    from backend.services.cv_language import adaptation_language_payload
     from backend.services.rules import appliquer_regles
 
     cv_enrichi = appliquer_regles(cv_base, offre)
     rapport = cv_enrichi.get("rapport", {})
+    output_policy = getattr(body, "output_language", None)
+    lang_meta = adaptation_language_payload(cv_base, offre, output_policy)
+    cv_working = deepcopy(cv_base)
+    if lang_meta.get("translate_cv"):
+        from backend.services.adapter import localize_cv_for_language
+
+        try:
+            cv_working = localize_cv_for_language(
+                cv_base,
+                lang_meta.get("output_language_code") or "en",
+                user_id,
+            )
+        except GeminiQuotaExceeded:
+            raise HTTPException(
+                status_code=429, detail="Quota temporairement atteint. Réessaie plus tard."
+            )
+        except Exception:
+            cv_working = deepcopy(cv_base)
     return {
         "user_id": user_id,
         "plan_payload": plan_payload,
@@ -3033,10 +3093,13 @@ def _adapt_run_prepare(request: Request, body: AdaptRunBody) -> dict:
         "selected_steps": selected_steps,
         "uid": uid,
         "cv_base": cv_base,
+        "cv_working": cv_working,
         "offre": offre,
         "rapport": rapport,
         "titre_request": titre_request,
         "entreprise_request": entreprise_request,
+        "lang_meta": lang_meta,
+        "output_policy": lang_meta.get("output_language") or "cv",
     }
 
 
@@ -3139,7 +3202,9 @@ def _adapt_run_finalize_result(
         _delete_adapt_plan((body.plan_id or "").strip())
     from backend.services.cv_language import adaptation_language_payload
 
-    lang_meta = adaptation_language_payload(cv_base, offre)
+    lang_meta = prep.get("lang_meta") or adaptation_language_payload(
+        cv_base, offre, getattr(body, "output_language", None)
+    )
     return {
         "cv": merged,
         "rapport": rapport_after or rapport,
@@ -3238,12 +3303,13 @@ def api_adapt_run(request: Request, body: AdaptRunBody):
 
     try:
         tweaks = adapter_cv_by_selected_steps(
-            prep["cv_base"],
+            prep["cv_working"],
             prep["offre"],
             prep["rapport"],
             prep["selected_steps"],
             prep["user_id"],
             operation="adapt",
+            output_policy=prep.get("output_policy"),
         )
     except GeminiQuotaExceeded:
         raise HTTPException(
@@ -3255,20 +3321,24 @@ def api_adapt_run(request: Request, body: AdaptRunBody):
             request, event_log.EVENT_ADAPTATION_FAILED, prep["user_id"], {"error": str(e)}
         )
         raise HTTPException(status_code=500, detail="Erreur lors de l'adaptation. Réessaie.")
+    cv_working = prep.get("cv_working") or prep["cv_base"]
     if "rewrite_resume" not in prep["selected_steps"]:
-        tweaks["resume"] = prep["cv_base"].get("resume", "")
+        tweaks["resume"] = cv_working.get("resume", "")
     if "rewrite_experiences" not in prep["selected_steps"]:
-        tweaks["experiences"] = _keep_original_experiences_tweaks(prep["cv_base"])
+        tweaks["experiences"] = _keep_original_experiences_tweaks(cv_working)
     if "optimize_ats" not in prep["selected_steps"]:
-        tweaks["mots_cles_cache"] = prep["cv_base"].get("mots_cles_cache", "")
-    merged = _apply_tweaks(prep["cv_base"], tweaks)
+        tweaks["mots_cles_cache"] = cv_working.get("mots_cles_cache", "")
+    merged = _apply_tweaks(
+        cv_working,
+        tweaks,
+        output_policy=prep.get("output_policy"),
+        offre=prep["offre"],
+    )
     return _adapt_run_finalize_result(request, body, prep, merged, tweaks)
 
 
 @app.post("/api/adapt-run-stream")
 async def api_adapt_run_stream(request: Request, body: AdaptRunBody):
-    from copy import deepcopy
-
     from backend.services.adapter import (
         ADAPT_STEPS_ORDER,
         _tweaks_snapshot_from_cv,
@@ -3314,11 +3384,12 @@ async def api_adapt_run_stream(request: Request, body: AdaptRunBody):
         step_labels = [step_lookup.get(sid, sid) for sid in steps_to_run] + ["Finalisation"]
         yield _line({"type": "started", "step_labels": step_labels})
 
-        merged = deepcopy(prep["cv_base"])
-        cv_base = prep["cv_base"]
+        merged = deepcopy(prep.get("cv_working") or prep["cv_base"])
+        cv_working = prep.get("cv_working") or prep["cv_base"]
         offre = prep["offre"]
         rapport = prep["rapport"]
         user_id = prep["user_id"]
+        output_policy = prep.get("output_policy")
         poste_acc = ""
 
         try:
@@ -3343,6 +3414,7 @@ async def api_adapt_run_stream(request: Request, body: AdaptRunBody):
                         sid,
                         user_id,
                         f"adapt_{sid}",
+                        output_policy,
                     )
                 except GeminiQuotaExceeded:
                     yield _line(
@@ -3369,7 +3441,13 @@ async def api_adapt_run_stream(request: Request, body: AdaptRunBody):
                         }
                     )
                     return
-                merged = apply_partial_tweaks(merged, delta, cv_base)
+                merged = apply_partial_tweaks(
+                    merged,
+                    delta,
+                    cv_working,
+                    output_policy=output_policy,
+                    offre=offre,
+                )
                 if str((delta or {}).get("poste_offre") or "").strip():
                     poste_acc = str(delta.get("poste_offre")).strip()
                 yield _line(
@@ -3399,14 +3477,19 @@ async def api_adapt_run_stream(request: Request, body: AdaptRunBody):
 
             if not poste_acc.strip():
                 poste_acc = (offre.get("titre") or "").strip()
-            tweaks = _tweaks_snapshot_from_cv(cv_base, merged, poste_acc)
+            tweaks = _tweaks_snapshot_from_cv(cv_working, merged, poste_acc)
             if "rewrite_resume" not in selected_steps:
-                tweaks["resume"] = cv_base.get("resume", "")
+                tweaks["resume"] = cv_working.get("resume", "")
             if "rewrite_experiences" not in selected_steps:
-                tweaks["experiences"] = _keep_original_experiences_tweaks(cv_base)
+                tweaks["experiences"] = _keep_original_experiences_tweaks(cv_working)
             if "optimize_ats" not in selected_steps:
-                tweaks["mots_cles_cache"] = cv_base.get("mots_cles_cache", "")
-            merged_final = _apply_tweaks(cv_base, tweaks)
+                tweaks["mots_cles_cache"] = cv_working.get("mots_cles_cache", "")
+            merged_final = _apply_tweaks(
+                cv_working,
+                tweaks,
+                output_policy=output_policy,
+                offre=offre,
+            )
             # Finalize fait des DB writes + Storage uploads (PDF snapshot) → off-loop.
             data = await asyncio.to_thread(
                 _adapt_run_finalize_result, request, body, prep, merged_final, tweaks
@@ -3505,15 +3588,37 @@ def api_adapt(request: Request, body: AdaptBody):
         titre=(body.titre or "").strip(),
         entreprise=(body.entreprise or "").strip(),
     )
+    from backend.services.adapter import adapter_cv, localize_cv_for_language
+    from backend.services.cv_language import adaptation_language_payload
     from backend.services.rules import appliquer_regles
 
     cv_enrichi = appliquer_regles(cv_base, offre)
     rapport = cv_enrichi.get("rapport", {})
-
-    from backend.services.adapter import adapter_cv
+    lang_meta = adaptation_language_payload(cv_base, offre, body.output_language)
+    cv_working = deepcopy(cv_base)
+    if lang_meta.get("translate_cv"):
+        try:
+            cv_working = localize_cv_for_language(
+                cv_base,
+                lang_meta.get("output_language_code") or "en",
+                user_id,
+            )
+        except GeminiQuotaExceeded:
+            raise HTTPException(
+                status_code=429, detail="Quota temporairement atteint. Réessaie plus tard."
+            )
+        except Exception:
+            cv_working = deepcopy(cv_base)
 
     try:
-        tweaks = adapter_cv(cv_base, offre, rapport=rapport, user_id=user_id, operation="adapt")
+        tweaks = adapter_cv(
+            cv_working,
+            offre,
+            rapport=rapport,
+            user_id=user_id,
+            operation="adapt",
+            output_policy=lang_meta.get("output_language"),
+        )
     except GeminiQuotaExceeded:
         raise HTTPException(
             status_code=429, detail="Quota temporairement atteint. Réessaie plus tard."
@@ -3523,7 +3628,12 @@ def api_adapt(request: Request, body: AdaptBody):
         _track_analytics(request, event_log.EVENT_ADAPTATION_FAILED, user_id, {"error": str(e)})
         raise HTTPException(status_code=500, detail="Erreur lors de l'adaptation. Réessaie.")
 
-    merged = _apply_tweaks(cv_base, tweaks)
+    merged = _apply_tweaks(
+        cv_working,
+        tweaks,
+        output_policy=lang_meta.get("output_language"),
+        offre=offre,
+    )
     poste_offre = (tweaks.get("poste_offre") or "").strip()
     entreprise_offre = (offre.get("entreprise") or "").strip()
     user_titre = (body.titre or "").strip()
@@ -3611,7 +3721,7 @@ def api_adapt(request: Request, body: AdaptBody):
         )
     from backend.services.cv_language import adaptation_language_payload
 
-    lang_meta = adaptation_language_payload(cv_base, offre)
+    lang_meta = adaptation_language_payload(cv_base, offre, body.output_language)
     return {
         "cv": merged,
         "rapport": rapport_after or rapport,

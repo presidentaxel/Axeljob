@@ -587,6 +587,20 @@ def localize_known_section_label(label: str | None, target_code: str) -> str:
     return mapped
 
 
+def preserve_template_appearance(cv_base: dict | None, cv_out: dict | None) -> dict:
+    """La langue ne change ni le template, ni la police, ni les tailles."""
+    from copy import deepcopy
+
+    out = deepcopy(cv_out) if isinstance(cv_out, dict) else {}
+    src = cv_base if isinstance(cv_base, dict) else {}
+    if "template_id" in src:
+        out["template_id"] = src.get("template_id")
+    if "template_options" in src:
+        opts = src.get("template_options")
+        out["template_options"] = deepcopy(opts) if isinstance(opts, dict) else opts
+    return out
+
+
 def apply_deterministic_localization(cv: dict | None, target_code: str) -> dict:
     """Dates / lieu générique / titres de canvas, même si Gemini omet ces champs."""
     from copy import deepcopy

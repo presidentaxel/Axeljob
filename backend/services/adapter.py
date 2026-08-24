@@ -22,6 +22,7 @@ from backend.services.cv_language import (
     language_label,
     langue_cv_xml,
     merge_localized_fields,
+    preserve_template_appearance,
     resolve_output_language,
 )
 
@@ -555,13 +556,22 @@ Traduis les dates (mois, aujourd'hui/Present) et les lieux génériques (Télét
         try:
             from backend.gemini_usage import GeminiQuotaExceeded as QuotaExceeded
         except ImportError:
-            return apply_deterministic_localization(cv_base, target_code)
+            return preserve_template_appearance(
+                cv_base, apply_deterministic_localization(cv_base, target_code)
+            )
         if isinstance(exc, QuotaExceeded):
             raise
-        return apply_deterministic_localization(cv_base, target_code)
+        return preserve_template_appearance(
+            cv_base, apply_deterministic_localization(cv_base, target_code)
+        )
     if not isinstance(data, dict):
-        return apply_deterministic_localization(cv_base, target_code)
-    return apply_deterministic_localization(merge_localized_fields(cv_base, data), target_code)
+        return preserve_template_appearance(
+            cv_base, apply_deterministic_localization(cv_base, target_code)
+        )
+    return preserve_template_appearance(
+        cv_base,
+        apply_deterministic_localization(merge_localized_fields(cv_base, data), target_code),
+    )
 
 
 def adapter_cv_for_step(

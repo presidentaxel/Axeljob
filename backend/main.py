@@ -341,6 +341,15 @@ class AdaptLanguageBody(BaseModel):
     entreprise: str = ""
 
 
+class AdaptLocalizeBody(BaseModel):
+    description: str = ""
+    titre: str = ""
+    entreprise: str = ""
+    plan_id: str | None = None
+    output_language: str | None = None  # "cv" | "offer"
+    preview_seq: int | None = None
+
+
 class AdaptPlanExplainBody(BaseModel):
     plan_id: str | None = None
     selected_step_ids: list[str] | None = None
@@ -2921,6 +2930,49 @@ def api_adapt_language(request: Request, body: AdaptLanguageBody):
     return adaptation_language_payload(cv_base, offre)
 
 
+@app.post("/api/adapt-localize")
+def api_adapt_localize(request: Request, body: AdaptLocalizeBody):
+    """Aperçu fidèle dans la langue choisie, sans adaptation ATS ni changement de template."""
+    user_id = _get_user_id(request)
+    check_rate_limit(user_id, rate_limit_max_adapt())
+    description = (body.description or "").strip()
+    if not description:
+        raise HTTPException(status_code=400, detail="Collez l'annonce dans le champ 'description'")
+    try:
+        cv_base = load_cv_base(user_id)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    offre = _offre_from_description(
+        description,
+        titre=(body.titre or "").strip(),
+        entreprise=(body.entreprise or "").strip(),
+    )
+    from backend.services.cv_language import adaptation_language_payload
+
+    lang_meta = adaptation_language_payload(cv_base, offre, body.output_language)
+    try:
+        cv_out = _cv_working_from_lang_meta(cv_base, lang_meta, user_id)
+    except GeminiQuotaExceeded:
+        raise HTTPException(
+            status_code=429, detail="Quota temporairement atteint. Réessaie plus tard."
+        )
+    pid = (body.plan_id or "").strip()
+    if pid:
+        payload = _get_adapt_plan(pid, user_id)
+        if payload:
+            incoming_seq = int(body.preview_seq or 0)
+            stored_seq = int(payload.get("preview_seq") or 0)
+            if incoming_seq >= stored_seq:
+                payload["preview_seq"] = incoming_seq
+                if lang_meta.get("translate_cv"):
+                    payload["preview_cv"] = cv_out
+                else:
+                    payload.pop("preview_cv", None)
+                payload["output_language"] = lang_meta.get("output_language") or "cv"
+                _save_adapt_plan(pid, user_id, payload)
+    return {"cv": cv_out, **lang_meta}
+
+
 @app.get("/api/adapt-plan/{plan_id}")
 def api_adapt_plan_get(request: Request, plan_id: str):
     user_id = _get_user_id(request)
@@ -3007,6 +3059,30 @@ def api_adapt_plan_explain(request: Request, body: AdaptPlanExplainBody):
     return {"summary": summary, "details": details}
 
 
+def _cv_working_from_lang_meta(cv_base: dict, lang_meta: dict, user_id: str | None) -> dict:
+    """CV dans la langue choisie, sans adaptation ATS. Police / template inchangés."""
+    from backend.services.cv_language import (
+        apply_deterministic_localization,
+        preserve_template_appearance,
+    )
+
+    target = lang_meta.get("output_language_code") or "fr"
+    if lang_meta.get("translate_cv"):
+        from backend.services.adapter import localize_cv_for_language
+
+        try:
+            cv_out = localize_cv_for_language(cv_base, target or "en", user_id)
+        except GeminiQuotaExceeded:
+            raise
+        except Exception:
+            cv_out = apply_deterministic_localization(cv_base, target or "en")
+    else:
+        cv_out = deepcopy(cv_base) if isinstance(cv_base, dict) else {}
+        if target in {"fr", "en"}:
+            cv_out["langue"] = target
+    return preserve_template_appearance(cv_base, cv_out)
+
+
 def _adapt_run_prepare(request: Request, body: AdaptRunBody) -> dict:
     user_id = _get_user_id(request)
     check_rate_limit(user_id, rate_limit_max_adapt())
@@ -3072,24 +3148,19 @@ def _adapt_run_prepare(request: Request, body: AdaptRunBody) -> dict:
     lang_meta = adaptation_language_payload(cv_base, offre, output_policy)
     cv_working = deepcopy(cv_base)
     if lang_meta.get("translate_cv"):
-        from backend.services.adapter import localize_cv_for_language
+        cached = (plan_payload or {}).get("preview_cv") if isinstance(plan_payload, dict) else None
+        cached_lang = cached.get("langue") if isinstance(cached, dict) else None
+        if isinstance(cached, dict) and cached_lang == lang_meta.get("output_language_code"):
+            from backend.services.cv_language import preserve_template_appearance
 
-        try:
-            cv_working = localize_cv_for_language(
-                cv_base,
-                lang_meta.get("output_language_code") or "en",
-                user_id,
-            )
-        except GeminiQuotaExceeded:
-            raise HTTPException(
-                status_code=429, detail="Quota temporairement atteint. Réessaie plus tard."
-            )
-        except Exception:
-            from backend.services.cv_language import apply_deterministic_localization
-
-            cv_working = apply_deterministic_localization(
-                cv_base, lang_meta.get("output_language_code") or "en"
-            )
+            cv_working = preserve_template_appearance(cv_base, cached)
+        else:
+            try:
+                cv_working = _cv_working_from_lang_meta(cv_base, lang_meta, user_id)
+            except GeminiQuotaExceeded:
+                raise HTTPException(
+                    status_code=429, detail="Quota temporairement atteint. Réessaie plus tard."
+                )
     return {
         "user_id": user_id,
         "plan_payload": plan_payload,
@@ -3596,7 +3667,7 @@ def api_adapt(request: Request, body: AdaptBody):
         titre=(body.titre or "").strip(),
         entreprise=(body.entreprise or "").strip(),
     )
-    from backend.services.adapter import adapter_cv, localize_cv_for_language
+    from backend.services.adapter import adapter_cv
     from backend.services.cv_language import adaptation_language_payload
     from backend.services.rules import appliquer_regles
 
@@ -3606,20 +3677,10 @@ def api_adapt(request: Request, body: AdaptBody):
     cv_working = deepcopy(cv_base)
     if lang_meta.get("translate_cv"):
         try:
-            cv_working = localize_cv_for_language(
-                cv_base,
-                lang_meta.get("output_language_code") or "en",
-                user_id,
-            )
+            cv_working = _cv_working_from_lang_meta(cv_base, lang_meta, user_id)
         except GeminiQuotaExceeded:
             raise HTTPException(
                 status_code=429, detail="Quota temporairement atteint. Réessaie plus tard."
-            )
-        except Exception:
-            from backend.services.cv_language import apply_deterministic_localization
-
-            cv_working = apply_deterministic_localization(
-                cv_base, lang_meta.get("output_language_code") or "en"
             )
 
     try:

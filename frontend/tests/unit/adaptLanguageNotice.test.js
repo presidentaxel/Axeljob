@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import {
   adaptLanguageChoiceCopy,
   adaptLanguageNotice,
+  adaptLanguagePreviewCopy,
   shouldPromptLanguageChoice,
   withAdaptLanguageNotice,
 } from '../../src/lib/adaptLanguageNotice.js';
@@ -33,6 +34,8 @@ test('CV FR + offre EN : popup + notice de non-traduction (choix CV)', () => {
   const copy = adaptLanguageChoiceCopy(cv, offer);
   assert.ok(copy);
   assert.match(copy.message, /CV est en français/);
+  assert.match(copy.message, /aperçu/);
+  assert.match(copy.message, /Valider et lancer/);
   assert.match(copy.keepLabel, /français/);
   assert.match(copy.offerLabel, /anglais/);
 });
@@ -77,4 +80,23 @@ test('offre sans confiance : pas de popup', () => {
     shouldPromptLanguageChoice({ code: 'fr', confidence: 0.9 }, { code: 'en', confidence: 0 }),
     false,
   );
+});
+
+test('aperçu avant validation : copie keep / translate / loading', () => {
+  const cv = { code: 'fr', mixed: false, confidence: 0.9 };
+  const offer = { code: 'en', confidence: 0.8 };
+  const idle = adaptLanguagePreviewCopy(cv, offer, null, 'idle');
+  assert.match(idle.title, /Choisis la langue/i);
+  const keep = adaptLanguagePreviewCopy(cv, offer, 'cv', 'ready');
+  assert.match(keep.title, /français/);
+  assert.match(keep.body, /pas traduit/i);
+  const offerCopy = adaptLanguagePreviewCopy(cv, offer, 'offer', 'ready');
+  assert.match(offerCopy.title, /anglais/);
+  assert.match(offerCopy.body, /Relis le CV à droite/);
+  assert.match(offerCopy.body, /polices/);
+  const loading = adaptLanguagePreviewCopy(cv, offer, 'offer', 'loading');
+  assert.match(loading.title, /Traduction de l’aperçu/);
+  const err = adaptLanguagePreviewCopy(cv, offer, 'offer', 'error');
+  assert.match(err.title, /pas encore/);
+  assert.ok(err.retryLabel);
 });

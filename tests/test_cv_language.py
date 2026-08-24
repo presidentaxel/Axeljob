@@ -12,7 +12,9 @@ from backend.services.cv_language import (
     language_lock_instruction,
     langue_cv_xml,
     localize_date_phrase,
+    localize_layout_section_labels,
     merge_localized_fields,
+    preserve_template_appearance,
     resolve_output_language,
     should_prompt_language_choice,
     template_copy_for_lang,
@@ -338,6 +340,48 @@ class TestMergeLocalizedFields(unittest.TestCase):
         self.assertIsNone(
             next((e for e in out["experiences"] if e.get("id") == "exp_invented"), None)
         )
+
+    def test_keeps_template_and_fonts(self):
+        cv = _fr_cv()
+        cv["template_id"] = "classic"
+        cv["template_options"] = {
+            "font": "Georgia",
+            "font_size_body": 11,
+            "font_size_name": 16,
+        }
+        cv["layout"] = {
+            "pages": [
+                {
+                    "blocks": [
+                        {
+                            "style": {
+                                "section_label": "Expérience professionnelle",
+                                "font_family": "Georgia",
+                                "font_size": 11,
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+        delta = {"resume": "Risk analyst with three years of experience."}
+        merged = merge_localized_fields(cv, delta)
+        self.assertEqual(merged["template_id"], "classic")
+        self.assertEqual(merged["template_options"], cv["template_options"])
+        out = apply_deterministic_localization(merged, "en")
+        self.assertEqual(out["template_id"], "classic")
+        self.assertEqual(out["template_options"]["font"], "Georgia")
+        self.assertEqual(out["template_options"]["font_size_body"], 11)
+        style = out["layout"]["pages"][0]["blocks"][0]["style"]
+        self.assertEqual(style["font_family"], "Georgia")
+        self.assertEqual(style["font_size"], 11)
+        preserved = preserve_template_appearance(cv, {"resume": "x", "template_id": "minimal"})
+        self.assertEqual(preserved["template_id"], "classic")
+        self.assertEqual(preserved["template_options"]["font"], "Georgia")
+        layout_out = localize_layout_section_labels(cv["layout"], "en")
+        layout_style = layout_out["pages"][0]["blocks"][0]["style"]
+        self.assertEqual(layout_style["font_family"], "Georgia")
+        self.assertEqual(layout_style["font_size"], 11)
 
 
 class TestProfileAnchorLanguage(unittest.TestCase):

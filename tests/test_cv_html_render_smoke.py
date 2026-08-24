@@ -68,6 +68,70 @@ class TestCvHtmlRenderSmoke(unittest.TestCase):
         self.assertIn("PROFESSIONAL EXPERIENCE", html)
         self.assertIn('lang="en"', html)
         self.assertNotIn("EXPÉRIENCE PROFESSIONNELLE", html)
+
+    def test_language_stamp_does_not_change_font_css(self):
+        opts = {
+            "font": "Georgia",
+            "font_size_name": 16,
+            "font_size_title": 11,
+            "font_size_section": 10,
+            "font_size_body": 11,
+            "font_size_bullet": 10,
+        }
+        cv_fr = {
+            "prenom": "Ada",
+            "nom": "Lovelace",
+            "langue": "fr",
+            "titre_professionnel": "Analyste risque",
+            "resume": "Analyste risque avec trois ans d'expérience.",
+            "experiences": [
+                {
+                    "id": "exp_1",
+                    "poste": "Analyste risque",
+                    "entreprise": "Banque Demo",
+                    "bullet_points": ["Pilotage du suivi des limites."],
+                }
+            ],
+        }
+        cv_en = {
+            **cv_fr,
+            "langue": "en",
+            "titre_professionnel": "Risk Analyst",
+            "resume": "Risk analyst with three years of experience.",
+            "experiences": [
+                {
+                    **cv_fr["experiences"][0],
+                    "poste": "Risk Analyst",
+                    "bullet_points": ["Led market limit monitoring."],
+                }
+            ],
+        }
+        html_fr = render_cv_html(
+            cv_fr,
+            for_preview=True,
+            template_id="classic",
+            template_options=opts,
+        )
+        html_en = render_cv_html(
+            cv_en,
+            for_preview=True,
+            template_id="classic",
+            template_options=opts,
+        )
+
+        def _override_root(html: str) -> str:
+            marker = "<style>:root {\n"
+            start = html.find(marker)
+            self.assertGreaterEqual(start, 0)
+            end = html.find("</style>", start)
+            return html[start:end]
+
+        self.assertEqual(_override_root(html_fr), _override_root(html_en))
+        self.assertIn("--cv-font-heading: Georgia, 'Times New Roman', serif;", html_fr)
+        self.assertIn("--cv-fs-body: 11.0pt;", html_fr)
+        self.assertIn("--cv-fs-name: 16.0pt;", html_fr)
+
+    def test_pdf_minimal_still_renders(self):
         cv = _sample_cv(self.cv_path)
         html = render_cv_html(
             cv,

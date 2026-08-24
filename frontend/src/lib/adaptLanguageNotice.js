@@ -31,7 +31,8 @@ export function adaptLanguageChoiceCopy(cvLanguage, offerLanguage) {
     title: 'Langues différentes',
     message:
       `${mixedLead}Tu veux continuer dans la langue du CV, ou tout traduire vers celle de l'annonce ? ` +
-      `La traduction reprend tes faits, sans rien inventer, puis on améliore le CV comme d'habitude.`,
+      `Après ton choix, l'aperçu à droite se met à jour dans cette langue (même mise en page, mêmes polices). ` +
+      `Relis-le, puis appuie sur Valider et lancer. La traduction reprend tes faits, sans rien inventer.`,
     keepLabel: `Garder le ${cvLabel} (CV)`,
     offerLabel: `Traduire vers le ${offerLabel} (annonce)`,
   };
@@ -79,4 +80,61 @@ export function withAdaptLanguageNotice(summary, cvLanguage, offerLanguage, outp
   if (!notice) return base;
   if (!base) return notice;
   return `${base} ${notice}`;
+}
+
+/**
+ * Statut visible sur la todo, avant « Valider et lancer ».
+ * @param {object | null | undefined} cvLanguage
+ * @param {object | null | undefined} offerLanguage
+ * @param {'cv' | 'offer' | string | null | undefined} outputPolicy
+ * @param {'idle' | 'loading' | 'ready' | 'error' | string} status
+ */
+export function adaptLanguagePreviewCopy(cvLanguage, offerLanguage, outputPolicy, status = 'ready') {
+  if (!shouldPromptLanguageChoice(cvLanguage, offerLanguage)) return null;
+  const cvCode = cvLanguage.code === 'en' ? 'en' : 'fr';
+  const offerCode = offerLanguage.code === 'en' ? 'en' : 'fr';
+  const cvLabel = languageLabelFr(cvCode);
+  const offerLabel = languageLabelFr(offerCode);
+  const policy = outputPolicy === 'offer' ? 'offer' : 'cv';
+  const langLabel = policy === 'offer' ? offerLabel : cvLabel;
+  const changeLabel = 'Changer';
+  const retryLabel = 'Réessayer l’aperçu';
+
+  if (!outputPolicy) {
+    return {
+      title: 'Choisis la langue de l’aperçu',
+      body: 'Tu verras le CV dans la langue retenue à droite, avant de valider l’adaptation.',
+      changeLabel: 'Choisir',
+    };
+  }
+  if (status === 'loading') {
+    return {
+      title: `Traduction de l’aperçu en ${langLabel}…`,
+      body: 'On prépare le CV dans la langue choisie, sans changer la mise en page ni les polices.',
+      changeLabel,
+    };
+  }
+  if (status === 'error') {
+    return {
+      title: `Aperçu pas encore en ${langLabel}`,
+      body: 'La mise à jour de l’aperçu a échoué. Réessaie, ou change de langue.',
+      changeLabel,
+      retryLabel,
+    };
+  }
+  if (policy === 'offer') {
+    return {
+      title: `Aperçu en ${langLabel} (langue de l’annonce)`,
+      body:
+        `Relis le CV à droite : titres, dates et texte doivent être en ${langLabel}. ` +
+        `La mise en page et les polices restent les mêmes. Ensuite, valide pour lancer l’adaptation.`,
+      changeLabel,
+    };
+  }
+  return {
+    title: `Aperçu en ${langLabel} (langue du CV)`,
+    body:
+      `On n’a pas traduit : le CV reste en ${langLabel}. Relis-le à droite, puis valide pour lancer l’adaptation.`,
+    changeLabel,
+  };
 }

@@ -38,7 +38,7 @@ import './App.css';
 import './styles/TemplatePicker.css';
 import './styles/GuidedTour.css';
 import { formatApplicationDateLabel, formatApplicationRelativeLabel } from './lib/applicationDates';
-import { adaptLanguageNotice, shouldPromptLanguageChoice, withAdaptLanguageNotice } from './lib/adaptLanguageNotice.js';
+import { adaptLanguageNotice, adaptLanguagePreviewCopy, shouldPromptLanguageChoice, withAdaptLanguageNotice } from './lib/adaptLanguageNotice.js';
 import { computeApplicationMetrics, isApplicationToFollowUp } from './lib/applicationStats.js';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from './lib/cvPreviewA4Pages';
 import {
@@ -813,6 +813,8 @@ export default function App() {
   const [adaptLanguageModalOpen, setAdaptLanguageModalOpen] = useState(false);
   const [adaptLanguageMeta, setAdaptLanguageMeta] = useState(null);
   const pendingAdaptAfterLanguageRef = useRef(null);
+  const [languagePreviewStatus, setLanguagePreviewStatus] = useState('idle');
+  const languagePreviewSeqRef = useRef(0);
   const [adaptRunStepIds, setAdaptRunStepIds] = useState([]);
   /** Suivi des étapes par id (ordre backend ≠ ordre d’affichage de la todo). */
   const [adaptStreamRunningStepId, setAdaptStreamRunningStepId] = useState(null);
@@ -1070,6 +1072,7 @@ export default function App() {
   const prevLastSelectionA4Ref = useRef(lastSelectionA4);
   /** Pour déclencher un rendu preview immédiat quand le template sync (API / profil) sans attendre le debounce. */
   const prevCvPreviewTemplateKeyRef = useRef(null);
+  const languagePreviewCvRef = useRef(null);
 
   useEffect(() => {
     if (!supabase) {
@@ -1451,6 +1454,21 @@ export default function App() {
           .catch(() => {
         /* ignore */
       });
+      } else if (languagePreviewCvRef.current) {
+        postRenderHtml({
+          cv: languagePreviewCvRef.current,
+          base_cv: lastBaseCv || undefined,
+          highlight_changes: false,
+          template_id: tid,
+          template_options: opts,
+        })
+          .then((html) => {
+            setModifiedPreviewHtml(html);
+            setPreviewHtml(html);
+          })
+          .catch(() => {
+        /* ignore */
+      });
       } else if (!tourHighlightStepActive) {
         loadInitialPreview(tid, opts);
       }
@@ -1592,6 +1610,9 @@ export default function App() {
     setAdaptTodoExplain('');
     setAdaptTodoExplainLoading(false);
     setAdaptTodoLastAction('');
+    setLanguagePreviewStatus('idle');
+    languagePreviewSeqRef.current += 1;
+    languagePreviewCvRef.current = null;
     try {
       const key = getPersistedPlanStorageKey();
       if (key) localStorage.removeItem(key);
@@ -1730,6 +1751,13 @@ export default function App() {
           ),
           outputLanguage: null,
         });
+        setLanguagePreviewStatus(
+          data?.language_mismatch
+          || shouldPromptLanguageChoice(data?.cv_language, data?.offer_language)
+            ? 'idle'
+            : 'ready',
+        );
+        languagePreviewCvRef.current = null;
         setAnnonce((data?.description || '').trim());
         if (
           data?.language_mismatch
@@ -2170,29 +2198,92 @@ export default function App() {
     });
   };
 
+  const applyLanguagePreview = async (choice, planOverride = null) => {
+    const plan = planOverride || adaptTodoPlan;
+    const seq = languagePreviewSeqRef.current + 1;
+    languagePreviewSeqRef.current = seq;
+    const policy = choice === 'offer' ? 'offer' : 'cv';
+    if (policy === 'cv') {
+      languagePreviewCvRef.current = null;
+      const html = originalPreviewHtml || previewHtmlFallback;
+      if (html) {
+        setPreviewHtml(html);
+        setModifiedPreviewHtml(html);
+      } else {
+        loadInitialPreview();
+      }
+      setLanguagePreviewStatus('ready');
+      const copy = adaptLanguagePreviewCopy(plan?.cvLanguage, plan?.offerLanguage, 'cv', 'ready');
+      if (copy?.title) setAdaptTodoLastAction(copy.title);
+      apiPost('/api/adapt-localize', {
+        description: plan?.description || annonce,
+        titre: posteNom || undefined,
+        entreprise: entrepriseNom || undefined,
+        plan_id: plan?.planId || undefined,
+        output_language: 'cv',
+        preview_seq: seq,
+      }).catch(() => {
+        /* ignore : l'aperçu source est déjà restauré */
+      });
+      return;
+    }
+    setLanguagePreviewStatus('loading');
+    try {
+      const data = await apiPost('/api/adapt-localize', {
+        description: plan?.description || annonce,
+        titre: posteNom || undefined,
+        entreprise: entrepriseNom || undefined,
+        plan_id: plan?.planId || undefined,
+        output_language: 'offer',
+        preview_seq: seq,
+      });
+      if (seq !== languagePreviewSeqRef.current) return;
+      const cv = data?.cv;
+      if (!cv || typeof cv !== 'object') {
+        throw new Error("Aperçu langue indisponible.");
+      }
+      languagePreviewCvRef.current = cv;
+      const html = await postRenderHtml({
+        cv,
+        base_cv: lastBaseCv || undefined,
+        highlight_changes: false,
+        ...templateParams,
+      });
+      if (seq !== languagePreviewSeqRef.current) return;
+      setPreviewHtml(html);
+      setModifiedPreviewHtml(html);
+      setPreviewVariant('modified');
+      setLanguagePreviewStatus('ready');
+      const copy = adaptLanguagePreviewCopy(plan?.cvLanguage, plan?.offerLanguage, 'offer', 'ready');
+      if (copy?.title) setAdaptTodoLastAction(copy.title);
+    } catch (e) {
+      if (seq !== languagePreviewSeqRef.current) return;
+      setLanguagePreviewStatus('error');
+      setAdaptTodoLastAction(e.message || "Impossible de préparer l'aperçu dans cette langue.");
+    }
+  };
+
   const applyAdaptLanguageChoice = (policy) => {
     const choice = policy === 'offer' ? 'offer' : 'cv';
     setAdaptLanguageModalOpen(false);
     setAdaptTodoPlan((prev) => (prev ? { ...prev, outputLanguage: choice } : prev));
     const pending = pendingAdaptAfterLanguageRef.current;
     pendingAdaptAfterLanguageRef.current = null;
-    if (pending?.type === 'run') {
-      const plan = adaptTodoPlan;
-      if (!plan || adapting) return;
-      const selected = (plan.todo || []).map((s) => s.id);
-      if (!selected.length) return;
-      runPlannedAdaptation({
-        description: plan.description,
-        selectedStepIds: selected,
-        source: 'todo_confirm',
-        planId: plan.planId || null,
-        outputLanguage: choice,
-      });
-      return;
-    }
     if (pending?.type === 'setup') {
       runDirectAdaptFromSetup({ ...pending, outputLanguage: choice });
+      return;
     }
+    applyLanguagePreview(choice);
+  };
+
+  const openAdaptLanguageDialog = () => {
+    const plan = adaptTodoPlan;
+    if (!plan) return;
+    setAdaptLanguageMeta({
+      cvLanguage: plan.cvLanguage,
+      offerLanguage: plan.offerLanguage,
+    });
+    setAdaptLanguageModalOpen(true);
   };
 
   const runDirectAdaptFromSetup = async ({ fiche, pos, ent, userPreview, outputLanguage = 'cv' }) => {
@@ -2282,12 +2373,17 @@ export default function App() {
       return;
     }
     if (adaptTodoPlan.languageMismatch && !adaptTodoPlan.outputLanguage) {
-      pendingAdaptAfterLanguageRef.current = { type: 'run' };
-      setAdaptLanguageMeta({
-        cvLanguage: adaptTodoPlan.cvLanguage,
-        offerLanguage: adaptTodoPlan.offerLanguage,
-      });
-      setAdaptLanguageModalOpen(true);
+      openAdaptLanguageDialog();
+      return;
+    }
+    if (
+      adaptTodoPlan.languageMismatch
+      && adaptTodoPlan.outputLanguage === 'offer'
+      && languagePreviewStatus !== 'ready'
+    ) {
+      if (languagePreviewStatus !== 'loading') {
+        applyLanguagePreview('offer');
+      }
       return;
     }
     await runPlannedAdaptation({
@@ -2340,6 +2436,8 @@ export default function App() {
           languageMismatch: mismatch,
           outputLanguage: mismatch ? null : 'cv',
         });
+        setLanguagePreviewStatus(mismatch ? 'idle' : 'ready');
+        languagePreviewCvRef.current = null;
         setChatMessages((prev) => [...prev, {
           role: 'assistant',
           content: plan?.assistant_message || "Voici un plan d'adaptation. Ajuste les étapes puis valide.",
@@ -3404,14 +3502,70 @@ export default function App() {
                               );
                             })}
                           </div>
+                          {!lastAdaptedCv && adaptTodoPlan.languageMismatch ? (() => {
+                            const langCopy = adaptLanguagePreviewCopy(
+                              adaptTodoPlan.cvLanguage,
+                              adaptTodoPlan.offerLanguage,
+                              adaptTodoPlan.outputLanguage,
+                              languagePreviewStatus,
+                            );
+                            if (!langCopy) return null;
+                            return (
+                              <div
+                                className={`cv-chat-todo-lang${languagePreviewStatus === 'error' ? ' cv-chat-todo-lang--error' : ''}`}
+                                role="status"
+                                aria-live="polite"
+                                aria-busy={languagePreviewStatus === 'loading' || undefined}
+                              >
+                                <p className="cv-chat-todo-lang-title ds-label-sm">{langCopy.title}</p>
+                                <p className="cv-chat-todo-lang-body ds-body-md">{langCopy.body}</p>
+                                <div className="cv-chat-todo-lang-actions">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={openAdaptLanguageDialog}
+                                    disabled={adapting || languagePreviewStatus === 'loading'}
+                                  >
+                                    {langCopy.changeLabel}
+                                  </Button>
+                                  {languagePreviewStatus === 'error' && langCopy.retryLabel ? (
+                                    <Button
+                                      type="button"
+                                      variant="secondary"
+                                      size="sm"
+                                      onClick={() => applyLanguagePreview(adaptTodoPlan.outputLanguage || 'offer')}
+                                      disabled={adapting}
+                                    >
+                                      {langCopy.retryLabel}
+                                    </Button>
+                                  ) : null}
+                                </div>
+                              </div>
+                            );
+                          })() : null}
                           {!lastAdaptedCv && (
                             <div className="cv-chat-todo-actions">
-                              <button type="button" className="button button-primary button--sm" onClick={handleRunTodoPlan} disabled={adapting}>
+                              <Button
+                                type="button"
+                                variant="primary"
+                                size="sm"
+                                onClick={handleRunTodoPlan}
+                                disabled={
+                                  adapting
+                                  || languagePreviewStatus === 'loading'
+                                  || (
+                                    Boolean(adaptTodoPlan.languageMismatch)
+                                    && adaptTodoPlan.outputLanguage === 'offer'
+                                    && languagePreviewStatus !== 'ready'
+                                  )
+                                }
+                              >
                                 Valider et lancer
-                              </button>
-                              <button type="button" className="button button-secondary button--sm" onClick={requestNewCandidatureWorkspace} disabled={adapting}>
+                              </Button>
+                              <Button type="button" variant="secondary" size="sm" onClick={requestNewCandidatureWorkspace} disabled={adapting}>
                                 Annuler
-                              </button>
+                              </Button>
                             </div>
                           )}
                           {adaptTodoLastAction ? <p className="cv-chat-todo-last-action">{adaptTodoLastAction}</p> : null}
@@ -3593,6 +3747,20 @@ export default function App() {
                   <span className="preview-editable-hint-inline">Clique sur le texte pour modifier.</span>
                 </div>
               )}
+              {!lastAdaptedCv && adaptTodoPlan?.languageMismatch && adaptTodoPlan.outputLanguage ? (() => {
+                const langCopy = adaptLanguagePreviewCopy(
+                  adaptTodoPlan.cvLanguage,
+                  adaptTodoPlan.offerLanguage,
+                  adaptTodoPlan.outputLanguage,
+                  languagePreviewStatus,
+                );
+                if (!langCopy) return null;
+                return (
+                  <p className="cv-preview-lang-banner ds-body-md" role="status">
+                    {langCopy.title}
+                  </p>
+                );
+              })() : null}
               <div className="preview-wrap" ref={previewWrapRef}>
                 <div className="preview-a4-sheet">
                 {previewVariant === 'modified' && lastAdaptedCv && !(templateId || '').startsWith('custom_') && ['classic', 'minimal', 'modern', 'bold', 'creative', 'elegant', 'executive'].includes((templateId || '').trim()) ? (
@@ -3626,7 +3794,7 @@ export default function App() {
                   />
                 ) : (
                   <div
-                    className={`preview-iframe-wrap${adapting && adaptStreamMode ? ' preview-iframe-wrap--adapt-live' : ''}`}
+                    className={`preview-iframe-wrap${adapting && adaptStreamMode ? ' preview-iframe-wrap--adapt-live' : ''}${!lastAdaptedCv && languagePreviewStatus === 'loading' ? ' preview-iframe-wrap--lang-preview' : ''}`}
                   >
                     <iframe
                       ref={iframeRef}

@@ -6,6 +6,8 @@ On ne détecte que le français et l'anglais : le produit est bilingue FR/EN.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from typing import Any
 
@@ -599,6 +601,105 @@ def preserve_template_appearance(cv_base: dict | None, cv_out: dict | None) -> d
         opts = src.get("template_options")
         out["template_options"] = deepcopy(opts) if isinstance(opts, dict) else opts
     return out
+
+
+def localization_source_payload(cv: dict | None) -> dict[str, Any]:
+    """Champs dont une modification doit relancer la traduction."""
+    data = cv if isinstance(cv, dict) else {}
+
+    def _exp(row: Any) -> dict[str, Any]:
+        if not isinstance(row, dict):
+            return {}
+        return {
+            "id": row.get("id") or "",
+            "poste": row.get("poste") or "",
+            "entreprise": row.get("entreprise") or "",
+            "contexte": row.get("contexte") or "",
+            "date_debut": row.get("date_debut") or "",
+            "date_fin": row.get("date_fin") or "",
+            "lieu": row.get("lieu") or "",
+            "secteur": row.get("secteur") or "",
+            "bullet_points": row.get("bullet_points") or [],
+        }
+
+    def _form(row: Any) -> dict[str, Any]:
+        if not isinstance(row, dict):
+            return {}
+        return {
+            "id": row.get("id") or "",
+            "diplome": row.get("diplome") or row.get("intitule") or "",
+            "date": row.get("date") or "",
+            "mention": row.get("mention") or "",
+            "etablissement": row.get("etablissement") or "",
+        }
+
+    def _cert(row: Any) -> dict[str, Any]:
+        if not isinstance(row, dict):
+            return {}
+        return {
+            "id": row.get("id") or "",
+            "nom": row.get("nom") or "",
+            "date": row.get("date") or "",
+        }
+
+    def _proj(row: Any) -> dict[str, Any]:
+        if not isinstance(row, dict):
+            return {}
+        return {
+            "id": row.get("id") or "",
+            "nom": row.get("nom") or "",
+            "description": row.get("description") or "",
+        }
+
+    competences = data.get("competences") if isinstance(data.get("competences"), dict) else {}
+    return {
+        "prenom": data.get("prenom") or "",
+        "nom": data.get("nom") or "",
+        "email": data.get("email") or "",
+        "telephone": data.get("telephone") or "",
+        "ville": data.get("ville") or "",
+        "titre_professionnel": data.get("titre_professionnel") or "",
+        "resume": data.get("resume") or "",
+        "experiences": [_exp(row) for row in (data.get("experiences") or [])],
+        "formations": [_form(row) for row in (data.get("formations") or [])],
+        "certifications": [_cert(row) for row in (data.get("certifications") or [])],
+        "projets": [_proj(row) for row in (data.get("projets") or [])],
+        "competences": {
+            "techniques": competences.get("techniques") or [],
+            "logiciels": competences.get("logiciels") or [],
+            "autres": competences.get("autres") or [],
+            "langues": competences.get("langues") or [],
+        },
+    }
+
+
+def localization_source_fingerprint(cv: dict | None) -> str:
+    raw = json.dumps(
+        localization_source_payload(cv),
+        ensure_ascii=False,
+        sort_keys=True,
+        default=str,
+    )
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def cached_localized_cv_is_reusable(
+    cached: dict | None,
+    cv_base: dict | None,
+    target_code: str | None,
+    stored_source_fp: str | None,
+) -> bool:
+    """True seulement si le cache correspond encore au CV source actuel."""
+    if not isinstance(cached, dict):
+        return False
+    if (target_code or "") not in {"fr", "en"}:
+        return False
+    if cached.get("langue") != target_code:
+        return False
+    expected = (stored_source_fp or "").strip()
+    if not expected:
+        return False
+    return expected == localization_source_fingerprint(cv_base)
 
 
 def apply_deterministic_localization(cv: dict | None, target_code: str) -> dict:

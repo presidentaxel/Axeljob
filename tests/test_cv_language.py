@@ -6,11 +6,13 @@ from backend.services.adapter import SYSTEM_PROMPT, _build_user_prompt, _infer_p
 from backend.services.cv_language import (
     adaptation_language_payload,
     apply_deterministic_localization,
+    cached_localized_cv_is_reusable,
     detect_cv_language,
     detect_offer_language,
     detect_text_language,
     language_lock_instruction,
     langue_cv_xml,
+    localization_source_fingerprint,
     localize_date_phrase,
     localize_layout_section_labels,
     merge_localized_fields,
@@ -382,6 +384,37 @@ class TestMergeLocalizedFields(unittest.TestCase):
         layout_style = layout_out["pages"][0]["blocks"][0]["style"]
         self.assertEqual(layout_style["font_family"], "Georgia")
         self.assertEqual(layout_style["font_size"], 11)
+
+
+class TestLocalizationSourceFingerprint(unittest.TestCase):
+    def test_changes_when_resume_changes(self):
+        cv = _fr_cv()
+        first = localization_source_fingerprint(cv)
+        cv2 = {**cv, "resume": cv["resume"] + " Nouveau fait."}
+        self.assertNotEqual(first, localization_source_fingerprint(cv2))
+
+    def test_ignores_template_options(self):
+        cv = _fr_cv()
+        cv["template_id"] = "classic"
+        cv["template_options"] = {"font": "Georgia", "font_size_body": 11}
+        a = localization_source_fingerprint(cv)
+        cv["template_options"] = {"font": "Inter", "font_size_body": 9}
+        self.assertEqual(a, localization_source_fingerprint(cv))
+
+    def test_cache_reusable_only_if_fingerprint_matches(self):
+        cv = _fr_cv()
+        cached = {**cv, "langue": "en", "resume": "Risk analyst."}
+        fp = localization_source_fingerprint(cv)
+        self.assertTrue(cached_localized_cv_is_reusable(cached, cv, "en", fp))
+        self.assertFalse(cached_localized_cv_is_reusable(cached, cv, "en", None))
+        changed = {**cv, "resume": "Texte modifié."}
+        self.assertFalse(cached_localized_cv_is_reusable(cached, changed, "en", fp))
+        experiences = list(cv.get("experiences") or [])
+        if experiences:
+            first = dict(experiences[0])
+            first["entreprise"] = "Autre SAS"
+            company = {**cv, "experiences": [first, *experiences[1:]]}
+            self.assertFalse(cached_localized_cv_is_reusable(cached, company, "en", fp))
 
 
 class TestProfileAnchorLanguage(unittest.TestCase):

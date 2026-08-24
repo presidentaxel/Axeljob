@@ -2956,6 +2956,9 @@ def api_adapt_localize(request: Request, body: AdaptLocalizeBody):
         raise HTTPException(
             status_code=429, detail="Quota temporairement atteint. Réessaie plus tard."
         )
+    from backend.services.cv_language import localization_source_fingerprint
+
+    source_fp = localization_source_fingerprint(cv_base)
     pid = (body.plan_id or "").strip()
     if pid:
         payload = _get_adapt_plan(pid, user_id)
@@ -2966,11 +2969,13 @@ def api_adapt_localize(request: Request, body: AdaptLocalizeBody):
                 payload["preview_seq"] = incoming_seq
                 if lang_meta.get("translate_cv"):
                     payload["preview_cv"] = cv_out
+                    payload["preview_cv_source_fp"] = source_fp
                 else:
                     payload.pop("preview_cv", None)
+                    payload.pop("preview_cv_source_fp", None)
                 payload["output_language"] = lang_meta.get("output_language") or "cv"
                 _save_adapt_plan(pid, user_id, payload)
-    return {"cv": cv_out, **lang_meta}
+    return {"cv": cv_out, "source_fp": source_fp, **lang_meta}
 
 
 @app.get("/api/adapt-plan/{plan_id}")
@@ -3139,7 +3144,11 @@ def _adapt_run_prepare(request: Request, body: AdaptRunBody) -> dict:
         titre=titre_request,
         entreprise=entreprise_request,
     )
-    from backend.services.cv_language import adaptation_language_payload
+    from backend.services.cv_language import (
+        adaptation_language_payload,
+        cached_localized_cv_is_reusable,
+        preserve_template_appearance,
+    )
     from backend.services.rules import appliquer_regles
 
     cv_enrichi = appliquer_regles(cv_base, offre)
@@ -3149,10 +3158,17 @@ def _adapt_run_prepare(request: Request, body: AdaptRunBody) -> dict:
     cv_working = deepcopy(cv_base)
     if lang_meta.get("translate_cv"):
         cached = (plan_payload or {}).get("preview_cv") if isinstance(plan_payload, dict) else None
-        cached_lang = cached.get("langue") if isinstance(cached, dict) else None
-        if isinstance(cached, dict) and cached_lang == lang_meta.get("output_language_code"):
-            from backend.services.cv_language import preserve_template_appearance
-
+        stored_fp = (
+            (plan_payload or {}).get("preview_cv_source_fp")
+            if isinstance(plan_payload, dict)
+            else None
+        )
+        if cached_localized_cv_is_reusable(
+            cached,
+            cv_base,
+            lang_meta.get("output_language_code"),
+            stored_fp if isinstance(stored_fp, str) else None,
+        ):
             cv_working = preserve_template_appearance(cv_base, cached)
         else:
             try:

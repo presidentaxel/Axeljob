@@ -45,6 +45,7 @@ import {
   resolveAdaptLanguageAutoChoice,
   setAdaptLanguagePreference,
 } from './lib/adaptLanguagePreference.js';
+import { localizationSourceFingerprint } from './lib/localizationSourceFingerprint.js';
 import { computeApplicationMetrics, isApplicationToFollowUp } from './lib/applicationStats.js';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from './lib/cvPreviewA4Pages';
 import {
@@ -1079,6 +1080,12 @@ export default function App() {
   /** Pour déclencher un rendu preview immédiat quand le template sync (API / profil) sans attendre le debounce. */
   const prevCvPreviewTemplateKeyRef = useRef(null);
   const languagePreviewCvRef = useRef(null);
+  const lastLocalizedSourceFpRef = useRef('');
+  const applyLanguagePreviewRef = useRef(null);
+  const adaptTodoPlanRef = useRef(adaptTodoPlan);
+  adaptTodoPlanRef.current = adaptTodoPlan;
+  const languagePreviewStatusRef = useRef(languagePreviewStatus);
+  languagePreviewStatusRef.current = languagePreviewStatus;
 
   useEffect(() => {
     if (!supabase) {
@@ -1461,20 +1468,28 @@ export default function App() {
         /* ignore */
       });
       } else if (languagePreviewCvRef.current) {
-        postRenderHtml({
-          cv: languagePreviewCvRef.current,
-          base_cv: lastBaseCv || undefined,
-          highlight_changes: false,
-          template_id: tid,
-          template_options: opts,
-        })
-          .then((html) => {
-            setModifiedPreviewHtml(html);
-            setPreviewHtml(html);
+        const plan = adaptTodoPlanRef.current;
+        const sourceFp = localizationSourceFingerprint(lastBaseCv);
+        const previewStale =
+          plan?.outputLanguage === 'offer'
+          && Boolean(sourceFp)
+          && sourceFp !== lastLocalizedSourceFpRef.current;
+        if (!previewStale) {
+          postRenderHtml({
+            cv: languagePreviewCvRef.current,
+            base_cv: lastBaseCv || undefined,
+            highlight_changes: false,
+            template_id: tid,
+            template_options: opts,
           })
-          .catch(() => {
+            .then((html) => {
+              setModifiedPreviewHtml(html);
+              setPreviewHtml(html);
+            })
+            .catch(() => {
         /* ignore */
       });
+        }
       } else if (!tourHighlightStepActive) {
         loadInitialPreview(tid, opts);
       }
@@ -1619,6 +1634,7 @@ export default function App() {
     setLanguagePreviewStatus('idle');
     languagePreviewSeqRef.current += 1;
     languagePreviewCvRef.current = null;
+    lastLocalizedSourceFpRef.current = '';
     try {
       const key = getPersistedPlanStorageKey();
       if (key) localStorage.removeItem(key);
@@ -1717,7 +1733,14 @@ export default function App() {
             })
             .catch(() => loadInitialPreview(tid, opts));
         } else {
-          loadInitialPreview(tid, opts);
+          const plan = adaptTodoPlanRef.current;
+          const keepOfferPreview =
+            plan?.languageMismatch
+            && plan?.outputLanguage === 'offer'
+            && (languagePreviewCvRef.current || languagePreviewStatusRef.current === 'loading' || languagePreviewStatusRef.current === 'ready');
+          if (!keepOfferPreview) {
+            loadInitialPreview(tid, opts);
+          }
         }
       });
     return () => { cancelled = true; };
@@ -1762,6 +1785,7 @@ export default function App() {
         });
         setLanguagePreviewStatus(mismatch && restoreLang.prompt ? 'idle' : mismatch ? 'idle' : 'ready');
         languagePreviewCvRef.current = null;
+        lastLocalizedSourceFpRef.current = '';
         setAnnonce((data?.description || '').trim());
         if (restoreLang.prompt) {
           setAdaptLanguageMeta({
@@ -2206,6 +2230,7 @@ export default function App() {
     const policy = choice === 'offer' ? 'offer' : 'cv';
     if (policy === 'cv') {
       languagePreviewCvRef.current = null;
+      lastLocalizedSourceFpRef.current = localizationSourceFingerprint(lastBaseCv);
       const html = originalPreviewHtml || previewHtmlFallback;
       if (html) {
         setPreviewHtml(html);
@@ -2229,6 +2254,8 @@ export default function App() {
       return;
     }
     setLanguagePreviewStatus('loading');
+    const sourceFpAtStart = localizationSourceFingerprint(lastBaseCv);
+    lastLocalizedSourceFpRef.current = sourceFpAtStart;
     try {
       const data = await apiPost('/api/adapt-localize', {
         description: plan?.description || annonce,
@@ -2244,6 +2271,7 @@ export default function App() {
         throw new Error("Aperçu langue indisponible.");
       }
       languagePreviewCvRef.current = cv;
+      lastLocalizedSourceFpRef.current = sourceFpAtStart;
       const html = await postRenderHtml({
         cv,
         base_cv: lastBaseCv || undefined,
@@ -2303,6 +2331,29 @@ export default function App() {
     applyLanguagePreview(adaptTodoPlan.outputLanguage);
     return undefined;
   }, [adaptTodoPlan, languagePreviewStatus, lastAdaptedCv]);
+
+  applyLanguagePreviewRef.current = applyLanguagePreview;
+
+  useEffect(() => {
+    if (!adaptTodoPlan?.languageMismatch) return undefined;
+    if (adaptTodoPlan.outputLanguage !== 'offer' || lastAdaptedCv || adapting) return undefined;
+    const fp = localizationSourceFingerprint(lastBaseCv);
+    if (!fp || fp === lastLocalizedSourceFpRef.current) return undefined;
+    if (languagePreviewStatus === 'loading') return undefined;
+    const timer = window.setTimeout(() => {
+      const latest = localizationSourceFingerprint(lastBaseCv);
+      if (!latest || latest === lastLocalizedSourceFpRef.current) return;
+      applyLanguagePreviewRef.current?.('offer');
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [
+    lastBaseCv,
+    adaptTodoPlan?.languageMismatch,
+    adaptTodoPlan?.outputLanguage,
+    lastAdaptedCv,
+    adapting,
+    languagePreviewStatus,
+  ]);
 
   const runDirectAdaptFromSetup = async ({ fiche, pos, ent, userPreview, outputLanguage = 'cv' }) => {
     setAdapting(true);
@@ -2459,6 +2510,7 @@ export default function App() {
         });
         setLanguagePreviewStatus(mismatch ? 'idle' : 'ready');
         languagePreviewCvRef.current = null;
+        lastLocalizedSourceFpRef.current = '';
         setChatMessages((prev) => [...prev, {
           role: 'assistant',
           content: plan?.assistant_message || "Voici un plan d'adaptation. Ajuste les étapes puis valide.",
@@ -3168,7 +3220,21 @@ export default function App() {
   }, [showProfileCvLoadError]);
 
   const handleProfileSaveSuccess = () => {
-    if (!lastAdaptedCv) loadInitialPreview();
+    apiGet('/api/cv')
+      .then((cv) => {
+        if (cv) {
+          setLastBaseCv(cv);
+          setFreshPreviewPhotoUrl(cv.photo_url ?? null);
+        }
+      })
+      .catch(() => {
+        /* ignore */
+      })
+      .finally(() => {
+        if (!lastAdaptedCv && adaptTodoPlan?.outputLanguage !== 'offer') {
+          loadInitialPreview();
+        }
+      });
   };
 
   useEffect(() => {

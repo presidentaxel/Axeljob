@@ -112,12 +112,12 @@ Remplir la colonne `AXE-XX` après création.
 | 7 | `Feat: Brancher PostHog (événements + autocapture data-attr)` | AxelJob, Feature | 4 + 6 (go) | [AXE-364](https://linear.app/axel-project/issue/AXE-364) **Canceled** | `louisvedovato/axe-364-feat-brancher-posthog-evenements-autocapture-data-attr` |
 | 8 | `Chore: Recette GA4 — conversions, dimensions, DebugView` | AxelJob, Improvement | 4 + 5 | [AXE-365](https://linear.app/axel-project/issue/AXE-365) | `louisvedovato/axe-365-chore-recette-ga4-conversions-dimensions-debugview` |
 
-Convention site-wide (hors ces 8 tickets) : [AXE-356](https://linear.app/axel-project/issue/AXE-356). 358 fige l’instance landing → signup sans l’attendre.
+Convention site-wide (hors ces 8 tickets) : [AXE-356](https://linear.app/axel-project/issue/AXE-356) — contrat : [`docs/analytics-naming.md`](analytics-naming.md) (deux stacks GA4 vs event_log, inventaire surfaces, tickets filles). 358 fige l’instance landing → signup sans l’attendre.
 
-Backlog hors vague 1 (créer plus tard si besoin) :
+Backlog hors vague 1 :
 
 - `Improve: Un seul bouton primary visible par écran sur la landing`
-- `Fix: Whitelist /api/events/track — events orphelins (base_cv_pdf_downloaded, first_offer_nudge_cta, …)`
+- Events orphelins produit + balisage `/app` : filles d’AXE-356 — [AXE-394](https://linear.app/axel-project/issue/AXE-394) (whitelist), [AXE-395](https://linear.app/axel-project/issue/AXE-395) (inventaire `/app`), [AXE-396](https://linear.app/axel-project/issue/AXE-396) (balisage), [AXE-397](https://linear.app/axel-project/issue/AXE-397) (`login` produit). Contrat : [`docs/analytics-naming.md`](analytics-naming.md).
 
 ---
 
@@ -448,7 +448,7 @@ Globaux : **pas** de préfixe de page (`nav-`, `footer-`).
 | Surfaces A/B non-clic | Conservées dans le catalogue : `home-hero-title`, `home-pricing-card-free`, `home-pricing-card-pro`, `home-pricing-badge-popular` |
 | C.8 / v2 | Exclue de la vague 1 (drawer tertiaires, sources outbound FAQ, `faq_open`, cookie banner) |
 | C.9 candidatures | Hors vague 1 (déjà figé 2026-08-21) — ne pas retoucher |
-| AXE-356 | Convention site-wide peut attendre : 358 fige l’instance landing → signup |
+| AXE-356 | Convention site-wide : [`docs/analytics-naming.md`](analytics-naming.md) (figé 2026-08-25). 358 reste l’instance landing → signup |
 
 Attributs HTML types :
 
@@ -600,7 +600,9 @@ Pas des `data-attr`. Observer à 50 %, une fois par session.
 ### C.9 App connectée — Mes candidatures (`/app/postule`) — **figé 2026-08-21**
 
 Extension hors vague 1 (landing → signup). Même convention `page-zone-type-intention`.  
-Un ID posé en prod ne se renomme jamais. Tracker app = `/api/events/track` + GA4 derrière CMP (PostHog hors v1).
+Un ID posé en prod ne se renomme jamais.
+
+**Transport `/app` (contrat [AXE-356](https://linear.app/axel-project/issue/AXE-356) / [`docs/analytics-naming.md`](analytics-naming.md)) :** events explicites `trackEvent()` → `POST /api/events/track` → `event_log`. **Pas** de GA4, **pas** de CMP, **pas** de `track.js` (ignore `/app`). Les `data-attr` C.9 servent la recette DOM ; ils n’émettent rien tant qu’un tracker /app n’existe pas (v2).
 
 | data-attr | type | level | Où | Intention |
 |---|---|---|---|---|
@@ -612,13 +614,15 @@ Un ID posé en prod ne se renomme jamais. Tracker app = `/api/events/track` + GA
 | `candidatures-controls-input-search` | input | tertiary | Barre de filtres | Champ recherche. **Ne jamais** envoyer la valeur dans un event. |
 | `candidatures-list-input-statut` | input | tertiary | Liste mobile (≤768px) | Select changement de statut. **Ne jamais** envoyer la valeur dans un event. |
 
-`data-section` (hors compte) :
+`data-analytics-section` (hors compte, snake_case — observé par `useViewAnalytics` → `page_engagement.sections`) :
 
-| data-section | Zone |
+| data-analytics-section | Zone |
 |---|---|
-| `candidatures` | Board kanban `/app/postule` |
-| `candidatures-stats` | Bandeau métriques |
-| `candidatures-list-mobile` | Liste groupée mobile (AXE-381) |
+| `candidatures_board` | Board kanban `/app/postule` |
+| `candidatures_stats` | Bandeau métriques |
+| `candidatures_list_mobile` | Liste groupée mobile (AXE-381) |
+
+Les `data-section` kebab encore présents sur les mêmes nœuds (`candidatures`, `candidatures-stats`, …) **ne sont pas lus** (`track.js` ignore `/app`). Ne pas s’en servir. Ne pas les renommer ici (markup = tickets filles AXE-395 / 396).
 
 V2 candidatures (ne pas poser maintenant) : ouverture carte, archive, drag colonne, métriques cliquables.
 

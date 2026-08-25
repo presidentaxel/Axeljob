@@ -1,7 +1,8 @@
 # Recette GA4 — AxeL Job (AXE-365)
 
 Ticket Linear : [AXE-365](https://linear.app/axel-project/issue/AXE-365).  
-Tracker code : `frontend/public/track.js` (AXE-361). **PostHog hors v1.**
+Tracker code : `frontend/public/track.js` (AXE-361). **PostHog hors v1.**  
+Noms d’events / props (site entier) : [`docs/analytics-naming.md`](analytics-naming.md) ([AXE-356](https://linear.app/axel-project/issue/AXE-356)).
 
 Le tracker pousse deux choses dans `dataLayer` :
 

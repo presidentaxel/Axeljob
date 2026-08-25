@@ -14,6 +14,9 @@ Point d'entree de la documentation technique, securite et operations.
 | Workflow Git (main, wip/innovation, PR Draft) | [docs/git-workflow.md](git-workflow.md) |
 | Protections branches / passage push → PR | [docs/branch-protections.md](branch-protections.md) |
 | Workflow Linear ↔ GitHub (tickets AXE, liens, PR) | [docs/linear-github-workflow.md](linear-github-workflow.md) |
+| Conventions analytics (events, props, pages) | [docs/analytics-naming.md](analytics-naming.md) |
+| Taggage landing → signup (`data-attr`, tracker CMP) | [docs/taggage-analytics.md](taggage-analytics.md) |
+| Recette GA4 (GTM, DebugView) | [docs/ga4-recette.md](ga4-recette.md) |
 | Intégration `wip/innovation` → `main` (AXE-27) | [docs/axe-27-integration-strategy.md](axe-27-integration-strategy.md) |
 | Spike import PDF/Word → CV scoré (AXE-41) | [docs/axe-41-import-pipeline-spike.md](axe-41-import-pipeline-spike.md) |
 | Verifier la Definition of Done engineering | `docs/engineering-standards.md` |

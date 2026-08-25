@@ -117,7 +117,7 @@ Convention site-wide (hors ces 8 tickets) : [AXE-356](https://linear.app/axel-pr
 Backlog hors vague 1 :
 
 - `Improve: Un seul bouton primary visible par écran sur la landing`
-- Events orphelins produit + balisage `/app` : filles d’AXE-356 — [AXE-394](https://linear.app/axel-project/issue/AXE-394) (whitelist, ce ticket), [AXE-395](https://linear.app/axel-project/issue/AXE-395) (inventaire `/app`), [AXE-396](https://linear.app/axel-project/issue/AXE-396) (balisage), [AXE-397](https://linear.app/axel-project/issue/AXE-397) (`login` produit). Contrat : [`docs/analytics-naming.md`](analytics-naming.md).
+- Events orphelins produit + balisage `/app` : filles d’AXE-356 — [AXE-394](https://linear.app/axel-project/issue/AXE-394) (whitelist, mergé), [AXE-395](https://linear.app/axel-project/issue/AXE-395) (inventaire `/app` C.10–C.16, **49 IDs figés**), [AXE-396](https://linear.app/axel-project/issue/AXE-396) (balisage), [AXE-397](https://linear.app/axel-project/issue/AXE-397) (`login` produit). Contrat : [`docs/analytics-naming.md`](analytics-naming.md).
 
 ---
 
@@ -448,6 +448,7 @@ Globaux : **pas** de préfixe de page (`nav-`, `footer-`).
 | Surfaces A/B non-clic | Conservées dans le catalogue : `home-hero-title`, `home-pricing-card-free`, `home-pricing-card-pro`, `home-pricing-badge-popular` |
 | C.8 / v2 | Exclue de la vague 1 (drawer tertiaires, sources outbound FAQ, `faq_open`, cookie banner) |
 | C.9 candidatures | Hors vague 1 (déjà figé 2026-08-21) — ne pas retoucher |
+| C.10–C.16 `/app` hors candidatures | Figé 2026-08-25 ([AXE-395](https://linear.app/axel-project/issue/AXE-395)) : **49** IDs. Markup : [AXE-396](https://linear.app/axel-project/issue/AXE-396). Préfixe topbar `app-nav-` (≠ `nav-` marketing). |
 | AXE-356 | Convention site-wide : [`docs/analytics-naming.md`](analytics-naming.md) (figé 2026-08-25). 358 reste l’instance landing → signup |
 
 Attributs HTML types :
@@ -622,9 +623,122 @@ Un ID posé en prod ne se renomme jamais.
 | `candidatures_stats` | Bandeau métriques |
 | `candidatures_list_mobile` | Liste groupée mobile (AXE-381) |
 
-Les `data-section` kebab encore présents sur les mêmes nœuds (`candidatures`, `candidatures-stats`, …) **ne sont pas lus** (`track.js` ignore `/app`). Ne pas s’en servir. Ne pas les renommer ici (markup = tickets filles AXE-395 / 396).
+Les `data-section` kebab encore présents sur les mêmes nœuds (`candidatures`, `candidatures-stats`, …) **ne sont pas lus** (`track.js` ignore `/app`). Ne pas s’en servir. Nettoyage markup éventuel : [AXE-396](https://linear.app/axel-project/issue/AXE-396) (hors inventaire).
 
 V2 candidatures (ne pas poser maintenant) : ouverture carte, archive, drag colonne, métriques cliquables.
+
+### C.10–C.16 App connectée hors candidatures — **figé 2026-08-25** ([AXE-395](https://linear.app/axel-project/issue/AXE-395))
+
+Même convention kebab `page-zone-type-intention`. Un ID = un élément. Jamais de doublon avec les 55 public ni C.9.  
+Transport : recette DOM seulement (`track.js` ignore `/app`). Markup : [AXE-396](https://linear.app/axel-project/issue/AXE-396).
+
+**Total = 49** : 12 topbar + 8 onboarding + 11 cv + 6 profil + 5 settings + 6 support + 1 monitoring.
+
+`/app/linkedin` : pas de vue dédiée (`getViewFromPathname` → `profil`). Pas d’IDs `linkedin-*`.
+
+#### C.10 Globaux — topbar `/app` (12)
+
+Préfixe `app-nav-` (distinct de `nav-` marketing).
+
+| data-attr | type | level | Où | Intention |
+|---|---|---|---|---|
+| `app-nav-link-cv` | link | tertiary | topbar | `/app/cv` Adapter CV |
+| `app-nav-link-candidatures` | link | tertiary | topbar | `/app/postule` |
+| `app-nav-link-profil` | link | tertiary | topbar | `/app/profil` |
+| `app-nav-link-settings` | link | tertiary | topbar | `/app/settings` |
+| `app-nav-link-support` | link | tertiary | topbar | `/app/support` |
+| `app-nav-link-monitoring` | link | tertiary | topbar | `/app/monitoring` (compte support seulement) |
+| `app-nav-cta-upgrade` | cta | primary | topbar right | Passer Pro (plan free) |
+| `app-nav-cta-pro` | cta | secondary | topbar right | Badge Pro (plan pro) |
+| `app-nav-cta-account` | cta | tertiary | menu compte | Ouvrir le menu |
+| `app-nav-cta-cookies` | cta | tertiary | menu compte | Paramètres cookies |
+| `app-nav-cta-signout` | cta | tertiary | menu compte | Déconnexion |
+| `app-nav-input-promo` | input | tertiary | menu compte | Code partenaire. **Ne jamais** envoyer la valeur |
+
+Logo topbar = `<img>` non cliquable : ne pas inventer de clic.
+
+#### C.11 Onboarding (8)
+
+| data-attr | type | level | Où | Intention |
+|---|---|---|---|---|
+| `onboarding-methods-cta-import` | cta | primary | step 0 | Importer un CV (fichier) |
+| `onboarding-methods-cta-manual` | cta | secondary | step 0 | Saisie manuelle → profil |
+| `onboarding-paste-input-text` | input | tertiary | step 0 details | Texte collé. **Ne jamais** envoyer la valeur |
+| `onboarding-paste-cta-parse` | cta | secondary | step 0 details | Analyser mon CV |
+| `onboarding-review-cta-confirm` | cta | primary | step 1 | Confirmer le profil extrait |
+| `onboarding-done-cta-launch` | cta | primary | step 2 | C’est parti → candidatures |
+| `onboarding-done-cta-profil` | cta | secondary | step 2 | Aller au profil |
+| `onboarding-cta-skip` | cta | tertiary | overlay | Passer pour l’instant |
+
+#### C.12 Adapter un CV `/app/cv` (11)
+
+| data-attr | type | level | Où | Intention |
+|---|---|---|---|---|
+| `cv-header-cta-new` | cta | secondary | header page | Nouvelle candidature (workspace chat) |
+| `cv-banner-cta-upgrade` | cta | primary | bandeau quota free | Passer Pro |
+| `cv-chat-input-offer` | input | tertiary | composer chat | Offre / message. **Ne jamais** envoyer la valeur |
+| `cv-chat-cta-send` | cta | primary | composer chat | Envoyer → adaptation |
+| `cv-todo-cta-run` | cta | primary | carte plan | Valider et lancer |
+| `cv-preview-cta-base-pdf` | cta | secondary | barre template | Exporter le CV de base |
+| `cv-export-cta-pdf` | cta | primary | zone export | Télécharger le PDF adapté |
+| `cv-export-cta-dossier` | cta | secondary | zone export | Dossier complet |
+| `cv-export-cta-ats` | cta | tertiary | zone export | Ouvrir le score ATS |
+| `cv-nudge-cta-go` | cta | primary | modal 1ʳᵉ offre | Coller une offre → `/app/cv` |
+| `cv-nudge-cta-dismiss` | cta | secondary | modal 1ʳᵉ offre | Plus tard |
+
+#### C.13 Profil `/app/profil` (6)
+
+Deux boutons Enregistrer → **deux IDs** (comme `nav-cta-signup` / `nav-cta-start`).
+
+| data-attr | type | level | Où | Intention |
+|---|---|---|---|---|
+| `profil-header-cta-import` | cta | secondary | header | Importer un CV |
+| `profil-header-cta-save` | cta | primary | header | Enregistrer |
+| `profil-footer-cta-save` | cta | primary | footer formulaire | Enregistrer (distinct du header) |
+| `profil-preview-cta-pdf` | cta | secondary | barre template | Exporter le CV de profil |
+| `profil-billing-cta-cancel` | cta | tertiary | abonnement | Résilier |
+| `profil-billing-cta-portal` | cta | tertiary | abonnement | Portail Stripe |
+
+#### C.14 Paramètres `/app/settings` (5)
+
+| data-attr | type | level | Où | Intention |
+|---|---|---|---|---|
+| `settings-account-cta-password` | cta | secondary | compte | Mot de passe |
+| `settings-account-cta-upgrade` | cta | primary | compte | Passer Pro |
+| `settings-account-cta-billing` | cta | secondary | compte | Gérer l’abonnement |
+| `settings-export-cta-save` | cta | primary | export PDF | Enregistrer les prefs fichier |
+| `settings-privacy-cta-cookies` | cta | tertiary | confidentialité | Paramètres cookies |
+
+#### C.15 Support `/app/support` (6)
+
+Topics = `SUPPORT_TOPICS[].id` dans `App.jsx`.
+
+| data-attr | type | level | Où | Intention |
+|---|---|---|---|---|
+| `support-topic-adapter-cv` | link | tertiary | grilles use cases | Deep-link Adapter CV |
+| `support-topic-exporter-pdf` | link | tertiary | grilles use cases | Deep-link export |
+| `support-topic-suivre-candidatures` | link | tertiary | grilles use cases | Deep-link candidatures |
+| `support-topic-modifier-texte-cv` | link | tertiary | grilles use cases | Deep-link édition |
+| `support-topic-personnaliser-couleurs` | link | tertiary | grilles use cases | Deep-link options template |
+| `support-ticket-cta-submit` | cta | primary | formulaire ticket | Envoyer le ticket |
+
+#### C.16 Monitoring `/app/monitoring` (1)
+
+Visible seulement si `usage.is_support`.
+
+| data-attr | type | level | Où | Intention |
+|---|---|---|---|---|
+| `monitoring-header-cta-refresh` | cta | secondary | dashboard | Recharger |
+
+#### V2 /app (ne pas poser en AXE-396)
+
+- Topbar : toggle Beta
+- CV : relancer dernière adaptation, Annuler du plan, thumbs rating, Original/Modifié, langue, tour `?`, inputs entreprise/poste/source, édition manuelle, modales ATS/disclaimer/PDF entreprise
+- Profil : +/− lignes, photo/crop, merge import, modal LinkedIn apply
+- Settings : chips nom de fichier, reset modèle, clear local, liens légaux (IDs **nouveaux**, ne pas réutiliser `footer-link-*`)
+- Support : « autre ticket », reply interne, `mailto`
+- Modales globales : confirm upgrade / signout / portail (le CTA source reste `app-nav-cta-*`)
+- GuidedTour, ReauthModal, écran MFA
 
 ---
 

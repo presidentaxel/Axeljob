@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CONTACT_EMAIL } from '../constants';
+import { analyticsAttrs } from '../lib/analyticsAttrs.js';
 import './LandingPage.css';
 
 /** Liens articles / guides (menu mobile + cohérence avec le footer) */
@@ -59,13 +60,6 @@ const PRO_FEATURES = [
   'Lettre de motivation IA',
   'Support prioritaire',
 ];
-
-/** Catalogue AXE-358 / AXE-359. Un ID = un nœud. `trackType` omis sur les surfaces A/B non-clic. */
-function analyticsAttrs(id, zone, level, trackType) {
-  const attrs = { 'data-attr': id, 'data-zone': zone, 'data-level': level };
-  if (trackType) attrs['data-track'] = trackType;
-  return attrs;
-}
 
 function BurgerIcon({ open }) {
   return (
@@ -388,21 +382,21 @@ export default function LandingPage({ onCtaClick, onProClick }) {
           <div className="landing-footer-inner">
             <p>
               © {new Date().getFullYear()} AxeL Job - Ton CV sur-mesure pour chaque annonce. Une réalisation{' '}
-              <a href="https://axelproject.fr" rel="noopener noreferrer">Axel Project</a>.
+              <a href="https://axelproject.fr" rel="noopener noreferrer" {...analyticsAttrs('footer-link-axelproject', 'footer', 'tertiary', 'nav')}>Axel Project</a>.
             </p>
             <nav className="landing-footer-links" aria-label="Guides, FAQ et pages légales">
-              <a href={`mailto:${CONTACT_EMAIL}?subject=Support%20AxeL%20Job`}>Support</a>
-              <Link to="/ats">CV et ATS</Link>
-              <Link to="/faq">FAQ</Link>
-              <Link to="/modeles-cv">Modèles de CV</Link>
-              <Link to="/guide-cv">Guide CV</Link>
-              <Link to="/erreurs-cv">Erreurs à éviter</Link>
-              <Link to="/cv-par-metier">CV par métier</Link>
-              <Link to="/cv-adapte-chaque-offre">CV adapté à chaque offre</Link>
+              <a href={`mailto:${CONTACT_EMAIL}?subject=Support%20AxeL%20Job`} {...analyticsAttrs('footer-link-support', 'footer', 'tertiary', 'nav')}>Support</a>
+              <Link to="/ats" {...analyticsAttrs('footer-link-ats', 'footer', 'tertiary', 'nav')}>CV et ATS</Link>
+              <Link to="/faq" {...analyticsAttrs('footer-link-faq', 'footer', 'tertiary', 'nav')}>FAQ</Link>
+              <Link to="/modeles-cv" {...analyticsAttrs('footer-link-modeles', 'footer', 'tertiary', 'nav')}>Modèles de CV</Link>
+              <Link to="/guide-cv" {...analyticsAttrs('footer-link-guide', 'footer', 'tertiary', 'nav')}>Guide CV</Link>
+              <Link to="/erreurs-cv" {...analyticsAttrs('footer-link-erreurs', 'footer', 'tertiary', 'nav')}>Erreurs à éviter</Link>
+              <Link to="/cv-par-metier" {...analyticsAttrs('footer-link-metier', 'footer', 'tertiary', 'nav')}>CV par métier</Link>
+              <Link to="/cv-adapte-chaque-offre" {...analyticsAttrs('footer-link-adapte', 'footer', 'tertiary', 'nav')}>CV adapté à chaque offre</Link>
               <span className="landing-footer-sep">|</span>
-              <Link to="/mentions-legales">Mentions légales</Link>
-              <Link to="/confidentialite">Confidentialité</Link>
-              <Link to="/cgu">CGU</Link>
+              <Link to="/mentions-legales" {...analyticsAttrs('footer-link-mentions', 'footer', 'tertiary', 'nav')}>Mentions légales</Link>
+              <Link to="/confidentialite" {...analyticsAttrs('footer-link-confidentialite', 'footer', 'tertiary', 'nav')}>Confidentialité</Link>
+              <Link to="/cgu" {...analyticsAttrs('footer-link-cgu', 'footer', 'tertiary', 'nav')}>CGU</Link>
             </nav>
           </div>
         </div>

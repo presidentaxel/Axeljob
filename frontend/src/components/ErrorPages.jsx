@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from './ui/Button.jsx';
+import { analyticsAttrs } from '../lib/analyticsAttrs.js';
 
 function setNoindexFollow() {
   if (typeof document === 'undefined') return;
@@ -32,11 +33,11 @@ export function NotFoundPage() {
           Cette adresse n&apos;existe pas ou a été déplacée. Vérifie l&apos;URL ou reviens à l&apos;accueil.
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', justifyContent: 'center', marginTop: '1.25rem' }}>
-          <Button variant="primary" onClick={() => navigate('/')}>
+          <Button variant="primary" onClick={() => navigate('/')} {...analyticsAttrs('error-cta-home', 'error', 'primary', 'cta')}>
             Accueil
           </Button>
-          <Button variant="secondary" onClick={() => navigate(-1)}>
-            Page précédente
+          <Button variant="secondary" onClick={() => navigate('/login')} {...analyticsAttrs('error-cta-login', 'error', 'secondary', 'cta')}>
+            Connexion
           </Button>
         </div>
       </div>

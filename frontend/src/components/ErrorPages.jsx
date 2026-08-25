@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from './ui/Button.jsx';
 import { analyticsAttrs } from '../lib/analyticsAttrs.js';
+import { persistLoginCta } from '../../public/signupAttribution.js';
 
 function setNoindexFollow() {
   if (typeof document === 'undefined') return;
@@ -36,7 +37,7 @@ export function NotFoundPage() {
           <Button variant="primary" onClick={() => navigate('/')} {...analyticsAttrs('error-cta-home', 'error', 'primary', 'cta')}>
             Accueil
           </Button>
-          <Button variant="secondary" onClick={() => navigate('/login')} {...analyticsAttrs('error-cta-login', 'error', 'secondary', 'cta')}>
+          <Button variant="secondary" onClick={() => { persistLoginCta('error-cta-login'); navigate('/login'); }} {...analyticsAttrs('error-cta-login', 'error', 'secondary', 'cta')}>
             Connexion
           </Button>
         </div>

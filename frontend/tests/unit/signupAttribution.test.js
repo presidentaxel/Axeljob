@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   PLAN_INTENT_BY_CTA,
   persistFromCtaClick,
+  persistLoginCta,
   readSourceCtaId,
   readPlanIntent,
   shouldPersistSourceCta,
@@ -70,6 +71,15 @@ test('pricing Pro → plan_intent pro et source_cta_id', () => {
     dataTrack: 'cta',
     linkUrl: '/login?plan=pro',
   });
+  assert.equal(readSourceCtaId(), 'home-pricing-cta-pro');
+  assert.equal(readPlanIntent(), 'pro');
+});
+
+test('persistLoginCta (boutons React sans href)', () => {
+  persistLoginCta('home-hero-cta-signup');
+  assert.equal(readSourceCtaId(), 'home-hero-cta-signup');
+  assert.equal(readPlanIntent(), 'free');
+  persistLoginCta('home-pricing-cta-pro');
   assert.equal(readSourceCtaId(), 'home-pricing-cta-pro');
   assert.equal(readPlanIntent(), 'pro');
 });

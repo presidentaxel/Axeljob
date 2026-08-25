@@ -115,6 +115,13 @@ export function persistFromCtaClick({ dataAttr, dataTrack, linkUrl }) {
   return true;
 }
 
+/** Boutons React sans href : même persist que le tracker (landing SPA). */
+export function persistLoginCta(dataAttr) {
+  if (!dataAttr) return false;
+  const linkUrl = planIntentFromCta(dataAttr, '') === 'pro' ? '/login?plan=pro' : '/login';
+  return persistFromCtaClick({ dataAttr, dataTrack: 'cta', linkUrl });
+}
+
 /** URL ?plan=pro complète un plan_intent manquant (lien partagé / OAuth). */
 export function hydratePlanIntentFromSearch(search) {
   const params = new URLSearchParams(search || '');

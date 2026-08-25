@@ -96,16 +96,14 @@ SPA bundle (`entry-conditional.js`) seulement sur `/`, `/login`, `/app/*`. Le re
 
 | Route | `view` | Sections `data-analytics-section` (déjà là) | Events métier déjà émis | `data-attr` |
 |---|---|---|---|---|
-| `/app/cv` | `cv` | `cv_workspace`, `chat`, `preview`, `export` | adaptation\*, `adapt_cta_clicked`, `job_description_pasted`, `template_changed`, `cv_manually_edited`, `ats_details_opened`, `adaptation_rated`, `base_cv_pdf_downloaded` ⚠️, `first_offer_nudge_cta` ⚠️, onboarding\* | **aucun catalogue** |
-| `/app/postule` | `candidatures` | `candidatures_board`, `candidatures_stats`, `candidatures_list_mobile` | `new_candidature_workspace` ⚠️, `adapt_cta_clicked`, backend statut / refus / source offre | **C.9 posé** (7 IDs) — clics **non** relayés |
-| `/app/profil` `/app/linkedin` | `profil` | `profil_editor` | `base_cv_pdf_downloaded` ⚠️ (profil), backend `profile_saved` | aucun |
+| `/app/cv` | `cv` | `cv_workspace`, `chat`, `preview`, `export` | adaptation\*, `adapt_cta_clicked`, `job_description_pasted`, `template_changed`, `cv_manually_edited`, `ats_details_opened`, `adaptation_rated`, `base_cv_pdf_downloaded`, `first_offer_nudge_cta`, onboarding\* | **aucun catalogue** |
+| `/app/postule` | `candidatures` | `candidatures_board`, `candidatures_stats`, `candidatures_list_mobile` | `new_candidature_workspace`, `adapt_cta_clicked`, backend statut / refus / source offre | **C.9 posé** (7 IDs) — clics **non** relayés |
+| `/app/profil` `/app/linkedin` | `profil` | `profil_editor` | `base_cv_pdf_downloaded` (profil), backend `profile_saved` | aucun |
 | `/app/settings` | `settings` | `settings_page` | `promo_code_redeemed` (backend) | aucun |
 | `/app/support` | `support` | `support_page` | — | aucun |
 | `/app/monitoring` | `monitoring` | `monitoring_dashboard` | — | aucun |
 
-⚠️ = le front appelle `trackEvent` mais le nom **n’est pas** dans `_ALLOWED_FRONTEND_EVENTS` → HTTP 400, drop. Ticket fille whitelist.
-
-`EVENT_LOGIN` (`login`) est **déclaré** dans `event_log.py`, **jamais émis**. Ticket fille : émettre ou retirer.
+`EVENT_LOGIN` (`login`) est **déclaré** dans `event_log.py`, **jamais émis**. Ticket fille : émettre ou retirer ([AXE-397](https://linear.app/axel-project/issue/AXE-397)).
 
 ---
 
@@ -143,6 +141,9 @@ SPA bundle (`entry-conditional.js`) seulement sur `/`, `/login`, `/app/*`. Le re
 | `adaptation_rated` | `rating`, `adaptation_id`, `score_ats` | thumbs |
 | `template_changed` | `template_id` | preview |
 | `adapt_cta_clicked` | `source`, `desc_word_count` | chat / candidatures |
+| `base_cv_pdf_downloaded` | `template_id`, `source` = `cv_tab` \| `profile` | App + ProfileView ([AXE-394](https://linear.app/axel-project/issue/AXE-394)) |
+| `first_offer_nudge_cta` | `action` = `go_cv` \| `dismiss` | nudge 1ʳᵉ offre (AXE-394) |
+| `new_candidature_workspace` | `had_adapted_cv` | nouvelle candidature (AXE-394) |
 
 **Backend only** (pas via le POST front) :
 
@@ -159,15 +160,7 @@ SPA bundle (`entry-conditional.js`) seulement sur `/`, `/login`, `/app/*`. Le re
 | `cv_import` | import CV |
 | `promo_code_redeemed` | code promo |
 
-**Orphelins front (à whitelister, noms déjà figés)** :
-
-| Event | Props | Où |
-|---|---|---|
-| `base_cv_pdf_downloaded` | `template_id`, `source` = `cv_tab` \| `profile` | App + ProfileView |
-| `first_offer_nudge_cta` | `action` = `go_cv` \| `dismiss` | nudge 1ʳᵉ offre |
-| `new_candidature_workspace` | `had_adapted_cv` | nouvelle candidature |
-
-**Déclaré, jamais émis :** `login`.
+**Déclaré, jamais émis :** `login` ([AXE-397](https://linear.app/axel-project/issue/AXE-397)).
 
 ---
 

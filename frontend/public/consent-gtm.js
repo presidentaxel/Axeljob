@@ -76,6 +76,15 @@
       axel_analytics: analytics,
       axel_marketing: marketing,
     });
+    try {
+      window.dispatchEvent(
+        new CustomEvent('axel_consent_update', {
+          detail: { analytics: !!analytics, marketing: !!marketing },
+        }),
+      );
+    } catch (_) {
+      /* CustomEvent indisponible */
+    }
   }
 
   function applySaved(c) {

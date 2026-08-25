@@ -118,7 +118,7 @@ export default function FaqPage({ onBack }) {
         <div className="content-section-inner faq-inner">
           {FAQ_ITEMS.map((item) => (
             <article key={item.slug} id={item.slug} className="faq-item">
-              <h2 className="faq-question" {...analyticsAttrs(`faq-question-${item.slug}`, 'faq', 'tertiary', 'nav')}>{item.q}</h2>
+              <h2 className="faq-question" {...analyticsAttrs(`faq-question-${item.slug}`, 'faq', 'tertiary')}>{item.q}</h2>
               <div className="faq-answer">{item.a}</div>
             </article>
           ))}

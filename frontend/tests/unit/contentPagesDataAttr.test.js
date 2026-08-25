@@ -78,6 +78,17 @@ test('AXE-360 : FAQ, login, 404 et CTA contenu en miroir, sans doublon par fichi
   assert.ok(faqHtml.includes('data-attr="faq-cta-signup"'));
   assert.ok(faqHtml.includes('data-section="faq"'));
   assert.ok(faqJsx.includes('data-section="faq"'));
+  assert.ok(faqJsx.includes("analyticsAttrs(`faq-question-${item.slug}`, 'faq', 'tertiary')"));
+  assert.equal(
+    faqJsx.includes("analyticsAttrs(`faq-question-${item.slug}`, 'faq', 'tertiary', 'nav')"),
+    false,
+    'FAQ h2 sans data-track=nav',
+  );
+  assert.equal(
+    /data-attr="faq-question-[^"]+" data-track=/.test(faqHtml),
+    false,
+    'FAQ HTML h2 sans data-track',
+  );
 
   const authIds = idsFromJsx(authJsx);
   for (const id of LOGIN_REACT_IDS) {

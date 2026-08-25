@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ARTICLE_SOURCE_URLS as U } from '../content/articleSources.js';
 import { analyticsAttrs } from '../lib/analyticsAttrs.js';
+import { persistLoginCta } from '../../public/signupAttribution.js';
 import ContentScrollToTop from './ContentScrollToTop';
 import './ContentPages.css';
 
@@ -185,7 +186,7 @@ export default function AtsPage({ onBack }) {
         <div className="content-cta-inner">
           <h2>Passe les filtres ATS à chaque candidature</h2>
           <p>Adapte ton CV en un clic à chaque offre. Essai gratuit, sans carte bancaire.</p>
-          <Link to="/login" className="button button-primary" {...analyticsAttrs('ats-cta-signup', 'content', 'primary', 'cta')}>Essayer AxeL Job gratuitement</Link>
+          <Link to="/login" className="button button-primary" onClick={() => persistLoginCta('ats-cta-signup')} {...analyticsAttrs('ats-cta-signup', 'content', 'primary', 'cta')}>Essayer AxeL Job gratuitement</Link>
         </div>
       </section>
 

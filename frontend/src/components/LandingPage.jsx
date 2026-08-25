@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CONTACT_EMAIL } from '../constants';
 import { analyticsAttrs } from '../lib/analyticsAttrs.js';
+import { persistLoginCta } from '../../public/signupAttribution.js';
 import './LandingPage.css';
 
 /** Liens articles / guides (menu mobile + cohérence avec le footer) */
@@ -84,6 +85,13 @@ export default function LandingPage({ onCtaClick, onProClick }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const drawerId = useId();
   const closeMenu = useCallback(() => setMenuOpen(false), []);
+  const goLogin = useCallback(
+    (dataAttr, then) => {
+      persistLoginCta(dataAttr);
+      then?.();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -127,7 +135,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
               <Link to="/faq" {...analyticsAttrs('nav-link-faq', 'header', 'tertiary', 'nav')}>FAQ</Link>
               <Link to="/modeles-cv" {...analyticsAttrs('nav-link-modeles', 'header', 'tertiary', 'nav')}>Modèles CV</Link>
               <Link to="/guide-cv" {...analyticsAttrs('nav-link-guide', 'header', 'tertiary', 'nav')}>Guide CV</Link>
-              <button type="button" className="button button-primary landing-cta-nav" onClick={onCtaClick} {...analyticsAttrs('nav-cta-signup', 'header', 'primary', 'cta')}>
+              <button type="button" className="button button-primary landing-cta-nav" onClick={() => goLogin('nav-cta-signup', onCtaClick)} {...analyticsAttrs('nav-cta-signup', 'header', 'primary', 'cta')}>
                 Essayer gratuitement
               </button>
             </nav>
@@ -143,7 +151,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
               >
                 <BurgerIcon open={menuOpen} />
               </button>
-              <button type="button" className="landing-mobile-cta button button-primary" onClick={onCtaClick} {...analyticsAttrs('nav-cta-start', 'header', 'primary', 'cta')}>
+              <button type="button" className="landing-mobile-cta button button-primary" onClick={() => goLogin('nav-cta-start', onCtaClick)} {...analyticsAttrs('nav-cta-start', 'header', 'primary', 'cta')}>
                 Commencer
               </button>
             </div>
@@ -195,7 +203,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
                 <li><Link to="/cgu" onClick={closeMenu}>CGU</Link></li>
               </ul>
               <div className="landing-nav-drawer-cta">
-                <button type="button" className="button button-primary" onClick={() => { closeMenu(); onCtaClick(); }} {...analyticsAttrs('nav-cta-drawer', 'drawer', 'primary', 'cta')}>
+                <button type="button" className="button button-primary" onClick={() => { closeMenu(); goLogin('nav-cta-drawer', onCtaClick); }} {...analyticsAttrs('nav-cta-drawer', 'drawer', 'primary', 'cta')}>
                   Essayer gratuitement
                 </button>
               </div>
@@ -216,7 +224,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
                 {"L'IA analyse l'offre d'emploi et adapte instantanément ton CV pour passer les filtres (ATS) et taper dans l'œil des recruteurs."}
               </p>
               <div className="landing-hero-ctas">
-                <button type="button" className="button button-primary landing-cta-hero" onClick={onCtaClick} {...analyticsAttrs('home-hero-cta-signup', 'hero', 'primary', 'cta')}>
+                <button type="button" className="button button-primary landing-cta-hero" onClick={() => goLogin('home-hero-cta-signup', onCtaClick)} {...analyticsAttrs('home-hero-cta-signup', 'hero', 'primary', 'cta')}>
                   Essayer gratuitement
                 </button>
                 <span className="landing-hero-hint">3 adaptations offertes</span>
@@ -305,7 +313,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
                   </li>
                 ))}
               </ul>
-              <button type="button" className="button button-secondary pricing-cta" onClick={onCtaClick} {...analyticsAttrs('home-pricing-cta-free', 'pricing', 'secondary', 'cta')}>
+              <button type="button" className="button button-secondary pricing-cta" onClick={() => goLogin('home-pricing-cta-free', onCtaClick)} {...analyticsAttrs('home-pricing-cta-free', 'pricing', 'secondary', 'cta')}>
                 Commencer gratuitement
               </button>
             </div>
@@ -327,7 +335,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
                   </li>
                 ))}
               </ul>
-              <button type="button" className="button button-primary pricing-cta" onClick={onProClick || onCtaClick} {...analyticsAttrs('home-pricing-cta-pro', 'pricing', 'primary', 'cta')}>
+              <button type="button" className="button button-primary pricing-cta" onClick={() => goLogin('home-pricing-cta-pro', onProClick || onCtaClick)} {...analyticsAttrs('home-pricing-cta-pro', 'pricing', 'primary', 'cta')}>
                 Passer Pro
               </button>
             </div>
@@ -370,7 +378,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
         <div className="landing-container">
           <h2>Prêt à décrocher le job de tes rêves ?</h2>
           <p>Crée ton compte gratuit et teste 3 adaptations de CV.</p>
-          <button type="button" className="button button-primary landing-cta-hero" onClick={onCtaClick} {...analyticsAttrs('home-final-cta-signup', 'final', 'primary', 'cta')}>
+          <button type="button" className="button button-primary landing-cta-hero" onClick={() => goLogin('home-final-cta-signup', onCtaClick)} {...analyticsAttrs('home-final-cta-signup', 'final', 'primary', 'cta')}>
             Essayer gratuitement
           </button>
         </div>

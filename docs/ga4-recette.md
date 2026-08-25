@@ -141,20 +141,24 @@ Hors DebugView, console :
 
 ```js
 window.dataLayer.filter(e => e && typeof e === 'object' && e.event &&
-  ['cta_click','nav_click','select_plan','section_view','outbound_click','contact_click'].includes(e.event))
+  ['cta_click','nav_click','select_plan','section_view','outbound_click','contact_click','sign_up_start','sign_up'].includes(e.event))
 ```
 
 ## 4. Découpage vs AXE-362
 
-| Critère AXE-365 | Statut sans 362 |
+Code attribution : `frontend/public/signupAttribution.js` (AXE-362). Recette `sign_up*` après **deploy** de 362.
+
+| Critère | Statut |
 |---|---|
 | GTM prod ID réel | À vérifier (toi, console + Docker) |
-| DebugView `cta_click` / `nav_click` / `select_plan` / `section_view` / `outbound_click` / `contact_click` | Recettable **maintenant** |
-| DebugView `sign_up_start` / `sign_up` | **Après AXE-362** |
+| DebugView `cta_click` / `nav_click` / `select_plan` / `section_view` / `outbound_click` / `contact_click` | Recettable (361) |
+| DebugView `sign_up_start` (arrivée `/login`, `method=form`) | Après deploy 362 |
+| DebugView `sign_up` (`method`, `plan_intent`, `source_cta_id`) | Après deploy 362 + **nouveau** compte |
+| « Vous aviez déjà un compte » | **pas** de `sign_up` |
 | Dimensions perso | Créer maintenant |
 | Conversion `select_plan` | Maintenant |
-| Conversion `sign_up` | Déclarer maintenant, tester après 362 |
-| Funnel complet + test Pro → **nouveau** compte | Après 362 (recette signup = quelqu’un d’autre si besoin) |
+| Conversion `sign_up` | Tester après deploy 362 |
+| Funnel complet + test Pro → **nouveau** compte | Recette signup = quelqu’un d’autre si besoin |
 
 ## 5. Rollback
 

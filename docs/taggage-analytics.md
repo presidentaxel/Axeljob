@@ -3,10 +3,11 @@
 > **Inventaire vague 1 figé 2026-08-25** ([AXE-358](https://linear.app/axel-project/issue/AXE-358/spike-inventaire-fige-des-identifiants-data-attr)). 55 IDs, aucun doublon. On n’en renomme aucun ; on ajoute ou on déprécie.  
 > Tickets 2 ([AXE-359](https://linear.app/axel-project/issue/AXE-359)) et 3 ([AXE-360](https://linear.app/axel-project/issue/AXE-360)) : `data-attr` posés (mergés).  
 > **PostHog v1 : no-go** ([AXE-363](https://linear.app/axel-project/issue/AXE-363), 2026-08-25) — ticket 7 ([AXE-364](https://linear.app/axel-project/issue/AXE-364)) annulé. Recette = GA4 seul.  
+> Tracker CMP : [AXE-361](https://linear.app/axel-project/issue/AXE-361) mergé. Runbook GA4 : [`docs/ga4-recette.md`](ga4-recette.md) ([AXE-365](https://linear.app/axel-project/issue/AXE-365)).  
 > **Usage Linear (historique) :** coller le bloc « Projet » puis chaque ticket (titre + labels + description).  
 > **Workflow :** [`docs/linear-github-workflow.md`](linear-github-workflow.md) · 1 issue Linear = 1 branche = 1 PR.
 
-État du code (août 2026) : `data-attr` marketing posés (landing + globaux/login/contenu/404). Pas encore de tracker CTA. Infra déjà là : CMP + GTM/GA4 (si `VITE_AXEL_GTM_ID` en prod) + analytics **produit** interne (`/api/events/track`) limitée à l’app connectée. **Pas de SDK PostHog.**
+État du code (août 2026) : `data-attr` marketing posés (landing + globaux/login/contenu/404). Tracker unique `frontend/public/track.js` derrière la CMP (AXE-361). Infra : CMP + GTM/GA4 (si `VITE_AXEL_GTM_ID` en prod) + analytics **produit** interne (`/api/events/track`) limitée à l’app connectée. **Pas de SDK PostHog.** Attribution signup = [AXE-362](https://linear.app/axel-project/issue/AXE-362) (pas encore).
 
 ---
 
@@ -31,11 +32,10 @@ Ordre de livraison (dépendances) :
 6 spike PostHog  →  no-go v1  (7 AXE-364 annulé)
 ```
 
-Ticket 1 **figé 2026-08-25**. Tickets 2 et 3 **mergés**.  
-Ticket 4 **après** 2 (sinon le listener n’a rien à lire) — prochain code.  
-Ticket 5 peut chevaucher 4.  
+Ticket 1 **figé 2026-08-25**. Tickets 2, 3 et 4 ([AXE-361](https://linear.app/axel-project/issue/AXE-361)) **mergés**.  
+Ticket 5 ([AXE-362](https://linear.app/axel-project/issue/AXE-362)) attribution signup — prochain code.  
 Ticket 6 **no-go v1 (2026-08-25)**. Ticket 7 annulé.  
-Ticket 8 est ops (GA4 UI), pas forcément une PR code. Recette = GA4 seul.
+Ticket 8 ([AXE-365](https://linear.app/axel-project/issue/AXE-365)) recette GA4 : runbook [`docs/ga4-recette.md`](ga4-recette.md). DebugView = ops (Louis).
 
 ---
 
@@ -626,7 +626,9 @@ V2 candidatures (ne pas poser maintenant) : ouverture carte, archive, drag colon
 
 ## D. Recette (après tickets 4–5–8)
 
-**Intégration**
+Runbook ops (GTM + GA4 DebugView) : **[`docs/ga4-recette.md`](ga4-recette.md)**.
+
+`sign_up*` / `plan_intent` : après [AXE-362](https://linear.app/axel-project/issue/AXE-362). Recettable dès maintenant : `cta_click`, `nav_click`, `select_plan`, `section_view`.
 
 - [ ] 55 identifiants posés, uniques (grep `data-attr=` + table)
 - [ ] Aucun `data-attr` dans une feuille de style

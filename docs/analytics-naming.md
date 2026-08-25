@@ -70,7 +70,7 @@ Deux dialectes **déjà en prod** — on ne les unifie pas (rename = funnels cas
 | `data-section` | kebab | marketing, observé 50 % → `section_view` | 358 C.7 |
 | `data-analytics-section` | **snake_case** (déjà en prod : `cv_workspace`, `candidatures_board`) | `/app`, observé → `page_engagement.sections` | ce doc |
 
-Nouveaux `data-attr` /app hors C.9–C.16 : même convention kebab. Nouveaux `data-analytics-section` : snake_case (aligné code actuel, pas kebab).
+C.9–C.16 sont figés (C.10–C.16 = markup [AXE-396](https://linear.app/axel-project/issue/AXE-396)). Tout `data-attr` /app **ajouté ensuite** : même convention kebab. Nouveaux `data-analytics-section` : snake_case (aligné code actuel, pas kebab).
 
 ---
 

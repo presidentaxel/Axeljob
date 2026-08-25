@@ -16,6 +16,7 @@ import {
   trackEvent,
 } from './api';
 import { ensureAnalyticsFirstTouch, getStoredAttribution } from './analyticsSession';
+import { consumePlanIntentIfPro, maybeEmitSignUpForSession, wantsProCheckout } from '../public/signupAttribution.js';
 import { resetTemplateOptionsToDefaults } from './lib/templateOptionsSchema.js';
 import { useViewAnalytics } from './useViewAnalytics';
 import { supabase } from './lib/supabase';
@@ -1111,6 +1112,7 @@ export default function App() {
       setAuthToken(s?.access_token ?? null);
       if (event === 'PASSWORD_RECOVERY') setRecoveryMode(true);
       if (s) setMfaChallengeChecked(false);
+      if (event === 'SIGNED_IN' && s?.user) maybeEmitSignUpForSession(s.user);
     });
     return () => subscription?.unsubscribe();
   }, []);
@@ -1280,7 +1282,8 @@ export default function App() {
     if (session) {
       const params = new URLSearchParams(location.search);
       if (pathname === '/' || pathname === '/login') {
-        if (params.get('plan') === 'pro') {
+        if (wantsProCheckout(location.search)) {
+          consumePlanIntentIfPro();
           navigate(APP_DEFAULT_ROUTE, { replace: true });
           setTimeout(() => handleUpgradeClick(), 500);
         } else {

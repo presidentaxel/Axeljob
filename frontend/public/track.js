@@ -4,7 +4,14 @@
  * consentement analytics (`axel_job_consent_v1` / `axel_consent_update`).
  * Hors `/app/*`. Ne cible jamais une classe CSS.
  */
-export const CONSENT_STORAGE_KEY = 'axel_job_consent_v1';
+import {
+  CONSENT_STORAGE_KEY,
+  emitMarketingEvent,
+  hasAnalyticsConsent,
+  persistFromCtaClick,
+} from './signupAttribution.js';
+
+export { CONSENT_STORAGE_KEY, hasAnalyticsConsent };
 export const SECTION_VIEWED_KEY = 'axel_section_viewed_v1';
 
 /** Destinations des CTA React sans href (catalogue AXE-358). */
@@ -44,16 +51,6 @@ export function sanitizeCtaText(text) {
   s = s.replace(/\s+/g, ' ').trim();
   if (s.length > 80) s = s.slice(0, 80);
   return s;
-}
-
-export function hasAnalyticsConsent(raw) {
-  if (!raw) return false;
-  try {
-    const o = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    return !!(o && o.v === 1 && o.analytics);
-  } catch {
-    return false;
-  }
 }
 
 export function resolveLinkUrl(dataAttr, href) {
@@ -152,13 +149,7 @@ function readStoredConsent() {
 }
 
 function emit(name, params) {
-  if (!hasAnalyticsConsent(readStoredConsent())) return;
-  const payload = { event: name, ...params };
-  if (typeof window.gtag === 'function') {
-    window.gtag('event', name, params);
-  }
-  window.dataLayer = window.dataLayer || [];
-  window.dataLayer.push(payload);
+  emitMarketingEvent(name, params);
 }
 
 function attrsFromEl(el) {
@@ -186,6 +177,11 @@ function onDocumentClick(e) {
   const input = attrsFromEl(el);
   if (!input) return;
   const events = eventsFromClick(input);
+  persistFromCtaClick({
+    dataAttr: input.dataAttr,
+    dataTrack: input.dataTrack,
+    linkUrl: resolveLinkUrl(input.dataAttr, input.href),
+  });
   for (const ev of events) emit(ev.name, ev.params);
 }
 

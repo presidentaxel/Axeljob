@@ -142,7 +142,7 @@ Le brief growth parle de 55 identifiants. Ils n’existent nulle part dans le re
 - [x] FAQ : poser `faq-question-*` sur les `<h2>` ; `faq_open` reporté en v2 (pas d’accordéon)
 - [x] Login back = `nav-link-back` (pas de `login-link-back`)
 - [x] Liste v2 (drawer links tertiaires, sources outbound FAQ) **exclue** de la vague 1
-- [x] Commentaire Linear : « inventaire figé, on peut coder le ticket 2 »
+- [x] Commentaire Linear : « inventaire figé, on peut coder le ticket 2 » (AXE-359) **et** le ticket 3 (AXE-360)
 
 ## Zones
 
@@ -152,7 +152,7 @@ Le brief growth parle de 55 identifiants. Ils n’existent nulle part dans le re
 
 Un identifiant posé en production ne se renomme jamais. On ajoute, on déprécie.
 
-**Validé AXE-358 (2026-08-25).** Inventaire figé, on peut coder le ticket 2 (AXE-359).
+**Validé AXE-358 (2026-08-25).** Inventaire figé, on peut coder le ticket 2 ([AXE-359](https://linear.app/axel-project/issue/AXE-359)) et le ticket 3 ([AXE-360](https://linear.app/axel-project/issue/AXE-360)).
 ```
 
 ---
@@ -657,7 +657,7 @@ V2 candidatures (ne pas poser maintenant) : ouverture carte, archive, drag colon
 
 ## F. Commentaire type (après création des issues)
 
-À poster en **project update** Linear (`onTrack`) — **déjà fait** à l’ouverture du chantier. Après freeze AXE-358 :
+Project update Linear (`onTrack`) publié au freeze AXE-358 : [activité du projet Tagging](https://linear.app/axel-project/project/axel-job-tagging-interne-and-externe-f932ba5559ef/activity#project-update-5a1fc45b). Texte :
 
 ```markdown
 Inventaire data-attr figé (AXE-358, 2026-08-25). 55 IDs, aucun doublon.

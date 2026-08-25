@@ -1,11 +1,12 @@
 # Axel Job — Taggage analytics (landing → signup)
 
 > **Inventaire vague 1 figé 2026-08-25** ([AXE-358](https://linear.app/axel-project/issue/AXE-358/spike-inventaire-fige-des-identifiants-data-attr)). 55 IDs, aucun doublon. On n’en renomme aucun ; on ajoute ou on déprécie.  
-> Tickets 2 ([AXE-359](https://linear.app/axel-project/issue/AXE-359)) et 3 ([AXE-360](https://linear.app/axel-project/issue/AXE-360)) peuvent poser les `data-attr`.  
+> Tickets 2 ([AXE-359](https://linear.app/axel-project/issue/AXE-359)) et 3 ([AXE-360](https://linear.app/axel-project/issue/AXE-360)) : `data-attr` posés (mergés).  
+> **PostHog v1 : no-go** ([AXE-363](https://linear.app/axel-project/issue/AXE-363), 2026-08-25) — ticket 7 ([AXE-364](https://linear.app/axel-project/issue/AXE-364)) annulé. Recette = GA4 seul.  
 > **Usage Linear (historique) :** coller le bloc « Projet » puis chaque ticket (titre + labels + description).  
 > **Workflow :** [`docs/linear-github-workflow.md`](linear-github-workflow.md) · 1 issue Linear = 1 branche = 1 PR.
 
-État du code (août 2026) : **aucun `data-attr` marketing** landing → signup. C.9 candidatures (`/app/postule`) déjà posé hors vague 1. Pas de tracker CTA marketing. Infra déjà là : CMP + GTM/GA4 (si `VITE_AXEL_GTM_ID` en prod) + analytics **produit** interne (`/api/events/track`) limitée à l’app connectée.
+État du code (août 2026) : `data-attr` marketing posés (landing + globaux/login/contenu/404). Pas encore de tracker CTA. Infra déjà là : CMP + GTM/GA4 (si `VITE_AXEL_GTM_ID` en prod) + analytics **produit** interne (`/api/events/track`) limitée à l’app connectée. **Pas de SDK PostHog.**
 
 ---
 
@@ -22,18 +23,19 @@
 Ordre de livraison (dépendances) :
 
 ```
-1 inventaire  →  2 landing + 3 pages contenu
+1 inventaire  →  2 landing + 3 pages contenu   (faits)
               →  4 tracker CMP
               →  5 attribution signup
               →  8 recette GA4
 
-6 spike PostHog  →  7 PostHog (si go)
+6 spike PostHog  →  no-go v1  (7 AXE-364 annulé)
 ```
 
-Ticket 1 **figé 2026-08-25**. Tickets 2 et 3 peuvent partir en parallèle.  
-Ticket 4 **après** 2 (sinon le listener n’a rien à lire).  
+Ticket 1 **figé 2026-08-25**. Tickets 2 et 3 **mergés**.  
+Ticket 4 **après** 2 (sinon le listener n’a rien à lire) — prochain code.  
 Ticket 5 peut chevaucher 4.  
-Ticket 8 est ops (GA4 UI), pas forcément une PR code.
+Ticket 6 **no-go v1 (2026-08-25)**. Ticket 7 annulé.  
+Ticket 8 est ops (GA4 UI), pas forcément une PR code. Recette = GA4 seul.
 
 ---
 
@@ -84,13 +86,13 @@ Tagger les **deux** arbres. Un tracker qui lit `href` uniquement rate tous les C
 
 - CMP Consent Mode v2 : `frontend/public/consent-gtm.js`
 - GTM injecté au build : `VITE_AXEL_GTM_ID` → `analytics-config.js`
-- `/confidentialite` : GTM/GA4 derrière consentement (**PostHog absent**)
+- `/confidentialite` : GTM/GA4 derrière consentement (**PostHog absent, no-go v1**)
 - First-touch UTM : `frontend/src/analyticsSession.js`
 - Events app connectée : `POST /api/events/track` (whitelist) — **inactif** sur landing/login
 
-## Décision ouverte
+## Décision PostHog (figée v1)
 
-PostHog : go/no-go RGPD (ticket 6) avant tout SDK.
+**No-go v1 (2026-08-25, AXE-363).** GA4 + tracker custom + `/api/events/track` suffisent. Pas de SDK PostHog. Revoir seulement s’il y a un vrai A/B à lancer (alors : Cloud EU, même case CMP « Mesure d’audience », pas d’autocapture sur `/app`).
 ```
 
 ---
@@ -107,7 +109,7 @@ Remplir la colonne `AXE-XX` après création.
 | 4 | `Feat: Tracker unique CTA/nav/plan/section derrière la CMP` | AxelJob, Feature | 2 | [AXE-361](https://linear.app/axel-project/issue/AXE-361) | `louisvedovato/axe-361-feat-tracker-unique-ctanavplansection-derriere-la-cmp` |
 | 5 | `Feat: Attribution source_cta_id et plan_intent jusqu’au compte créé` | AxelJob, Feature | 2 | [AXE-362](https://linear.app/axel-project/issue/AXE-362) | `louisvedovato/axe-362-feat-attribution-source_cta_id-et-plan_intent-jusquau-compte` |
 | 6 | `Spike: PostHog — go/no-go RGPD` | AxelJob, Improvement | — | [AXE-363](https://linear.app/axel-project/issue/AXE-363) | `louisvedovato/axe-363-spike-posthog-gono-go-rgpd` |
-| 7 | `Feat: Brancher PostHog (événements + autocapture data-attr)` | AxelJob, Feature | 4 + 6 (go) | [AXE-364](https://linear.app/axel-project/issue/AXE-364) | `louisvedovato/axe-364-feat-brancher-posthog-evenements-autocapture-data-attr` |
+| 7 | `Feat: Brancher PostHog (événements + autocapture data-attr)` | AxelJob, Feature | 4 + 6 (go) | [AXE-364](https://linear.app/axel-project/issue/AXE-364) **Canceled** | `louisvedovato/axe-364-feat-brancher-posthog-evenements-autocapture-data-attr` |
 | 8 | `Chore: Recette GA4 — conversions, dimensions, DebugView` | AxelJob, Improvement | 4 + 5 | [AXE-365](https://linear.app/axel-project/issue/AXE-365) | `louisvedovato/axe-365-chore-recette-ga4-conversions-dimensions-debugview` |
 
 Convention site-wide (hors ces 8 tickets) : [AXE-356](https://linear.app/axel-project/issue/AXE-356). 358 fige l’instance landing → signup sans l’attendre.
@@ -347,17 +349,17 @@ Le brief suppose PostHog en parallèle de GA4 (autocapture, toolbar `data-attr`,
 
 ## Questions à trancher
 
-- [ ] PostHog EU cloud vs self-host vs **on ne le met pas** (GA4 + tracker custom suffisent en v1)
-- [ ] Finalités / base légale / sous-traitant à ajouter dans `/confidentialite`
-- [ ] Même CMP : analytics_storage granted ⇒ PostHog **ou** consentement distinct
-- [ ] Autocapture : OK si on ne capture pas champs formulaire / CV / annonce (masking)
-- [ ] Qui paie / quel projet PostHog / qui gère les feature flags
+- [x] PostHog EU cloud vs self-host vs **on ne le met pas** (GA4 + tracker custom suffisent en v1)
+- [x] Finalités / base légale / sous-traitant à ajouter dans `/confidentialite` — **N/A v1** (pas de sous-traitant PostHog)
+- [x] Même CMP : analytics_storage granted ⇒ PostHog **ou** consentement distinct — **N/A v1** ; si go futur : même case « Mesure d’audience »
+- [x] Autocapture : OK si on ne capture pas champs formulaire / CV / annonce (masking) — **N/A v1** ; si go futur : pas d’autocapture sur `/app`
+- [x] Qui paie / quel projet PostHog / qui gère les feature flags — **non tranché, donc pas d’outil d’expé en v1**
 
 ## Critères d’acceptation
 
-- [ ] Commentaire Linear : **go** ou **no-go** + 3 lignes de justification
-- [ ] Si go : liste des mentions à ajouter dans `confidentialite` (ticket 7)
-- [ ] Si no-go : ticket 7 **annulé**, recette = GA4 seul
+- [x] Commentaire Linear : **go** ou **no-go** + 3 lignes de justification — **no-go v1**, 2026-08-25
+- [x] Si go : liste des mentions à ajouter dans `confidentialite` (ticket 7) — N/A
+- [x] Si no-go : ticket 7 **annulé**, recette = GA4 seul
 
 ## Zones
 
@@ -365,13 +367,15 @@ Le brief suppose PostHog en parallèle de GA4 (autocapture, toolbar `data-attr`,
 - `frontend/public/consent-gtm.js` (lecture)
 ```
 
+**Validé AXE-363 (2026-08-25).** No-go v1. [AXE-364](https://linear.app/axel-project/issue/AXE-364) annulé. Recette = GA4 seul ([AXE-365](https://linear.app/axel-project/issue/AXE-365)). Revoir PostHog seulement s’il y a un A/B réel (Cloud EU, même CMP, pas d’autocapture `/app`).
+
 ---
 
-### Ticket 7 — Feat: Brancher PostHog (événements + autocapture data-attr)
+### Ticket 7 — Feat: Brancher PostHog (événements + autocapture data-attr) — **ANNULÉ**
 
 **Labels :** `AxelJob` + `Feature`  
 **Priorité :** Medium  
-**Bloqué par** ticket 6 = go **et** ticket 4.
+**Statut :** **Canceled** 2026-08-25 (no-go AXE-363). Ne pas implémenter en v1.
 
 ```markdown
 ## Problème
@@ -414,7 +418,7 @@ Même avec le tracker, GA4 n’affichera pas les funnels tant que les events cus
 - [ ] Params `cta_id`, `cta_zone`, `cta_level` renseignés (jamais `unknown` sur le catalogue)
 - [ ] Dimensions perso : `cta_id`, `cta_zone`, `cta_level`, `plan`, `section_id`
 - [ ] Conversions : `sign_up`, `select_plan`
-- [ ] Funnel de référence créé (GA4) ; PostHog si ticket 7
+- [ ] Funnel de référence créé (GA4) ; PostHog **hors v1** (AXE-364 annulé)
 - [ ] Test manuel : clic Pro → compte test → `plan_intent=pro` visible sur `sign_up`
 
 ## Funnel de référence
@@ -596,7 +600,7 @@ Pas des `data-attr`. Observer à 50 %, une fois par session.
 ### C.9 App connectée — Mes candidatures (`/app/postule`) — **figé 2026-08-21**
 
 Extension hors vague 1 (landing → signup). Même convention `page-zone-type-intention`.  
-Un ID posé en prod ne se renomme jamais. Tracker app = `/api/events/track` + futurs outils (GA4/PostHog) derrière CMP.
+Un ID posé en prod ne se renomme jamais. Tracker app = `/api/events/track` + GA4 derrière CMP (PostHog hors v1).
 
 | data-attr | type | level | Où | Intention |
 |---|---|---|---|---|
@@ -637,8 +641,8 @@ V2 candidatures (ne pas poser maintenant) : ouverture carte, archive, drag colon
 - [ ] `cta_id` / `cta_zone` / `cta_level` renseignés
 - [ ] `sign_up` et `select_plan` en conversions
 - [ ] `?plan=pro` survit à l’inscription (email **et** OAuth)
-- [ ] PostHog toolbar : `data-attr` (si go)
-- [ ] Funnel créé dans le(s) outil(s) retenus
+- [x] PostHog toolbar : **hors v1** (no-go AXE-363)
+- [ ] Funnel créé dans GA4
 
 ---
 
@@ -649,7 +653,7 @@ V2 candidatures (ne pas poser maintenant) : ouverture carte, archive, drag colon
 | Tokens `#5B4CFF`, `.btn--primary`, radius 10px | Design system `--ds-*` / `Button.jsx` |
 | Tracker qui lit uniquement `el.href` | Landing = `<button>` sans href |
 | `faq_open` immédiat | FAQ = articles ouverts |
-| PostHog « juste le brancher » | Ticket 6 d’abord |
+| PostHog « juste le brancher » | **No-go v1** (AXE-363) ; GA4 + tracker |
 | Un listener posé en JS après hydratation **sans** attributs SSR/JSX | Attributs dans le markup au render |
 | Cibler `.btn` dans GTM | Interdit |
 

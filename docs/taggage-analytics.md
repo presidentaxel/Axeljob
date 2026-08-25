@@ -628,7 +628,7 @@ V2 candidatures (ne pas poser maintenant) : ouverture carte, archive, drag colon
 
 Runbook ops (GTM + GA4 DebugView) : **[`docs/ga4-recette.md`](ga4-recette.md)**.
 
-`sign_up*` / `plan_intent` : après [AXE-362](https://linear.app/axel-project/issue/AXE-362). Recettable dès maintenant : `cta_click`, `nav_click`, `select_plan`, `section_view`.
+`sign_up*` / `plan_intent` : après [AXE-362](https://linear.app/axel-project/issue/AXE-362). Recettable dès maintenant : `cta_click`, `nav_click`, `select_plan`, `section_view`, `outbound_click`, `contact_click`.
 
 - [ ] 55 identifiants posés, uniques (grep `data-attr=` + table)
 - [ ] Aucun `data-attr` dans une feuille de style

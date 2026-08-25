@@ -47,6 +47,8 @@ Les clics sont déjà captés par `track.js` via `data-attr`.
 | `dlv - section_id` | `section_id` |
 | `dlv - link_domain` | `link_domain` |
 | `dlv - method` | `method` |
+| `dlv - source_cta_id` | `source_cta_id` *(après AXE-362)* |
+| `dlv - plan_intent` | `plan_intent` *(après AXE-362)* |
 
 ### 1.2 Déclencheurs (événement personnalisé)
 
@@ -63,7 +65,7 @@ Un déclencheur par nom, **nom d’événement = nom GA4** :
 | `CE - sign_up_start` | `sign_up_start` *(après AXE-362)* |
 | `CE - sign_up` | `sign_up` *(après AXE-362)* |
 
-Consentement GTM : ces balises en **analytics_storage = Granted** (Consent Mode v2 déjà initialisé par `consent-gtm.js`).
+Consentement : `consent-gtm.js` pose Consent Mode v2 avec `analytics_storage` **denied** par défaut, puis `update` selon le bandeau (`granted` / `denied`). Les balises Google (GA4 Event) ont déjà un contrôle intégré — **ne pas** ajouter un « additional consent check » GTM sur `analytics_storage`, ça peut entrer en conflit. Le tracker n’émet rien tant que la mesure d’audience n’est pas ON. Recetter les deux états (refusé : aucun event marketing ; accordé : events ci-dessous).
 
 ### 1.3 Balises GA4 Event
 
@@ -129,7 +131,10 @@ Funnel cible après 362 :
 | Passer Pro | `cta_click` **et** `select_plan` | `plan=pro`, `price=10`, `zone=pricing` |
 | Commencer gratuitement | `cta_click` + `select_plan` | `plan=free`, `price=0` |
 | Lien footer FAQ | `nav_click` | `nav_id=footer-link-faq` |
+| Lien Axel Project (footer) | `nav_click` **et** `outbound_click` | host `axelproject.fr` ≠ `job.axelproject.fr` |
+| Support (`mailto:`, footer React) | `nav_click` **et** `contact_click` | `method=email` ; `link_url` = `mailto:` (pas l’adresse) |
 | Scroll tarifs ≥ 50 % | `section_view` | `section_id=pricing`, **une fois** par onglet |
+| Audience **refusée** | — | **aucun** event marketing (tracker silencieux) |
 | `/app` connecté | — | **aucun** de ces events marketing |
 
 Hors DebugView, console :
@@ -144,7 +149,7 @@ window.dataLayer.filter(e => e && typeof e === 'object' && e.event &&
 | Critère AXE-365 | Statut sans 362 |
 |---|---|
 | GTM prod ID réel | À vérifier (toi, console + Docker) |
-| DebugView `cta_click` / `nav_click` / `select_plan` / `section_view` | Recettable **maintenant** |
+| DebugView `cta_click` / `nav_click` / `select_plan` / `section_view` / `outbound_click` / `contact_click` | Recettable **maintenant** |
 | DebugView `sign_up_start` / `sign_up` | **Après AXE-362** |
 | Dimensions perso | Créer maintenant |
 | Conversion `select_plan` | Maintenant |

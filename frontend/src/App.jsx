@@ -20,6 +20,7 @@ import { resetTemplateOptionsToDefaults } from './lib/templateOptionsSchema.js';
 import { useViewAnalytics } from './useViewAnalytics';
 import { supabase } from './lib/supabase';
 import { fetchAuthSessionWithTimeout } from './lib/supabaseAuthSession';
+import { analyticsAttrs } from './lib/analyticsAttrs.js';
 import AuthForm from './components/AuthForm';
 import AppTopbar from './components/AppTopbar';
 import CompanyLogo from './components/CompanyLogo';
@@ -3333,8 +3334,8 @@ export default function App() {
   if (!session) {
     if (pathname === '/login') {
       return (
-        <div className="login-screen">
-          <button type="button" className="login-screen-back" onClick={() => navigate('/')} aria-label="Retour à l'accueil">
+        <div className="login-screen" data-section="login">
+          <button type="button" className="login-screen-back" onClick={() => navigate('/')} aria-label="Retour à l'accueil" {...analyticsAttrs('nav-link-back', 'header', 'tertiary', 'nav')}>
             &larr; Retour à l&apos;accueil
           </button>
           <div className="login-screen-card">

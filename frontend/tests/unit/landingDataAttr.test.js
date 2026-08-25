@@ -72,7 +72,25 @@ test('landing React et HTML statique portent les data-attr AXE-359 en miroir', a
 
   assert.equal(jsxIds.includes('nav-logo'), false);
   assert.equal(jsxIds.includes('nav-link-back'), false);
-  assert.ok(!jsxIds.some((id) => id.startsWith('footer-')), 'footer hors AXE-359');
+
+  const footerIds = [
+    'footer-link-ats',
+    'footer-link-faq',
+    'footer-link-modeles',
+    'footer-link-guide',
+    'footer-link-erreurs',
+    'footer-link-metier',
+    'footer-link-adapte',
+    'footer-link-mentions',
+    'footer-link-confidentialite',
+    'footer-link-cgu',
+    'footer-link-axelproject',
+  ];
+  for (const id of footerIds) {
+    assert.ok(jsxIds.includes(id), `manque footer React: ${id}`);
+    assert.ok(htmlIds.includes(id), `manque footer HTML: ${id}`);
+  }
+  assert.ok(jsxIds.includes('footer-link-support'), 'Support tagué en React (mailto HTML non modifié : secret scan)');
 
   for (const section of SECTIONS) {
     assert.ok(sectionsFrom(jsx).includes(section), `data-section React: ${section}`);

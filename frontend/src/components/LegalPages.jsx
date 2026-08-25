@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { CONTACT_EMAIL } from '../constants';
+import { analyticsAttrs } from '../lib/analyticsAttrs.js';
 import ContentScrollToTop from './ContentScrollToTop';
 import './LegalPages.css';
 
@@ -262,7 +263,7 @@ export default function LegalPages({ page, onBack }) {
     <div className="legal-page">
       <header className="legal-header">
         <div className="legal-container">
-          <Link to="/" className="legal-back" onClick={(e) => { e.preventDefault(); onBack(); }}>
+          <Link to="/" className="legal-back" onClick={(e) => { e.preventDefault(); onBack(); }} {...analyticsAttrs('nav-link-back', 'header', 'tertiary', 'nav')}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
             Retour à l'accueil
           </Link>
@@ -274,9 +275,9 @@ export default function LegalPages({ page, onBack }) {
       <footer className="legal-footer">
         <div className="legal-container">
           <nav className="legal-footer-nav">
-            <Link to="/mentions-legales">Mentions légales</Link>
-            <Link to="/confidentialite">Confidentialité</Link>
-            <Link to="/cgu">CGU</Link>
+            <Link to="/mentions-legales" {...analyticsAttrs('footer-link-mentions', 'footer', 'tertiary', 'nav')}>Mentions légales</Link>
+            <Link to="/confidentialite" {...analyticsAttrs('footer-link-confidentialite', 'footer', 'tertiary', 'nav')}>Confidentialité</Link>
+            <Link to="/cgu" {...analyticsAttrs('footer-link-cgu', 'footer', 'tertiary', 'nav')}>CGU</Link>
           </nav>
         </div>
       </footer>

@@ -117,7 +117,7 @@ Convention site-wide (hors ces 8 tickets) : [AXE-356](https://linear.app/axel-pr
 Backlog hors vague 1 :
 
 - `Improve: Un seul bouton primary visible par écran sur la landing`
-- Events orphelins produit + balisage `/app` : filles d’AXE-356 — [AXE-394](https://linear.app/axel-project/issue/AXE-394) (whitelist), [AXE-395](https://linear.app/axel-project/issue/AXE-395) (inventaire `/app`), [AXE-396](https://linear.app/axel-project/issue/AXE-396) (balisage), [AXE-397](https://linear.app/axel-project/issue/AXE-397) (`login` produit). Contrat : [`docs/analytics-naming.md`](analytics-naming.md).
+- Events orphelins produit + balisage `/app` : filles d’AXE-356 — [AXE-394](https://linear.app/axel-project/issue/AXE-394) (whitelist, ce ticket), [AXE-395](https://linear.app/axel-project/issue/AXE-395) (inventaire `/app`), [AXE-396](https://linear.app/axel-project/issue/AXE-396) (balisage), [AXE-397](https://linear.app/axel-project/issue/AXE-397) (`login` produit). Contrat : [`docs/analytics-naming.md`](analytics-naming.md).
 
 ---
 

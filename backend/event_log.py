@@ -61,6 +61,9 @@ EVENT_TEMPLATE_CHANGED = "template_changed"
 EVENT_PAGE_ENGAGEMENT = "page_engagement"
 EVENT_ADAPT_CTA_CLICKED = "adapt_cta_clicked"
 EVENT_PROMO_CODE_REDEEMED = "promo_code_redeemed"
+EVENT_BASE_CV_PDF_DOWNLOADED = "base_cv_pdf_downloaded"
+EVENT_FIRST_OFFER_NUDGE_CTA = "first_offer_nudge_cta"
+EVENT_NEW_CANDIDATURE_WORKSPACE = "new_candidature_workspace"
 
 
 def _anon_user_id(user_id: str | None) -> str:

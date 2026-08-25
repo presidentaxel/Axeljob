@@ -238,9 +238,10 @@ posthog.capture('sign_up', {
   source_cta_id: 'home-pricing-cta-pro',
 });
 
-// Produit (session /app — first-party aujourd’hui ; PH seulement si go + base légale)
-posthog.capture('adaptation_completed', { adaptation_id, template_id });
+// Produit front (mêmes noms que /api/events/track — PH seulement si go + base légale)
+posthog.capture('adapt_cta_clicked', { source: 'chat_send' });
 posthog.capture('page_view', { view: 'cv', path: '/app/cv' });
+// adaptation_completed reste backend-only (event_log) — ne pas le recapturer côté client
 ```
 
 ---

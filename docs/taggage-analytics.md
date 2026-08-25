@@ -600,7 +600,9 @@ Pas des `data-attr`. Observer à 50 %, une fois par session.
 ### C.9 App connectée — Mes candidatures (`/app/postule`) — **figé 2026-08-21**
 
 Extension hors vague 1 (landing → signup). Même convention `page-zone-type-intention`.  
-Un ID posé en prod ne se renomme jamais. Tracker app = `/api/events/track` + GA4 derrière CMP (PostHog hors v1).
+Un ID posé en prod ne se renomme jamais.
+
+**Transport `/app` (contrat [AXE-356](https://linear.app/axel-project/issue/AXE-356) / [`docs/analytics-naming.md`](analytics-naming.md)) :** events explicites `trackEvent()` → `POST /api/events/track` → `event_log`. **Pas** de GA4, **pas** de CMP, **pas** de `track.js` (ignore `/app`). Les `data-attr` C.9 servent la recette DOM ; ils n’émettent rien tant qu’un tracker /app n’existe pas (v2).
 
 | data-attr | type | level | Où | Intention |
 |---|---|---|---|---|
@@ -612,13 +614,15 @@ Un ID posé en prod ne se renomme jamais. Tracker app = `/api/events/track` + GA
 | `candidatures-controls-input-search` | input | tertiary | Barre de filtres | Champ recherche. **Ne jamais** envoyer la valeur dans un event. |
 | `candidatures-list-input-statut` | input | tertiary | Liste mobile (≤768px) | Select changement de statut. **Ne jamais** envoyer la valeur dans un event. |
 
-`data-section` (hors compte) :
+`data-analytics-section` (hors compte, snake_case — observé par `useViewAnalytics` → `page_engagement.sections`) :
 
-| data-section | Zone |
+| data-analytics-section | Zone |
 |---|---|
-| `candidatures` | Board kanban `/app/postule` |
-| `candidatures-stats` | Bandeau métriques |
-| `candidatures-list-mobile` | Liste groupée mobile (AXE-381) |
+| `candidatures_board` | Board kanban `/app/postule` |
+| `candidatures_stats` | Bandeau métriques |
+| `candidatures_list_mobile` | Liste groupée mobile (AXE-381) |
+
+Les `data-section` kebab encore présents sur les mêmes nœuds (`candidatures`, `candidatures-stats`, …) **ne sont pas lus** (`track.js` ignore `/app`). Ne pas s’en servir. Ne pas les renommer ici (markup = tickets filles AXE-395 / 396).
 
 V2 candidatures (ne pas poser maintenant) : ouverture carte, archive, drag colonne, métriques cliquables.
 

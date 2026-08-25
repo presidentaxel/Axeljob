@@ -17,7 +17,7 @@ Recette GA4 : [`docs/ga4-recette.md`](ga4-recette.md).
 | Transport | `track.js` + `signupAttribution.js` → `dataLayer` / `gtag` | `trackEvent()` → `POST /api/events/track` → `event_log` (JSONL + Supabase) |
 | Outil | **GA4** `G-7524WTRGSY` via GTM (`VITE_AXEL_GTM_ID` au **build**) | First-party `event_log` — **pas** GA4, **pas** de SDK PostHog |
 | Consentement | CMP `axel_job_consent_v1` `{v:1, analytics, marketing}`. Aucun event marketing si `analytics` false | Session authentifiée. **Pas** derrière la CMP (déjà connecté) |
-| Identifiants DOM | `data-attr` / `data-track` / `data-zone` / `data-level` / `data-section` | Events explicites. `data-attr` C.9 (candidatures) posés mais **non lus** par `track.js` (ignore `/app`). `data-analytics-section` → `page_engagement.sections` |
+| Identifiants DOM | `data-attr` / `data-track` / `data-zone` / `data-level` / `data-section` | Events explicites. `data-attr` C.9 (7) + C.10–C.16 (49) **non lus** par `track.js` (ignore `/app`). `data-analytics-section` → `page_engagement.sections` |
 
 **PostHog :** no-go v1 ([AXE-363](https://linear.app/axel-project/issue/AXE-363), [AXE-364](https://linear.app/axel-project/issue/AXE-364) canceled). Si un go futur (A/B Cloud EU) : **réutiliser les mêmes noms** (exemples § 8), même case CMP « Mesure d’audience », pas d’autocapture sur `/app`.
 
@@ -63,14 +63,14 @@ Deux dialectes **déjà en prod** — on ne les unifie pas (rename = funnels cas
 
 | Attribut | Forme | Où | Figé par |
 |---|---|---|---|
-| `data-attr` | kebab `page-zone-type-intention` ; globaux sans page (`nav-`, `footer-`) | 1 ID = 1 élément. Jamais dans une classe CSS | [AXE-358](https://linear.app/axel-project/issue/AXE-358) (55 IDs public) + C.9 candidatures |
+| `data-attr` | kebab `page-zone-type-intention` ; globaux sans page (`nav-` / `footer-` public, `app-nav-` topbar `/app`) | 1 ID = 1 élément. Jamais dans une classe CSS | [AXE-358](https://linear.app/axel-project/issue/AXE-358) (55 public) + C.9 (7 candidatures) + [AXE-395](https://linear.app/axel-project/issue/AXE-395) C.10–C.16 (49 `/app` hors candidatures) |
 | `data-track` | `cta` \| `nav` \| `input` | public | 358 |
 | `data-zone` | kebab (`hero`, `header`, `pricing`, …) | public | 358 |
 | `data-level` | `primary` \| `secondary` \| `tertiary` | public | 358 |
 | `data-section` | kebab | marketing, observé 50 % → `section_view` | 358 C.7 |
 | `data-analytics-section` | **snake_case** (déjà en prod : `cv_workspace`, `candidatures_board`) | `/app`, observé → `page_engagement.sections` | ce doc |
 
-Nouveaux `data-attr` /app : même convention kebab que le public. Nouveaux `data-analytics-section` : snake_case (aligné code actuel, pas kebab).
+C.9–C.16 sont figés (C.10–C.16 = markup [AXE-396](https://linear.app/axel-project/issue/AXE-396)). Tout `data-attr` /app **ajouté ensuite** : même convention kebab. Nouveaux `data-analytics-section` : snake_case (aligné code actuel, pas kebab).
 
 ---
 
@@ -96,12 +96,13 @@ SPA bundle (`entry-conditional.js`) seulement sur `/`, `/login`, `/app/*`. Le re
 
 | Route | `view` | Sections `data-analytics-section` (déjà là) | Events métier déjà émis | `data-attr` |
 |---|---|---|---|---|
-| `/app/cv` | `cv` | `cv_workspace`, `chat`, `preview`, `export` | adaptation\*, `adapt_cta_clicked`, `job_description_pasted`, `template_changed`, `cv_manually_edited`, `ats_details_opened`, `adaptation_rated`, `base_cv_pdf_downloaded`, `first_offer_nudge_cta`, onboarding\* | **aucun catalogue** |
+| `/app/cv` | `cv` | `cv_workspace`, `chat`, `preview`, `export` | adaptation\*, `adapt_cta_clicked`, `job_description_pasted`, `template_changed`, `cv_manually_edited`, `ats_details_opened`, `adaptation_rated`, `base_cv_pdf_downloaded`, `first_offer_nudge_cta`, onboarding\* | **C.11 + C.12 figés** (8 + 11) — markup [AXE-396](https://linear.app/axel-project/issue/AXE-396) |
 | `/app/postule` | `candidatures` | `candidatures_board`, `candidatures_stats`, `candidatures_list_mobile` | `new_candidature_workspace`, `adapt_cta_clicked`, backend statut / refus / source offre | **C.9 posé** (7 IDs) — clics **non** relayés |
-| `/app/profil` `/app/linkedin` | `profil` | `profil_editor` | `base_cv_pdf_downloaded` (profil), backend `profile_saved` | aucun |
-| `/app/settings` | `settings` | `settings_page` | `promo_code_redeemed` (backend) | aucun |
-| `/app/support` | `support` | `support_page` | — | aucun |
-| `/app/monitoring` | `monitoring` | `monitoring_dashboard` | — | aucun |
+| `/app/profil` `/app/linkedin` | `profil` | `profil_editor` | `base_cv_pdf_downloaded` (profil), backend `profile_saved` | **C.13 figé** (6) — `/app/linkedin` = `profil`, pas d’IDs `linkedin-*` |
+| `/app/settings` | `settings` | `settings_page` | `promo_code_redeemed` (backend) | **C.14 figé** (5) |
+| `/app/support` | `support` | `support_page` | — | **C.15 figé** (6) |
+| `/app/monitoring` | `monitoring` | `monitoring_dashboard` | — | **C.16 figé** (1, compte support) |
+| toutes `/app/*` | — | — | — | **C.10 topbar** (12 `app-nav-*`) |
 
 `EVENT_LOGIN` (`login`) est **déclaré** dans `event_log.py`, **jamais émis**. Ticket fille : émettre ou retirer ([AXE-397](https://linear.app/axel-project/issue/AXE-397)).
 
@@ -246,13 +247,13 @@ Créés dans le projet [Tagging interne & externe](https://linear.app/axel-proje
 | # | Linear | Titre | Pourquoi |
 |---|---|---|---|
 | 1 | [AXE-394](https://linear.app/axel-project/issue/AXE-394) | Whitelist events orphelins produit | 3 `trackEvent` droppés (400) |
-| 2 | [AXE-395](https://linear.app/axel-project/issue/AXE-395) | Inventaire figé `data-attr` /app hors candidatures | cv, profil, settings, support, monitoring, onboarding — comme 358 |
+| 2 | [AXE-395](https://linear.app/axel-project/issue/AXE-395) | Inventaire figé `data-attr` /app hors candidatures | **49 IDs** C.10–C.16 dans [`taggage-analytics.md`](taggage-analytics.md) |
 | 3 | [AXE-396](https://linear.app/axel-project/issue/AXE-396) | Balisage `data-attr` /app hors candidatures | pose les IDs d’AXE-395 |
 | 4 | [AXE-397](https://linear.app/axel-project/issue/AXE-397) | Émettre `login` produit **ou** retirer `EVENT_LOGIN` | constante morte |
 
 AXE-396 est bloqué par AXE-395.
 
-**Pas de ticket v1 :** relayer les `data-attr` /app vers GA4 ou un second `track.js`. Les clics produit restent des events métier explicites. C.9 sert la recette DOM + un tracker /app éventuel (v2).
+**Pas de ticket v1 :** relayer les `data-attr` /app vers GA4 ou un second `track.js`. Les clics produit restent des events métier explicites. C.9–C.16 servent la recette DOM + un tracker /app éventuel (v2).
 
 **Déjà livré (ne pas recréer) :** AXE-358…365 (sauf 364 canceled).
 

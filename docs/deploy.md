@@ -10,6 +10,7 @@ Reference de deploiement `cv-bot` avec Docker.
 4. Mise a jour
 5. Configuration critique
 6. Checklist production
+7. Sentry (observabilite)
 
 ## 1) Prerequis
 
@@ -74,3 +75,14 @@ docker compose up -d
 - [ ] Workflow securite CI vert.
 
 Pour les commandes d'exploitation quotidiennes, voir `docs/ops-commands.md`.
+
+## 7) Sentry (observabilite)
+
+Decisions figées : [`docs/observabilite.md`](observabilite.md) ([AXE-366](https://linear.app/axel-project/issue/AXE-366)).
+
+- Pas de SDK tant que [AXE-367](https://linear.app/axel-project/issue/AXE-367) / [AXE-368](https://linear.app/axel-project/issue/AXE-368) ne sont pas livrés.
+- DSN vide = no-op (dev / CI). Variables : ticket [AXE-369](https://linear.app/axel-project/issue/AXE-369).
+- `VITE_SENTRY_DSN` et `VITE_SENTRY_ENVIRONMENT` sont des **build args** Docker (comme `VITE_AXEL_GTM_ID`), pas du runtime.
+- `SENTRY_AUTH_TOKEN` : secret de build uniquement, jamais dans l'image.
+- Session Replay : **off**. CV / annonce : **jamais** dans un event.
+- Recette post-deploy : [AXE-371](https://linear.app/axel-project/issue/AXE-371).

@@ -110,6 +110,7 @@ Contrat : `docs/design-system.md`. Tokens : `frontend/src/design/tokens.json` (`
 - Retourner des codes HTTP coherents avec des messages actionnables cote client.
 - Eviter de logger des secrets ou donnees personnelles brutes dans les logs.
 - Preserver les endpoints d'ops (`/health`, `/metrics`) et leur securisation.
+- Sentry : decisions [`docs/observabilite.md`](observabilite.md) — erreurs 100 %, traces 0.1 en prod, Replay off, hors CMP.
 
 ---
 

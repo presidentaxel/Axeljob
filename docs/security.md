@@ -52,6 +52,7 @@ Cette politique couvre :
 - Stocker les secrets uniquement dans l'environnement d'execution.
 - Ne pas logger de JWT, cles API, payloads complets contenant des donnees personnelles.
 - Masquer ou tronquer les donnees sensibles dans les traces d'erreur.
+- Sentry (quand branché) : `send_default_pii=False`, scrub CV / annonce / email / JWT — [`docs/observabilite.md`](observabilite.md). Pas de Session Replay.
 
 ## 6) Checklist securite avant merge
 

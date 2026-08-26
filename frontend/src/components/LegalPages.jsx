@@ -52,7 +52,7 @@ function PolitiqueConfidentialite() {
   return (
     <>
       <h1>Politique de confidentialité</h1>
-      <p><em>Dernière mise à jour : mars 2026</em></p>
+      <p><em>Dernière mise à jour : août 2026</em></p>
 
       <h2>1. Responsable du traitement</h2>
       <p>
@@ -75,13 +75,14 @@ function PolitiqueConfidentialite() {
         <li>Fournir le service de génération et d'adaptation de CV par IA.</li>
         <li>Gérer votre compte utilisateur et vos abonnements.</li>
         <li>Améliorer le service (métriques anonymisées).</li>
-        <li>Assurer la sécurité du service.</li>
+        <li>Assurer la sécurité du service, y compris le diagnostic des erreurs techniques (Sentry, intérêt légitime).</li>
       </ul>
 
       <h2>4. Base légale</h2>
       <p>
-        Le traitement est fondé sur l'exécution du contrat (fourniture du service) et le consentement
-        de l'utilisateur lors de l'inscription.
+        Le traitement est fondé sur l'exécution du contrat (fourniture du service), le consentement
+        de l'utilisateur lors de l'inscription, et l'intérêt légitime pour la sécurité du service
+        (diagnostic des erreurs techniques via Sentry).
       </p>
 
       <h2>5. Partage des données</h2>
@@ -94,6 +95,10 @@ function PolitiqueConfidentialite() {
         <li>
           <strong>Google Ireland Limited</strong> (Google Tag Manager, Google Analytics - mesure d’audience
           et, le cas échéant, publicité ; uniquement si vous y consentez via la bannière cookies)
+        </li>
+        <li>
+          <strong>Functional Software, Inc. (Sentry)</strong> — diagnostic des erreurs techniques.
+          Hors bandeau cookies (intérêt légitime). Aucun contenu de CV ni d’annonce n’est envoyé.
         </li>
       </ul>
 
@@ -129,6 +134,10 @@ function PolitiqueConfidentialite() {
         à la publicité, ne sont activés qu’après votre accord, via le bandeau de consentement ou le lien
         « Paramètres cookies ». Vous pouvez retirer ou modifier votre consentement à tout moment ; les choix
         sont mémorisés localement sur votre navigateur (localStorage).
+      </p>
+      <p>
+        Le diagnostic d’erreurs (Sentry) n’est pas un traceur de mesure d’audience et n’est pas soumis
+        à ce bandeau. Le Session Replay Sentry n’est pas activé.
       </p>
 
       <h2>9. Sécurité</h2>

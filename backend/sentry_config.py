@@ -102,10 +102,47 @@ def _redact(value: Any, key: str = "") -> Any:
     return value
 
 
-def _request_path(event: dict[str, Any]) -> str:
-    request = event.get("request") or {}
+def _is_sensitive_route(event: dict[str, Any]) -> bool:
+    transaction = str(event.get("transaction") or "")
+    request = event.get("request") if isinstance(event.get("request"), dict) else {}
     url = str(request.get("url") or "")
-    return url
+    return bool(_SENSITIVE_PATH_RE.search(url) or _SENSITIVE_PATH_RE.search(transaction))
+
+
+def _scrub_free_text_fields(event: dict[str, Any]) -> None:
+    """Routes sensibles : message / exception / breadcrumbs ne doivent pas porter de CV."""
+    event["message"] = _FILTERED
+    logentry = event.get("logentry")
+    if isinstance(logentry, dict) and "message" in logentry:
+        logentry["message"] = _FILTERED
+    exception = event.get("exception")
+    values: list[Any] = []
+    if isinstance(exception, dict):
+        raw_values = exception.get("values")
+        if isinstance(raw_values, list):
+            values = raw_values
+    elif isinstance(exception, list):
+        values = exception
+    for item in values:
+        if isinstance(item, dict) and "value" in item:
+            item["value"] = _FILTERED
+    crumbs = event.get("breadcrumbs")
+    crumb_list: list[Any] = []
+    if isinstance(crumbs, dict):
+        raw_crumbs = crumbs.get("values")
+        if isinstance(raw_crumbs, list):
+            crumb_list = raw_crumbs
+    elif isinstance(crumbs, list):
+        crumb_list = crumbs
+    for crumb in crumb_list:
+        if not isinstance(crumb, dict):
+            continue
+        if "message" in crumb:
+            crumb["message"] = _FILTERED
+        data = crumb.get("data")
+        if isinstance(data, dict):
+            data.pop("body", None)
+            data.pop("data", None)
 
 
 def _drop_http_noise(hint: dict[str, Any]) -> bool:
@@ -146,8 +183,7 @@ def scrub_event(event: dict[str, Any], hint: dict[str, Any] | None = None) -> di
 
     request = event.get("request")
     if isinstance(request, dict):
-        url = str(request.get("url") or "")
-        if _SENSITIVE_PATH_RE.search(url) or _SENSITIVE_PATH_RE.search(transaction):
+        if _is_sensitive_route(event):
             request.pop("data", None)
             request.pop("cookies", None)
             headers = request.get("headers")
@@ -155,7 +191,10 @@ def scrub_event(event: dict[str, Any], hint: dict[str, Any] | None = None) -> di
                 request["headers"] = {
                     k: _FILTERED if _is_sensitive_key(str(k)) else v for k, v in headers.items()
                 }
+            _scrub_free_text_fields(event)
         event["request"] = request
+    elif _is_sensitive_route(event):
+        _scrub_free_text_fields(event)
 
     tags = event.setdefault("tags", {})
     if isinstance(tags, dict):

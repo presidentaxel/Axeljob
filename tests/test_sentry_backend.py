@@ -79,6 +79,35 @@ def test_before_send_scrubs_cv_and_annonce() -> None:
     assert out.get("tags", {}).get("pdf_engine")
 
 
+def test_before_send_scrubs_exception_and_breadcrumb_on_adapt() -> None:
+    event = {
+        "transaction": "/api/adapt",
+        "message": "échec adapt Jean Dupont CV secret",
+        "logentry": {"message": "échec adapt Jean Dupont CV secret"},
+        "exception": {
+            "values": [
+                {"type": "ValueError", "value": "CV payload: Jean Dupont CV secret"},
+            ]
+        },
+        "breadcrumbs": {
+            "values": [
+                {"message": "annonce Offre secrète Dev", "data": {"body": "Jean Dupont"}},
+            ]
+        },
+        "request": {"url": "https://api.example/api/adapt"},
+    }
+    out = scrub_event(event, {})
+    assert out is not None
+    blob = json.dumps(out)
+    assert "Jean Dupont" not in blob
+    assert "Offre secrète" not in blob
+    assert out["message"] == "[Filtered]"
+    assert out["logentry"]["message"] == "[Filtered]"
+    assert out["exception"]["values"][0]["value"] == "[Filtered]"
+    assert out["exception"]["values"][0]["type"] == "ValueError"
+    assert out["breadcrumbs"]["values"][0]["message"] == "[Filtered]"
+
+
 def test_before_send_keeps_500_and_tags_gemini() -> None:
     exc = GeminiQuotaExceeded()
     out = scrub_event(

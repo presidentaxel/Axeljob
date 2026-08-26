@@ -25,7 +25,8 @@ def test_observabilite_has_axe_371_recette_without_test_route() -> None:
     assert "ActiveMembers" in text
     assert "AXE-371 recette smoke backend" in text
     assert "AXE-371 recette smoke frontend" in text
-    assert "ingest.sentry.io" in text  # CSP allowlist, pas un DSN
+    assert "AXE-268" in text
+    assert "Content-Security-Policy" in text
     assert _SENTRY_DSN_IN_TEXT.search(text) is None
 
 

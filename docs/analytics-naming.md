@@ -96,13 +96,13 @@ SPA bundle (`entry-conditional.js`) seulement sur `/`, `/login`, `/app/*`. Le re
 
 | Route | `view` | Sections `data-analytics-section` (déjà là) | Events métier déjà émis | `data-attr` |
 |---|---|---|---|---|
-| `/app/cv` | `cv` | `cv_workspace`, `chat`, `preview`, `export` | adaptation\*, `adapt_cta_clicked`, `job_description_pasted`, `template_changed`, `cv_manually_edited`, `ats_details_opened`, `adaptation_rated`, `base_cv_pdf_downloaded`, `first_offer_nudge_cta`, onboarding\* | **C.11 + C.12 figés** (8 + 11) — markup [AXE-396](https://linear.app/axel-project/issue/AXE-396) |
+| `/app/cv` | `cv` | `cv_workspace`, `chat`, `preview`, `export` | adaptation\*, `adapt_cta_clicked`, `job_description_pasted`, `template_changed`, `cv_manually_edited`, `ats_details_opened`, `adaptation_rated`, `base_cv_pdf_downloaded`, `first_offer_nudge_cta`, onboarding\* | **C.11 + C.12 posés** (8 + 11) — clics **non** relayés |
 | `/app/postule` | `candidatures` | `candidatures_board`, `candidatures_stats`, `candidatures_list_mobile` | `new_candidature_workspace`, `adapt_cta_clicked`, backend statut / refus / source offre | **C.9 posé** (7 IDs) — clics **non** relayés |
-| `/app/profil` `/app/linkedin` | `profil` | `profil_editor` | `base_cv_pdf_downloaded` (profil), backend `profile_saved` | **C.13 figé** (6) — `/app/linkedin` = `profil`, pas d’IDs `linkedin-*` |
-| `/app/settings` | `settings` | `settings_page` | `promo_code_redeemed` (backend) | **C.14 figé** (5) |
-| `/app/support` | `support` | `support_page` | — | **C.15 figé** (6) |
-| `/app/monitoring` | `monitoring` | `monitoring_dashboard` | — | **C.16 figé** (1, compte support) |
-| toutes `/app/*` | — | — | — | **C.10 topbar** (12 `app-nav-*`) |
+| `/app/profil` `/app/linkedin` | `profil` | `profil_editor` | `base_cv_pdf_downloaded` (profil), backend `profile_saved` | **C.13 posé** (6) — `/app/linkedin` = `profil`, pas d’IDs `linkedin-*` |
+| `/app/settings` | `settings` | `settings_page` | `promo_code_redeemed` (backend) | **C.14 posé** (5) |
+| `/app/support` | `support` | `support_page` | — | **C.15 posé** (6) |
+| `/app/monitoring` | `monitoring` | `monitoring_dashboard` | — | **C.16 posé** (1, compte support) |
+| toutes `/app/*` | — | — | — | **C.10 topbar posé** (12 `app-nav-*`) |
 
 `EVENT_LOGIN` (`login`) est **déclaré** dans `event_log.py`, **jamais émis**. Ticket fille : émettre ou retirer ([AXE-397](https://linear.app/axel-project/issue/AXE-397)).
 
@@ -248,7 +248,7 @@ Créés dans le projet [Tagging interne & externe](https://linear.app/axel-proje
 |---|---|---|---|
 | 1 | [AXE-394](https://linear.app/axel-project/issue/AXE-394) | Whitelist events orphelins produit | 3 `trackEvent` droppés (400) |
 | 2 | [AXE-395](https://linear.app/axel-project/issue/AXE-395) | Inventaire figé `data-attr` /app hors candidatures | **49 IDs** C.10–C.16 dans [`taggage-analytics.md`](taggage-analytics.md) |
-| 3 | [AXE-396](https://linear.app/axel-project/issue/AXE-396) | Balisage `data-attr` /app hors candidatures | pose les IDs d’AXE-395 |
+| 3 | [AXE-396](https://linear.app/axel-project/issue/AXE-396) | Balisage `data-attr` /app hors candidatures | pose les 49 IDs C.10–C.16 |
 | 4 | [AXE-397](https://linear.app/axel-project/issue/AXE-397) | Émettre `login` produit **ou** retirer `EVENT_LOGIN` | constante morte |
 
 AXE-396 est bloqué par AXE-395.

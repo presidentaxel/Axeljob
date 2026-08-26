@@ -22,6 +22,7 @@ import {
 } from '../lib/settingsLocalData.js';
 import BetaModeToggle from './BetaModeToggle.jsx';
 import Button from './ui/Button.jsx';
+import { analyticsAttrs } from '../lib/analyticsAttrs.js';
 import '../styles/app/settings.css';
 
 const PDF_VARIABLES = ['{prenom}', '{nom}', '{poste}', '{entreprise}'];
@@ -369,16 +370,17 @@ export default function SettingsView({
               setSetPasswordConfirm('');
               setSetPasswordError('');
             }}
+            {...analyticsAttrs('settings-account-cta-password', 'account', 'secondary', 'cta')}
           >
             Mot de passe
           </Button>
           {usage && !isPro && typeof onUpgradeClick === 'function' && (
-            <Button type="button" variant="primary" size="sm" onClick={onUpgradeClick}>
+            <Button type="button" variant="primary" size="sm" onClick={onUpgradeClick} {...analyticsAttrs('settings-account-cta-upgrade', 'account', 'primary', 'cta')}>
               Passer Pro
             </Button>
           )}
           {usage && isPro && usage.stripe_subscription && typeof onBillingPortalClick === 'function' && (
-            <Button type="button" variant="secondary" size="sm" onClick={onBillingPortalClick}>
+            <Button type="button" variant="secondary" size="sm" onClick={onBillingPortalClick} {...analyticsAttrs('settings-account-cta-billing', 'account', 'secondary', 'cta')}>
               Gérer l&apos;abonnement
             </Button>
           )}
@@ -440,7 +442,7 @@ export default function SettingsView({
           </div>
         </div>
         <div className="settings-actions">
-          <Button type="button" variant="primary" size="sm" onClick={saveExportPrefs}>
+          <Button type="button" variant="primary" size="sm" onClick={saveExportPrefs} {...analyticsAttrs('settings-export-cta-save', 'export', 'primary', 'cta')}>
             Enregistrer
           </Button>
           <Button
@@ -527,7 +529,7 @@ export default function SettingsView({
       <SettingsSection id="settings-privacy-title" title="Confidentialité" lead="Cookies et documents légaux.">
         {typeof onCookieSettingsClick === 'function' && (
           <div className="settings-actions settings-actions--spaced">
-            <Button type="button" variant="secondary" size="sm" onClick={onCookieSettingsClick}>
+            <Button type="button" variant="secondary" size="sm" onClick={onCookieSettingsClick} {...analyticsAttrs('settings-privacy-cta-cookies', 'privacy', 'tertiary', 'cta')}>
               Paramètres cookies
             </Button>
           </div>

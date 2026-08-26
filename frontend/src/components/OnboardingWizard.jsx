@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { apiPost, apiPostFile, apiPut, trackEvent } from '../api';
+import { analyticsAttrs } from '../lib/analyticsAttrs.js';
 import { cvFromImportPayload } from '../lib/cvImportUtils.js';
 import '../styles/OnboardingWizard.css';
 
@@ -123,7 +124,7 @@ export default function OnboardingWizard({ session, onComplete }) {
             {error && <div className="onb-error">{error}</div>}
 
             <div className="onb-methods">
-              <button type="button" className="onb-method-card" onClick={() => fileRef.current?.click()} disabled={loading}>
+              <button type="button" className="onb-method-card" onClick={() => fileRef.current?.click()} disabled={loading} {...analyticsAttrs('onboarding-methods-cta-import', 'methods', 'primary', 'cta')}>
                 <div className="onb-method-icon">
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3-3 3 3"/>
@@ -133,7 +134,7 @@ export default function OnboardingWizard({ session, onComplete }) {
                 <span className="onb-method-desc">PDF texte ou Word (.docx) — pas de PDF scanné</span>
               </button>
 
-              <button type="button" className="onb-method-card" onClick={handleManual} disabled={loading}>
+              <button type="button" className="onb-method-card" onClick={handleManual} disabled={loading} {...analyticsAttrs('onboarding-methods-cta-manual', 'methods', 'secondary', 'cta')}>
                 <div className="onb-method-icon">
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -153,12 +154,14 @@ export default function OnboardingWizard({ session, onComplete }) {
                   onChange={(e) => setCvText(e.target.value)}
                   placeholder="Copie-colle le contenu de ton CV ici..."
                   rows={6}
+                  {...analyticsAttrs('onboarding-paste-input-text', 'paste', 'tertiary', 'input')}
                 />
                 <button
                   type="button"
                   className="button button-primary onb-btn-parse"
                   onClick={handleTextImport}
                   disabled={loading || !cvText.trim()}
+                  {...analyticsAttrs('onboarding-paste-cta-parse', 'paste', 'secondary', 'cta')}
                 >
                   {loading && method === 'text' ? 'Analyse en cours…' : 'Analyser mon CV'}
                 </button>
@@ -237,7 +240,7 @@ export default function OnboardingWizard({ session, onComplete }) {
             </div>
 
             <div className="onb-actions">
-              <button type="button" className="button button-primary" onClick={handleConfirmProfile} disabled={loading}>
+              <button type="button" className="button button-primary" onClick={handleConfirmProfile} disabled={loading} {...analyticsAttrs('onboarding-review-cta-confirm', 'review', 'primary', 'cta')}>
                 {loading ? 'Sauvegarde…' : 'On continue'}
               </button>
             </div>
@@ -257,10 +260,10 @@ export default function OnboardingWizard({ session, onComplete }) {
               Colle une annonce et l'IA fera le reste.
             </p>
             <div className="onb-actions">
-              <button type="button" className="button button-primary button--lg" onClick={handleLaunch}>
+              <button type="button" className="button button-primary button--lg" onClick={handleLaunch} {...analyticsAttrs('onboarding-done-cta-launch', 'done', 'primary', 'cta')}>
                 Créer mon CV adapté
               </button>
-              <button type="button" className="button ds-button ds-button--link onb-actions__link" onClick={handleGoToProfile}>
+              <button type="button" className="button ds-button ds-button--link onb-actions__link" onClick={handleGoToProfile} {...analyticsAttrs('onboarding-done-cta-profil', 'done', 'secondary', 'cta')}>
                 Compléter mon profil d&apos;abord
               </button>
             </div>
@@ -268,7 +271,7 @@ export default function OnboardingWizard({ session, onComplete }) {
         )}
 
         {step === 0 && (
-          <button type="button" className="onb-skip" onClick={() => { trackEvent('onboarding_skipped', {}); onComplete('candidatures'); }}>
+          <button type="button" className="onb-skip" onClick={() => { trackEvent('onboarding_skipped', {}); onComplete('candidatures'); }} {...analyticsAttrs('onboarding-cta-skip', 'overlay', 'tertiary', 'cta')}>
             Passer pour l'instant
           </button>
         )}

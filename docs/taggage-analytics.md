@@ -448,7 +448,7 @@ Globaux : **pas** de préfixe de page (`nav-`, `footer-`).
 | Surfaces A/B non-clic | Conservées dans le catalogue : `home-hero-title`, `home-pricing-card-free`, `home-pricing-card-pro`, `home-pricing-badge-popular` |
 | C.8 / v2 | Exclue de la vague 1 (drawer tertiaires, sources outbound FAQ, `faq_open`, cookie banner) |
 | C.9 candidatures | Hors vague 1 (déjà figé 2026-08-21) — ne pas retoucher |
-| C.10–C.16 `/app` hors candidatures | Figé 2026-08-25 ([AXE-395](https://linear.app/axel-project/issue/AXE-395)) : **49** IDs. Markup : [AXE-396](https://linear.app/axel-project/issue/AXE-396). Préfixe topbar `app-nav-` (≠ `nav-` marketing). |
+| C.10–C.16 `/app` hors candidatures | Figé 2026-08-25 ([AXE-395](https://linear.app/axel-project/issue/AXE-395)) : **49** IDs. Markup posé ([AXE-396](https://linear.app/axel-project/issue/AXE-396)). Préfixe topbar `app-nav-` (≠ `nav-` marketing). |
 | AXE-356 | Convention site-wide : [`docs/analytics-naming.md`](analytics-naming.md) (figé 2026-08-25). 358 reste l’instance landing → signup |
 
 Attributs HTML types :
@@ -630,7 +630,7 @@ V2 candidatures (ne pas poser maintenant) : ouverture carte, archive, drag colon
 ### C.10–C.16 App connectée hors candidatures — **figé 2026-08-25** ([AXE-395](https://linear.app/axel-project/issue/AXE-395))
 
 Même convention kebab `page-zone-type-intention`. Un ID = un élément. Jamais de doublon avec les 55 public ni C.9.  
-Transport : recette DOM seulement (`track.js` ignore `/app`). Markup : [AXE-396](https://linear.app/axel-project/issue/AXE-396).
+Transport : recette DOM seulement (`track.js` ignore `/app`). **Markup posé** ([AXE-396](https://linear.app/axel-project/issue/AXE-396)).
 
 **Total = 49** : 12 topbar + 8 onboarding + 11 cv + 6 profil + 5 settings + 6 support + 1 monitoring.
 

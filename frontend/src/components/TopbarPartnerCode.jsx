@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { apiPost } from '../api';
+import { analyticsAttrs } from '../lib/analyticsAttrs.js';
 
 /**
  * Saisie code partenaire / concours (menu compte).
@@ -49,6 +50,7 @@ export default function TopbarPartnerCode({ onSuccess }) {
           disabled={loading}
           maxLength={32}
           aria-label="Code partenaire ou concours"
+          {...analyticsAttrs('app-nav-input-promo', 'account', 'tertiary', 'input')}
         />
         <button
           type="submit"

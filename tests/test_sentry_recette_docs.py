@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 # DSN Sentry : https://<public>@<host>/<project-id> — pas un lien org sans @.
-_SENTRY_DSN_IN_TEXT = re.compile(r"https://[^`\s@]+@[^`\s/]+/[^`\s]+")
+_SENTRY_DSN_IN_TEXT = re.compile(r"https://[^`\s@]+@[^`\s/]+/[^`\s]+", re.IGNORECASE)
 
 
 def _read(rel: str) -> str:
@@ -46,3 +46,12 @@ def test_env_examples_still_have_empty_dsn() -> None:
     for line in blob.splitlines():
         if line.startswith("SENTRY_DSN=") or line.startswith("VITE_SENTRY_DSN="):
             assert line.endswith("=")
+
+
+def test_sentry_dsn_pattern_is_case_insensitive() -> None:
+    mixed = "HtTpS://public@host.example/project-id"
+    upper = "HTTPS://public@host.example/project-id"
+    org = "https://axel-project.sentry.io"
+    assert _SENTRY_DSN_IN_TEXT.search(mixed) is not None
+    assert _SENTRY_DSN_IN_TEXT.search(upper) is not None
+    assert _SENTRY_DSN_IN_TEXT.search(org) is None

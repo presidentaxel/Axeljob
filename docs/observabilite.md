@@ -71,7 +71,7 @@ OK : route, status HTTP, `flow`, moteur PDF, durée, taille fichier, code d’er
 
 - Replay : **off**, et le rester (critère [AXE-368](https://linear.app/axel-project/issue/AXE-368)).
 - Autocapture / tracing des corps `fetch` : URL ok, body **strip** sur adapt/import/cv.
-- Pages HTML statiques (FAQ, ATS, guides) : **pas** de SDK v1. SPA seulement (`/`, `/login`, `/app/*`) — même périmètre que `entry-conditional.js`.
+- Pages HTML statiques (FAQ, ATS, guides) : **pas** de SDK v1. SPA seulement (`/`, `/login`, `/app/*`) — même périmètre que `entry-conditional.js`. SDK React : [AXE-368](https://linear.app/axel-project/issue/AXE-368) (`@sentry/react`, DSN vide = no-op, Replay off).
 - Pas de route `/sentry-test` en prod ([AXE-270](https://linear.app/axel-project/issue/AXE-270)).
 
 ### Environnements et releases

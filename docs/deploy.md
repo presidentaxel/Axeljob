@@ -139,7 +139,7 @@ SDK : [AXE-367](https://linear.app/axel-project/issue/AXE-367) / [AXE-368](https
 3. Puis **rebuild front** : `docker compose build frontend && docker compose up -d` — changer le `.env` sans rebuild ne met pas Sentry dans le bundle.
 4. Backend : `docker compose up -d --force-recreate backend` (lit `.env` au runtime).
 
-`SENTRY_AUTH_TOKEN` : secret de **build** uniquement (source maps, AXE-368). **Pas** dans `.env`. `env_file: .env` injecte toutes les cles : Compose n'a pas d'exclude, donc `environment` force `SENTRY_AUTH_TOKEN=` vide (gagne sur un oubli). Retirer `env_file` pour une allowlist complete casserait GEMINI/Stripe/Supabase — hors scope. Jamais dans l'image nginx.
+`SENTRY_AUTH_TOKEN` : secret de **build** uniquement (source maps, AXE-368). **Pas** dans `.env` runtime backend (`env_file` l'injecterait). Compose force `SENTRY_AUTH_TOKEN=` vide au runtime backend. Pour l'upload des maps : build-arg frontend (`docker compose build frontend`) si le token est dans l'environnement du **build** (interpolation Compose), jamais dans l'image nginx. Sans token, le build réussit et les `.map` sont supprimés.
 
 Recuperer les DSN : Sentry → projet → Settings → Client Keys (DSN). Un DSN par projet, ne pas les melanger.
 

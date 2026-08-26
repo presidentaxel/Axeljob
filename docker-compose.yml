@@ -57,6 +57,8 @@ services:
         VITE_SENTRY_ENVIRONMENT: ${VITE_SENTRY_ENVIRONMENT:-}
         VITE_SENTRY_RELEASE: ${VITE_SENTRY_RELEASE:-}
         VITE_SENTRY_TRACES_SAMPLE_RATE: ${VITE_SENTRY_TRACES_SAMPLE_RATE:-}
+        # Upload source maps (AXE-368). Vide = skip plugin, build OK.
+        SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN:-}
     restart: unless-stopped
     ports:
       - "3000:80"

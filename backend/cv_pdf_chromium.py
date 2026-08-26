@@ -580,6 +580,12 @@ def html_to_cv_pdf_bytes_chromium(
     # sur le threadpool Starlette → thread variable ; le worker dédié évite l'erreur
     # « Cannot switch to a different thread ».
     jobs = _ensure_pool_started()
+    try:
+        from backend.sentry_business import maybe_capture_pdf_pool_saturated
+
+        maybe_capture_pdf_pool_saturated(jobs.qsize(), _chromium_pool_size())
+    except Exception:
+        pass
     fut: Future = Future()
     jobs.put((html_str, context_base, template_id, fut))
     return fut.result()

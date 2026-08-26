@@ -108,6 +108,21 @@ def test_before_send_scrubs_exception_and_breadcrumb_on_adapt() -> None:
     assert out["breadcrumbs"]["values"][0]["message"] == "[Filtered]"
 
 
+def test_before_send_keeps_business_message_on_adapt() -> None:
+    event = {
+        "transaction": "/api/adapt",
+        "message": "Quota Gemini dépassé",
+        "level": "warning",
+        "tags": {"kind": "gemini_quota", "flow": "adapt"},
+        "request": {"url": "https://api.example/api/adapt"},
+    }
+    out = scrub_event(event, {})
+    assert out is not None
+    assert out["message"] == "Quota Gemini dépassé"
+    assert out["tags"]["kind"] == "gemini_quota"
+    assert out["tags"]["flow"] == "adapt"
+
+
 def test_before_send_keeps_500_and_tags_gemini() -> None:
     exc = GeminiQuotaExceeded()
     out = scrub_event(
@@ -115,7 +130,7 @@ def test_before_send_keeps_500_and_tags_gemini() -> None:
         {"exc_info": (GeminiQuotaExceeded, exc, None)},
     )
     assert out is not None
-    assert out["tags"]["flow"] == "gemini"
+    assert out["tags"]["flow"] == "adapt"
 
 
 def test_bind_sentry_user_skips_without_dsn(monkeypatch) -> None:

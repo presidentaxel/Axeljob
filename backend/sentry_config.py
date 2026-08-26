@@ -145,6 +145,19 @@ def _scrub_free_text_fields(event: dict[str, Any]) -> None:
             data.pop("data", None)
 
 
+def _is_business_event(event: dict[str, Any]) -> bool:
+    """Messages métier AXE-370 : ne pas écraser le libellé contrôlé sur /api/adapt*."""
+    tags = event.get("tags")
+    if not isinstance(tags, dict):
+        return False
+    try:
+        from backend.sentry_business import is_business_kind
+
+        return is_business_kind(tags.get("kind"))
+    except Exception:
+        return False
+
+
 def _drop_http_noise(hint: dict[str, Any]) -> bool:
     exc_info = hint.get("exc_info")
     if not exc_info or len(exc_info) < 2:
@@ -182,6 +195,7 @@ def scrub_event(event: dict[str, Any], hint: dict[str, Any] | None = None) -> di
         return event
 
     request = event.get("request")
+    wipe_free_text = _is_sensitive_route(event) and not _is_business_event(event)
     if isinstance(request, dict):
         if _is_sensitive_route(event):
             request.pop("data", None)
@@ -191,9 +205,10 @@ def scrub_event(event: dict[str, Any], hint: dict[str, Any] | None = None) -> di
                 request["headers"] = {
                     k: _FILTERED if _is_sensitive_key(str(k)) else v for k, v in headers.items()
                 }
-            _scrub_free_text_fields(event)
+            if wipe_free_text:
+                _scrub_free_text_fields(event)
         event["request"] = request
-    elif _is_sensitive_route(event):
+    elif wipe_free_text:
         _scrub_free_text_fields(event)
 
     tags = event.setdefault("tags", {})
@@ -205,9 +220,9 @@ def scrub_event(event: dict[str, Any], hint: dict[str, Any] | None = None) -> di
             name = type(exc).__name__
             module = getattr(type(exc), "__module__", "") or ""
             if "Gemini" in name or "gemini" in module:
-                tags.setdefault("flow", "gemini")
+                tags.setdefault("flow", "adapt")
             elif "pdf" in name.lower() or "playwright" in module.lower():
-                tags.setdefault("flow", "pdf")
+                tags.setdefault("flow", "export")
 
     raw_user = event.get("user")
     if isinstance(raw_user, dict):

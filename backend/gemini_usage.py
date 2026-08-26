@@ -54,4 +54,10 @@ def ensure_budget(user_id: str | None) -> None:
     """
     allowed, _used_usd, _limit_usd = check_gemini_budget(user_id)
     if not allowed:
+        try:
+            from backend.sentry_business import capture_adapt_gemini_failure
+
+            capture_adapt_gemini_failure(kind="gemini_quota")
+        except Exception:
+            pass
         raise GeminiQuotaExceeded()

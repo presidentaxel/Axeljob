@@ -29,14 +29,18 @@ if [[ "${1:-}" == "--git-command" ]]; then
     deny
   fi
 
-  # git push / git push origin (sans branche explicite) : vérifier la branche courante
-  if printf '%s' "$command" | grep -qE '^git[[:space:]]+push(\s|$)' \
-    && ! printf '%s' "$command" | grep -qE '(HEAD:|refs/heads/|\s(main|master|prod)\s*$)'; then
-    current="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-    if [[ "$current" =~ $PROTECTED_RE ]]; then
-      deny
-    fi
-  fi
+  # Destination explicite autre que HEAD (ex. git push origin feat/x) : autoriser
+  # même si le checkout local est main — sinon la CI GitHub sur main refuse à tort
+  # un --git-command de test / un push vers une branche feature.
+  last="${command##* }"
+  case "$last" in
+    push|origin|upstream|-u|--set-upstream|--force|-f|HEAD)
+      current="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+      if [[ "$current" =~ $PROTECTED_RE ]]; then
+        deny
+      fi
+      ;;
+  esac
   exit 0
 fi
 

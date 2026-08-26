@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+# DSN Sentry : https://<public>@<host>/<project-id> — pas un lien org sans @.
+_SENTRY_DSN_IN_TEXT = re.compile(r"https://[^`\s@]+@[^`\s/]+/[^`\s]+")
 
 
 def _read(rel: str) -> str:
@@ -23,7 +26,7 @@ def test_observabilite_has_axe_371_recette_without_test_route() -> None:
     assert "AXE-371 recette smoke backend" in text
     assert "AXE-371 recette smoke frontend" in text
     assert "ingest.sentry.io" in text  # CSP allowlist, pas un DSN
-    assert "https://o" not in text  # pas de DSN https://oNNNN.ingest...
+    assert _SENTRY_DSN_IN_TEXT.search(text) is None
 
 
 def test_deploy_checklist_includes_sentry_post_deploy() -> None:
@@ -33,6 +36,7 @@ def test_deploy_checklist_includes_sentry_post_deploy() -> None:
     assert "/sentry-test" in text
     assert "SENTRY_ENVIRONMENT=staging" in text
     assert "high-priority" in text or "high priority" in text
+    assert _SENTRY_DSN_IN_TEXT.search(text) is None
 
 
 def test_env_examples_still_have_empty_dsn() -> None:

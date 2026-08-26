@@ -32,6 +32,47 @@ def test_allows_feature_branch_push() -> None:
     assert result.returncode == 0, result.stderr
 
 
+def test_explicit_feature_refspec_allowed_when_cwd_is_main(tmp_path: Path) -> None:
+    """CI GitHub checkout ``main`` : un push explicite vers une feature doit passer."""
+    subprocess.run(
+        ["git", "init", "-b", "main", str(tmp_path)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    result = subprocess.run(
+        [
+            "bash",
+            str(SCRIPT),
+            "--git-command",
+            "git push -u origin louisvedovato/axe-319-docs",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_bare_push_origin_denied_when_cwd_is_main(tmp_path: Path) -> None:
+    subprocess.run(
+        ["git", "init", "-b", "main", str(tmp_path)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    result = subprocess.run(
+        ["bash", str(SCRIPT), "--git-command", "git push origin"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 1
+    assert "interdit" in result.stderr
+
+
 def test_allows_wip_innovation_push() -> None:
     result = _git_command("git push origin wip/innovation")
     assert result.returncode == 0, result.stderr

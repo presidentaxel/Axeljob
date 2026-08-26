@@ -69,7 +69,10 @@ export function ServerErrorPage({ onRetry }) {
               Réessayer
             </Button>
           )}
-          <Button variant="secondary" onClick={() => window.location.assign('/')}>
+          <Button variant="secondary" onClick={() => window.location.reload()}>
+            Recharger la page
+          </Button>
+          <Button variant="tertiary" onClick={() => window.location.assign('/')}>
             Recharger l&apos;accueil
           </Button>
         </div>

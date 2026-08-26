@@ -27,8 +27,11 @@ ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
 ENV VITE_SENTRY_ENVIRONMENT=$VITE_SENTRY_ENVIRONMENT
 ENV VITE_SENTRY_RELEASE=$VITE_SENTRY_RELEASE
 ENV VITE_SENTRY_TRACES_SAMPLE_RATE=$VITE_SENTRY_TRACES_SAMPLE_RATE
+# Secret de build uniquement (upload source maps). Absent du stage nginx.
+ARG SENTRY_AUTH_TOKEN=""
+ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
 
-RUN npm run build
+RUN npm run build && find /app/dist -name '*.map' -delete
 
 # --- Serve stage ---
 FROM nginx:alpine

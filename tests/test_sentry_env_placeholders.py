@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import shutil
 import subprocess
@@ -109,8 +110,8 @@ def test_no_sentry_auth_token_assignment_in_env_examples() -> None:
 
 def test_compose_does_not_pass_auth_token() -> None:
     text = _read("docker-compose.yml")
-    assert "SENTRY_AUTH_TOKEN:" not in text
     assert "- SENTRY_AUTH_TOKEN=" in text
+    assert "SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN:-}" in text
     assert "VITE_SENTRY_DSN:" in text
     assert "SENTRY_DSN=${SENTRY_DSN:-}" in text
 
@@ -137,7 +138,15 @@ def test_compose_config_blanks_probe_auth_token(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     result = subprocess.run(
-        ["docker", "compose", "-f", str(tmp_path / "docker-compose.yml"), "config"],
+        [
+            "docker",
+            "compose",
+            "-f",
+            str(tmp_path / "docker-compose.yml"),
+            "config",
+            "--format",
+            "json",
+        ],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -145,17 +154,20 @@ def test_compose_config_blanks_probe_auth_token(tmp_path: Path) -> None:
     )
     if result.returncode != 0:
         pytest.skip(result.stderr[:300] or result.stdout[:300])
-    assert "probe" not in result.stdout
-    assert "keep-dsn" in result.stdout
+    data = json.loads(result.stdout)
+    backend_env = data["services"]["backend"].get("environment") or {}
+    assert "probe" not in json.dumps(backend_env)
+    assert "keep-dsn" in json.dumps(backend_env)
 
 
 def test_frontend_dockerfile_sentry_args_stay_in_build_stage() -> None:
     text = _read("frontend/Dockerfile")
     assert "ARG VITE_SENTRY_DSN" in text
+    assert "ARG SENTRY_AUTH_TOKEN" in text
     nginx_stage = text.split("FROM nginx", 1)[1]
     assert "SENTRY" not in nginx_stage
-    assert "ARG SENTRY_AUTH_TOKEN" not in text
-    assert "ENV SENTRY_AUTH_TOKEN" not in text
+    build_stage = text.split("FROM nginx", 1)[0]
+    assert "ENV SENTRY_AUTH_TOKEN" in build_stage
 
 
 def test_no_dsn_url_committed_in_env_examples() -> None:

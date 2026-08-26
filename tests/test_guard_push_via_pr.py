@@ -62,6 +62,29 @@ def test_bare_push_origin_denied_when_cwd_is_main(tmp_path: Path) -> None:
         capture_output=True,
         text=True,
     )
+    subprocess.run(
+        ["git", "-C", str(tmp_path), "config", "user.email", "ci@example.test"],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(tmp_path), "config", "user.name", "ci"],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(tmp_path),
+            "commit",
+            "--allow-empty",
+            "-m",
+            "init",
+        ],
+        check=True,
+        capture_output=True,
+    )
     result = subprocess.run(
         ["bash", str(SCRIPT), "--git-command", "git push origin"],
         cwd=tmp_path,

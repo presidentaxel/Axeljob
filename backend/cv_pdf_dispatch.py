@@ -38,6 +38,13 @@ def html_to_cv_pdf_bytes(
     """
     base_resolved = Path(base_dir).resolve()
     engine = cv_pdf_engine()
+    try:
+        import sentry_sdk
+
+        sentry_sdk.set_tag("pdf_engine", engine)
+        sentry_sdk.set_tag("flow", "pdf")
+    except Exception:
+        pass
     raw_env = (os.environ.get("CV_BOT_PDF_ENGINE") or "").strip() or "(default weasyprint)"
     _log.info(
         "Export PDF CV - moteur effectif=%s | CV_BOT_PDF_ENGINE=%s | template_id=%s | html~%d car.",

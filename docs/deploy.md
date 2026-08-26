@@ -126,7 +126,7 @@ Pour les commandes d'exploitation quotidiennes, voir `docs/ops-commands.md`.
 Decisions figées : [`docs/observabilite.md`](observabilite.md) ([AXE-366](https://linear.app/axel-project/issue/AXE-366)).
 Placeholders env : ce guide + `.env.example` ([AXE-369](https://linear.app/axel-project/issue/AXE-369)). **Aucune valeur DSN dans Git.**
 
-SDK : [AXE-367](https://linear.app/axel-project/issue/AXE-367) / [AXE-368](https://linear.app/axel-project/issue/AXE-368). DSN vide = no-op (dev / CI) — voulu tant que les DSN ne sont pas colles **sur le serveur**.
+SDK backend : [AXE-367](https://linear.app/axel-project/issue/AXE-367) (`backend/sentry_config.py`). Frontend : [AXE-368](https://linear.app/axel-project/issue/AXE-368). DSN vide = no-op (dev / CI) — voulu tant que les DSN ne sont pas colles **sur le serveur**.
 
 ### Ou coller les valeurs (serveur / PC, pas Git)
 

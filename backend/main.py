@@ -110,7 +110,10 @@ from backend.gemini_usage import (
 )
 from backend.promo_codes import redeem_promo_code
 from backend.security import check_user_input_for_injection
+from backend.sentry_config import bind_sentry_user, init_sentry
 from backend.services import billing_notifications, template_access
+
+init_sentry()
 
 
 # --- Structured logging ---
@@ -688,6 +691,13 @@ def _get_user_id(request: Request) -> str | None:
             from backend.auth_user_verify import ensure_supabase_user_still_exists
 
             ensure_supabase_user_still_exists(user_id)
+        if user_id:
+            plan = None
+            try:
+                plan = get_user_plan(user_id)
+            except Exception:
+                plan = None
+            bind_sentry_user(user_id, plan)
         return user_id
     except HTTPException:
         raise

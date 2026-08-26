@@ -13,7 +13,7 @@ Consentement : même logique que [AXE-363](https://linear.app/axel-project/issue
 **Go Sentry** pour le diagnostic d’erreurs (front React + back FastAPI).  
 **Pas** un outil analytics. **Pas** de Session Replay. **Pas** derrière la CMP.
 
-État `main` (août 2026) : 0 dépendance Sentry, 0 DSN, Prometheus seulement (`monitoring_ops.py` / `/metrics`). Ça reste : Prometheus = volume ; Sentry = stack + contexte.
+État `main` (août 2026) : SDK backend [AXE-367](https://linear.app/axel-project/issue/AXE-367) (`sentry-sdk`, DSN vide = no-op). Frontend : [AXE-368](https://linear.app/axel-project/issue/AXE-368). Prometheus reste (`monitoring_ops.py` / `/metrics`) = volume ; Sentry = stack + contexte.
 
 ---
 

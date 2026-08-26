@@ -53,6 +53,8 @@ Resultat attendu :
 - frontend actif ;
 - endpoint `/health` sur statut `ok`.
 
+Si les DSN Sentry sont colles dans `.env` : checklist Sentry du §7 + recette [`observabilite.md`](observabilite.md) (AXE-371). Pas de route `/sentry-test`.
+
 ## 4) Promote `main` → `prod`
 
 Rien n'arrive en production tant qu'une PR dont la **base** est `prod` n'est pas mergee.
@@ -119,6 +121,16 @@ Quand [AXE-317](https://linear.app/axel-project/issue/AXE-317) sera livre, un `p
 - [ ] Logs backend sans erreur bloquante.
 - [ ] Workflow securite CI vert.
 
+Sentry (apres DSN colles, [AXE-371](https://linear.app/axel-project/issue/AXE-371) / [`observabilite.md`](observabilite.md)) :
+
+- [ ] `SENTRY_DSN` + `VITE_SENTRY_DSN` poses (pas dans Git) ; `SENTRY_ENVIRONMENT` / `VITE_SENTRY_ENVIRONMENT` = `production` sur le serveur `prod`.
+- [ ] Frontend **rebuild** apres changement de `VITE_*` ; backend recree (`--force-recreate`).
+- [ ] Smoke backend + smoke frontend visibles, puis issues de test Resolved (pas de route `/sentry-test`).
+- [ ] Alerte email high-priority active sur `axel-job-frontend` et `axel-job-backend`.
+- [ ] Alerte email tag `flow=billing` active sur `axel-job-backend` (events warning AXE-370).
+- [ ] Aucun contenu de CV / e-mail dans l'issue ouverte ; `user` = UUID ou absent.
+- [ ] Source maps : stack front lisible seulement si `SENTRY_AUTH_TOKEN` etait present au **build** (jamais dans `.env`).
+
 Pour les commandes d'exploitation quotidiennes, voir `docs/ops-commands.md`.
 
 ## 8) Sentry (observabilite)
@@ -130,14 +142,17 @@ SDK backend : [AXE-367](https://linear.app/axel-project/issue/AXE-367) (`backend
 
 ### Ou coller les valeurs (serveur / PC, pas Git)
 
-1. **Local** : laisser `SENTRY_DSN` et `VITE_SENTRY_DSN` **vides** (pas d'events depuis le laptop).
-2. **Prod / staging** (`.env` a la racine du clone Docker) :
+1. **Dev quotidien** : laisser `SENTRY_DSN` et `VITE_SENTRY_DSN` **vides** (pas d'events depuis le laptop).
+2. **Recette laptop ([AXE-371](https://linear.app/axel-project/issue/AXE-371))** : coller les DSN + `SENTRY_ENVIRONMENT=staging` et `VITE_SENTRY_ENVIRONMENT=staging` (Compose force `ENVIRONMENT=production`).
+3. **Prod / staging serveur** (`.env` a la racine du clone Docker) :
    - `SENTRY_DSN` = DSN projet `axel-job-backend` (runtime backend)
    - `VITE_SENTRY_DSN` = DSN projet `axel-job-frontend` (**build arg** frontend)
    - `SENTRY_ENVIRONMENT` / `VITE_SENTRY_ENVIRONMENT` = `production` ou `staging` (lecon AXE-271 : pas `MODE` Vite)
    - optionnel : `SENTRY_RELEASE` / `VITE_SENTRY_RELEASE` = SHA git ; `SENTRY_TRACES_SAMPLE_RATE` / `VITE_SENTRY_TRACES_SAMPLE_RATE`
-3. Puis **rebuild front** : `docker compose build frontend && docker compose up -d` — changer le `.env` sans rebuild ne met pas Sentry dans le bundle.
-4. Backend : `docker compose up -d --force-recreate backend` (lit `.env` au runtime).
+4. Puis **rebuild front** : `docker compose build frontend && docker compose up -d` — changer le `.env` sans rebuild ne met pas Sentry dans le bundle.
+5. Backend : `docker compose up -d --force-recreate backend` (lit `.env` au runtime).
+
+Protocole smoke + alertes email : [`observabilite.md`](observabilite.md) section Recette DSN.
 
 `SENTRY_AUTH_TOKEN` : secret de **build** uniquement (source maps, AXE-368). **Pas** dans `.env` runtime backend (`env_file` l'injecterait). Compose force `SENTRY_AUTH_TOKEN=` vide au runtime backend. Pour l'upload des maps : build-arg frontend (`docker compose build frontend`) si le token est dans l'environnement du **build** (interpolation Compose), jamais dans l'image nginx. Sans token, le build réussit et les `.map` sont supprimés.
 

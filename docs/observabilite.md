@@ -81,7 +81,7 @@ OK : route, status HTTP, `flow`, moteur PDF, durée, taille fichier, code d’er
 | `environment` | `staging` \| `production` (local = DSN vide, no-op) |
 | `release` | SHA git du **build Docker** (`SENTRY_RELEASE` / `VITE_SENTRY_RELEASE`) — pour attacher les source maps |
 
-`ENVIRONMENT=production` dans `docker-compose.yml` prod. Staging DO : poser `VITE_SENTRY_ENVIRONMENT=staging` au build front (leçon AXE-271).
+`ENVIRONMENT=production` dans `docker-compose.yml` (y compris un Docker local). Pour une recette laptop, **forcer** `SENTRY_ENVIRONMENT=staging` et `VITE_SENTRY_ENVIRONMENT=staging` — sinon les smokes partent en `production`. Staging DO : poser `VITE_SENTRY_ENVIRONMENT=staging` au build front (leçon AXE-271).
 
 ---
 
@@ -105,6 +105,96 @@ Aucune n’est à committer en dur. DSN vide = no-op (dev + CI).
 
 ---
 
+## Recette DSN + alertes ([AXE-371](https://linear.app/axel-project/issue/AXE-371))
+
+Ops, pas de route `/sentry-test` ([AXE-270](https://linear.app/axel-project/issue/AXE-270)). Aucune valeur DSN dans Git ni dans un ticket. Compose n’a pas de bind-mount : **rebuild** après changement d’env.
+
+### 1. Créer les projets (une fois)
+
+Org [axel-project.sentry.io](https://axel-project.sentry.io) — **ne pas** réutiliser `javascript-react` / `python-fastapi`.
+
+| Projet | Plateforme Sentry |
+|---|---|
+| `axel-job-frontend` | React / JavaScript |
+| `axel-job-backend` | Python / FastAPI |
+
+Settings → Client Keys (DSN) : un DSN par projet, ne pas les croiser.
+
+### 2. Coller les DSN (`.env` local ou serveur, jamais Git)
+
+| Variable | Où | Projet |
+|---|---|---|
+| `SENTRY_DSN` | runtime backend | `axel-job-backend` |
+| `VITE_SENTRY_DSN` | **build arg** frontend | `axel-job-frontend` |
+| `SENTRY_ENVIRONMENT` / `VITE_SENTRY_ENVIRONMENT` | runtime / build | `staging` (laptop) ou `production` (serveur `prod`) |
+
+Dev quotidien : DSN vides (no-op). Recette : DSN collés + `staging`. `docker-compose.yml` force `ENVIRONMENT=production` — d’où le override `SENTRY_ENVIRONMENT`.
+
+```bash
+docker compose build backend frontend
+docker compose up -d --force-recreate backend frontend
+```
+
+Changer `VITE_SENTRY_DSN` sans rebuild front = SDK absent du bundle.
+
+`SENTRY_AUTH_TOKEN` : uniquement au **build** front (source maps). Jamais dans `.env` (`env_file` l’injecterait au backend). Sans token, le build réussit ; les `.map` sont supprimés ; la stack front reste minifiée.
+
+### 3. Smoke sans route de test
+
+SDK SPA seulement : `/`, `/login`, `/app/*` — pas `/confidentialite` ni `/faq`.
+
+**Backend** (conteneur, DSN déjà dans l’env runtime) :
+
+```bash
+docker compose exec backend python -c "
+from backend.sentry_config import init_sentry
+import sentry_sdk
+assert init_sentry(), 'DSN vide — Sentry no-op'
+sentry_sdk.capture_message('AXE-371 recette smoke backend', level='error')
+sentry_sdk.flush(timeout=5)
+print('flushed')
+"
+```
+
+**Frontend** : ouvrir `/login`, DevTools → Network (filtre `ingest`) + Console :
+
+```javascript
+(function () {
+  const c = window.__SENTRY__;
+  if (!c) { console.warn('Sentry absent (DSN vide ou page statique)'); return; }
+  const client = (typeof c.getClient === 'function' && c.getClient())
+    || c.defaultClient
+    || (c.hub && c.hub.getClient && c.hub.getClient());
+  if (!client) { console.warn('Client introuvable — ne plus tester .hub seul (SDK v10)'); return; }
+  const opts = client.getOptions ? client.getOptions() : {};
+  console.log('Sentry OK', { env: opts.environment, release: opts.release });
+  client.captureMessage('AXE-371 recette smoke frontend', 'error');
+})();
+```
+
+Attendu : 1 issue `axel-job-backend` + 1 issue `axel-job-frontend`, tag `environment:staging` (laptop) ou `production` (serveur). Puis **Resolved** / delete les deux smokes. Vérifier : pas de CV, pas d’e-mail, `user` = UUID ou absent.
+
+Nginx Job n’a **pas** de `Content-Security-Policy` `connect-src` (leçon CRM [AXE-268](https://linear.app/axel-project/issue/AXE-268) : CSP trop stricte bloquait l’ingest). Si une CSP est ajoutée plus tard : autoriser `*.sentry.io` et `*.ingest.sentry.io` (org US).
+
+### 4. Alertes email (décalque [AXE-269](https://linear.app/axel-project/issue/AXE-269), pas Slack v1)
+
+Sur **chaque** projet Job : Alerts → Issue Alert.
+
+| Règle | Condition | Filtre | Action | Fréquence |
+|---|---|---|---|---|
+| High priority | nouvelle issue **high priority** | aucun `environment:` (écart CRM accepté) | Email Issue owners / ActiveMembers | 30 min |
+| Billing (backend seulement) | nouvelle issue | tag `flow` = `billing` | Email idem | 30 min |
+
+La règle billing est **séparée** : les events métier [AXE-370](https://linear.app/axel-project/issue/AXE-370) partent en `warning`, pas en high-priority. Un échec Stripe (`stripe_bad_signature`, etc.) ne réveillerait pas la règle CRM classique.
+
+Pic d’erreurs v1 = high-priority (pas de metric alert dédiée, même écart que le CRM). Tester la règle high-priority avec le smoke `error` ci-dessus, puis résoudre l’issue.
+
+### 5. Checklist post-deploy
+
+Voir [`docs/deploy.md`](deploy.md) §7 (bloc Sentry) et §8.
+
+---
+
 ## Mention `/confidentialite` (posée dans ce spike)
 
 À garder alignée HTML (`frontend/public/confidentialite.html`) **et** React (`LegalPages.jsx`) :
@@ -118,11 +208,11 @@ Aucune n’est à committer en dur. DSN vide = no-op (dev + CI).
 
 ## Suite (ordre)
 
-1. **Ops** : créer `axel-job-frontend` + `axel-job-backend` dans l’org `axel-project` (Louis / admin Sentry).
-2. [AXE-369](https://linear.app/axel-project/issue/AXE-369) env/secrets (peut chevaucher 367/368).
-3. [AXE-367](https://linear.app/axel-project/issue/AXE-367) + [AXE-368](https://linear.app/axel-project/issue/AXE-368) en parallèle.
-4. [AXE-370](https://linear.app/axel-project/issue/AXE-370) contextes métier.
-5. [AXE-371](https://linear.app/axel-project/issue/AXE-371) smoke + alertes email high-priority (même recette que CRM AXE-269 : pas Slack v1).
+1. **Ops** : créer `axel-job-frontend` + `axel-job-backend` dans l’org `axel-project` (cette recette, § ci-dessus).
+2. [AXE-369](https://linear.app/axel-project/issue/AXE-369) placeholders env — **Done** (DSN vides dans Git).
+3. [AXE-367](https://linear.app/axel-project/issue/AXE-367) + [AXE-368](https://linear.app/axel-project/issue/AXE-368) SDK — **Done** sur `main`.
+4. [AXE-370](https://linear.app/axel-project/issue/AXE-370) contextes métier — code en revue ; recette live avec cette checklist.
+5. [AXE-371](https://linear.app/axel-project/issue/AXE-371) coller DSN + smoke + alertes email (ce document).
 
 ---
 

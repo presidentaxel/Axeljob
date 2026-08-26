@@ -2,15 +2,19 @@
 
 Reference de deploiement `cv-bot` avec Docker.
 
+Branche Git de production : **`prod`**. `main` est l'integration — voir [`ADR_MAIN_PROD.md`](ADR_MAIN_PROD.md).
+
 ## Sommaire
 
 1. Prerequis
 2. Installation initiale
 3. Verification post-deploiement
-4. Mise a jour
-5. Configuration critique
-6. Checklist production
-7. Sentry (observabilite)
+4. Promote `main` → `prod`
+5. Mise a jour serveur (depuis `prod`)
+6. Configuration critique
+7. Checklist production
+8. Sentry (observabilite)
+9. Fallback CD (jusqu'a AXE-317)
 
 ## 1) Prerequis
 
@@ -22,10 +26,13 @@ Reference de deploiement `cv-bot` avec Docker.
 
 ## 2) Installation initiale
 
+Le clone par defaut GitHub pointe sur `main` (integration). En production, checkout **`prod`** avant le premier build.
+
 ```bash
 cd /opt
 git clone <repo-url> cv-bot
 cd cv-bot
+git checkout prod
 cp .env.example .env
 # renseigner les valeurs production dans .env
 docker compose build
@@ -46,16 +53,52 @@ Resultat attendu :
 - frontend actif ;
 - endpoint `/health` sur statut `ok`.
 
-## 4) Mise a jour
+## 4) Promote `main` → `prod`
+
+Rien n'arrive en production tant qu'une PR dont la **base** est `prod` n'est pas mergee.
+
+```bash
+gh pr create --base prod --head main \
+  --title "release: promote main → prod" \
+  --body "$(cat <<'EOF'
+## Summary
+Promote integration (`main`) vers production (`prod`).
+
+## Linear
+Fixes AXE-XX
+
+## Test plan
+- [ ] CI verte sur cette PR
+- [ ] Apres merge : CD (AXE-317) ou fallback §9
+- [ ] `curl …/health` → ok
+EOF
+)"
+```
+
+Hotfix urgence : brancher depuis `origin/prod`, PR vers `prod`, puis backport `main`. Detail : [`git-workflow.md`](git-workflow.md).
+
+> [!WARNING]
+> Ne pas merger une PR feature directement dans `prod` (sauf hotfix). Ne pas deployer depuis `main`.
+
+## 5) Mise a jour serveur (depuis `prod`)
+
+Apres merge de la PR promote (ou hotfix) dans `prod` :
 
 ```bash
 cd /opt/cv-bot
-git pull origin main
+git fetch origin
+git checkout prod
+git pull origin prod
 docker compose build
 docker compose up -d
 ```
 
-## 5) Configuration critique
+> [!WARNING]
+> Ne plus `git pull origin main` sur le serveur de production. `main` n'est plus la prod.
+
+Quand [AXE-317](https://linear.app/axel-project/issue/AXE-317) sera livre, un `push` sur `prod` declenchera le CD (`deploy-prod.yml`) et cette etape manuelle ne sera plus le chemin nominal — garder §9 si le CD est down.
+
+## 6) Configuration critique
 
 - Configurer un reverse proxy HTTPS (Caddy, nginx ou Cloudflare).
 - Definir un `METRICS_AUTH_TOKEN` robuste.
@@ -66,8 +109,10 @@ docker compose up -d
 > [!WARNING]
 > Ne pas deployer sans valider les variables d'environnement et le healthcheck.
 
-## 6) Checklist production
+## 7) Checklist production
 
+- [ ] PR promote (ou hotfix) mergee dans `prod` — pas un simple merge `main`.
+- [ ] Serveur sur la branche `prod` (`git rev-parse --abbrev-ref HEAD`).
 - [ ] Variables d'environnement completees et verifiees.
 - [ ] Build Docker ok.
 - [ ] Healthcheck valide.
@@ -76,7 +121,7 @@ docker compose up -d
 
 Pour les commandes d'exploitation quotidiennes, voir `docs/ops-commands.md`.
 
-## 7) Sentry (observabilite)
+## 8) Sentry (observabilite)
 
 Decisions figées : [`docs/observabilite.md`](observabilite.md) ([AXE-366](https://linear.app/axel-project/issue/AXE-366)).
 
@@ -86,3 +131,12 @@ Decisions figées : [`docs/observabilite.md`](observabilite.md) ([AXE-366](https
 - `SENTRY_AUTH_TOKEN` : secret de build uniquement, jamais dans l'image.
 - Session Replay : **off**. CV / annonce : **jamais** dans un event.
 - Recette post-deploy : [AXE-371](https://linear.app/axel-project/issue/AXE-371).
+
+## 9) Fallback CD (jusqu'a AXE-317)
+
+Le workflow GitHub `deploy-prod.yml` n'existe pas encore. Apres merge dans `prod` :
+
+1. Executer §5 a la main (toujours `prod`, jamais `main`).
+2. Verifier `/health`.
+
+Si le CD est down plus tard : **meme fallback**.

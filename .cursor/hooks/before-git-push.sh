@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bloque push vers main/master et exige la CI locale avant git push.
+# Bloque push vers main/master/prod et exige la CI locale avant git push.
 # Contournement d'urgence : SKIP_PREPUSH=1 git push …
 set -euo pipefail
 
@@ -24,7 +24,7 @@ cd "$repo_root" || {
 
 if ! bash "$repo_root/scripts/guard-push-via-pr.sh" --git-command "$command"; then
   printf '%s\n' "$(cat <<'EOF'
-{"permission":"deny","user_message":"Push direct vers main/master interdit - utiliser une branche et gh pr create.","agent_message":"Ne jamais git push origin main. Travailler sur une branche feature, lancer bash scripts/pre-push.sh --skip-extras --skip-gitleaks, puis git push -u origin HEAD et gh pr create --base main."}
+{"permission":"deny","user_message":"Push direct vers main/master/prod interdit - utiliser une branche et gh pr create.","agent_message":"Ne jamais git push origin main ni origin prod. main = integration, prod = production (docs/ADR_MAIN_PROD.md). Travailler sur une branche feature, lancer bash scripts/pre-push.sh --skip-extras --skip-gitleaks, puis git push -u origin HEAD et gh pr create --base main. Promote prod : gh pr create --base prod --head main."}
 EOF
 )"
   exit 2

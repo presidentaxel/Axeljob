@@ -23,13 +23,12 @@ services:
       - CV_BOT_PDF_CHROMIUM_NO_SANDBOX=${CV_BOT_PDF_CHROMIUM_NO_SANDBOX:-}
       - CV_BOT_PDF_CHROMIUM_ARGS=${CV_BOT_PDF_CHROMIUM_ARGS:-}
       - CV_BOT_PDF_CHROMIUM_VIEWPORT_HEIGHT=${CV_BOT_PDF_CHROMIUM_VIEWPORT_HEIGHT:-}
-      # Sentry backend (AXE-369). DSN vide = no-op. Pas de SENTRY_AUTH_TOKEN (secret de build).
+      # Sentry (AXE-369). env_file charge tout le .env : AUTH_TOKEN vide ecrase un oubli.
+      - SENTRY_AUTH_TOKEN=
       - SENTRY_DSN=${SENTRY_DSN:-}
       - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-}
       - SENTRY_TRACES_SAMPLE_RATE=${SENTRY_TRACES_SAMPLE_RATE:-}
       - SENTRY_RELEASE=${SENTRY_RELEASE:-}
-      # env_file charge tout le .env : vider un AUTH_TOKEN oublié (secret de build, AXE-368).
-      - SENTRY_AUTH_TOKEN=
     restart: unless-stopped
     # Si CV_BOT_PDF_ENGINE=chromium et plantages aléatoires : décommenter
     # shm_size: "256mb"

@@ -37,6 +37,9 @@ RUN pip install --no-cache-dir -r backend/requirements.txt \
 
 COPY . .
 
+ARG SENTRY_RELEASE=""
+ENV SENTRY_RELEASE=$SENTRY_RELEASE
+
 ENV PYTHONUNBUFFERED=1
 ENV ENVIRONMENT=production
 # Limite glibc à 2 arenas malloc (par défaut : 8 × CPU). Sans ça, un process Python

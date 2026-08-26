@@ -101,7 +101,7 @@ Aucune n’est à committer en dur. DSN vide = no-op (dev + CI).
 | `VITE_SENTRY_TRACES_SAMPLE_RATE` | build arg frontend, optionnel | idem côté client (Vite n’expose que `VITE_*`) |
 | `SENTRY_AUTH_TOKEN` | **secret de build uniquement** | upload source maps — **jamais** dans l’image finale |
 
-`.env.example` + `frontend/Dockerfile` ARG : ticket 369, pas ici.
+`.env.example`, `frontend/.env.example`, `backend/Dockerfile`, `frontend/Dockerfile` et `docker-compose.yml` : [AXE-369](https://linear.app/axel-project/issue/AXE-369). DSN **vides** dans Git. `SENTRY_AUTH_TOKEN` n'est **pas** une clé de `.env`.
 
 ---
 

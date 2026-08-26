@@ -124,13 +124,27 @@ Pour les commandes d'exploitation quotidiennes, voir `docs/ops-commands.md`.
 ## 8) Sentry (observabilite)
 
 Decisions figées : [`docs/observabilite.md`](observabilite.md) ([AXE-366](https://linear.app/axel-project/issue/AXE-366)).
+Placeholders env : ce guide + `.env.example` ([AXE-369](https://linear.app/axel-project/issue/AXE-369)). **Aucune valeur DSN dans Git.**
 
-- Pas de SDK tant que [AXE-367](https://linear.app/axel-project/issue/AXE-367) / [AXE-368](https://linear.app/axel-project/issue/AXE-368) ne sont pas livrés.
-- DSN vide = no-op (dev / CI). Variables : ticket [AXE-369](https://linear.app/axel-project/issue/AXE-369).
-- `VITE_SENTRY_DSN` et `VITE_SENTRY_ENVIRONMENT` sont des **build args** Docker (comme `VITE_AXEL_GTM_ID`), pas du runtime.
-- `SENTRY_AUTH_TOKEN` : secret de build uniquement, jamais dans l'image.
-- Session Replay : **off**. CV / annonce : **jamais** dans un event.
-- Recette post-deploy : [AXE-371](https://linear.app/axel-project/issue/AXE-371).
+SDK : [AXE-367](https://linear.app/axel-project/issue/AXE-367) / [AXE-368](https://linear.app/axel-project/issue/AXE-368). DSN vide = no-op (dev / CI) — voulu tant que les DSN ne sont pas colles **sur le serveur**.
+
+### Ou coller les valeurs (serveur / PC, pas Git)
+
+1. **Local** : laisser `SENTRY_DSN` et `VITE_SENTRY_DSN` **vides** (pas d'events depuis le laptop).
+2. **Prod / staging** (`.env` a la racine du clone Docker) :
+   - `SENTRY_DSN` = DSN projet `axel-job-backend` (runtime backend)
+   - `VITE_SENTRY_DSN` = DSN projet `axel-job-frontend` (**build arg** frontend)
+   - `SENTRY_ENVIRONMENT` / `VITE_SENTRY_ENVIRONMENT` = `production` ou `staging` (lecon AXE-271 : pas `MODE` Vite)
+   - optionnel : `SENTRY_RELEASE` / `VITE_SENTRY_RELEASE` = SHA git ; `SENTRY_TRACES_SAMPLE_RATE` / `VITE_SENTRY_TRACES_SAMPLE_RATE`
+3. Puis **rebuild front** : `docker compose build frontend && docker compose up -d` — changer le `.env` sans rebuild ne met pas Sentry dans le bundle.
+4. Backend : `docker compose up -d --force-recreate backend` (lit `.env` au runtime).
+
+`SENTRY_AUTH_TOKEN` : secret de **build** uniquement (source maps, AXE-368). **Pas** dans `.env`. `env_file: .env` injecte toutes les cles : Compose n'a pas d'exclude, donc `environment` force `SENTRY_AUTH_TOKEN=` vide (gagne sur un oubli). Retirer `env_file` pour une allowlist complete casserait GEMINI/Stripe/Supabase — hors scope. Jamais dans l'image nginx.
+
+Recuperer les DSN : Sentry → projet → Settings → Client Keys (DSN). Un DSN par projet, ne pas les melanger.
+
+Session Replay : **off**. CV / annonce : **jamais** dans un event.
+Recette post-deploy : [AXE-371](https://linear.app/axel-project/issue/AXE-371).
 
 ## 9) Fallback CD (jusqu'a AXE-317)
 

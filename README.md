@@ -180,6 +180,8 @@ Secrets minimum pour un local utile : `GEMINI_API_KEY`, `SUPABASE_URL`, `SUPABAS
 | `STRIPE_PRICE_ID_PRO_MONTHLY` | Price ID Stripe pour l'abo Pro | Non |
 | `STRIPE_WEBHOOK_SECRET` | Secret webhook Stripe | Non |
 | `METRICS_AUTH_TOKEN` | Token pour proteger `/metrics` | Non |
+| `SENTRY_DSN` | DSN Sentry backend (`axel-job-backend`). Vide = no-op | Non |
+| `SENTRY_ENVIRONMENT` | Tag Sentry ; sinon `ENVIRONMENT` | Non |
 | `LOGO_DEV_TOKEN` | Token publishable Logo.dev | Non |
 | `WEASYPRINT_DLL_DIRECTORIES` | (Windows) Chemin DLL Pango/GTK | Windows only |
 | `CV_BOT_EXPORT_BASE` | Dossier racine export candidatures | Non |
@@ -191,6 +193,9 @@ Secrets minimum pour un local utile : `GEMINI_API_KEY`, `SUPABASE_URL`, `SUPABAS
 | `VITE_API_URL` | URL du backend (`http://localhost:8000` en dev, vide en prod) | Dev only |
 | `VITE_SUPABASE_URL` | URL du projet Supabase | Oui |
 | `VITE_SUPABASE_ANON_KEY` | Cle `anon` Supabase | Oui |
+| `VITE_AXEL_GTM_ID` | Conteneur GTM (build Docker) | Non |
+| `VITE_SENTRY_DSN` | DSN Sentry frontend (`axel-job-frontend`), **build arg**. Vide = no-op | Non |
+| `VITE_SENTRY_ENVIRONMENT` | `production` ou `staging` (pas `MODE` Vite) | Non |
 
 ---
 

@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -42,9 +46,41 @@ def test_no_sentry_auth_token_assignment_in_env_examples() -> None:
 def test_compose_does_not_pass_auth_token() -> None:
     text = _read("docker-compose.yml")
     assert "SENTRY_AUTH_TOKEN:" not in text
-    assert "SENTRY_AUTH_TOKEN=" not in text
+    assert "- SENTRY_AUTH_TOKEN=" in text
     assert "VITE_SENTRY_DSN:" in text
     assert "SENTRY_DSN=${SENTRY_DSN:-}" in text
+
+
+def test_compose_config_blanks_probe_auth_token(tmp_path: Path) -> None:
+    """env_file + override vide : un AUTH_TOKEN oublié dans .env n'atteint pas le runtime."""
+    if shutil.which("docker") is None:
+        pytest.skip("docker absent")
+    (tmp_path / ".env").write_text(
+        "SENTRY_DSN=\nSENTRY_AUTH_TOKEN=not-a-token\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "docker-compose.yml").write_text(
+        "services:\n"
+        "  backend:\n"
+        "    image: busybox\n"
+        "    env_file:\n"
+        "      - .env\n"
+        "    environment:\n"
+        "      - SENTRY_DSN=${SENTRY_DSN:-}\n"
+        "      - SENTRY_AUTH_TOKEN=\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        ["docker", "compose", "-f", str(tmp_path / "docker-compose.yml"), "config"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        pytest.skip(result.stderr[:300] or result.stdout[:300])
+    assert "not-a-token" not in result.stdout
+    assert "- SENTRY_AUTH_TOKEN=" in _read("docker-compose.yml")
 
 
 def test_frontend_dockerfile_sentry_args_stay_in_build_stage() -> None:

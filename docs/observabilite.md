@@ -13,7 +13,7 @@ Consentement : même logique que [AXE-363](https://linear.app/axel-project/issue
 **Go Sentry** pour le diagnostic d’erreurs (front React + back FastAPI).  
 **Pas** un outil analytics. **Pas** de Session Replay. **Pas** derrière la CMP.
 
-État `main` (août 2026) : SDK backend [AXE-367](https://linear.app/axel-project/issue/AXE-367) (`sentry-sdk`, DSN vide = no-op). Frontend : [AXE-368](https://linear.app/axel-project/issue/AXE-368). Prometheus reste (`monitoring_ops.py` / `/metrics`) = volume ; Sentry = stack + contexte.
+État `main` (août 2026) : SDK backend [AXE-367](https://linear.app/axel-project/issue/AXE-367) (`sentry-sdk`, DSN vide = no-op). Frontend : [AXE-368](https://linear.app/axel-project/issue/AXE-368). Contextes métier : [AXE-370](https://linear.app/axel-project/issue/AXE-370) (`backend/sentry_business.py`). Prometheus reste (`monitoring_ops.py` / `/metrics`) = volume ; Sentry = diagnostic.
 
 ---
 
@@ -55,7 +55,7 @@ Backend : `SENTRY_ENVIRONMENT` sinon `ENVIRONMENT`. Frontend : `VITE_SENTRY_ENVI
 | Chemins fichiers utilisateur | uploads locaux |
 | `setUser` | **pas d’email**. `id` = UUID Supabase (opaque) + tag `plan` = `free` \| `pro` |
 
-OK : route, status HTTP, `flow`, moteur PDF, durée, taille fichier, code d’erreur fournisseur, `release`, `environment`.
+OK : route, status HTTP, `flow`, `kind`, moteur PDF, durée, taille fichier, code d’erreur fournisseur, `release`, `environment`.
 
 ### Consentement (RGPD)
 
@@ -102,6 +102,24 @@ Aucune n’est à committer en dur. DSN vide = no-op (dev + CI).
 | `SENTRY_AUTH_TOKEN` | **secret de build uniquement** | upload source maps — **jamais** dans l’image finale |
 
 `.env.example`, `frontend/.env.example`, `backend/Dockerfile`, `frontend/Dockerfile` et `docker-compose.yml` : [AXE-369](https://linear.app/axel-project/issue/AXE-369). DSN **vides** dans Git. `SENTRY_AUTH_TOKEN` n'est **pas** une clé de `.env`.
+
+---
+
+## Events métier (AXE-370)
+
+Helper : `backend/sentry_business.py` → `capture_business_event(flow, message, kind=...)`.
+
+Les 4xx FastAPI sont ignorés par `before_send` (AXE-367). Un quota Gemini (429), un JWT invalide (401) ou un webhook Stripe rejeté (400) **ne lèvent donc pas** d’issue Sentry tout seuls : le helper envoie un `capture_message` **warning** avant la conversion HTTP. DSN vide = no-op.
+
+| `flow` | `kind` (exemples) | Quand |
+|---|---|---|
+| `adapt` | `gemini_quota` / `gemini_timeout` / `gemini_api_error` / `gemini_unparseable` / `gemini_empty` | Budget `ensure_budget`, timeout/API Gemini, JSON illisible |
+| `export` | `empty_pdf` / `pdf_timeout` / `pdf_engine_fail` / `pdf_pool_saturated` | PDF 0 octet, Chromium indisponible (repli), file d’attente saturée |
+| `import` | `pdf_unreadable` / `docx_unreadable` / `pymupdf_fail` | pdfplumber / docx / ouverture PyMuPDF |
+| `billing` | `stripe_bad_signature` / `stripe_bad_payload` / `stripe_orphan_subscription` | Webhook rejeté ou checkout sans `user_id` |
+| `auth` | `jwt_burst` / `pg_pool` | Rafale de JWT invalides (seuil, pas un 401 isolé) ; `PoolTimeout` psycopg |
+
+Fingerprint : `["axel-job", flow, kind]` — quota ≠ erreur API. Extras autorisés : `size_bytes`, `engine`, `duration_ms`, `provider_code`, `burst_count`, `qsize`… Jamais CV / annonce / e-mail. Ce n’est **pas** un doublon des compteurs Prometheus (`/metrics`) : Sentry = un incident identifiable, Prometheus = volume.
 
 ---
 
@@ -211,7 +229,7 @@ Voir [`docs/deploy.md`](deploy.md) §7 (bloc Sentry) et §8.
 1. **Ops** : créer `axel-job-frontend` + `axel-job-backend` dans l’org `axel-project` (cette recette, § ci-dessus).
 2. [AXE-369](https://linear.app/axel-project/issue/AXE-369) placeholders env — **Done** (DSN vides dans Git).
 3. [AXE-367](https://linear.app/axel-project/issue/AXE-367) + [AXE-368](https://linear.app/axel-project/issue/AXE-368) SDK — **Done** sur `main`.
-4. [AXE-370](https://linear.app/axel-project/issue/AXE-370) contextes métier — code en revue ; recette live avec cette checklist.
+4. [AXE-370](https://linear.app/axel-project/issue/AXE-370) contextes métier — **Done** sur `main` (`backend/sentry_business.py`).
 5. [AXE-371](https://linear.app/axel-project/issue/AXE-371) coller DSN + smoke + alertes email (ce document).
 
 ---

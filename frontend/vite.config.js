@@ -121,23 +121,6 @@ function sentrySourceMapsPlugin() {
   })
 }
 
-function sentrySourceMapsPlugin() {
-  const token = (process.env.SENTRY_AUTH_TOKEN || '').trim()
-  return sentryVitePlugin({
-    org: 'axel-project',
-    project: 'axel-job-frontend',
-    authToken: token || undefined,
-    disable: !token,
-    telemetry: false,
-    sourcemaps: {
-      filesToDeleteAfterUpload: ['./dist/**/*.map'],
-    },
-    release: {
-      name: (process.env.VITE_SENTRY_RELEASE || '').trim() || undefined,
-    },
-  })
-}
-
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), staticPagesPlugin(), cssNonBlockingPlugin(), sentrySourceMapsPlugin()],

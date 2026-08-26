@@ -24,7 +24,7 @@ Point d'entree de la documentation technique, securite et operations.
 | Appliquer la baseline securite | `docs/security.md` |
 | Secrets Cursor Cloud / `.env` local | [README.md](../README.md) (section Cursor Cloud Agents) + `scripts/materialize_dotenv.py` |
 | Deployer en production (branche `prod`, pas `main`) | [docs/deploy.md](deploy.md) · runbook [ADR_MAIN_PROD.md](ADR_MAIN_PROD.md) |
-| Observabilite Sentry (spike AXE-366) | [docs/observabilite.md](observabilite.md) |
+| Observabilite Sentry (spike AXE-366, placeholders AXE-369) | [docs/observabilite.md](observabilite.md) · [docs/deploy.md](deploy.md) §8 |
 | Utiliser les commandes ops courantes | `docs/ops-commands.md` |
 | Acceder a la version courte des commandes | `docs/COMMANDS.md` |
 | Comprendre la vision editeur L1->L3 et le scoring ATS | `docs/editor-vision.md` |

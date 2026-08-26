@@ -32,13 +32,22 @@ class _SentryAwarePool:
         except Exception as exc:
             name = type(exc).__name__
             if name in {"PoolTimeout", "PoolClosed"} or "pooltimeout" in name.lower():
-                try:
-                    from backend.sentry_business import capture_pg_pool_exhausted
+                from backend.sentry_business import capture_pg_pool_exhausted
 
-                    capture_pg_pool_exhausted(exc)
-                except Exception:
-                    pass
+                capture_pg_pool_exhausted(exc)
             raise
+
+    def __enter__(self) -> _SentryAwarePool:
+        enter = getattr(self._pool, "__enter__", None)
+        if callable(enter):
+            enter()
+        return self
+
+    def __exit__(self, *args: Any) -> Any:
+        leave = getattr(self._pool, "__exit__", None)
+        if callable(leave):
+            return leave(*args)
+        return None
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._pool, name)

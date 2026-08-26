@@ -110,6 +110,7 @@ from backend.gemini_usage import (
 )
 from backend.promo_codes import redeem_promo_code
 from backend.security import check_user_input_for_injection
+from backend.sentry_business import capture_business_event, record_jwt_reject
 from backend.sentry_config import bind_sentry_user, init_sentry
 from backend.services import billing_notifications, template_access
 
@@ -661,12 +662,7 @@ def _resolve_jwt_payload_for_request(request: Request) -> dict | None:
                 if state is not None:
                     state._jwt_resolved = True
                     state._jwt_payload = None
-                try:
-                    from backend.sentry_business import record_jwt_reject
-
-                    record_jwt_reject()
-                except Exception:
-                    pass
+                record_jwt_reject()
                 raise
             except Exception as e:
                 hint = ""
@@ -680,12 +676,7 @@ def _resolve_jwt_payload_for_request(request: Request) -> dict | None:
                     hint,
                 )
                 payload = None
-                try:
-                    from backend.sentry_business import record_jwt_reject
-
-                    record_jwt_reject()
-                except Exception:
-                    pass
+                record_jwt_reject()
     if state is not None:
         state._jwt_resolved = True
         state._jwt_payload = payload
@@ -1435,18 +1426,13 @@ def _extract_text_from_pdf(file_bytes: bytes) -> str:
         return "\n\n".join(pages)
     except Exception as e:
         logger.warning("PDF extraction error: %s", e)
-        try:
-            from backend.sentry_business import capture_business_event
-
-            capture_business_event(
-                "import",
-                "PDF import illisible",
-                kind="pdf_unreadable",
-                size_bytes=len(file_bytes),
-                provider_code=type(e).__name__,
-            )
-        except Exception:
-            pass
+        capture_business_event(
+            "import",
+            "PDF import illisible",
+            kind="pdf_unreadable",
+            size_bytes=len(file_bytes),
+            provider_code=type(e).__name__,
+        )
         raise HTTPException(status_code=400, detail="Impossible de lire le PDF.")
 
 
@@ -1457,18 +1443,13 @@ def _extract_text_from_docx(file_bytes: bytes) -> str:
         return extract_text_from_docx_bytes(file_bytes)
     except Exception as e:
         logger.warning("DOCX extraction error: %s", e)
-        try:
-            from backend.sentry_business import capture_business_event
-
-            capture_business_event(
-                "import",
-                "DOCX import illisible",
-                kind="docx_unreadable",
-                size_bytes=len(file_bytes),
-                provider_code=type(e).__name__,
-            )
-        except Exception:
-            pass
+        capture_business_event(
+            "import",
+            "DOCX import illisible",
+            kind="docx_unreadable",
+            size_bytes=len(file_bytes),
+            provider_code=type(e).__name__,
+        )
         raise HTTPException(status_code=400, detail="Impossible de lire le fichier Word.")
 
 
@@ -2150,31 +2131,21 @@ async def api_stripe_webhook(request: Request):
 
         event = stripe.Webhook.construct_event(payload, sig, STRIPE_WEBHOOK_SECRET)
     except ValueError:
-        try:
-            from backend.sentry_business import capture_business_event
-
-            capture_business_event(
-                "billing",
-                "Webhook Stripe payload invalide",
-                kind="stripe_bad_payload",
-                size_bytes=len(payload),
-            )
-        except Exception:
-            pass
+        capture_business_event(
+            "billing",
+            "Webhook Stripe payload invalide",
+            kind="stripe_bad_payload",
+            size_bytes=len(payload),
+        )
         raise HTTPException(status_code=400, detail="Payload invalide.")
     except Exception as e:
         if "signature" in str(e).lower():
-            try:
-                from backend.sentry_business import capture_business_event
-
-                capture_business_event(
-                    "billing",
-                    "Webhook Stripe signature invalide",
-                    kind="stripe_bad_signature",
-                    size_bytes=len(payload),
-                )
-            except Exception:
-                pass
+            capture_business_event(
+                "billing",
+                "Webhook Stripe signature invalide",
+                kind="stripe_bad_signature",
+                size_bytes=len(payload),
+            )
             raise HTTPException(status_code=400, detail="Signature invalide.")
         raise
     # set_user_plan / find_user_id_by_stripe_subscription_id / _send_template_perso_email
@@ -2223,17 +2194,12 @@ async def api_stripe_webhook(request: Request):
                         _STRIPE_SNAPSHOT_CACHE.invalidate(stripe_sub_id)
                     logger.info("User %s set to pro after Stripe checkout", user_id)
                 else:
-                    try:
-                        from backend.sentry_business import capture_business_event
-
-                        capture_business_event(
-                            "billing",
-                            "Abonnement Stripe sans utilisateur",
-                            kind="stripe_orphan_subscription",
-                            reason="checkout_no_user",
-                        )
-                    except Exception:
-                        pass
+                    capture_business_event(
+                        "billing",
+                        "Abonnement Stripe sans utilisateur",
+                        kind="stripe_orphan_subscription",
+                        reason="checkout_no_user",
+                    )
         except Exception as e:
             logger.exception(
                 "Stripe webhook checkout.session.completed failed: %s (event_id=%s)",
@@ -2261,17 +2227,12 @@ async def api_stripe_webhook(request: Request):
                     _STRIPE_SNAPSHOT_CACHE.invalidate(deleted_sub_id)
                 logger.info("User %s set to free after Stripe subscription deleted", uid)
             else:
-                try:
-                    from backend.sentry_business import capture_business_event
-
-                    capture_business_event(
-                        "billing",
-                        "Abonnement Stripe sans utilisateur",
-                        kind="stripe_orphan_subscription",
-                        reason="subscription_deleted_no_user",
-                    )
-                except Exception:
-                    pass
+                capture_business_event(
+                    "billing",
+                    "Abonnement Stripe sans utilisateur",
+                    kind="stripe_orphan_subscription",
+                    reason="subscription_deleted_no_user",
+                )
         except Exception as e:
             logger.exception(
                 "Stripe webhook customer.subscription.deleted failed: %s (event_id=%s)",

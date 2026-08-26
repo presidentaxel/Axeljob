@@ -109,12 +109,16 @@ def _is_sensitive_route(event: dict[str, Any]) -> bool:
     return bool(_SENSITIVE_PATH_RE.search(url) or _SENSITIVE_PATH_RE.search(transaction))
 
 
-def _scrub_free_text_fields(event: dict[str, Any]) -> None:
-    """Routes sensibles : message / exception / breadcrumbs ne doivent pas porter de CV."""
-    event["message"] = _FILTERED
-    logentry = event.get("logentry")
-    if isinstance(logentry, dict) and "message" in logentry:
-        logentry["message"] = _FILTERED
+def _scrub_free_text_fields(event: dict[str, Any], *, keep_message: bool = False) -> None:
+    """Routes sensibles : exception / breadcrumbs ne doivent pas porter de CV.
+
+    ``keep_message`` : events métier AXE-370 — conserver le libellé contrôlé.
+    """
+    if not keep_message:
+        event["message"] = _FILTERED
+        logentry = event.get("logentry")
+        if isinstance(logentry, dict) and "message" in logentry:
+            logentry["message"] = _FILTERED
     exception = event.get("exception")
     values: list[Any] = []
     if isinstance(exception, dict):
@@ -195,9 +199,10 @@ def scrub_event(event: dict[str, Any], hint: dict[str, Any] | None = None) -> di
         return event
 
     request = event.get("request")
-    wipe_free_text = _is_sensitive_route(event) and not _is_business_event(event)
+    business = _is_business_event(event)
+    sensitive = _is_sensitive_route(event)
     if isinstance(request, dict):
-        if _is_sensitive_route(event):
+        if sensitive:
             request.pop("data", None)
             request.pop("cookies", None)
             headers = request.get("headers")
@@ -205,11 +210,10 @@ def scrub_event(event: dict[str, Any], hint: dict[str, Any] | None = None) -> di
                 request["headers"] = {
                     k: _FILTERED if _is_sensitive_key(str(k)) else v for k, v in headers.items()
                 }
-            if wipe_free_text:
-                _scrub_free_text_fields(event)
+            _scrub_free_text_fields(event, keep_message=business)
         event["request"] = request
-    elif wipe_free_text:
-        _scrub_free_text_fields(event)
+    elif sensitive:
+        _scrub_free_text_fields(event, keep_message=business)
 
     tags = event.setdefault("tags", {})
     if isinstance(tags, dict):

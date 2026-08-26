@@ -271,12 +271,9 @@ def _gemini_usage_guard():
 
 
 def _capture_adapt_failure(kind: str | None = None, exc: BaseException | None = None) -> None:
-    try:
-        from backend.sentry_business import capture_adapt_gemini_failure
+    from backend.sentry_business import capture_adapt_gemini_failure
 
-        capture_adapt_gemini_failure(kind=kind, exc=exc)
-    except Exception:
-        pass
+    capture_adapt_gemini_failure(kind=kind, exc=exc)
 
 
 def adapter_cv(

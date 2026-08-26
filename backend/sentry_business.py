@@ -89,6 +89,7 @@ _KIND_MESSAGES = {
 }
 
 _DEBOUNCE_SEC = {
+    "gemini_quota": 60.0,
     "pdf_pool_saturated": 60.0,
     "pg_pool": 60.0,
     "stripe_bad_signature": 30.0,
@@ -187,14 +188,14 @@ def capture_business_event(
     fingerprint: list[str] | None = None,
     **context: object,
 ) -> None:
-    """Envoie un warning Sentry tagué ``flow`` / ``kind``. No-op si DSN vide."""
+    """Envoie un warning Sentry tagué ``flow`` / ``kind``. No-op si DSN vide.
+
+    Ne lève jamais : une panne Sentry ne doit pas casser le parcours métier.
+    """
     if not _dsn_configured():
         return
     flow_tag = flow if flow in ALLOWED_FLOWS else "unknown"
     kind_tag = str(kind).strip()[:80] if kind else ""
-    if kind_tag and kind_tag not in BUSINESS_KINDS:
-        # Kinds hors liste : on envoie quand même, fingerprint isolé, pas de PII.
-        kind_tag = kind_tag[:80]
     if kind_tag and not _should_emit(flow_tag, kind_tag):
         return
 
@@ -213,6 +214,9 @@ def capture_business_event(
             for extra_key, extra_val in extras.items():
                 scope.set_extra(extra_key, extra_val)
             scope.fingerprint = fp
+            clearer = getattr(scope, "clear_breadcrumbs", None)
+            if callable(clearer):
+                clearer()
             sentry_sdk.capture_message(text, level=level)
     except Exception:
         logger.debug("sentry business event skipped", exc_info=True)

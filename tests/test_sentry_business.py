@@ -144,6 +144,29 @@ def test_ensure_budget_emits_quota_event(monkeypatch) -> None:
     assert scope.tags["kind"] == "gemini_quota"
 
 
+def test_gemini_quota_is_debounced(monkeypatch) -> None:
+    scope = _FakeScope()
+    captured = _patch_sentry(monkeypatch, scope)
+    capture_adapt_gemini_failure(kind="gemini_quota")
+    capture_adapt_gemini_failure(kind="gemini_quota")
+    assert captured == [("Quota Gemini dépassé", "warning")]
+
+
+def test_sentry_aware_pool_is_context_manager() -> None:
+    from backend.supabase_pg import _SentryAwarePool
+
+    class _Inner:
+        def __enter__(self) -> _Inner:
+            return self
+
+        def __exit__(self, *args: object) -> bool:
+            return False
+
+    wrap = _SentryAwarePool(_Inner())
+    with wrap as pool:
+        assert pool is wrap
+
+
 def test_empty_pdf_emits_export_event(monkeypatch) -> None:
     scope = _FakeScope()
     captured = _patch_sentry(monkeypatch, scope)

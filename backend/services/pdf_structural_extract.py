@@ -1213,18 +1213,15 @@ def extract_layout_from_pdf(file_bytes: bytes, max_pages: int = MAX_PAGES) -> di
         doc = fitz.open(stream=file_bytes, filetype="pdf")
     except Exception as exc:
         logger.warning("pdf_structural_extract: ouverture PDF échouée: %s", exc)
-        try:
-            from backend.sentry_business import capture_business_event
+        from backend.sentry_business import capture_business_event
 
-            capture_business_event(
-                "import",
-                "PyMuPDF import en échec",
-                kind="pymupdf_fail",
-                size_bytes=len(file_bytes),
-                provider_code=type(exc).__name__,
-            )
-        except Exception:
-            pass
+        capture_business_event(
+            "import",
+            "PyMuPDF import en échec",
+            kind="pymupdf_fail",
+            size_bytes=len(file_bytes),
+            provider_code=type(exc).__name__,
+        )
         return None
 
     try:

@@ -17,7 +17,7 @@ import {
 } from './api';
 import { ensureAnalyticsFirstTouch, getStoredAttribution } from './analyticsSession';
 import { consumePlanIntentIfPro, maybeEmitSignUpForSession, wantsProCheckout } from '../public/signupAttribution.js';
-import { maybeEmitProductLogin } from './lib/productLogin.js';
+import { maybeEmitProductLogin, clearProductLoginSent } from './lib/productLogin.js';
 import { resetTemplateOptionsToDefaults } from './lib/templateOptionsSchema.js';
 import { useViewAnalytics } from './useViewAnalytics';
 import { supabase } from './lib/supabase';
@@ -1117,6 +1117,7 @@ export default function App() {
         maybeEmitSignUpForSession(s.user);
         maybeEmitProductLogin(s.user, trackEvent);
       }
+      if (event === 'SIGNED_OUT') clearProductLoginSent();
     });
     return () => subscription?.unsubscribe();
   }, []);

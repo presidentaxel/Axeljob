@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   maybeEmitProductLogin,
   productLoginStorageKey,
+  clearProductLoginSent,
 } from '../../src/lib/productLogin.js';
 
 function memoryStorage(initial = {}) {
@@ -12,6 +13,13 @@ function memoryStorage(initial = {}) {
     getItem: (k) => (k in map ? map[k] : null),
     setItem: (k, v) => {
       map[k] = String(v);
+    },
+    removeItem: (k) => {
+      delete map[k];
+    },
+    key: (i) => Object.keys(map)[i] ?? null,
+    get length() {
+      return Object.keys(map).length;
     },
     _map: map,
   };
@@ -46,4 +54,18 @@ test('maybeEmitProductLogin linkedin_oidc → method linkedin', () => {
     memoryStorage(),
   );
   assert.deepEqual(calls, [['login', { method: 'linkedin' }]]);
+});
+
+test('clearProductLoginSent réarme après logout', () => {
+  const calls = [];
+  const emit = (...a) => calls.push(a);
+  const store = memoryStorage();
+  const user = { id: 'u1', app_metadata: { provider: 'email' } };
+
+  assert.equal(maybeEmitProductLogin(user, emit, store), true);
+  assert.equal(maybeEmitProductLogin(user, emit, store), false);
+  clearProductLoginSent(store);
+  assert.equal(store.getItem(productLoginStorageKey('u1')), null);
+  assert.equal(maybeEmitProductLogin(user, emit, store), true);
+  assert.equal(calls.length, 2);
 });

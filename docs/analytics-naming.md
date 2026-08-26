@@ -104,7 +104,7 @@ SPA bundle (`entry-conditional.js`) seulement sur `/`, `/login`, `/app/*`. Le re
 | `/app/monitoring` | `monitoring` | `monitoring_dashboard` | — | **C.16 posé** (1, compte support) |
 | toutes `/app/*` | — | — | — | **C.10 topbar posé** (12 `app-nav-*`) |
 
-`EVENT_LOGIN` (`login`) est émis 1× / onglet au `SIGNED_IN` (`maybeEmitProductLogin`, [AXE-397](https://linear.app/axel-project/issue/AXE-397)). Distinct de GA4 `sign_up`.
+`EVENT_LOGIN` (`login`) est émis au `SIGNED_IN` (`maybeEmitProductLogin`, [AXE-397](https://linear.app/axel-project/issue/AXE-397)). Distinct de GA4 `sign_up`. Un F5 ne réémet pas ; un **logout** (`SIGNED_OUT`) réarme.
 
 ---
 
@@ -145,7 +145,7 @@ SPA bundle (`entry-conditional.js`) seulement sur `/`, `/login`, `/app/*`. Le re
 | `base_cv_pdf_downloaded` | `template_id`, `source` = `cv_tab` \| `profile` | App + ProfileView ([AXE-394](https://linear.app/axel-project/issue/AXE-394)) |
 | `first_offer_nudge_cta` | `action` = `go_cv` \| `dismiss` | nudge 1ʳᵉ offre (AXE-394) |
 | `new_candidature_workspace` | `had_adapted_cv` | nouvelle candidature (AXE-394) |
-| `login` | `method` = `email` \| `google` \| `linkedin` | `SIGNED_IN` 1× / onglet ([AXE-397](https://linear.app/axel-project/issue/AXE-397)). **Pas** GA4 |
+| `login` | `method` = `email` \| `google` \| `linkedin` | `SIGNED_IN` ([AXE-397](https://linear.app/axel-project/issue/AXE-397)). Réarmé au logout. **Pas** GA4 |
 
 **Backend only** (pas via le POST front) :
 

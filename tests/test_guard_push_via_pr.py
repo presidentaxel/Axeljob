@@ -70,24 +70,18 @@ def test_non_push_command_is_ignored() -> None:
 
 
 def test_pre_push_stdin_denies_prod() -> None:
-    result = _pre_push_stdin(
-        "refs/heads/feat abc123 refs/heads/prod def456\n"
-    )
+    result = _pre_push_stdin("refs/heads/feat abc123 refs/heads/prod def456\n")
     assert result.returncode == 1
     assert "interdit" in result.stderr
 
 
 def test_pre_push_stdin_denies_main() -> None:
-    result = _pre_push_stdin(
-        "refs/heads/feat abc123 refs/heads/main def456\n"
-    )
+    result = _pre_push_stdin("refs/heads/feat abc123 refs/heads/main def456\n")
     assert result.returncode == 1
 
 
 def test_pre_push_stdin_allows_feature() -> None:
-    result = _pre_push_stdin(
-        "refs/heads/feat abc123 refs/heads/feat/x def456\n"
-    )
+    result = _pre_push_stdin("refs/heads/feat abc123 refs/heads/feat/x def456\n")
     assert result.returncode == 0, result.stderr
 
 

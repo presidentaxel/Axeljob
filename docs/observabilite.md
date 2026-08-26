@@ -97,7 +97,8 @@ Aucune n’est à committer en dur. DSN vide = no-op (dev + CI).
 | `VITE_SENTRY_ENVIRONMENT` | build arg frontend | tag + sample rate traces ; **ne pas** utiliser `MODE` |
 | `SENTRY_RELEASE` | build backend | SHA git |
 | `VITE_SENTRY_RELEASE` | build arg frontend | SHA git (source maps) |
-| `SENTRY_TRACES_SAMPLE_RATE` | optionnel, les deux | override ; défauts = tableau sampling |
+| `SENTRY_TRACES_SAMPLE_RATE` | backend runtime, optionnel | override traces ; défauts = tableau sampling |
+| `VITE_SENTRY_TRACES_SAMPLE_RATE` | build arg frontend, optionnel | idem côté client (Vite n’expose que `VITE_*`) |
 | `SENTRY_AUTH_TOKEN` | **secret de build uniquement** | upload source maps — **jamais** dans l’image finale |
 
 `.env.example` + `frontend/Dockerfile` ARG : ticket 369, pas ici.
@@ -109,7 +110,8 @@ Aucune n’est à committer en dur. DSN vide = no-op (dev + CI).
 À garder alignée HTML (`frontend/public/confidentialite.html`) **et** React (`LegalPages.jsx`) :
 
 - Finalité : diagnostic des erreurs techniques / sécurité du service — **intérêt légitime**.
-- Sous-traitant : Functional Software, Inc. (Sentry) — diagnostic d’erreurs, hors CMP.
+- Données transmises (contrat 367/368) : stack traces, tags `environment` / `release`, identifiant technique de compte (UUID, pas l’e-mail), tag `plan` (`free` / `pro`).
+- Sous-traitant : Functional Software, Inc. (Sentry) — hors CMP.
 - Cookies : Sentry n’est **pas** un traceur de mesure d’audience ; pas dans la bannière GA4.
 
 ---

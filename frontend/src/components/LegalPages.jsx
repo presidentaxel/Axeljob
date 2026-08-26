@@ -97,8 +97,10 @@ function PolitiqueConfidentialite() {
           et, le cas échéant, publicité ; uniquement si vous y consentez via la bannière cookies)
         </li>
         <li>
-          <strong>Functional Software, Inc. (Sentry)</strong> — diagnostic des erreurs techniques.
-          Hors bandeau cookies (intérêt légitime). Aucun contenu de CV ni d’annonce n’est envoyé.
+          <strong>Functional Software, Inc. (Sentry)</strong> — diagnostic des erreurs techniques
+          (stack traces, tags d’environnement et de version, identifiant technique de compte sans e-mail,
+          type d’abonnement gratuit/pro). Hors bandeau cookies (intérêt légitime).
+          Aucun contenu de CV ni d’annonce n’est envoyé.
         </li>
       </ul>
 

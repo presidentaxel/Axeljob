@@ -16,8 +16,30 @@ test('confidentialite HTML + JSX déclarent Sentry hors CMP (AXE-366)', async ()
   ]) {
     assert.match(text, /Sentry/, `${label} mentionne Sentry`);
     assert.match(text, /intérêt légitime/i, `${label} base légale`);
-    assert.match(text, /Session Replay/, `${label} Replay off`);
-    assert.match(text, /CV/, `${label} CV non envoyé`);
-    assert.match(text, /bandeau/, `${label} hors CMP`);
+    assert.match(
+      text,
+      /Session Replay[^.]*n['’]est pas activ[ée]/i,
+      `${label} Replay off`,
+    );
+    assert.match(
+      text,
+      /Aucun contenu de CV ni d['’]annonce n['’]est envoyé/i,
+      `${label} CV et annonce non envoyés`,
+    );
+    assert.match(
+      text,
+      /Sentry[\s\S]{0,400}(?:Hors bandeau cookies|n['’]est pas soumis)/i,
+      `${label} Sentry hors CMP`,
+    );
+    assert.match(
+      text,
+      /identifiant technique de compte sans e-mail/i,
+      `${label} UUID opaque, pas d’email`,
+    );
+    assert.match(
+      text,
+      /type d['’]abonnement gratuit\/pro/i,
+      `${label} tag plan`,
+    );
   }
 });

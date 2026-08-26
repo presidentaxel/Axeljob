@@ -11,7 +11,8 @@ Point d'entree de la documentation technique, securite et operations.
 | --- | --- |
 | Coder selon les standards du repo | `docs/guide-bonnes-pratiques.md` |
 | Contribuer (branches, PR, quality gates) | [docs/contributing.md](contributing.md) |
-| Workflow Git (main, wip/innovation, PR Draft) | [docs/git-workflow.md](git-workflow.md) |
+| Workflow Git (`main` intégration, `prod` production, wip/innovation) | [docs/git-workflow.md](git-workflow.md) |
+| ADR Option C : `main` ≠ prod (promote / hotfix) | [docs/ADR_MAIN_PROD.md](ADR_MAIN_PROD.md) |
 | Protections branches / passage push → PR | [docs/branch-protections.md](branch-protections.md) |
 | Workflow Linear ↔ GitHub (tickets AXE, liens, PR) | [docs/linear-github-workflow.md](linear-github-workflow.md) |
 | Conventions analytics (events, props, pages) | [docs/analytics-naming.md](analytics-naming.md) |
@@ -22,7 +23,7 @@ Point d'entree de la documentation technique, securite et operations.
 | Verifier la Definition of Done engineering | `docs/engineering-standards.md` |
 | Appliquer la baseline securite | `docs/security.md` |
 | Secrets Cursor Cloud / `.env` local | [README.md](../README.md) (section Cursor Cloud Agents) + `scripts/materialize_dotenv.py` |
-| Deployer en production | `docs/deploy.md` |
+| Deployer en production (branche `prod`, pas `main`) | [docs/deploy.md](deploy.md) · runbook [ADR_MAIN_PROD.md](ADR_MAIN_PROD.md) |
 | Observabilite Sentry (spike AXE-366) | [docs/observabilite.md](observabilite.md) |
 | Utiliser les commandes ops courantes | `docs/ops-commands.md` |
 | Acceder a la version courte des commandes | `docs/COMMANDS.md` |

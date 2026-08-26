@@ -1,5 +1,5 @@
 ---
-description: CI locale + workflow PR (pas de push direct sur main)
+description: CI locale + workflow PR (pas de push direct sur main ni prod)
 alwaysApply: true
 ---
 
@@ -7,11 +7,14 @@ alwaysApply: true
 
 ## Règle principale
 
-**Ne jamais pousser directement sur `main` ou `master`.** Toute intégration passe par une branche de feature et une **Pull Request** (`gh pr create`).
+**Ne jamais pousser directement sur `main`, `master` ou `prod`.** Toute intégration **et** toute mise en production passent par une branche de feature (ou une PR promote) et une **Pull Request** (`gh pr create`).
+
+`main` **n'est pas** la prod. Décision : [`docs/ADR_MAIN_PROD.md`](docs/ADR_MAIN_PROD.md).
 
 Branches de travail typiques :
-- **`main`** - prod (merge via PR uniquement)
-- **`wip/innovation`** - dev éditeur Beta / canvas (PR Draft #33, voir `docs/git-workflow.md`)
+- **`main`** — intégration (merge via PR uniquement). Un merge ici **ne déploie pas**.
+- **`prod`** — production. Uniquement via PR **promote** `main` → `prod` (ou hotfix depuis `prod`). Jamais `git push origin prod`.
+- **`wip/innovation`** — dev éditeur Beta / canvas (PR Draft #33, voir `docs/git-workflow.md`)
 
 ## Avant push ou création de PR
 
@@ -27,13 +30,14 @@ Branches de travail typiques :
 
 ## Flux agent (recommandé)
 
-1. Travailler sur une branche de feature (ex. `wip/innovation`, `feat/…`, `fix/…`).
+1. Travailler sur une branche de feature (ex. `wip/innovation`, `feat/…`, `fix/…`, ou le `gitBranchName` Linear).
 2. Commits locaux.
 3. CI locale (`pre-push.sh --skip-extras --skip-gitleaks`).
 4. Push de la branche de feature vers `origin` (autorisé).
-5. **`gh pr create`** vers `main` - ne pas merger sans validation explicite de l'utilisateur.
+5. **`gh pr create` vers `main`** — ne pas merger sans validation explicite de l'utilisateur.
+6. **Ne pas** traiter ce merge comme un déploiement. La prod = PR `--base prod --head main` (runbook ADR), puis CD ou fallback `docs/deploy.md`.
 
-Ne pas utiliser `git push origin main` ni merger localement dans `main` puis pousser.
+Ne pas utiliser `git push origin main` ni `git push origin prod`, ni merger localement dans `main`/`prod` puis pousser.
 
 ## Outils (alignés CI)
 
@@ -53,7 +57,7 @@ bash scripts/setup-dev.sh
 # ou seulement : bash scripts/install-git-hooks.sh
 ```
 
-Les hooks bloquent aussi les push directs vers `main`/`master`.
+Les hooks bloquent aussi les push directs vers `main`/`master`/`prod`.
 
 ## Contournement (urgence uniquement)
 

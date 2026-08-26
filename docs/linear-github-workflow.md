@@ -6,7 +6,7 @@
 
 Agents IA : lire ce fichier quand la demande concerne Linear, un chantier AxeL Job, ou « ouvrir un chantier / PR liée ».
 
-Compléments Git locaux : [`git-workflow.md`](git-workflow.md) · [`branch-protections.md`](branch-protections.md).
+Compléments Git locaux : [`git-workflow.md`](git-workflow.md) · [`branch-protections.md`](branch-protections.md) · ADR Option C : [`ADR_MAIN_PROD.md`](ADR_MAIN_PROD.md) (`main` = intégration, `prod` = production).
 
 > **Note famille produit.** Le workspace `Axel Project` héberge plusieurs familles dans **une seule team** (`AXE`). On les distingue par **label de projet + couleur**, pas par team. Les tickets restent donc `AXE-XX` pour tout le monde.
 >
@@ -182,7 +182,8 @@ Exemple MCP commentaire issue :
 
 ### F. Branche + draft PR
 
-1. Partir de `origin/main` pour une livraison isolée vers `main` (ne pas emporter le WIP de `wip/innovation`).  
+1. Partir de `origin/main` pour une livraison isolée vers **`main` (intégration)** (ne pas emporter le WIP de `wip/innovation`).  
+   Un merge dans `main` **n’est pas** un déploiement. La production = PR promote `main` → `prod` ([`ADR_MAIN_PROD.md`](ADR_MAIN_PROD.md)).  
    Si le code n’existe que sur `wip/innovation` : soit cherry-pick / extrait vers une branche basée sur `main`, soit PR empilée **vers `wip/innovation`** (pas vers `main`) — le noter dans le body PR / commentaire Linear.
 2. Branche = **exactement** le `gitBranchName` Linear.
 3. Commit scaffold vide OK au démarrage (`git commit --allow-empty`), puis vrais commits.
@@ -223,7 +224,7 @@ EOF
 
 1. PR prête → retirer le draft, CI verte, revue.
 2. Titre / body conservent `Fixes AXE-XX` et `Closes #N`.
-3. Après merge : vérifier que Linear est passé en `Done` (intégration GitHub) ; sinon le faire à la main.
+3. Après merge **dans `main`** : vérifier que Linear est passé en `Done` (intégration GitHub) ; sinon le faire à la main. Ça n’arrive **pas** en production tant qu’un promote `main` → `prod` n’est pas mergé ([`deploy.md`](deploy.md)).
 4. Mettre à jour le titre du lien Linear `Draft PR #N` → `PR #N` si besoin (nouveau link OK).
 5. Commentaire de clôture sur l'issue Linear (§E) + project update si fin de vague.
 
@@ -284,4 +285,5 @@ Quand une issue passe en livraison isolée : créer issue GitHub + branche `gitB
 - Plusieurs sujets unrelated dans une seule issue
 - Branche inventée au lieu du `gitBranchName` Linear
 - Critères d'acceptation non vérifiables (« ça marche mieux ») au lieu d'un test observable
-- Push direct sur `main` (interdit — voir [`git-workflow.md`](git-workflow.md) et [`branch-protections.md`](branch-protections.md))
+- Push direct sur `main` **ou** `prod` (interdit — voir [`git-workflow.md`](git-workflow.md), [`ADR_MAIN_PROD.md`](ADR_MAIN_PROD.md) et [`branch-protections.md`](branch-protections.md))
+- Traiter un merge dans `main` comme une mise en prod (faux : `main` = intégration)

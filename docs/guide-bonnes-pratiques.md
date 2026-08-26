@@ -160,6 +160,7 @@ Contrat : `docs/design-system.md`. Tokens : `frontend/src/design/tokens.json` (`
 - **Description PR** : expliquer le pourquoi, l'impact utilisateur, les risques et le plan de test.
 - **Avant merge** : CI verte, checks securite verts, documentation mise a jour si comportement modifie.
 - **Chantier Linear (AxeL Job)** : maillage projet → issues Linear → issues GitHub → branche `gitBranchName` → draft PR + liens Linear. Voir [`docs/linear-github-workflow.md`](linear-github-workflow.md).
+- **Branches** : `main` = intégration, `prod` = production. Ne pas pusher `main`/`prod` ; ne pas déployer depuis `main`. [`docs/ADR_MAIN_PROD.md`](ADR_MAIN_PROD.md).
 
 ### 8.1 Verification locale recommandee avant PR
 
@@ -178,6 +179,7 @@ npm --prefix frontend run lint
 
 ## 9. Deploiement et configuration
 
+- Le serveur de production checkout **`prod`**, pas `main`. Runbook : [`docs/deploy.md`](deploy.md), [`docs/ADR_MAIN_PROD.md`](ADR_MAIN_PROD.md).
 - Ne pas casser le contrat de routage infra (`/api`, `/health`, assets frontend).
 - Maintenir la coherence des variables d'environnement entre `.env`, `docker-compose.yml` et documentation.
 - Toute nouvelle variable doit etre ajoutee a `.env.example` et documentee dans `README.md` (impact + securite).

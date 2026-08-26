@@ -124,7 +124,7 @@ docker compose logs --tail 100 backend
 
 ```bash
 cd /opt/cv-bot
-git pull origin main
+git fetch origin && git checkout prod && git pull origin prod
 docker compose build --no-cache backend
 docker compose up -d backend
 docker compose build --no-cache frontend
@@ -134,7 +134,7 @@ docker compose up -d frontend
 ### PowerShell (Windows)
 
 ```powershell
-git pull origin main
+git fetch origin; git checkout prod; git pull origin prod
 docker compose build --no-cache backend
 docker compose up -d backend
 docker compose build --no-cache frontend
@@ -161,15 +161,16 @@ docker compose restart frontend
 
 ## 7) Git (workflow PR)
 
-> Guide complet : **`docs/git-workflow.md`** (branches, PR Draft #33, FAQ).
+> Guide complet : **`docs/git-workflow.md`**. Décision : **`docs/ADR_MAIN_PROD.md`** (`main` = intégration, `prod` = production).
 
 ### Branches
 
 | Branche | Usage |
 | --- | --- |
-| `main` | Prod — merge **via PR uniquement** |
+| `main` | Intégration — merge **via PR uniquement**. **Pas** la prod. |
+| `prod` | Production — PR **promote** `main` → `prod` (ou hotfix depuis `prod`). Jamais de push direct. |
 | `wip/innovation` | Dev actif (éditeur Beta, import PDF, ATS) — PR **Draft** [#33](https://github.com/presidentaxel/Axeljob/pull/33), **ne pas merger** pour l'instant |
-| `feat/*`, `fix/*` | Petites évolutions mergeables indépendamment |
+| `feat/*`, `fix/*` | Petites évolutions mergeables vers `main`, puis promote vers `prod` |
 
 ### Bash (Linux / macOS) — quotidien sur `wip/innovation`
 
@@ -212,7 +213,7 @@ gh pr create --base main --title "fix: …" --body "…"
 > [!WARNING]
 > Ne pas committer de secrets (`.env`, cles API, tokens).
 >
-> **Ne jamais** `git push origin main` — toute intégration passe par PR.
+> **Ne jamais** `git push origin main` ni `git push origin prod` — intégration **et** mise en prod passent par PR.
 
 ## 8) Pre-push (CI + security locale)
 
@@ -225,15 +226,15 @@ bash scripts/setup-dev.sh
 # ou : make setup
 ```
 
-Branches : **`main`** = prod ; **`wip/innovation`** = dev éditeur Beta / canvas (PR Draft [#33](https://github.com/presidentaxel/Axeljob/pull/33), ne pas merger). Voir **`docs/git-workflow.md`**.
+Branches : **`main`** = intégration ; **`prod`** = production ; **`wip/innovation`** = dev éditeur Beta / canvas (PR Draft [#33](https://github.com/presidentaxel/Axeljob/pull/33), ne pas merger). Voir **`docs/git-workflow.md`** et **`docs/ADR_MAIN_PROD.md`**.
 
 Configure `.venv` (Black **24.10.0** comme GitHub), active le hook **pre-push** Git (`.githooks/`), et rappelle les hooks **Cursor** (`.cursor/hooks.json`).
 
 ### Cursor (tous les chats / agent)
 
-- **Règle** : `.cursor/rules/pre-push-ci.mdc` — CI locale avant push/PR ; **pas de push direct sur `main`**.
-- **Hook** : `.cursor/hooks.json` — bloque `git push` vers `main`/`master` et si la CI locale échoue (timeout 15 min).
-- Flux recommandé : branche feature → CI locale → `git push -u origin HEAD` → `gh pr create --base main`.
+- **Règle** : `.cursor/rules/pre-push-ci.mdc` — CI locale avant push/PR ; **pas de push direct sur `main` ni `prod`**.
+- **Hook** : `.cursor/hooks.json` — bloque `git push` vers `main`/`master`/`prod` et si la CI locale échoue (timeout 15 min).
+- Flux recommandé : branche feature → CI locale → `git push -u origin HEAD` → `gh pr create --base main`. Promote prod : `gh pr create --base prod --head main`.
 - Contournement urgence : `SKIP_PREPUSH=1 git push`.
 - Après modification de `hooks.json`, redémarrer Cursor si le hook ne se déclenche pas (onglet **Hooks** / canal **Hooks**).
 

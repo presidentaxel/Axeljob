@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -137,10 +138,17 @@ def test_compose_config_blanks_probe_auth_token(tmp_path: Path) -> None:
         "SENTRY_DSN=keep-dsn\nSENTRY_AUTH_TOKEN=probe\n",
         encoding="utf-8",
     )
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith("SENTRY") and not key.startswith("VITE_SENTRY")
+    }
     result = subprocess.run(
         [
             "docker",
             "compose",
+            "--env-file",
+            str(tmp_path / ".env"),
             "-f",
             str(tmp_path / "docker-compose.yml"),
             "config",
@@ -148,6 +156,7 @@ def test_compose_config_blanks_probe_auth_token(tmp_path: Path) -> None:
             "json",
         ],
         cwd=tmp_path,
+        env=env,
         capture_output=True,
         text=True,
         check=False,

@@ -42,7 +42,7 @@ def html_to_cv_pdf_bytes(
         import sentry_sdk
 
         sentry_sdk.set_tag("pdf_engine", engine)
-        sentry_sdk.set_tag("flow", "pdf")
+        sentry_sdk.set_tag("flow", "export")
     except Exception:
         pass
     raw_env = (os.environ.get("CV_BOT_PDF_ENGINE") or "").strip() or "(default weasyprint)"
@@ -59,6 +59,7 @@ def html_to_cv_pdf_bytes(
         flush=True,
     )
     from backend.mem_release import release_unused_memory
+    from backend.sentry_business import capture_pdf_engine_failure, note_pdf_bytes
 
     try:
         if engine == "chromium":
@@ -69,8 +70,9 @@ def html_to_cv_pdf_bytes(
                     html_str, base_resolved, template_id=template_id
                 )
                 _log.info("Export PDF CV - Chromium termine (%d octets PDF).", len(out))
-            except NotImplementedError:
+            except NotImplementedError as exc:
                 # Windows + asyncio (boucle sans subprocess) : voir _ensure_windows_playwright_asyncio.
+                capture_pdf_engine_failure(engine, exc)
                 _log.warning(
                     "Export PDF CV - Chromium impossible (NotImplementedError / asyncio), repli WeasyPrint.",
                     exc_info=True,
@@ -83,12 +85,12 @@ def html_to_cv_pdf_bytes(
 
                 out = _wp(html_str, base_resolved, template_id=template_id)
                 _log.info("Export PDF CV - WeasyPrint (repli) termine (%d octets PDF).", len(out))
-            return out
+            return note_pdf_bytes(out, engine)
         from backend.cv_pdf_weasyprint import html_to_cv_pdf_bytes as _wp
 
         out = _wp(html_str, base_resolved, template_id=template_id)
         _log.info("Export PDF CV - WeasyPrint termine (%d octets PDF).", len(out))
-        return out
+        return note_pdf_bytes(out, engine)
     finally:
         # Rend au noyau les arenas glibc libérés par WeasyPrint/Chromium (no-op hors Linux).
         # Évite la dérive de RSS qui ne redescend jamais après un pic PDF.

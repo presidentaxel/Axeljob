@@ -42,6 +42,10 @@ class TestAllowedFrontendEvents(unittest.TestCase):
         for name, _ctx in ORPHANS:
             self.assertIn(name, main._ALLOWED_FRONTEND_EVENTS)
 
+    def test_login_is_whitelisted(self):
+        self.assertIn(event_log.EVENT_LOGIN, main._ALLOWED_FRONTEND_EVENTS)
+        self.assertEqual(event_log.EVENT_LOGIN, "login")
+
     def test_frozen_strings(self):
         self.assertEqual(event_log.EVENT_BASE_CV_PDF_DOWNLOADED, "base_cv_pdf_downloaded")
         self.assertEqual(event_log.EVENT_FIRST_OFFER_NUDGE_CTA, "first_offer_nudge_cta")
@@ -72,6 +76,20 @@ class TestRouteAcceptsOrphans(unittest.TestCase):
             self.assertEqual(args[0], event_type)
             self.assertEqual(args[1], "user_test")
             self.assertEqual(args[2], context)
+
+
+class TestRouteAcceptsLogin(unittest.TestCase):
+    def test_login_logs_and_returns_ok(self):
+        body = main.TrackEventBody(event_type=event_log.EVENT_LOGIN, context={"method": "google"})
+        with (
+            patch.object(main, "_get_user_id", return_value="user_test"),
+            patch.object(main.event_log, "log_event") as mock_log,
+        ):
+            out = main.api_events_track(_FakeRequest(), body)
+        self.assertEqual(out, {"ok": True})
+        mock_log.assert_called_once()
+        self.assertEqual(mock_log.call_args.args[0], "login")
+        self.assertEqual(mock_log.call_args.args[2], {"method": "google"})
 
 
 if __name__ == "__main__":

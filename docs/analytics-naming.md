@@ -104,7 +104,7 @@ SPA bundle (`entry-conditional.js`) seulement sur `/`, `/login`, `/app/*`. Le re
 | `/app/monitoring` | `monitoring` | `monitoring_dashboard` | — | **C.16 posé** (1, compte support) |
 | toutes `/app/*` | — | — | — | **C.10 topbar posé** (12 `app-nav-*`) |
 
-`EVENT_LOGIN` (`login`) est **déclaré** dans `event_log.py`, **jamais émis**. Ticket fille : émettre ou retirer ([AXE-397](https://linear.app/axel-project/issue/AXE-397)).
+`EVENT_LOGIN` (`login`) est émis au `SIGNED_IN` (`maybeEmitProductLogin`, [AXE-397](https://linear.app/axel-project/issue/AXE-397)). Distinct de GA4 `sign_up`. Un F5 ne réémet pas ; un **logout** (`SIGNED_OUT`) réarme.
 
 ---
 
@@ -145,6 +145,7 @@ SPA bundle (`entry-conditional.js`) seulement sur `/`, `/login`, `/app/*`. Le re
 | `base_cv_pdf_downloaded` | `template_id`, `source` = `cv_tab` \| `profile` | App + ProfileView ([AXE-394](https://linear.app/axel-project/issue/AXE-394)) |
 | `first_offer_nudge_cta` | `action` = `go_cv` \| `dismiss` | nudge 1ʳᵉ offre (AXE-394) |
 | `new_candidature_workspace` | `had_adapted_cv` | nouvelle candidature (AXE-394) |
+| `login` | `method` = `email` \| `google` \| `linkedin` | `SIGNED_IN` ([AXE-397](https://linear.app/axel-project/issue/AXE-397)). Réarmé au logout. **Pas** GA4 |
 
 **Backend only** (pas via le POST front) :
 
@@ -160,8 +161,6 @@ SPA bundle (`entry-conditional.js`) seulement sur `/`, `/login`, `/app/*`. Le re
 | `profile_saved` | profil |
 | `cv_import` | import CV |
 | `promo_code_redeemed` | code promo |
-
-**Déclaré, jamais émis :** `login` ([AXE-397](https://linear.app/axel-project/issue/AXE-397)).
 
 ---
 
@@ -249,7 +248,7 @@ Créés dans le projet [Tagging interne & externe](https://linear.app/axel-proje
 | 1 | [AXE-394](https://linear.app/axel-project/issue/AXE-394) | Whitelist events orphelins produit | 3 `trackEvent` droppés (400) |
 | 2 | [AXE-395](https://linear.app/axel-project/issue/AXE-395) | Inventaire figé `data-attr` /app hors candidatures | **49 IDs** C.10–C.16 dans [`taggage-analytics.md`](taggage-analytics.md) |
 | 3 | [AXE-396](https://linear.app/axel-project/issue/AXE-396) | Balisage `data-attr` /app hors candidatures | pose les 49 IDs C.10–C.16 |
-| 4 | [AXE-397](https://linear.app/axel-project/issue/AXE-397) | Émettre `login` produit **ou** retirer `EVENT_LOGIN` | constante morte |
+| 4 | [AXE-397](https://linear.app/axel-project/issue/AXE-397) | Émettre `login` produit | `SIGNED_IN` → event_log, pas GA4 |
 
 AXE-396 est bloqué par AXE-395.
 

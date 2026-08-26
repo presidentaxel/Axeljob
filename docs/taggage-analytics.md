@@ -308,7 +308,7 @@ Aucun listener délégué. GTM peut envoyer des page_view si le conteneur prod e
 
 Sans ça, impossible de relier un abonnement au bouton cliqué. `?plan=pro` se perd surtout à l’OAuth : `redirectTo` est `origin + '/login'` **sans query**.
 
-`EVENT_LOGIN` est déclaré dans `backend/event_log.py` et **jamais émis**. AuthForm n’envoie ni `sign_up_start` ni `sign_up`. Un « Créer un compte » sur email déjà connu peut connecter sans être un vrai signup.
+`EVENT_LOGIN` (`login`) est un event **produit** (event_log, [AXE-397](https://linear.app/axel-project/issue/AXE-397)), distinct de GA4 `sign_up` / `sign_up_start`. AuthForm n’envoie pas `sign_up` tout seul : seulement un vrai nouveau compte (`maybeEmitSignUpForSession`). Un « Créer un compte » sur email déjà connu peut connecter sans être un vrai signup.
 
 ## À faire
 

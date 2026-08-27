@@ -213,7 +213,7 @@ gh pr create --base main --title "fix: …" --body "…"
 > [!WARNING]
 > Ne pas committer de secrets (`.env`, cles API, tokens).
 >
-> **Ne jamais** `git push origin main` ni `git push origin prod` — intégration **et** mise en prod passent par PR.
+> **Ne jamais** `git push origin main` ni `git push origin prod` — intégration **et** mise en prod passent par PR. Merge dans `prod` → CD (`.github/workflows/deploy-prod.yml`) ; fallback : `docs/deploy.md` §9.
 
 ## 8) Pre-push (CI + security locale)
 

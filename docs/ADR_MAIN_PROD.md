@@ -85,31 +85,33 @@ Pour les **agents** :
 - La prod se met à jour uniquement après merge d’une PR dont la base est `prod`.
 - Push direct vers `main` **et** `prod` : interdit (hooks + `scripts/guard-push-via-pr.sh`).
 
-Pour le **serveur** : checkout `prod`, `git pull origin prod`. Plus de `git pull origin main` en production. Détail : [`deploy.md`](deploy.md).
+Pour le **serveur** : checkout `prod`, déployé par le CD (`deploy-prod.yml`) ou le fallback `scripts/deploy-prod.sh`. Plus de `git pull origin main` en production. Détail : [`deploy.md`](deploy.md).
 
-Pour le **chantier** : cette ADR fige **Option C**. Les tickets suivants livrent le câblage GitHub ; tant qu’ils ne sont pas mergés, le **comportement Git reste Option C**, le **déploiement auto** pas encore.
+Pour le **chantier** : cette ADR fige **Option C**. CI `prod` (AXE-316) et rulesets (AXE-318) sont en place. Le CD (AXE-317) est le workflow `deploy-prod.yml` — coller les secrets de l’environment GitHub `production` avant le premier promote.
 
 | Ticket | Rôle | État au moment de l’ADR |
 | --- | --- | --- |
 | [AXE-316](https://linear.app/axel-project/issue/AXE-316) | CI sur les PR vers `prod` | In Review — [PR #168](https://github.com/presidentaxel/Axeljob/pull/168) |
-| [AXE-317](https://linear.app/axel-project/issue/AXE-317) | CD `deploy-prod.yml` sur `push` à `prod` seulement | Todo |
+| [AXE-317](https://linear.app/axel-project/issue/AXE-317) | CD `deploy-prod.yml` sur `push` à `prod` seulement | Workflow + script ; secrets GitHub environment `production` à coller |
 | [AXE-318](https://linear.app/axel-project/issue/AXE-318) | Branch protection GitHub `main` + `prod` (Settings) | Todo — clics humains |
 | [AXE-319](https://linear.app/axel-project/issue/AXE-319) | Cette ADR + runbook + garde-fous locaux | Ce document |
 | [AXE-320](https://linear.app/axel-project/issue/AXE-320) | Smoke E2E promote + hotfix/backport | Backlog — bloqué par 316–319 |
 
-### Fallback jusqu’à AXE-317
+### Fallback si le CD est down
 
-Le workflow CD n’existe pas encore. Après merge de la PR promote dans `prod` :
+Chemin nominal : merge dans `prod` → [`.github/workflows/deploy-prod.yml`](../.github/workflows/deploy-prod.yml) → SSH → `scripts/deploy-prod.sh`.
 
-1. Sur le serveur : `git fetch origin && git checkout prod && git pull origin prod`
-2. `docker compose build && docker compose up -d`
+Si Actions est down / secrets absents :
+
+1. Sur le serveur : `cd /opt/cv-bot && git fetch origin && git checkout -B prod origin/prod`
+2. `bash scripts/deploy-prod.sh --skip-pull`
 3. Vérifier `/health`
 
-Si le CD est down plus tard : **même fallback**, toujours depuis `prod`, jamais depuis `main`.
+Toujours depuis `prod`, jamais depuis `main`. Détail : [`deploy.md`](deploy.md) §9.
 
 ### Protections GitHub (AXE-318)
 
-Les hooks locaux bloquent déjà `main` / `master` / `prod` sur une machine configurée. GitHub Settings n’est **pas** encore coché : un admin peut encore pousser en urgence. Checklist : [`branch-protections.md`](branch-protections.md).
+Les hooks locaux bloquent déjà `main` / `master` / `prod` sur une machine configurée. Rulesets GitHub `main` et `prod` : **actifs** (AXE-318). Checklist : [`branch-protections.md`](branch-protections.md).
 
 ---
 

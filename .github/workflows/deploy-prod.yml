@@ -1,0 +1,78 @@
+# CD production (AXE-317).
+# Un merge dans `prod` (promote main→prod ou hotfix) déclenche ce workflow.
+# Un push sur `main` / une feature / une PR ne déploie pas.
+#
+# Prérequis GitHub (clics humains, une fois) :
+#   Settings → Environments → `production`
+#     - Deployment branches : Restricted → `prod` uniquement
+#     - Secrets : DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY
+#     - Optionnel : DEPLOY_PORT (défaut 22), DEPLOY_PATH (/opt/cv-bot),
+#       DEPLOY_HEALTH_URL (http://127.0.0.1/health)
+# Doc : docs/deploy.md §5 et §9.
+
+name: Deploy production
+
+on:
+  push:
+    branches: [prod]
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy /opt/cv-bot
+    if: github.ref == 'refs/heads/prod'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment: production
+    steps:
+      - name: Fail if required secrets are missing
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Secret $name manquant sur l'environment GitHub production."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Settings → Environments → production → Environment secrets. Voir docs/deploy.md §5."
+            exit 1
+          fi
+
+      - name: SSH git pull + docker compose + smoke /health
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_HEALTH_URL: ${{ secrets.DEPLOY_HEALTH_URL }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          command_timeout: 30m
+          script_stop: true
+          envs: DEPLOY_PATH,DEPLOY_HEALTH_URL
+          script: |
+            set -euo pipefail
+            DEPLOY_DIR="${DEPLOY_PATH:-/opt/cv-bot}"
+            cd "$DEPLOY_DIR"
+            git fetch origin
+            git checkout -B prod origin/prod
+            branch="$(git rev-parse --abbrev-ref HEAD)"
+            if [ "$branch" != "prod" ]; then
+              echo "Refuse: HEAD=$branch (attendu prod)" >&2
+              exit 1
+            fi
+            export SENTRY_RELEASE="$(git rev-parse HEAD)"
+            bash scripts/deploy-prod.sh --skip-pull

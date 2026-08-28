@@ -491,12 +491,11 @@ export function pruneInPlaceImportDuplicates(layout, cv = {}) {
   return { ...layout, pages };
 }
 
-const CSS_TEXT_PAD_TOP_MM = 1;
-const MM_PER_PT = 25.4 / 72;
 const MAX_GUTTER_MARKER_MM = 6.5;
 const MAX_GUTTER_GAP_MM = 14;
 const MAX_BULLET_ALIGN_DY_MM = 8;
 const BULLET_GLYPH_RE = /^[•●○◦▪■‣▸∙·\-–—*]$/;
+const JOB_TITLE_DASH_RE = /\s[–—-]\s/;
 
 function isGutterMarker(block) {
   const w = Number(block?.w) || 0;
@@ -510,15 +509,25 @@ function isGutterMarker(block) {
   return false;
 }
 
-function textCapCenterMm(block) {
-  const y = Number(block?.y) || 0;
-  const sizePt = Number(block?.style?.font_size) || 10;
-  return y + CSS_TEXT_PAD_TOP_MM + sizePt * MM_PER_PT * 0.38;
+function isListBodyLine(block) {
+  const text = normImportText(block.content);
+  if (text.length < 10) return false;
+  const italic = Boolean(block.style?.italic || block.style?.font_style === 'italic');
+  if (italic && text.length < 28) return false;
+  if (block.style?.bold && JOB_TITLE_DASH_RE.test(text) && text.length < 90) return false;
+  return true;
+}
+
+function snapMarkerToTextLine(marker, text) {
+  const mh = Number(marker.h) || 0;
+  const th = Number(text.h) || 0;
+  const ty = Number(text.y) || 0;
+  return { ...marker, y: Math.round(Math.max(0, ty + (th - mh) / 2) * 100) / 100 };
 }
 
 /**
- * Recale les puces (cercles PDF) sur le centre optique de la ligne à droite.
- * Sans ça, le bbox dessin + padding CSS décale chaque puce d'une ligne.
+ * Recale les puces sur les lignes de corps (zip par colonne), pas sur le
+ * titre / la date au-dessus — sinon toute la liste glisse d'une ligne.
  */
 export function alignImportGutterMarkers(layout) {
   if (!layout?.pages?.length) return layout;
@@ -529,34 +538,52 @@ export function alignImportGutterMarkers(layout) {
       && !isGutterMarker(b)
       && normImportText(b.content).length >= 2
     ));
-    if (!targets.length) return page;
-    const nextBlocks = blocks.map((marker) => {
-      if (!isGutterMarker(marker)) return marker;
-      const mx = Number(marker.x) || 0;
-      const mw = Number(marker.w) || 0;
-      const mh = Number(marker.h) || 0;
+    const markers = blocks.filter((b) => isGutterMarker(b));
+    if (!targets.length || !markers.length) return page;
+
+    const columns = new Map();
+    for (const marker of markers) {
+      const key = Math.round((Number(marker.x) || 0) / 2.5);
+      const list = columns.get(key) || [];
+      list.push(marker);
+      columns.set(key, list);
+    }
+
+    const snapped = new Map();
+    for (const colMarkers of columns.values()) {
+      colMarkers.sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0));
+      const mx = Number(colMarkers[0].x) || 0;
+      const mw = Number(colMarkers[0].w) || 0;
       const markerRight = mx + mw;
-      const mcy = (Number(marker.y) || 0) + mh / 2;
-      let best = null;
-      let bestScore = Infinity;
-      for (const text of targets) {
-        const tx = Number(text.x) || 0;
-        if (tx < markerRight - 1) continue;
-        if (tx - markerRight > MAX_GUTTER_GAP_MM) continue;
-        const tcy = textCapCenterMm(text);
-        const dy = Math.abs(tcy - mcy);
-        if (dy > MAX_BULLET_ALIGN_DY_MM) continue;
-        const ty = Number(text.y) || 0;
-        const score = dy + (ty > mcy ? 3 : 0);
-        if (score < bestScore) {
-          bestScore = score;
-          best = text;
-        }
+      const colTexts = targets
+        .filter((t) => {
+          const tx = Number(t.x) || 0;
+          return tx >= markerRight - 1 && tx - markerRight <= MAX_GUTTER_GAP_MM;
+        })
+        .sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0));
+      let body = colTexts.filter((t) => isListBodyLine(t));
+      if (body.length < Math.max(1, Math.floor(colMarkers.length * 0.6))) {
+        body = colTexts.filter((t) => {
+          const text = normImportText(t.content);
+          const italic = Boolean(t.style?.italic || t.style?.font_style === 'italic');
+          return text.length >= 10 && !(italic && text.length < 28);
+        });
       }
-      if (!best) return marker;
-      return { ...marker, y: Math.round(Math.max(0, textCapCenterMm(best) - mh / 2) * 100) / 100 };
-    });
-    return { ...page, blocks: nextBlocks };
+      const n = Math.min(colMarkers.length, body.length);
+      for (let i = 0; i < n; i += 1) {
+        const marker = colMarkers[i];
+        const text = body[i];
+        if (Math.abs((Number(text.y) || 0) - (Number(marker.y) || 0)) > MAX_BULLET_ALIGN_DY_MM + 6) {
+          continue;
+        }
+        snapped.set(marker.id, snapMarkerToTextLine(marker, text));
+      }
+    }
+
+    return {
+      ...page,
+      blocks: blocks.map((b) => snapped.get(b.id) || b),
+    };
   });
   return { ...layout, pages };
 }

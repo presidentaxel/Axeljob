@@ -812,7 +812,10 @@ function inlineTypographyStyle(style = {}) {
   if (deco.length) css.textDecoration = deco.join(' ');
   // Import "copie fidèle" : une ligne PDF reste sur une ligne (pas de wrap qui
   // chevaucherait le bloc suivant, les positions étant figées).
-  if (style.nowrap) css.whiteSpace = 'nowrap';
+  if (style.nowrap) {
+    css.whiteSpace = 'nowrap';
+    css.lineHeight = 1;
+  }
   return css;
 }
 
@@ -1135,6 +1138,7 @@ export default function FreeCanvasBlock({
       className={blockClassName({ selected, dragging, resizing, interactable, editing, locked })}
       data-block-id={id}
       data-block-type={type}
+      data-nowrap={blockStyle?.nowrap ? 'true' : undefined}
       tabIndex={interactable && !editing ? 0 : undefined}
       aria-label={interactable ? a11yLabel : undefined}
       aria-disabled={interactable && locked ? true : undefined}

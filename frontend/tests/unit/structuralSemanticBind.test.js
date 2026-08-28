@@ -666,6 +666,80 @@ test('alignImportGutterMarkers : puces recalees sur la ligne, pas la suivante', 
   const out = alignImportGutterMarkers(layout);
   const byId = Object.fromEntries(out.pages[0].blocks.map((b) => [b.id, b]));
   assert.ok(byId.c1.y < byId.t2.y, '1re puce au-dessus de la 2e ligne');
-  assert.ok(Math.abs(byId.c1.y - (byId.t1.y + 1 + 10 * (25.4 / 72) * 0.38 - 1.55 / 2)) < 0.2);
+  assert.ok(Math.abs(byId.c1.y - (byId.t1.y + (byId.t1.h - 1.55) / 2)) < 0.2);
   assert.ok(byId.c3.y < byId.t3.y + byId.t3.h * 0.7, 'pas de puce fantôme sous la liste');
+});
+
+test('alignImportGutterMarkers : ignore titre de poste et date au-dessus', () => {
+  const layout = {
+    version: 3,
+    pages: [{
+      id: 'p1',
+      blocks: [
+        {
+          id: 'job',
+          type: 'text',
+          content: 'Co-Présidente – Association HeForShe ESSEC',
+          x: 20,
+          y: 20,
+          w: 100,
+          h: 6,
+          style: { font_size: 11, bold: true },
+        },
+        {
+          id: 'date',
+          type: 'text',
+          content: '2024',
+          x: 20,
+          y: 27,
+          w: 20,
+          h: 4,
+          style: { font_size: 9, italic: true },
+        },
+        {
+          id: 't1',
+          type: 'text',
+          content: 'Mise en place des equipes campus',
+          x: 20,
+          y: 34,
+          w: 90,
+          h: 5,
+          style: { font_size: 10 },
+        },
+        {
+          id: 'c1',
+          type: 'shape:circle',
+          x: 16,
+          y: 36,
+          w: 1.5,
+          h: 1.5,
+          style: { color: '#000' },
+        },
+        {
+          id: 't2',
+          type: 'text',
+          content: 'Gestion et ecoute des membres',
+          x: 20,
+          y: 40,
+          w: 90,
+          h: 5,
+          style: { font_size: 10 },
+        },
+        {
+          id: 'c2',
+          type: 'shape:circle',
+          x: 16,
+          y: 42,
+          w: 1.5,
+          h: 1.5,
+          style: { color: '#000' },
+        },
+      ],
+    }],
+  };
+  const out = alignImportGutterMarkers(layout);
+  const byId = Object.fromEntries(out.pages[0].blocks.map((b) => [b.id, b]));
+  assert.equal(byId.c1.y, 34 + (5 - 1.5) / 2);
+  assert.ok(byId.c1.y > byId.job.y + 2, 'pas calée sur le titre');
+  assert.equal(byId.c2.y, 40 + (5 - 1.5) / 2);
 });

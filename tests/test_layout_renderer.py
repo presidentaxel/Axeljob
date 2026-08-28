@@ -670,5 +670,21 @@ class TestLayoutRenderer(unittest.TestCase):
         self.assertIn('data-zone="sidebar"', html)
 
 
+class TestCssColor(unittest.TestCase):
+    def test_hex_and_rgb_accepted(self):
+        from backend.services.layout_renderer import _css_color
+
+        self.assertEqual(_css_color("#1e293b"), "#1e293b")
+        self.assertEqual(_css_color("rgb(30, 41, 59)"), "rgb(30, 41, 59)")
+        self.assertEqual(_css_color("rgba(255, 255, 255, 0.3)"), "rgba(255, 255, 255, 0.3)")
+
+    def test_junk_falls_back(self):
+        from backend.services.layout_renderer import _css_color
+
+        self.assertEqual(_css_color("rgb(" * 40), "#1e293b")
+        self.assertEqual(_css_color("red"), "#1e293b")
+        self.assertEqual(_css_color("rgb(1,2,3);background:red"), "#1e293b")
+
+
 if __name__ == "__main__":
     unittest.main()

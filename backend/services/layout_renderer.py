@@ -1068,7 +1068,7 @@ def _image_border_css(style: dict[str, Any]) -> str:
     if raw is None:
         return ""
 
-    preset = str(raw).strip().lower() if not isinstance(raw, (int, float)) else ""
+    preset = str(raw).strip().lower() if not isinstance(raw, int | float) else ""
     accent_border = "var(--layout-accent, #1e293b)"
     presets: dict[str, tuple[float, str]] = {
         "light": (0.8, "rgba(255, 255, 255, 0.3)"),
@@ -1264,8 +1264,12 @@ def _css_color(value: Any) -> str:
     raw = str(value or "").strip()
     if re.fullmatch(r"#[0-9a-fA-F]{3,8}", raw):
         return raw
-    if re.fullmatch(r"rgba?\([^)]+\)", raw):
-        return raw
+    lower = raw.lower()
+    if (lower.startswith("rgb(") or lower.startswith("rgba(")) and raw.endswith(")"):
+        if raw.count("(") == 1 and raw.count(")") == 1 and len(raw) <= 64:
+            inner = raw[raw.find("(") + 1 : -1]
+            if re.fullmatch(r"[0-9.,%\s]+", inner):
+                return raw
     return "#1e293b"
 
 

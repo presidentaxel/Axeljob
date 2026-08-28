@@ -33,6 +33,15 @@ export const CV_IMPORT_STEPS = [
   'Finalisation du canvas',
 ];
 
+/** Étapes affichées à la création de compte (pas de canvas / vision). */
+export const ONBOARDING_IMPORT_STEPS = [
+  'Lecture du document',
+  'Extraction du texte',
+  'Analyse IA du contenu',
+  'Structuration du profil',
+  'Finalisation',
+];
+
 export const CV_IMPORT_STEP_DURATION_MS = 1600;
 /** Dernière étape animée avant confirmation API (reste sur « Placement… »). */
 export const CV_IMPORT_ANIMATION_HOLD_STEP = CV_IMPORT_STEPS.length - 2;
@@ -229,9 +238,12 @@ export function cvFromImportPayload(parsed) {
 }
 
 export function startImportLoadingAnimation(setImportStepIndex, options = {}) {
+  const steps = Array.isArray(options.steps) && options.steps.length
+    ? options.steps
+    : CV_IMPORT_STEPS;
   const holdStep = typeof options.holdStep === 'number'
     ? options.holdStep
-    : CV_IMPORT_ANIMATION_HOLD_STEP;
+    : Math.max(0, steps.length - 2);
   setImportStepIndex(0);
   const stepTimer = setInterval(() => {
     setImportStepIndex((i) => (i >= holdStep ? i : i + 1));
@@ -240,6 +252,41 @@ export function startImportLoadingAnimation(setImportStepIndex, options = {}) {
 }
 
 /** Passe à l'étape « Finalisation » une fois l'import API terminé. */
-export function finishImportLoadingAnimation(setImportStepIndex) {
-  setImportStepIndex(CV_IMPORT_STEPS.length - 1);
+export function finishImportLoadingAnimation(setImportStepIndex, options = {}) {
+  const steps = Array.isArray(options.steps) && options.steps.length
+    ? options.steps
+    : CV_IMPORT_STEPS;
+  setImportStepIndex(Math.max(0, steps.length - 1));
+}
+
+/** True si l’import n’a presque rien extrait (identité / exp / formation vides). */
+export function isSparseImportedCv(cv) {
+  if (!cv || typeof cv !== 'object') return true;
+  const hasIdentity = Boolean(
+    String(cv.prenom || '').trim()
+    || String(cv.nom || '').trim()
+    || String(cv.titre_professionnel || '').trim(),
+  );
+  const hasExp = (cv.experiences || []).some((row) => (
+    String(row?.poste || '').trim() || String(row?.entreprise || '').trim()
+  ));
+  const hasForm = (cv.formations || []).some((row) => (
+    String(row?.diplome || row?.intitule || '').trim()
+  ));
+  return !hasIdentity && !hasExp && !hasForm;
+}
+
+export function onboardingImportErrorMessage(err) {
+  const status = err?.status;
+  const fallback = String(err?.message || '').trim();
+  if (status === 429) {
+    return fallback || 'Quota temporairement atteint. Réessaie dans un instant.';
+  }
+  if (status === 502) {
+    return fallback || 'L’analyse n’a pas abouti. Réessaie, ou colle le texte de ton CV.';
+  }
+  if (status === 400) {
+    return fallback || 'Impossible de lire ce fichier. Essaie un PDF texte, un Word, ou le copier-coller.';
+  }
+  return fallback || 'Impossible d’analyser le CV. Réessaie ou saisis ton profil à la main.';
 }

@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { cvFromImportPayload, extractImportApiResponse } from '../../src/lib/cvImportUtils.js';
+import {
+  cvFromImportPayload,
+  extractImportApiResponse,
+  finishImportLoadingAnimation,
+  isSparseImportedCv,
+  ONBOARDING_IMPORT_STEPS,
+  onboardingImportErrorMessage,
+} from '../../src/lib/cvImportUtils.js';
 
 test('extractImportApiResponse : import_policy exposé', () => {
   const result = extractImportApiResponse({
@@ -50,4 +57,28 @@ test('AXE-344: cvFromImportPayload aplatit identity/contact imbriqués', () => {
   assert.equal(cv.titre_professionnel, 'Mathématicienne');
   assert.equal(cv.ville, 'Londres');
   assert.equal(cv.experiences.length, 1);
+});
+
+test('AXE-341: CV importé vide = sparse', () => {
+  assert.equal(isSparseImportedCv(null), true);
+  assert.equal(isSparseImportedCv({}), true);
+  assert.equal(isSparseImportedCv({ prenom: 'Ada' }), false);
+  assert.equal(isSparseImportedCv({ experiences: [{ poste: 'Analyste' }] }), false);
+});
+
+test('AXE-341: messages d’erreur d’analyse à l’onboarding', () => {
+  assert.match(onboardingImportErrorMessage({ status: 429 }), /Quota/);
+  assert.match(onboardingImportErrorMessage({ status: 502 }), /analyse n’a pas abouti/);
+  assert.equal(
+    onboardingImportErrorMessage({ status: 400, message: 'PDF scanné.' }),
+    'PDF scanné.',
+  );
+});
+
+test('AXE-341: finishImportLoadingAnimation respecte la liste d’étapes', () => {
+  let idx = 0;
+  finishImportLoadingAnimation((value) => { idx = value; }, {
+    steps: ONBOARDING_IMPORT_STEPS,
+  });
+  assert.equal(idx, ONBOARDING_IMPORT_STEPS.length - 1);
 });

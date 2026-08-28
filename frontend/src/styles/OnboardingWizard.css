@@ -117,6 +117,17 @@
   border: 1px solid rgba(220, 38, 38, 0.15);
 }
 
+.onb-sparse {
+  background: var(--ds-color-bg-subtle);
+  color: var(--ds-color-text-default);
+  padding: 0.55rem 0.85rem;
+  border-radius: var(--ds-radius-sm);
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--ds-color-border-default);
+  text-align: left;
+}
+
 /* Method cards */
 .onb-methods {
   display: grid;
@@ -334,6 +345,11 @@
 
 .onb-skip:hover {
   color: var(--text);
+}
+
+.onb-skip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 /* Mobile */

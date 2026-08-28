@@ -271,11 +271,7 @@ class ExtractLayoutTest(unittest.TestCase):
             key=lambda b: b["y"],
         )
         texts = sorted(
-            [
-                b
-                for b in blocks
-                if b["type"] == "text" and "Header" not in (b.get("content") or "")
-            ],
+            [b for b in blocks if b["type"] == "text" and "Header" not in (b.get("content") or "")],
             key=lambda b: b["y"],
         )
         self.assertEqual(len(bullets), 4)

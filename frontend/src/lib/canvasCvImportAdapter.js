@@ -29,6 +29,7 @@ import {
   setBlockPosition,
 } from './cvLayoutModelV3.js';
 import { syncCvDualKeys } from './cvDualKey.js';
+import { bindStructuralTextToSemanticBlocks } from './structuralSemanticBind.js';
 import {
   resolveBoundText,
   resolveCertifications,
@@ -1207,16 +1208,20 @@ function inferThemeColorsFromStructuralBlocks(layout) {
  */
 export function buildStructuralImportLayout(cv, structuralLayout, {
   templateId = '',
+  annotations = null,
 } = {}) {
   const analysis = analyzeCvProfile(cv);
   // `freeform` : positions absolues figées (cf. reflow/pagination) → copie
   // fidèle du PDF, jamais ré-empilée en colonnes par l'auto-height.
   //
-  // AXE-398 : ne pas binder sémantique (AXE-329) ni paginer ici.
-  // Le bind fusionnait les lignes PDF en widgets `experiences` / `identity`
-  // remplis par le JSON LLM — ça cassait la copie mm (juin 2026).
-  // Le helper `bindStructuralTextToSemanticBlocks` reste dispo pour mix / édition.
-  const layout = sanitizeLayoutV3({ ...structuralLayout, freeform: true });
+  // Mix juin + août : bind in-place (identité / contact éditables, titres
+  // annotés) sans fusionner le corps en widgets experiences.
+  const sanitized = sanitizeLayoutV3({ ...structuralLayout, freeform: true });
+  const { layout } = bindStructuralTextToSemanticBlocks(sanitized, cv, {
+    annotations: annotations
+      ?? structuralLayout?.semantic_annotations
+      ?? null,
+  });
   // Python extrait les couleurs thème directement depuis page.get_drawings()
   // (fiable quel que soit le chemin de rendu). Le JS n'intervient qu'en
   // fallback pour les couleurs que Python n'a pas trouvées.

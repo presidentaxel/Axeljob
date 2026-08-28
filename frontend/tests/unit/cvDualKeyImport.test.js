@@ -76,6 +76,8 @@ describe('structuralSemanticBind annotations', () => {
     );
     assert.equal(boundCount, 1);
     const types = bound.pages[0].blocks.map((b) => b.type);
-    assert.ok(types.includes('experiences'));
+    assert.ok(types.includes('title'));
+    assert.equal(types.includes('experiences'), false);
+    assert.equal(bound.pages[0].blocks[0].style.semantic_section, 'experiences');
   });
 });

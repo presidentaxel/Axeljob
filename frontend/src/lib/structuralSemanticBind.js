@@ -3,6 +3,11 @@
  * vers des types sémantiques éditables (identity, experiences, …).
  *
  * Heuristique pure (pas d'IA) : confiance basse → le bloc reste `text`.
+ *
+ * Deux modes :
+ * - `inPlace` (défaut, import design) : même géométrie/typo PDF ; titres → `title` ;
+ *   identité/contact bindés étroitement. Le corps n’est pas fusionné.
+ * - `absorb` : ancien AXE-329 (région titre→corps → un widget sémantique).
  */
 
 import { createCvSectionBlockPreset } from './canvasCvSectionPresets.js';
@@ -157,8 +162,27 @@ export function classifyStructuralTextBlock(block, cv = {}, { pageHeightMm = 297
       if (fontSize >= 14 || bold) confidence += 0.2;
       if (hasPrenom && hasNom) confidence += 0.15;
       if (confidence >= MIN_SEMANTIC_CONFIDENCE) {
-        return { type: 'identity', confidence: Math.min(1, confidence), kind: 'identity' };
+        return {
+          type: 'identity',
+          confidence: Math.min(1, confidence),
+          kind: 'identity',
+          bindPaths: ['prenom', 'nom'],
+        };
       }
+    }
+  }
+
+  const titre = String(cv?.titre_professionnel || '').trim().toLowerCase();
+  if (titre && text.toLowerCase().includes(titre) && text.length <= 80) {
+    const lower = text.toLowerCase();
+    const looksLikeName = (prenom && lower.includes(prenom)) || (nom && lower.includes(nom));
+    if (!looksLikeName) {
+      return {
+        type: 'identity',
+        confidence: 0.82,
+        kind: 'identity',
+        bindPaths: ['titre_professionnel'],
+      };
     }
   }
 
@@ -173,6 +197,63 @@ export function classifyStructuralTextBlock(block, cv = {}, { pageHeightMm = 297
   }
 
   return null;
+}
+
+export const BIND_MODE_IN_PLACE = 'inPlace';
+export const BIND_MODE_ABSORB = 'absorb';
+
+function contactBindPaths(block) {
+  const text = decodeStructuralText(block.content);
+  const paths = [];
+  if (EMAIL_RE.test(text)) paths.push('email');
+  if (PHONE_RE.test(text)) paths.push('telephone');
+  return paths;
+}
+
+function preservedPdfStyle(baseBlock, extra = {}) {
+  const src = baseBlock.style && typeof baseBlock.style === 'object' ? baseBlock.style : {};
+  return {
+    ...src,
+    lock_geometry: true,
+    ...extra,
+  };
+}
+
+/**
+ * Bind in-place : même bbox / typo PDF, pas d’absorption du corps.
+ * Titres → `title` (le corps reste du texte). Identité / contact → widgets
+ * avec un bind étroit (un champ par ligne).
+ */
+function toInPlaceBlock(baseBlock, classification) {
+  if (classification.kind === 'heading') {
+    const extra = { semantic_section: classification.type };
+    if (classification.sectionLabel) extra.section_label = classification.sectionLabel;
+    return {
+      ...baseBlock,
+      type: 'title',
+      content: decodeStructuralText(baseBlock.content) || baseBlock.content,
+      style: preservedPdfStyle(baseBlock, extra),
+    };
+  }
+  const preset = createCvSectionBlockPreset(classification.type);
+  if (!preset) return null;
+  let bind = classification.bindPaths;
+  if (!bind && classification.kind === 'identity') bind = ['prenom', 'nom'];
+  if (!bind && classification.kind === 'contact') {
+    bind = contactBindPaths(baseBlock);
+  }
+  if (!bind || bind.length === 0) return null;
+  return {
+    id: baseBlock.id,
+    type: preset.type,
+    x: baseBlock.x,
+    y: baseBlock.y,
+    w: baseBlock.w,
+    h: baseBlock.h,
+    z: baseBlock.z,
+    bind,
+    style: preservedPdfStyle(baseBlock),
+  };
 }
 
 function toSemanticBlock(baseBlock, classification, regionBlocks) {
@@ -211,11 +292,15 @@ function toSemanticBlock(baseBlock, classification, regionBlocks) {
 /**
  * Applique le binding sémantique sur un layout structurel freeform.
  * Si ``annotations`` (API AXE-332) est fourni, elles priment sur l'heuristique locale.
+ * @param {{ minConfidence?: number, annotations?: Array|null, mode?: 'inPlace'|'absorb' }} [options]
+ *   `inPlace` (défaut) : géométrie PDF conservée, titres → title, pas d’absorption.
+ *   `absorb` : ancien comportement AXE-329 (région titre→corps → un widget).
  * @returns {{ layout: object, boundCount: number, skippedLowConfidence: number }}
  */
 export function bindStructuralTextToSemanticBlocks(layout, cv = {}, {
   minConfidence = MIN_SEMANTIC_CONFIDENCE,
   annotations = null,
+  mode = BIND_MODE_IN_PLACE,
 } = {}) {
   if (!layout || !Array.isArray(layout.pages)) {
     return { layout, boundCount: 0, skippedLowConfidence: 0 };
@@ -252,6 +337,9 @@ export function bindStructuralTextToSemanticBlocks(layout, cv = {}, {
             ? fromApi.type
             : 'heading'),
           sectionLabel: fromApi.section_label || fromApi.sectionLabel,
+          bindPaths: Array.isArray(fromApi.bind_paths)
+            ? fromApi.bind_paths
+            : (Array.isArray(fromApi.bind) ? fromApi.bind : undefined),
         });
         continue;
       }
@@ -264,10 +352,26 @@ export function bindStructuralTextToSemanticBlocks(layout, cv = {}, {
       classifications.set(block.id, hit);
     }
 
+    if (mode === BIND_MODE_IN_PLACE) {
+      const replaced = new Map();
+      for (const block of textBlocks) {
+        const cls = classifications.get(block.id);
+        if (!cls) continue;
+        const next = toInPlaceBlock(block, cls);
+        if (!next) continue;
+        replaced.set(block.id, next);
+        boundCount += 1;
+      }
+      return {
+        ...page,
+        blocks: blocks.map((b) => replaced.get(b.id) || b),
+      };
+    }
+
     const consumed = new Set();
     const semanticNew = [];
 
-    // 1) Titres → région jusqu'au prochain titre (même colonne).
+    // absorb : titres → région jusqu'au prochain titre (même colonne).
     for (let i = 0; i < textBlocks.length; i += 1) {
       const head = textBlocks[i];
       if (consumed.has(head.id)) continue;
@@ -301,7 +405,7 @@ export function bindStructuralTextToSemanticBlocks(layout, cv = {}, {
       }
     }
 
-    // 2) Identité / contact (blocs isolés, non déjà absorbés).
+    // Identité / contact (blocs isolés, non déjà absorbés).
     for (const block of textBlocks) {
       if (consumed.has(block.id)) continue;
       const cls = classifications.get(block.id);

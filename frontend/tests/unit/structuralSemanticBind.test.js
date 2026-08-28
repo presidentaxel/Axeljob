@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { sanitizeLayoutV3 } from '../../src/lib/cvLayoutModelV3.js';
 import {
+  BIND_MODE_ABSORB,
   MIN_SEMANTIC_CONFIDENCE,
   bindStructuralTextToSemanticBlocks,
   classifyStructuralTextBlock,
@@ -78,7 +79,9 @@ test('bindStructuralTextToSemanticBlocks : titre court absorbe corps plus large'
       ],
     }],
   });
-  const { layout: out, boundCount } = bindStructuralTextToSemanticBlocks(layout, {});
+  const { layout: out, boundCount } = bindStructuralTextToSemanticBlocks(layout, {}, {
+    mode: BIND_MODE_ABSORB,
+  });
   assert.equal(boundCount, 1);
   const form = out.pages[0].blocks.find((b) => b.type === 'formations');
   assert.ok(form);
@@ -222,7 +225,7 @@ test('bindStructuralTextToSemanticBlocks : heading + corps → experiences, free
   const { layout: out, boundCount } = bindStructuralTextToSemanticBlocks(layout, {
     prenom: 'Camille',
     nom: 'Durand',
-  });
+  }, { mode: BIND_MODE_ABSORB });
   assert.equal(out.freeform, true);
   assert.equal(boundCount, 2);
   const blocks = out.pages[0].blocks;
@@ -296,7 +299,9 @@ test('bindStructuralTextToSemanticBlocks : ignore sidebar d\'une autre colonne',
       ],
     }],
   });
-  const { layout: out } = bindStructuralTextToSemanticBlocks(layout, {});
+  const { layout: out } = bindStructuralTextToSemanticBlocks(layout, {}, {
+    mode: BIND_MODE_ABSORB,
+  });
   const blocks = out.pages[0].blocks;
   const exp = blocks.find((b) => b.type === 'experiences');
   const skills = blocks.find((b) => b.type === 'skills');
@@ -340,4 +345,69 @@ test('bindStructuralTextToSemanticBlocks : confiance basse → freeform inchang�
   assert.equal(skippedLowConfidence, 0);
   assert.equal(out.pages[0].blocks[0].type, 'text');
   assert.equal(out.pages[0].blocks[0].content.includes('Note'), true);
+});
+
+test('bind inPlace : titres annotés, corps PDF conservé', () => {
+  const layout = sanitizeLayoutV3({
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    freeform: true,
+    pages: [{
+      id: 'p1',
+      blocks: [
+        {
+          id: 'name',
+          type: 'text',
+          content: 'Marie Martin',
+          x: 20,
+          y: 16,
+          w: 90,
+          h: 8,
+          z: 3,
+          style: { font_size: 18, bold: true, color: '#1a1a1a' },
+        },
+        {
+          id: 'h1',
+          type: 'text',
+          content: 'Expérience professionnelle',
+          x: 20,
+          y: 70,
+          w: 100,
+          h: 6,
+          z: 3,
+          style: { font_size: 12, bold: true },
+        },
+        {
+          id: 'b1',
+          type: 'text',
+          content: 'Head of Growth — ScaleUp',
+          x: 20,
+          y: 80,
+          w: 110,
+          h: 5,
+          z: 3,
+          style: { font_size: 10 },
+        },
+      ],
+    }],
+  });
+  const { layout: out, boundCount } = bindStructuralTextToSemanticBlocks(layout, {
+    prenom: 'Marie',
+    nom: 'Martin',
+  });
+  assert.ok(boundCount >= 2);
+  const blocks = out.pages[0].blocks;
+  const identity = blocks.find((b) => b.type === 'identity');
+  assert.ok(identity);
+  assert.deepEqual(identity.bind, ['prenom', 'nom']);
+  assert.equal(identity.style.font_size, 18);
+  assert.equal(identity.style.lock_geometry, true);
+  assert.equal(identity.y, 16);
+  const heading = blocks.find((b) => b.type === 'title');
+  assert.ok(heading);
+  assert.equal(heading.style.semantic_section, 'experiences');
+  assert.ok(blocks.some((b) => b.type === 'text' && String(b.content).includes('Head of Growth')));
+  assert.equal(blocks.some((b) => b.type === 'experiences'), false);
 });

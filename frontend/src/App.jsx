@@ -3467,6 +3467,8 @@ export default function App() {
         {needsOnboarding && onboardingChecked && (
           <OnboardingWizard
             session={session}
+            templatesList={templatesList}
+            onImportedTemplate={handleUserPickTemplate}
             onComplete={(target) => {
               setNeedsOnboarding(false);
               setOnboardingChecked(true);

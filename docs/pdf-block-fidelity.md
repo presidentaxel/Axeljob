@@ -48,15 +48,38 @@ Classification UI : `frontend/src/lib/canvasPdfFidelity.js`
 
 ## Styles template (twins)
 
-Les `title_style` catalogue (`modern-main`, `creative-main`, `classic-main`,
-`executive-main`, `bold-main`, `elegant-section`, `minimal-section`, variants
-sidebar) sont mappés en PDF (`twin-main` / `modern-sidebar` / `creative-sidebar`
-/ `sidebar-bar`) via `--layout-section-title` / `--layout-accent` /
-`--layout-sidebar` / `--layout-header` du thème.
+## Styles (interprète canvas, pas un template figé)
 
-Zones sombres (`style.zone: sidebar|header`) : texte identité / contact / listes
-en blanc (le fond vient des `shape:rect` du layout). Presets `photo_border`
-(`light`, `accent`, `accent-thick`, `accent-thin`) exportés.
+Le PDF lit **`block.style`** comme `FreeCanvasBlock` : `title_style`, `exp_style`,
+`formation_style`, `zone`, `contact_layout` × `align` × `contact_separator`,
+`list_format`, `skills_nested_outils`, `show_section_title`, `header_layout`,
+`identity_layout`, `nowrap`. Un layout libre (Beta) ou un mix de tokens
+(titre Creative + expériences Bold) s’exporte sans `template_id`.
+
+`theme.template_id` ne sert qu’à l’exception canvas Classic : la page
+`--tpl-classic` restyle les tokens `bold-*` en filet bas (comme
+`CanvasTemplateFidelity.css`). Couleurs / polices viennent des CSS vars
+thème (`--layout-accent`, `--layout-section-title`, …).
+
+Règles d’en-tête alignées sur `FreeCanvasBlock` :
+
+- `section_label` → titre ; `sidebar_category` seul → catégorie
+- `show_section_title: false` → pas de titre (résumé header)
+- liste vide → placeholder seul, sans titre
+- `formation_style: minimal|classic` → dates à droite
+- `list_format: list` vs `inline` (langues / compétences)
+- zones `header` / `sidebar` : encre claire **seulement** si le bloc recouvre
+  un `shape:rect` sombre (`data-on-dark`) ; `sidebar-light` / `main` : sombre
+
+Presets `photo_border` (`light`, `accent`, `accent-thick`, `accent-thin`)
+exportés — `accent-thick` = **0.8 mm** (comme le canvas Bold), pas 1.1 mm.
+Contour photo : bordure sur le cadre, clip de l’image en enfant (WeasyPrint
+clippe sinon l’anneau). Filets < 0.4 mm relevés, y compris les `shape:rect` (`bar()` canvas, pas seulement
+`shape:line`). Icônes contact = **outline hi2** + `stroke` hex (pas fill solid).
+Chips Elegant : pas de bordure (`#edf2f7`) ; filet sous section `#e2e8f0`.
+Tirets bullets : `#1e293b` (chevron Creative / Elegant = accent).
+Dates formation : tone `ink` / `brand` / `accent` / `soft` selon le token,
+pas toujours `--layout-accent`.
 
 Polices : `@font-face` locaux `pdf_export/fonts/` (Inter + Plus Jakarta Sans)
 pour WeasyPrint (pas de fetch Google Fonts à l’export).

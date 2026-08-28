@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "guard-push-via-pr.sh"
+
+
+def _clean_git_env() -> dict[str, str]:
+    """Le hook pre-push exporte GIT_DIR : sans ça, `git -C tmp` voit le repo parent."""
+    env = os.environ.copy()
+    env.pop("GIT_DIR", None)
+    env.pop("GIT_WORK_TREE", None)
+    return env
 
 
 def _git_command(cmd: str) -> subprocess.CompletedProcess[str]:
@@ -14,6 +23,7 @@ def _git_command(cmd: str) -> subprocess.CompletedProcess[str]:
         capture_output=True,
         text=True,
         check=False,
+        env=_clean_git_env(),
     )
 
 
@@ -24,6 +34,7 @@ def _pre_push_stdin(line: str) -> subprocess.CompletedProcess[str]:
         capture_output=True,
         text=True,
         check=False,
+        env=_clean_git_env(),
     )
 
 
@@ -39,6 +50,7 @@ def test_explicit_feature_refspec_allowed_when_cwd_is_main(tmp_path: Path) -> No
         check=True,
         capture_output=True,
         text=True,
+        env=_clean_git_env(),
     )
     result = subprocess.run(
         [
@@ -51,6 +63,7 @@ def test_explicit_feature_refspec_allowed_when_cwd_is_main(tmp_path: Path) -> No
         capture_output=True,
         text=True,
         check=False,
+        env=_clean_git_env(),
     )
     assert result.returncode == 0, result.stderr
 
@@ -61,16 +74,19 @@ def test_bare_push_origin_denied_when_cwd_is_main(tmp_path: Path) -> None:
         check=True,
         capture_output=True,
         text=True,
+        env=_clean_git_env(),
     )
     subprocess.run(
         ["git", "-C", str(tmp_path), "config", "user.email", "ci@example.test"],
         check=True,
         capture_output=True,
+        env=_clean_git_env(),
     )
     subprocess.run(
         ["git", "-C", str(tmp_path), "config", "user.name", "ci"],
         check=True,
         capture_output=True,
+        env=_clean_git_env(),
     )
     subprocess.run(
         [
@@ -84,6 +100,7 @@ def test_bare_push_origin_denied_when_cwd_is_main(tmp_path: Path) -> None:
         ],
         check=True,
         capture_output=True,
+        env=_clean_git_env(),
     )
     result = subprocess.run(
         ["bash", str(SCRIPT), "--git-command", "git push origin"],
@@ -91,6 +108,7 @@ def test_bare_push_origin_denied_when_cwd_is_main(tmp_path: Path) -> None:
         capture_output=True,
         text=True,
         check=False,
+        env=_clean_git_env(),
     )
     assert result.returncode == 1
     assert "interdit" in result.stderr
@@ -155,6 +173,7 @@ def test_usage_without_args_exits_2() -> None:
         capture_output=True,
         text=True,
         check=False,
+        env=_clean_git_env(),
     )
     assert result.returncode == 2
     assert "Usage" in result.stderr

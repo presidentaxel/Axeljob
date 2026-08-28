@@ -45,14 +45,8 @@ export const PDF_EXPORTED_SHAPE_TYPES = Object.freeze([
 const PDF_EXPORTED_ICON_SET = new Set(PDF_EXPORTED_ICON_NAMES);
 const PDF_EXPORTED_SHAPE_SET = new Set(PDF_EXPORTED_SHAPE_TYPES);
 
-/** Styles de titre de section encore simplifiés / partiels. */
-const PARTIAL_TITLE_STYLES = new Set([
-  'creative-main',
-  'executive-main',
-  'bold-main',
-  'elegant-section',
-  'minimal-section',
-]);
+/** Styles de titre twin encore hors mapping PDF (aucun aujourd’hui — AXE-38 t2). */
+const PARTIAL_TITLE_STYLES = new Set([]);
 
 /**
  * @typedef {'ok' | 'partial' | 'unsupported'} PdfFidelityLevel
@@ -102,13 +96,6 @@ export function getBlockPdfFidelity(block, _cv) {
     return {
       level: 'partial',
       reason: 'Les effets décoratifs du bloc ne sont pas exportés dans le PDF.',
-    };
-  }
-
-  if (type === 'experiences' && style.exp_style === 'bold') {
-    return {
-      level: 'partial',
-      reason: 'Style expériences « bold » / labels ATS non reproduits dans le PDF.',
     };
   }
 

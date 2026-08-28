@@ -31,6 +31,7 @@
   <link rel="stylesheet" href="/consent-banner.css" />
   <script src="/analytics-config.js"></script>
   <script src="/consent-gtm.js"></script>
+  <script type="module" src="/track.js"></script>
 </head>
 <body>
   <div id="root">
@@ -38,13 +39,13 @@
       <div class="legal-page">
         <header class="legal-header">
           <div class="legal-container">
-            <a href="/" class="legal-back">← Retour à l'accueil</a>
+            <a href="/" class="legal-back" data-attr="nav-link-back" data-track="nav" data-zone="header" data-level="tertiary">← Retour à l'accueil</a>
           </div>
         </header>
         <main class="legal-container legal-content">
           <h1>Politique de confidentialité</h1>
           <p>Conformément au RGPD (Règlement UE 2016/679) et à la loi « Informatique et Libertés ».</p>
-          <p><em>Dernière mise à jour : 21 mars 2026</em></p>
+          <p><em>Dernière mise à jour : 26 août 2026</em></p>
 
           <h2>1. Responsable du traitement</h2>
           <ul>
@@ -107,6 +108,10 @@
                 <td>Réponse aux demandes de contact</td>
                 <td>Intérêt légitime</td>
               </tr>
+              <tr>
+                <td>Diagnostic des erreurs techniques et sécurité du service (Sentry)</td>
+                <td>Intérêt légitime</td>
+              </tr>
             </tbody>
           </table>
 
@@ -140,6 +145,10 @@
                 <td>Google Ireland Limited (Google Tag Manager, Google Analytics)</td>
                 <td>Mesure d’audience et, le cas échéant, publicité - uniquement avec votre consentement (bannière ou « Paramètres cookies »)</td>
               </tr>
+              <tr>
+                <td>Functional Software, Inc. (Sentry)</td>
+                <td>Diagnostic des erreurs techniques (stack traces, tags d’environnement et de version, identifiant technique de compte sans e-mail, type d’abonnement gratuit/pro). Hors bandeau cookies. Aucun contenu de CV ni d’annonce n’est envoyé.</td>
+              </tr>
             </tbody>
           </table>
           <p>Ces sous-traitants sont établis hors de l'Union européenne. Les transferts de données sont encadrés par des garanties appropriées conformes au RGPD (clauses contractuelles types approuvées par la Commission européenne).</p>
@@ -158,6 +167,7 @@
           <h2>8. Cookies et traceurs</h2>
           <p>Le site <strong>job.axelproject.fr</strong> utilise des cookies strictement nécessaires au fonctionnement du service (session, authentification, préférences, sécurité, paiement). Ils sont dispensés de consentement préalable dans les conditions fixées par la CNIL pour les cookies « strictement nécessaires ».</p>
           <p>Les traceurs liés à la mesure d’audience (Google Tag Manager, Google Analytics) et, le cas échéant, à la publicité, ne sont activés qu’après votre accord via la bannière cookies ou le lien « Paramètres cookies ». Vous pouvez modifier ou retirer votre consentement à tout moment ; le choix est enregistré dans votre navigateur (localStorage).</p>
+          <p>Le diagnostic d’erreurs (Sentry) n’est pas un traceur de mesure d’audience : il n’est pas soumis à ce bandeau. Il sert à la sécurité et à la continuité du service (intérêt légitime). Le Session Replay Sentry n’est pas activé.</p>
 
           <h2>9. Vos droits</h2>
           <p>Conformément au RGPD, vous disposez des droits suivants sur vos données personnelles :</p>
@@ -178,16 +188,16 @@
         <footer class="legal-footer">
           <div class="legal-container">
             <nav class="legal-footer-nav">
-              <a href="/ats">CV et ATS</a>
-              <a href="/faq">FAQ</a>
-              <a href="/modeles-cv">Modèles de CV</a>
-              <a href="/guide-cv">Guide CV</a>
-              <a href="/erreurs-cv">Erreurs à éviter</a>
-              <a href="/cv-par-metier">CV par métier</a>
-              <a href="/cv-adapte-chaque-offre">CV adapté à chaque offre</a>
-              <a href="/mentions-legales">Mentions légales</a>
-              <a href="/confidentialite">Confidentialité</a>
-              <a href="/cgu">CGU</a>
+              <a href="/ats" data-attr="footer-link-ats" data-track="nav" data-zone="footer" data-level="tertiary">CV et ATS</a>
+              <a href="/faq" data-attr="footer-link-faq" data-track="nav" data-zone="footer" data-level="tertiary">FAQ</a>
+              <a href="/modeles-cv" data-attr="footer-link-modeles" data-track="nav" data-zone="footer" data-level="tertiary">Modèles de CV</a>
+              <a href="/guide-cv" data-attr="footer-link-guide" data-track="nav" data-zone="footer" data-level="tertiary">Guide CV</a>
+              <a href="/erreurs-cv" data-attr="footer-link-erreurs" data-track="nav" data-zone="footer" data-level="tertiary">Erreurs à éviter</a>
+              <a href="/cv-par-metier" data-attr="footer-link-metier" data-track="nav" data-zone="footer" data-level="tertiary">CV par métier</a>
+              <a href="/cv-adapte-chaque-offre" data-attr="footer-link-adapte" data-track="nav" data-zone="footer" data-level="tertiary">CV adapté à chaque offre</a>
+              <a href="/mentions-legales" data-attr="footer-link-mentions" data-track="nav" data-zone="footer" data-level="tertiary">Mentions légales</a>
+              <a href="/confidentialite" data-attr="footer-link-confidentialite" data-track="nav" data-zone="footer" data-level="tertiary">Confidentialité</a>
+              <a href="/cgu" data-attr="footer-link-cgu" data-track="nav" data-zone="footer" data-level="tertiary">CGU</a>
             </nav>
           </div>
         </footer>

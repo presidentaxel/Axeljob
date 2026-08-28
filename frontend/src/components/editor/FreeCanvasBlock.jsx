@@ -39,17 +39,21 @@ import CanvasIconGlyph from './CanvasIconGlyph.jsx';
 import { isVectorShapeType } from '../../lib/canvasShapePresets.js';
 import { blockEffectToCss } from '../../lib/canvasBlockEffects.js';
 import { getBlockPdfFidelity } from '../../lib/canvasPdfFidelity.js';
+import { cvTemplateCopy } from '../../lib/cvTemplateCopy.js';
 import CanvasImageFrame from './CanvasImageFrame.jsx';
 import CanvasShapeSvg from './CanvasShapeSvg.jsx';
 
-const SECTION_LABELS = {
-  experiences: 'Expérience professionnelle',
-  formations: 'Formation',
-  certifications: 'Certifications',
-  projets: 'Projets',
-  skills: 'Compétences',
-  languages: 'Langues',
-};
+function defaultSectionLabel(type, langue) {
+  const st = cvTemplateCopy(langue);
+  return {
+    experiences: st.experience_title,
+    formations: st.education_title,
+    certifications: st.certs_title,
+    projets: st.projects_title,
+    skills: st.skills_title,
+    languages: st.languages_title,
+  }[type] || '';
+}
 
 function photoSrc(cv) {
   const raw = resolvePhotoUrl(cv);
@@ -370,7 +374,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       return (
         <div className={`free-canvas-block__section-list${boldExp ? ' free-canvas-block__section-list--bold-exp' : ''}${minimalExp ? ' free-canvas-block__section-list--minimal-exp' : ''}${elegantExp ? ' free-canvas-block__section-list--elegant-exp' : ''}${modernExp ? ' free-canvas-block__section-list--modern-exp' : ''}${executiveExp ? ' free-canvas-block__section-list--executive-exp' : ''}${creativeExp ? ' free-canvas-block__section-list--creative-exp' : ''}`}>
           <SectionHeading
-            label={style.section_label || SECTION_LABELS.experiences}
+            label={style.section_label || defaultSectionLabel('experiences', cv?.langue)}
             titleStyle={style.title_style}
             zone={style.zone}
           />
@@ -527,7 +531,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       return (
         <div className="free-canvas-block__section-list">
           <SectionHeading
-            label={style.section_label || SECTION_LABELS.formations}
+            label={style.section_label || defaultSectionLabel('formations', cv?.langue)}
             titleStyle={style.title_style}
             zone={style.zone}
           />
@@ -623,7 +627,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
             <SidebarCategoryHeading label={style.sidebar_category} titleStyle={style.title_style} />
           ) : (
             <SectionHeading
-              label={style.section_label || SECTION_LABELS.certifications}
+              label={style.section_label || defaultSectionLabel('certifications', cv?.langue)}
               titleStyle={style.title_style}
               zone={style.zone}
             />
@@ -655,7 +659,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       return (
         <div className="free-canvas-block__section-list">
           <SectionHeading
-            label={style.section_label || SECTION_LABELS.projets}
+            label={style.section_label || defaultSectionLabel('projets', cv?.langue)}
             titleStyle={style.title_style}
             zone={style.zone}
           />
@@ -725,7 +729,7 @@ function SemanticBlockBody({ block, cv, editing = false }) {
       return (
         <div className="free-canvas-block__section-list">
           <SectionHeading
-            label={style.section_label || SECTION_LABELS.languages}
+            label={style.section_label || defaultSectionLabel('languages', cv?.langue)}
             titleStyle={style.title_style}
             zone={style.zone}
           />

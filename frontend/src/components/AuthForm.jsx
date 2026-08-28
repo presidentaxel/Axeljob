@@ -1,5 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { analyticsAttrs } from '../lib/analyticsAttrs.js';
+import {
+  currentLoginRedirectTo,
+  emitSignUpOnce,
+  emitSignUpStartOnce,
+  hydratePlanIntentFromSearch,
+} from '../../public/signupAttribution.js';
 import '../styles/AuthForm.css';
 
 function GoogleIcon() {
@@ -33,6 +40,17 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
   const [message, setMessage] = useState('');
   const [showAlreadyHadAccountPopup, setShowAlreadyHadAccountPopup] = useState(false);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    hydratePlanIntentFromSearch(window.location.search);
+    emitSignUpStartOnce('form');
+    const onConsent = (ev) => {
+      if (ev && ev.detail && ev.detail.analytics) emitSignUpStartOnce('form');
+    };
+    window.addEventListener('axel_consent_update', onConsent);
+    return () => window.removeEventListener('axel_consent_update', onConsent);
+  }, []);
+
   const handleGoogle = async () => {
     setError('');
     setGoogleLoading(true);
@@ -40,7 +58,7 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
       const { error: err } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: typeof window !== 'undefined' ? window.location.origin + '/login' : undefined,
+          redirectTo: currentLoginRedirectTo(),
         },
       });
       if (err) throw err;
@@ -57,7 +75,7 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
       const { error: err } = await supabase.auth.signInWithOAuth({
         provider: 'linkedin_oidc',
         options: {
-          redirectTo: typeof window !== 'undefined' ? window.location.origin + '/login' : undefined,
+          redirectTo: currentLoginRedirectTo(),
         },
       });
       if (err) throw err;
@@ -78,7 +96,7 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
     setLoading(true);
     try {
       const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: typeof window !== 'undefined' ? window.location.origin + '/login' : undefined,
+        redirectTo: currentLoginRedirectTo(),
       });
       if (err) throw err;
       setMessage('Email de réinitialisation envoyé. Vérifie ta boîte mail.');
@@ -122,6 +140,7 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
           return;
         }
         if (err) throw err;
+        emitSignUpOnce('email');
         setMessage('Compte créé. Un email de confirmation a été envoyé - clique sur le lien pour activer ton compte.');
       } else {
         const { error: err } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
@@ -143,6 +162,7 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
           className="auth-linkedin-btn"
           onClick={handleLinkedIn}
           disabled={linkedInLoading}
+          {...analyticsAttrs('login-cta-linkedin', 'login', 'secondary', 'cta')}
         >
           <LinkedInIcon />
           <span>{linkedInLoading ? 'Redirection…' : 'Continuer avec LinkedIn'}</span>
@@ -171,6 +191,7 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
         className="auth-google-btn"
         onClick={handleGoogle}
         disabled={googleLoading}
+        {...analyticsAttrs('login-cta-google', 'login', 'secondary', 'cta')}
       >
         <GoogleIcon />
         <span>{googleLoading ? 'Redirection…' : 'Continuer avec Google'}</span>
@@ -180,6 +201,7 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
         className="auth-linkedin-btn"
         onClick={handleLinkedIn}
         disabled={linkedInLoading}
+        {...analyticsAttrs('login-cta-linkedin', 'login', 'secondary', 'cta')}
       >
         <LinkedInIcon />
         <span>{linkedInLoading ? 'Redirection…' : 'Continuer avec LinkedIn'}</span>
@@ -192,6 +214,7 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
         onChange={(e) => setEmail(e.target.value)}
         className="auth-input"
         autoComplete="email"
+        {...analyticsAttrs('login-input-email', 'login', 'tertiary', 'input')}
       />
       {!resetMode && (
         <input
@@ -205,15 +228,15 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
       )}
       {error && <div className="auth-error">{error}</div>}
       {message && <div className="auth-message">{message}</div>}
-      <button type="submit" className="button button-primary auth-submit" disabled={loading}>
+      <button type="submit" className="button button-primary auth-submit" disabled={loading} {...analyticsAttrs('login-cta-submit', 'login', 'primary', 'cta')}>
         {loading ? '…' : resetMode ? 'Envoyer le lien' : isSignUp ? 'Créer un compte' : 'Se connecter'}
       </button>
       {!resetMode && (
-        <button type="button" className="auth-toggle" onClick={() => { setResetMode(true); setError(''); setMessage(''); }}>
+        <button type="button" className="auth-toggle" onClick={() => { setResetMode(true); setError(''); setMessage(''); }} {...analyticsAttrs('login-link-forgot', 'login', 'tertiary', 'nav')}>
           Mot de passe oublié ?
         </button>
       )}
-      <button type="button" className="auth-toggle" onClick={() => { setIsSignUp((v) => !v); setResetMode(false); setError(''); setMessage(''); }}>
+      <button type="button" className="auth-toggle" onClick={() => { setIsSignUp((v) => !v); setResetMode(false); setError(''); setMessage(''); }} {...analyticsAttrs('login-link-toggle', 'login', 'tertiary', 'nav')}>
         {resetMode ? '← Retour à la connexion' : isSignUp ? 'Déjà un compte ? Se connecter' : 'Pas de compte ? Créer un compte'}
       </button>
     </form>

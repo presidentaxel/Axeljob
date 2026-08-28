@@ -152,6 +152,7 @@ a.button,a.btn{text-decoration:none}
     <link rel="stylesheet" href="/consent-banner.css" />
     <script src="/analytics-config.js"></script>
     <script src="/consent-gtm.js"></script>
+    <script type="module" src="/track.js"></script>
     <script>window.__APP_CSS__ = "__APP_CSS_FILENAME__";</script>
   </head>
   <body>
@@ -189,28 +190,28 @@ a.button,a.btn{text-decoration:none}
               <img src="/favicon.svg" alt="AxeL Job" class="landing-logo" />
               <span class="landing-brand">AxeL Job</span>
               <nav class="landing-nav" aria-label="Navigation principale">
-                <a href="#comment">Comment ça marche</a>
-                <a href="#tarifs">Tarifs</a>
-                <a href="#features">Fonctionnalités</a>
-                <a href="/ats">Qu'est-ce que l'ATS ?</a>
-                <a href="/faq">FAQ</a>
-                <a href="/modeles-cv">Modèles CV</a>
-                <a href="/guide-cv">Guide CV</a>
-                <a href="/login" class="button button-primary landing-cta-nav">Essayer gratuitement</a>
+                <a href="#comment" data-attr="nav-link-how" data-track="nav" data-zone="header" data-level="tertiary">Comment ça marche</a>
+                <a href="#tarifs" data-attr="nav-link-pricing" data-track="nav" data-zone="header" data-level="tertiary">Tarifs</a>
+                <a href="#features" data-attr="nav-link-features" data-track="nav" data-zone="header" data-level="tertiary">Fonctionnalités</a>
+                <a href="/ats" data-attr="nav-link-ats" data-track="nav" data-zone="header" data-level="tertiary">Qu'est-ce que l'ATS ?</a>
+                <a href="/faq" data-attr="nav-link-faq" data-track="nav" data-zone="header" data-level="tertiary">FAQ</a>
+                <a href="/modeles-cv" data-attr="nav-link-modeles" data-track="nav" data-zone="header" data-level="tertiary">Modèles CV</a>
+                <a href="/guide-cv" data-attr="nav-link-guide" data-track="nav" data-zone="header" data-level="tertiary">Guide CV</a>
+                <a href="/login" class="button button-primary landing-cta-nav" data-attr="nav-cta-signup" data-track="cta" data-zone="header" data-level="primary">Essayer gratuitement</a>
               </nav>
-              <a href="/login" class="landing-mobile-cta button button-primary">Commencer</a>
+              <a href="/login" class="landing-mobile-cta button button-primary" data-attr="nav-cta-start" data-track="cta" data-zone="header" data-level="primary">Commencer</a>
             </div>
           </div>
         </header>
         <main id="main-content">
-          <section class="landing-hero">
+          <section class="landing-hero" data-section="hero">
             <div class="landing-container">
               <div class="landing-hero-inner">
                 <div class="landing-hero-content">
-                  <h1 class="landing-hero-title">Passe les filtres automatiques. Décroche des entretiens en 1 clic.</h1>
+                  <h1 class="landing-hero-title" data-attr="home-hero-title" data-zone="hero" data-level="tertiary">Passe les filtres automatiques. Décroche des entretiens en 1 clic.</h1>
                   <p class="landing-hero-subtitle">L'IA analyse l'offre d'emploi et adapte instantanément ton CV pour passer les filtres (ATS) et taper dans l'œil des recruteurs.</p>
                   <div class="landing-hero-ctas">
-                    <a href="/login" class="button button-primary landing-cta-hero">Essayer gratuitement</a>
+                    <a href="/login" class="button button-primary landing-cta-hero" data-attr="home-hero-cta-signup" data-track="cta" data-zone="hero" data-level="primary">Essayer gratuitement</a>
                     <span class="landing-hero-hint">3 adaptations offertes</span>
                   </div>
                 </div>
@@ -243,7 +244,7 @@ a.button,a.btn{text-decoration:none}
               </div>
             </div>
           </section>
-          <section id="comment" class="landing-section">
+          <section id="comment" class="landing-section" data-section="how">
             <div class="landing-container">
               <h2 class="landing-section-title">Comment ça marche</h2>
               <div class="landing-steps">
@@ -268,12 +269,12 @@ a.button,a.btn{text-decoration:none}
               </div>
             </div>
           </section>
-          <section id="tarifs" class="landing-section">
+          <section id="tarifs" class="landing-section" data-section="pricing">
             <div class="landing-container">
               <h2 class="landing-section-title">Tarifs</h2>
               <p class="landing-section-subtitle">Commence gratuitement. Passe Pro quand tu en as besoin.</p>
               <div class="landing-pricing">
-                <div class="pricing-card">
+                <div class="pricing-card" data-attr="home-pricing-card-free" data-zone="pricing" data-level="tertiary">
                   <div class="pricing-card-header">
                     <h3 class="pricing-plan-name">Gratuit</h3>
                     <div class="pricing-price"><span class="pricing-amount">0€</span><span class="pricing-period">pour toujours</span></div>
@@ -284,10 +285,10 @@ a.button,a.btn{text-decoration:none}
                     <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Suivi de candidatures</li>
                     <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Export PDF</li>
                   </ul>
-                  <a href="/login" class="button button-secondary pricing-cta">Commencer gratuitement</a>
+                  <a href="/login" class="button button-secondary pricing-cta" data-attr="home-pricing-cta-free" data-track="cta" data-zone="pricing" data-level="secondary">Commencer gratuitement</a>
                 </div>
-                <div class="pricing-card pricing-card--pro">
-                  <div class="pricing-badge">Populaire</div>
+                <div class="pricing-card pricing-card--pro" data-attr="home-pricing-card-pro" data-zone="pricing" data-level="tertiary">
+                  <div class="pricing-badge" data-attr="home-pricing-badge-popular" data-zone="pricing" data-level="tertiary">Populaire</div>
                   <div class="pricing-card-header">
                     <h3 class="pricing-plan-name">Pro</h3>
                     <div class="pricing-price"><span class="pricing-amount">10€</span><span class="pricing-period">/ mois</span></div>
@@ -300,12 +301,12 @@ a.button,a.btn{text-decoration:none}
                     <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Lettre de motivation IA</li>
                     <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Support prioritaire</li>
                   </ul>
-                  <a href="/login?plan=pro" class="button button-primary pricing-cta">Passer Pro</a>
+                  <a href="/login?plan=pro" class="button button-primary pricing-cta" data-attr="home-pricing-cta-pro" data-track="cta" data-zone="pricing" data-level="primary">Passer Pro</a>
                 </div>
               </div>
             </div>
           </section>
-          <section id="features" class="landing-section">
+          <section id="features" class="landing-section" data-section="features">
             <div class="landing-container">
               <h2 class="landing-section-title">Fonctionnalités</h2>
               <div class="landing-features-grid">
@@ -324,14 +325,14 @@ a.button,a.btn{text-decoration:none}
               </div>
             </div>
           </section>
-          <section class="landing-section">
+          <section class="landing-section" data-section="why">
             <div class="landing-container">
               <h2 class="landing-section-title">Pourquoi AxeL Job ?</h2>
               <div class="landing-features-grid">
                 <div class="landing-feature-card">
                   <h3 class="landing-feature-title">Score ATS optimisé</h3>
                   <p class="landing-feature-desc">Chaque CV est analysé et adapté pour maximiser son passage dans les filtres automatiques des recruteurs.</p>
-                  <a href="/ats" class="landing-ats-link">Qu'est-ce que l'ATS ?</a>
+                  <a href="/ats" class="landing-ats-link" data-attr="home-why-link-ats" data-track="nav" data-zone="why" data-level="tertiary">Qu'est-ce que l'ATS ?</a>
                 </div>
                 <div class="landing-feature-card">
                   <h3 class="landing-feature-title">Gain de temps massif</h3>
@@ -344,31 +345,31 @@ a.button,a.btn{text-decoration:none}
               </div>
             </div>
           </section>
-          <section class="landing-cta-bottom">
+          <section class="landing-cta-bottom" data-section="final">
             <div class="landing-container">
               <h2>Prêt à décrocher le job de tes rêves ?</h2>
               <p>Crée ton compte gratuit et teste 3 adaptations de CV.</p>
-              <a href="/login" class="button button-primary landing-cta-hero">Essayer gratuitement</a>
+              <a href="/login" class="button button-primary landing-cta-hero" data-attr="home-final-cta-signup" data-track="cta" data-zone="final" data-level="primary">Essayer gratuitement</a>
             </div>
           </section>
         </main>
         <footer class="landing-footer">
           <div class="landing-container">
             <div class="landing-footer-inner">
-              <p>© 2025 AxeL Job - Ton CV sur-mesure pour chaque annonce. Une réalisation <a href="https://axelproject.fr" rel="noopener noreferrer">Axel Project</a>.</p>
+              <p>© 2025 AxeL Job - Ton CV sur-mesure pour chaque annonce. Une réalisation <a href="https://axelproject.fr" rel="noopener noreferrer" data-attr="footer-link-axelproject" data-track="nav" data-zone="footer" data-level="tertiary">Axel Project</a>.</p>
               <nav class="landing-footer-links" aria-label="Guides, FAQ et pages légales">
                 <a href="mailto:contact@axelproject.fr?subject=Support%20AxeL%20Job">Support</a>
-                <a href="/ats">CV et ATS</a>
-                <a href="/faq">FAQ</a>
-                <a href="/modeles-cv">Modèles de CV</a>
-                <a href="/guide-cv">Guide CV</a>
-                <a href="/erreurs-cv">Erreurs à éviter</a>
-                <a href="/cv-par-metier">CV par métier</a>
-                <a href="/cv-adapte-chaque-offre">CV adapté à chaque offre</a>
+                <a href="/ats" data-attr="footer-link-ats" data-track="nav" data-zone="footer" data-level="tertiary">CV et ATS</a>
+                <a href="/faq" data-attr="footer-link-faq" data-track="nav" data-zone="footer" data-level="tertiary">FAQ</a>
+                <a href="/modeles-cv" data-attr="footer-link-modeles" data-track="nav" data-zone="footer" data-level="tertiary">Modèles de CV</a>
+                <a href="/guide-cv" data-attr="footer-link-guide" data-track="nav" data-zone="footer" data-level="tertiary">Guide CV</a>
+                <a href="/erreurs-cv" data-attr="footer-link-erreurs" data-track="nav" data-zone="footer" data-level="tertiary">Erreurs à éviter</a>
+                <a href="/cv-par-metier" data-attr="footer-link-metier" data-track="nav" data-zone="footer" data-level="tertiary">CV par métier</a>
+                <a href="/cv-adapte-chaque-offre" data-attr="footer-link-adapte" data-track="nav" data-zone="footer" data-level="tertiary">CV adapté à chaque offre</a>
                 <span class="landing-footer-sep">|</span>
-                <a href="/mentions-legales">Mentions légales</a>
-                <a href="/confidentialite">Confidentialité</a>
-                <a href="/cgu">CGU</a>
+                <a href="/mentions-legales" data-attr="footer-link-mentions" data-track="nav" data-zone="footer" data-level="tertiary">Mentions légales</a>
+                <a href="/confidentialite" data-attr="footer-link-confidentialite" data-track="nav" data-zone="footer" data-level="tertiary">Confidentialité</a>
+                <a href="/cgu" data-attr="footer-link-cgu" data-track="nav" data-zone="footer" data-level="tertiary">CGU</a>
               </nav>
             </div>
           </div>

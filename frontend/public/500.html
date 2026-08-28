@@ -16,12 +16,13 @@
   <link rel="stylesheet" href="/consent-banner.css" />
   <script src="/analytics-config.js"></script>
   <script src="/consent-gtm.js"></script>
+  <script type="module" src="/track.js"></script>
 </head>
 <body>
   <div class="content-page">
     <header class="content-header">
       <div class="content-header-inner">
-        <a href="/" class="content-back">← Accueil</a>
+        <a href="/" class="content-back" data-attr="nav-link-back" data-track="nav" data-zone="header" data-level="tertiary">← Accueil</a>
       </div>
     </header>
     <section class="content-hero">

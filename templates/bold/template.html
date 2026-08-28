@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr" class="{% if for_preview %}cv-preview{% endif %}">
+<html lang="{{ html_lang }}" class="{% if for_preview %}cv-preview{% endif %}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -38,20 +38,20 @@
     <div class="cv-main">
       {% if experiences_for_display %}
       <section class="section-experiences" id="experiences">
-        <h2 class="section-title">EXPÉRIENCE PROFESSIONNELLE</h2>
+        <h2 class="section-title">{{ st.experience }}</h2>
         <div class="experiences-list">
           {% for exp in experiences_for_display %}
           <div class="experience-item" itemscope itemtype="https://schema.org/JobPosition">
             <div class="exp-header">
-              <span class="exp-entreprise"><span class="ats-label">Organisation : </span><span itemprop="worksFor" itemscope itemtype="https://schema.org/Organization"><span itemprop="name">{{ exp.entreprise_display|safe }}</span></span></span>
+              <span class="exp-entreprise"><span class="ats-label">{{ st.organization }}</span><span itemprop="worksFor" itemscope itemtype="https://schema.org/Organization"><span itemprop="name">{{ exp.entreprise_display|safe }}</span></span></span>
               <span class="exp-dates">{% if exp.date_debut or exp.date_fin %}{{ exp.date_debut_display|safe }} - {{ exp.date_fin_display|safe }}{% endif %}{% if exp.lieu %}{% if exp.date_debut or exp.date_fin %} · {% endif %}{{ exp.lieu_display|safe }}{% endif %}</span>
             </div>
-            <p class="exp-poste"><span class="ats-label">Fonction : </span><span itemprop="name">{{ exp.poste_display|safe }}{% if exp.secteur %} - {{ exp.secteur_display|safe }}{% endif %}</span></p>
+            <p class="exp-poste"><span class="ats-label">{{ st.function }}</span><span itemprop="name">{{ exp.poste_display|safe }}{% if exp.secteur %} - {{ exp.secteur_display|safe }}{% endif %}</span></p>
             {% for bullet in exp.bullet_points %}
             <p class="bullet">- {{ bullet.html|safe }}</p>
             {% endfor %}
             {% if exp.clients %}
-            <p class="exp-clients">Clients : {{ exp.clients_display|safe }}</p>
+            <p class="exp-clients">{{ st.clients }} {{ exp.clients_display|safe }}</p>
             {% endif %}
           </div>
           {% endfor %}
@@ -61,7 +61,7 @@
 
       {% if formations_for_display %}
       <section class="section-formation" id="formation">
-        <h2 class="section-title">FORMATION</h2>
+        <h2 class="section-title">{{ st.education }}</h2>
         {% for form in formations_for_display %}
         <div class="formation-item">
           <p class="formation-header">
@@ -78,7 +78,7 @@
 
       {% if projets_for_display %}
       <section class="section-projets" id="projets">
-        <h2 class="section-title">PROJETS</h2>
+        <h2 class="section-title">{{ st.projects }}</h2>
         {% for proj in projets_for_display %}
         <div class="projet-item">
           <p class="projet-nom">{{ proj.nom }}</p>
@@ -96,8 +96,8 @@
       {% set tech_filtered = competences.techniques | select() | list %}
       {% if tech_filtered %}
       <section class="section-sidebar" id="competences-techniques">
-        <h2 class="section-title">COMPÉTENCES</h2>
-        <h3 class="sidebar-category">Compétences techniques</h3>
+        <h2 class="section-title">{{ st.skills }}</h2>
+        <h3 class="sidebar-category">{{ st.skills_technical }}</h3>
         {% for item in competences.techniques %}
         {% if item %}<p class="sidebar-item">{{ item }}</p>{% endif %}
         {% endfor %}
@@ -109,7 +109,7 @@
       {% set logiciels_filtered = (competences.logiciels or competences.informatiques or []) | select() | list %}
       {% if logiciels_filtered %}
       <section class="section-sidebar" id="competences-informatiques">
-        <h3 class="sidebar-category">Logiciels & outils</h3>
+        <h3 class="sidebar-category">{{ st.tools_software }}</h3>
         {% for item in competences.logiciels or competences.informatiques or [] %}
         {% if item %}<p class="sidebar-item">{{ item }}</p>{% endif %}
         {% endfor %}
@@ -119,7 +119,7 @@
 
       {% if certifications_for_display %}
       <section class="section-sidebar" id="certifications">
-        <h3 class="sidebar-category">Certifications</h3>
+        <h3 class="sidebar-category">{{ st.certs_title }}</h3>
         {% for c in certifications_for_display %}
         <p class="sidebar-item">{% if c.nom %}{{ c.nom }}{% endif %}{% if c.organisme %}{% if c.nom %} - {% endif %}{{ c.organisme }}{% endif %}{% if c.date %}{% if c.nom or c.organisme %} · {% endif %}{{ c.date }}{% endif %}</p>
         {% endfor %}
@@ -128,7 +128,7 @@
 
       {% if langues_for_display %}
       <section class="section-sidebar" id="langues">
-        <h2 class="section-title">LANGUES</h2>
+        <h2 class="section-title">{{ st.languages }}</h2>
         {% for l in langues_for_display %}
         <p class="sidebar-item">{{ l.langue }} - {{ l.niveau }}</p>
         {% endfor %}
@@ -139,17 +139,17 @@
       {% set autres_filtered = autres_items | select() | list %}
       {% if autres_filtered %}
       <section class="section-sidebar" id="autres">
-        <h2 class="section-title">AUTRES</h2>
+        <h2 class="section-title">{{ st.other }}</h2>
         {% for item in autres_items %}
         {% if item %}<p class="sidebar-item">{{ item }}</p>{% endif %}
         {% endfor %}
       </section>
       {% endif %}
 
-      <!-- Mots-clés ATS : sous AUTRES, titre visible pour vérification ; le texte est invisible (même couleur que le fond) pour les ATS -->
+      <!-- {{ st.ats_keywords }} : sous AUTRES, titre visible pour vérification ; le texte est invisible (même couleur que le fond) pour les ATS -->
       {% if show_mots_cles_ats %}
       <section class="section-sidebar section-mots-cles-ats" id="mots-cles-ats">
-        <h3 class="sidebar-category mots-cles-ats-titre">Mots-clés ATS</h3>
+        <h3 class="sidebar-category mots-cles-ats-titre">{{ st.ats_keywords }}</h3>
         <p class="mots-cles-ats-invisible" aria-hidden="true">{{ mots_cles_cache }}</p>
       </section>
       {% endif %}

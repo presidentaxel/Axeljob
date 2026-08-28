@@ -16,16 +16,20 @@ import {
   trackEvent,
 } from './api';
 import { ensureAnalyticsFirstTouch, getStoredAttribution } from './analyticsSession';
+import { consumePlanIntentIfPro, maybeEmitSignUpForSession, wantsProCheckout } from '../public/signupAttribution.js';
+import { maybeEmitProductLogin, clearProductLoginSent } from './lib/productLogin.js';
 import { resetTemplateOptionsToDefaults } from './lib/templateOptionsSchema.js';
 import { useViewAnalytics } from './useViewAnalytics';
 import { supabase } from './lib/supabase';
 import { fetchAuthSessionWithTimeout } from './lib/supabaseAuthSession';
+import { analyticsAttrs } from './lib/analyticsAttrs.js';
 import AuthForm from './components/AuthForm';
 import AppTopbar from './components/AppTopbar';
 import CompanyLogo from './components/CompanyLogo';
 import CandidatureBoardCard from './components/CandidatureBoardCard';
 import { NotFoundPage } from './components/ErrorPages';
 import Button from './components/ui/Button.jsx';
+import AdaptLanguageChoiceDialog from './components/ui/AdaptLanguageChoiceDialog.jsx';
 import { CONTACT_EMAIL, STORAGE_EXPORT_DIR, STORAGE_EXPORT_ATS_BLOCK_SNOOZE, STORAGE_PRE_EXPORT_TEMPLATE_OPTIONS_DONE, STORAGE_PDF_EXPORT_FILENAME_PATTERN, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
 import { buildAdaptedPdfFilename } from './lib/pdfExportFilename';
 import { getPdfSaveStartInDirectoryHandle } from './lib/pdfExportStartDirIdb';
@@ -37,6 +41,14 @@ import './App.css';
 import './styles/TemplatePicker.css';
 import './styles/GuidedTour.css';
 import { formatApplicationDateLabel, formatApplicationRelativeLabel } from './lib/applicationDates';
+import { adaptLanguageNotice, adaptLanguagePreviewCopy, shouldPromptLanguageChoice, withAdaptLanguageNotice } from './lib/adaptLanguageNotice.js';
+import {
+  clearAdaptLanguagePreference,
+  getAdaptLanguagePreference,
+  resolveAdaptLanguageAutoChoice,
+  setAdaptLanguagePreference,
+} from './lib/adaptLanguagePreference.js';
+import { localizationSourceFingerprint } from './lib/localizationSourceFingerprint.js';
 import { computeApplicationMetrics, isApplicationToFollowUp } from './lib/applicationStats.js';
 import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from './lib/cvPreviewA4Pages';
 import {
@@ -564,7 +576,7 @@ function SupportTicketSection() {
                 required
               />
               {error && <p className="support-ticket-error">{error}</p>}
-              <button type="submit" className="button button-primary support-ticket-submit" disabled={loading}>
+              <button type="submit" className="button button-primary support-ticket-submit" disabled={loading} {...analyticsAttrs('support-ticket-cta-submit', 'ticket', 'primary', 'cta')}>
                 {loading ? 'Envoi…' : 'Envoyer le ticket'}
               </button>
             </form>
@@ -808,6 +820,11 @@ export default function App() {
   /** En attente de la réponse /api/adapt-plan après envoi de l’offre. */
   const [adaptPlanLoading, setAdaptPlanLoading] = useState(false);
   const [adaptTodoLastAction, setAdaptTodoLastAction] = useState('');
+  const [adaptLanguageModalOpen, setAdaptLanguageModalOpen] = useState(false);
+  const [adaptLanguageMeta, setAdaptLanguageMeta] = useState(null);
+  const pendingAdaptAfterLanguageRef = useRef(null);
+  const [languagePreviewStatus, setLanguagePreviewStatus] = useState('idle');
+  const languagePreviewSeqRef = useRef(0);
   const [adaptRunStepIds, setAdaptRunStepIds] = useState([]);
   /** Suivi des étapes par id (ordre backend ≠ ordre d’affichage de la todo). */
   const [adaptStreamRunningStepId, setAdaptStreamRunningStepId] = useState(null);
@@ -1065,6 +1082,13 @@ export default function App() {
   const prevLastSelectionA4Ref = useRef(lastSelectionA4);
   /** Pour déclencher un rendu preview immédiat quand le template sync (API / profil) sans attendre le debounce. */
   const prevCvPreviewTemplateKeyRef = useRef(null);
+  const languagePreviewCvRef = useRef(null);
+  const lastLocalizedSourceFpRef = useRef('');
+  const applyLanguagePreviewRef = useRef(null);
+  const adaptTodoPlanRef = useRef(adaptTodoPlan);
+  adaptTodoPlanRef.current = adaptTodoPlan;
+  const languagePreviewStatusRef = useRef(languagePreviewStatus);
+  languagePreviewStatusRef.current = languagePreviewStatus;
 
   useEffect(() => {
     if (!supabase) {
@@ -1089,6 +1113,11 @@ export default function App() {
       setAuthToken(s?.access_token ?? null);
       if (event === 'PASSWORD_RECOVERY') setRecoveryMode(true);
       if (s) setMfaChallengeChecked(false);
+      if (event === 'SIGNED_IN' && s?.user) {
+        maybeEmitSignUpForSession(s.user);
+        maybeEmitProductLogin(s.user, trackEvent);
+      }
+      if (event === 'SIGNED_OUT') clearProductLoginSent();
     });
     return () => subscription?.unsubscribe();
   }, []);
@@ -1258,7 +1287,8 @@ export default function App() {
     if (session) {
       const params = new URLSearchParams(location.search);
       if (pathname === '/' || pathname === '/login') {
-        if (params.get('plan') === 'pro') {
+        if (wantsProCheckout(location.search)) {
+          consumePlanIntentIfPro();
           navigate(APP_DEFAULT_ROUTE, { replace: true });
           setTimeout(() => handleUpgradeClick(), 500);
         } else {
@@ -1446,6 +1476,29 @@ export default function App() {
           .catch(() => {
         /* ignore */
       });
+      } else if (languagePreviewCvRef.current) {
+        const plan = adaptTodoPlanRef.current;
+        const sourceFp = localizationSourceFingerprint(lastBaseCv);
+        const previewStale =
+          plan?.outputLanguage === 'offer'
+          && Boolean(sourceFp)
+          && sourceFp !== lastLocalizedSourceFpRef.current;
+        if (!previewStale) {
+          postRenderHtml({
+            cv: languagePreviewCvRef.current,
+            base_cv: lastBaseCv || undefined,
+            highlight_changes: false,
+            template_id: tid,
+            template_options: opts,
+          })
+            .then((html) => {
+              setModifiedPreviewHtml(html);
+              setPreviewHtml(html);
+            })
+            .catch(() => {
+        /* ignore */
+      });
+        }
       } else if (!tourHighlightStepActive) {
         loadInitialPreview(tid, opts);
       }
@@ -1587,6 +1640,10 @@ export default function App() {
     setAdaptTodoExplain('');
     setAdaptTodoExplainLoading(false);
     setAdaptTodoLastAction('');
+    setLanguagePreviewStatus('idle');
+    languagePreviewSeqRef.current += 1;
+    languagePreviewCvRef.current = null;
+    lastLocalizedSourceFpRef.current = '';
     try {
       const key = getPersistedPlanStorageKey();
       if (key) localStorage.removeItem(key);
@@ -1685,7 +1742,14 @@ export default function App() {
             })
             .catch(() => loadInitialPreview(tid, opts));
         } else {
-          loadInitialPreview(tid, opts);
+          const plan = adaptTodoPlanRef.current;
+          const keepOfferPreview =
+            plan?.languageMismatch
+            && plan?.outputLanguage === 'offer'
+            && (languagePreviewCvRef.current || languagePreviewStatusRef.current === 'loading' || languagePreviewStatusRef.current === 'ready');
+          if (!keepOfferPreview) {
+            loadInitialPreview(tid, opts);
+          }
         }
       });
     return () => { cancelled = true; };
@@ -1709,6 +1773,11 @@ export default function App() {
       .then((data) => {
         if (cancelled) return;
         const todo = Array.isArray(data?.todo) ? data.todo : [];
+        const mismatch = Boolean(
+          data?.language_mismatch
+          || shouldPromptLanguageChoice(data?.cv_language, data?.offer_language),
+        );
+        const restoreLang = resolveAdaptLanguageAutoChoice(mismatch, session?.user?.id);
         setAdaptRunStepIds([]);
         setAdaptStreamRunningStepId(null);
         setAdaptStreamDoneStepIds([]);
@@ -1717,8 +1786,23 @@ export default function App() {
           description: data?.description || '',
           todo,
           assistantMessage: data?.assistant_message || 'Plan restauré. Tu peux valider ou ajuster les étapes.',
+          cvLanguage: data?.cv_language || null,
+          offerLanguage: data?.offer_language || null,
+          languageMismatch: mismatch,
+          outputLanguage: restoreLang.outputLanguage,
+          languageRemembered: restoreLang.remembered,
         });
+        setLanguagePreviewStatus(mismatch && restoreLang.prompt ? 'idle' : mismatch ? 'idle' : 'ready');
+        languagePreviewCvRef.current = null;
+        lastLocalizedSourceFpRef.current = '';
         setAnnonce((data?.description || '').trim());
+        if (restoreLang.prompt) {
+          setAdaptLanguageMeta({
+            cvLanguage: data?.cv_language || null,
+            offerLanguage: data?.offer_language || null,
+          });
+          setAdaptLanguageModalOpen(true);
+        }
         setChatMessages((prev) => (
           prev.some((m) => m.kind === 'todo_plan')
             ? prev
@@ -1860,6 +1944,10 @@ export default function App() {
         setModifiedPreviewHtml(pending.modifiedPreviewHtml);
       }
       // Flux silencieux: pas de récapitulatif automatique dans le chat après adaptation.
+      // Exception AXE-357 : notice si CV mixte ou langue offre ≠ langue CV.
+      if (pending.languageNotice) {
+        setChatMessages((prev) => [...prev, { role: 'assistant', content: pending.languageNotice }]);
+      }
       if (pending.baseCv != null) setLastBaseCv(pending.baseCv);
       if (pending.export_hints != null && pending.adaptation_id != null) {
         exportHintsRef.current = { ...pending.export_hints, adaptation_id: pending.adaptation_id };
@@ -1923,7 +2011,7 @@ export default function App() {
     setApplicationDetailId(null);
   };
 
-  const runPlannedAdaptation = async ({ description, selectedStepIds, source = 'chat_send', planId = null }) => {
+  const runPlannedAdaptation = async ({ description, selectedStepIds, source = 'chat_send', planId = null, outputLanguage = 'cv' }) => {
     try {
       adaptRunAbortRef.current?.abort();
     } catch (_) { /* ignore */ }
@@ -1962,6 +2050,7 @@ export default function App() {
         entreprise: entrepriseNom || undefined,
         plan_id: planId || undefined,
         selected_step_ids: selected,
+        output_language: outputLanguage === 'offer' ? 'offer' : 'cv',
         ...templateParams,
       }, {
         signal: adaptSignal,
@@ -2054,9 +2143,20 @@ export default function App() {
       if (selectedSteps.includes('rewrite_experiences')) touchedSections.push('expériences');
       if (selectedSteps.includes('optimize_ats')) touchedSections.push('ATS');
       const sectionsText = touchedSections.length ? `Sections modifiées: ${touchedSections.join(', ')}.` : '';
-      const summary = data.rapport?.score_global != null
+      const summaryBase = data.rapport?.score_global != null
         ? `CV adapté (score ATS : ${data.rapport.score_global}/100). ${sectionsText} Tu peux affiner en envoyant un autre message ou modifier le texte avant téléchargement.`
         : `CV adapté à l'offre. ${sectionsText} Envoie un message pour affiner ou clique sur « Modifier le CV » pour éditer le texte.`;
+      const languageNotice = adaptLanguageNotice(
+        data.cv_language,
+        data.offer_language,
+        data.output_language,
+      );
+      const summary = withAdaptLanguageNotice(
+        summaryBase,
+        data.cv_language,
+        data.offer_language,
+        data.output_language,
+      );
       setSourceOffreValue('');
       pendingAdaptResultRef.current = {
         cv: data.cv,
@@ -2069,6 +2169,7 @@ export default function App() {
         previewHtml: '',
         modifiedPreviewHtml: html,
         summary,
+        languageNotice,
         baseCv: baseCv ?? lastBaseCv ?? undefined,
       };
       const labelsLen = streamStepLabels.length > 0 ? streamStepLabels.length : adaptStepLabels.length;
@@ -2131,6 +2232,217 @@ export default function App() {
     });
   };
 
+  const applyLanguagePreview = async (choice, planOverride = null) => {
+    const plan = planOverride || adaptTodoPlan;
+    const seq = languagePreviewSeqRef.current + 1;
+    languagePreviewSeqRef.current = seq;
+    const policy = choice === 'offer' ? 'offer' : 'cv';
+    if (policy === 'cv') {
+      languagePreviewCvRef.current = null;
+      lastLocalizedSourceFpRef.current = localizationSourceFingerprint(lastBaseCv);
+      const html = originalPreviewHtml || previewHtmlFallback;
+      if (html) {
+        setPreviewHtml(html);
+        setModifiedPreviewHtml(html);
+      } else {
+        loadInitialPreview();
+      }
+      setLanguagePreviewStatus('ready');
+      const copy = adaptLanguagePreviewCopy(plan?.cvLanguage, plan?.offerLanguage, 'cv', 'ready');
+      if (copy?.title) setAdaptTodoLastAction(copy.title);
+      apiPost('/api/adapt-localize', {
+        description: plan?.description || annonce,
+        titre: posteNom || undefined,
+        entreprise: entrepriseNom || undefined,
+        plan_id: plan?.planId || undefined,
+        output_language: 'cv',
+        preview_seq: seq,
+      }).catch(() => {
+        /* ignore : l'aperçu source est déjà restauré */
+      });
+      return;
+    }
+    setLanguagePreviewStatus('loading');
+    const sourceFpAtStart = localizationSourceFingerprint(lastBaseCv);
+    lastLocalizedSourceFpRef.current = sourceFpAtStart;
+    try {
+      const data = await apiPost('/api/adapt-localize', {
+        description: plan?.description || annonce,
+        titre: posteNom || undefined,
+        entreprise: entrepriseNom || undefined,
+        plan_id: plan?.planId || undefined,
+        output_language: 'offer',
+        preview_seq: seq,
+      });
+      if (seq !== languagePreviewSeqRef.current) return;
+      const cv = data?.cv;
+      if (!cv || typeof cv !== 'object') {
+        throw new Error("Aperçu langue indisponible.");
+      }
+      languagePreviewCvRef.current = cv;
+      lastLocalizedSourceFpRef.current = sourceFpAtStart;
+      const html = await postRenderHtml({
+        cv,
+        base_cv: lastBaseCv || undefined,
+        highlight_changes: false,
+        ...templateParams,
+      });
+      if (seq !== languagePreviewSeqRef.current) return;
+      setPreviewHtml(html);
+      setModifiedPreviewHtml(html);
+      setPreviewVariant('modified');
+      setLanguagePreviewStatus('ready');
+      const copy = adaptLanguagePreviewCopy(plan?.cvLanguage, plan?.offerLanguage, 'offer', 'ready');
+      if (copy?.title) setAdaptTodoLastAction(copy.title);
+    } catch (e) {
+      if (seq !== languagePreviewSeqRef.current) return;
+      setLanguagePreviewStatus('error');
+      setAdaptTodoLastAction(e.message || "Impossible de préparer l'aperçu dans cette langue.");
+    }
+  };
+
+  const applyAdaptLanguageChoice = (policy, options = {}) => {
+    const choice = policy === 'offer' ? 'offer' : 'cv';
+    const remember = Boolean(options?.remember);
+    const uid = session?.user?.id;
+    if (remember) setAdaptLanguagePreference(uid, choice);
+    else clearAdaptLanguagePreference(uid);
+    setAdaptLanguageModalOpen(false);
+    setAdaptTodoPlan((prev) => (prev ? { ...prev, outputLanguage: choice, languageRemembered: remember } : prev));
+    const pending = pendingAdaptAfterLanguageRef.current;
+    pendingAdaptAfterLanguageRef.current = null;
+    if (pending?.type === 'setup') {
+      runDirectAdaptFromSetup({ ...pending, outputLanguage: choice });
+      return;
+    }
+    applyLanguagePreview(choice);
+  };
+
+  const forgetStoredLanguageChoice = () => {
+    clearAdaptLanguagePreference(session?.user?.id);
+    setAdaptTodoPlan((prev) => (prev ? { ...prev, languageRemembered: false } : prev));
+  };
+
+  const openAdaptLanguageDialog = () => {
+    const plan = adaptTodoPlan;
+    if (!plan) return;
+    setAdaptLanguageMeta({
+      cvLanguage: plan.cvLanguage,
+      offerLanguage: plan.offerLanguage,
+    });
+    setAdaptLanguageModalOpen(true);
+  };
+
+  useEffect(() => {
+    if (!adaptTodoPlan?.languageMismatch || !adaptTodoPlan.languageRemembered) return undefined;
+    if (!adaptTodoPlan.outputLanguage || lastAdaptedCv) return undefined;
+    if (languagePreviewStatus !== 'idle') return undefined;
+    applyLanguagePreview(adaptTodoPlan.outputLanguage);
+    return undefined;
+  }, [adaptTodoPlan, languagePreviewStatus, lastAdaptedCv]);
+
+  applyLanguagePreviewRef.current = applyLanguagePreview;
+
+  useEffect(() => {
+    if (!adaptTodoPlan?.languageMismatch) return undefined;
+    if (adaptTodoPlan.outputLanguage !== 'offer' || lastAdaptedCv || adapting) return undefined;
+    const fp = localizationSourceFingerprint(lastBaseCv);
+    if (!fp || fp === lastLocalizedSourceFpRef.current) return undefined;
+    if (languagePreviewStatus === 'loading') return undefined;
+    const timer = window.setTimeout(() => {
+      const latest = localizationSourceFingerprint(lastBaseCv);
+      if (!latest || latest === lastLocalizedSourceFpRef.current) return;
+      applyLanguagePreviewRef.current?.('offer');
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [
+    lastBaseCv,
+    adaptTodoPlan?.languageMismatch,
+    adaptTodoPlan?.outputLanguage,
+    lastAdaptedCv,
+    adapting,
+    languagePreviewStatus,
+  ]);
+
+  const runDirectAdaptFromSetup = async ({ fiche, pos, ent, userPreview, outputLanguage = 'cv' }) => {
+    setAdapting(true);
+    try {
+      const data = await apiPost('/api/adapt', {
+        description: fiche,
+        titre: pos || undefined,
+        entreprise: ent || undefined,
+        output_language: outputLanguage === 'offer' ? 'offer' : 'cv',
+        ...templateParams,
+      });
+      setLastAdaptedCv(data.cv);
+      setLastAdaptationId(data.adaptation_id || null);
+      if (data.export_hints && data.adaptation_id) {
+        exportHintsRef.current = { ...data.export_hints, adaptation_id: data.adaptation_id };
+      } else if (data.adaptation_id) {
+        exportHintsRef.current = {
+          adaptation_id: data.adaptation_id,
+          poste: '',
+          entreprise: '',
+          entreprise_confidence: 0,
+        };
+      }
+      entrepriseFieldTouchedRef.current = false;
+      if (data.export_hints) {
+        setPosteNom((p) => ((p && p.trim()) ? p : (data.export_hints.poste || '')));
+        setEntrepriseNom((e) => ((e && e.trim()) ? e : (data.export_hints.entreprise || '')));
+      }
+      setLastSelectionA4(data.selection_a4 || null);
+      setRapport(data.rapport || {});
+      setRapportBefore(data.rapport_before || null);
+      setExportBlockVisible(true);
+      setPreviewVariant('modified');
+      loadApplications();
+      loadUsage();
+      let baseCv = null;
+      try {
+        baseCv = await apiGet('/api/cv');
+      } catch {
+        /* ignore */
+      }
+      if (baseCv) setLastBaseCv(baseCv);
+      const html = await postRenderHtml({
+        ...templateParams,
+        cv: data.cv,
+        base_cv: baseCv ?? undefined,
+        highlight_changes: true,
+        selection_a4: data.selection_a4 || undefined,
+      });
+      setPreviewHtml(html);
+      setModifiedPreviewHtml(html);
+      const summary = withAdaptLanguageNotice(
+        data.rapport?.score_global != null
+          ? `CV adapté (score ${data.rapport.score_global}/100). Tu peux affiner en envoyant un autre message.`
+          : 'CV adapté. Envoie un message pour affiner ou clique sur le texte pour éditer.',
+        data.cv_language,
+        data.offer_language,
+        data.output_language,
+      );
+      setChatMessages([{ role: 'user', content: userPreview }, { role: 'assistant', content: summary }]);
+      if (openPhase2AfterFirstAdaptRef.current) {
+        openPhase2AfterFirstAdaptRef.current = false;
+        bumpPostFirstAdaptTour();
+      }
+    } catch (e) {
+      openPhase2AfterFirstAdaptRef.current = false;
+      if (e.status === 402 || (e.status === 403 && (e.message || '').toLowerCase().includes('plafond')) || (e.message && e.message.includes('épuisé'))) {
+        setUpgradeModalVisible(true);
+      } else {
+        showError(e.message || "Erreur lors de l'adaptation.");
+      }
+      setChatMessages([
+        { role: 'user', content: userPreview },
+        { role: 'assistant', content: 'Erreur : ' + (e.message || '') },
+      ]);
+    } finally {
+      setAdapting(false);
+    }
+  };
+
   const handleRunTodoPlan = async () => {
     if (!adaptTodoPlan || adapting) return;
     const selected = (adaptTodoPlan.todo || []).map((s) => s.id);
@@ -2138,11 +2450,27 @@ export default function App() {
       setError('Active au moins une étape avant de lancer.');
       return;
     }
+    if (adaptTodoPlan.languageMismatch && !adaptTodoPlan.outputLanguage) {
+      openAdaptLanguageDialog();
+      return;
+    }
+    if (
+      adaptTodoPlan.languageMismatch
+      && adaptTodoPlan.outputLanguage === 'offer'
+      && languagePreviewStatus !== 'ready'
+      && !adaptTodoPlan.languageRemembered
+    ) {
+      if (languagePreviewStatus !== 'loading') {
+        applyLanguagePreview('offer');
+      }
+      return;
+    }
     await runPlannedAdaptation({
       description: adaptTodoPlan.description,
       selectedStepIds: selected,
       source: 'todo_confirm',
       planId: adaptTodoPlan.planId || null,
+      outputLanguage: adaptTodoPlan.outputLanguage || 'cv',
     });
   };
 
@@ -2169,6 +2497,11 @@ export default function App() {
           entreprise: entrepriseNom || undefined,
         });
         const todo = Array.isArray(plan?.todo) ? plan.todo : [];
+        const mismatch = Boolean(
+          plan?.language_mismatch
+          || shouldPromptLanguageChoice(plan?.cv_language, plan?.offer_language),
+        );
+        const autoLang = resolveAdaptLanguageAutoChoice(mismatch, session?.user?.id);
         setAnnonce(text);
         setAdaptRunStepIds([]);
         setAdaptStreamRunningStepId(null);
@@ -2178,12 +2511,27 @@ export default function App() {
           description: text,
           todo,
           assistantMessage: plan?.assistant_message || "Voici un plan d'adaptation. Ajuste les étapes puis valide.",
+          cvLanguage: plan?.cv_language || null,
+          offerLanguage: plan?.offer_language || null,
+          languageMismatch: mismatch,
+          outputLanguage: autoLang.outputLanguage,
+          languageRemembered: autoLang.remembered,
         });
+        setLanguagePreviewStatus(mismatch ? 'idle' : 'ready');
+        languagePreviewCvRef.current = null;
+        lastLocalizedSourceFpRef.current = '';
         setChatMessages((prev) => [...prev, {
           role: 'assistant',
           content: plan?.assistant_message || "Voici un plan d'adaptation. Ajuste les étapes puis valide.",
           kind: 'todo_plan',
         }]);
+        if (autoLang.prompt) {
+          setAdaptLanguageMeta({
+            cvLanguage: plan?.cv_language || null,
+            offerLanguage: plan?.offer_language || null,
+          });
+          setAdaptLanguageModalOpen(true);
+        }
         try {
           const key = getPersistedPlanStorageKey();
           if (key && plan?.plan_id) localStorage.setItem(key, String(plan.plan_id));
@@ -2881,7 +3229,21 @@ export default function App() {
   }, [showProfileCvLoadError]);
 
   const handleProfileSaveSuccess = () => {
-    if (!lastAdaptedCv) loadInitialPreview();
+    apiGet('/api/cv')
+      .then((cv) => {
+        if (cv) {
+          setLastBaseCv(cv);
+          setFreshPreviewPhotoUrl(cv.photo_url ?? null);
+        }
+      })
+      .catch(() => {
+        /* ignore */
+      })
+      .finally(() => {
+        if (!lastAdaptedCv && adaptTodoPlan?.outputLanguage !== 'offer') {
+          loadInitialPreview();
+        }
+      });
   };
 
   useEffect(() => {
@@ -2980,8 +3342,8 @@ export default function App() {
   if (!session) {
     if (pathname === '/login') {
       return (
-        <div className="login-screen">
-          <button type="button" className="login-screen-back" onClick={() => navigate('/')} aria-label="Retour à l'accueil">
+        <div className="login-screen" data-section="login">
+          <button type="button" className="login-screen-back" onClick={() => navigate('/')} aria-label="Retour à l'accueil" {...analyticsAttrs('nav-link-back', 'header', 'tertiary', 'nav')}>
             &larr; Retour à l&apos;accueil
           </button>
           <div className="login-screen-card">
@@ -3138,6 +3500,7 @@ export default function App() {
                   onClick={requestNewCandidatureWorkspace}
                   disabled={adapting}
                   title="Vider le chat et l’aperçu pour adapter ton CV à une autre offre (sans supprimer tes candidatures enregistrées)"
+                  {...analyticsAttrs('cv-header-cta-new', 'header', 'secondary', 'cta')}
                 >
                   Nouvelle candidature
                 </button>
@@ -3167,7 +3530,7 @@ export default function App() {
                 const rem = usage.adaptations_quota_remaining ?? (usage.adaptations_limit - usage.adaptations_used);
                 return rem <= 0 ? 'Tes adaptations gratuites sont épuisées.' : `Il te reste ${rem} adaptation${rem > 1 ? 's' : ''} gratuite${rem > 1 ? 's' : ''}.`;
               })()}</span>
-              <button type="button" className="button button-primary button--sm" onClick={handleUpgradeClick} disabled={checkoutLoading}>
+              <button type="button" className="button button-primary button--sm" onClick={handleUpgradeClick} disabled={checkoutLoading} {...analyticsAttrs('cv-banner-cta-upgrade', 'banner', 'primary', 'cta')}>
                 {checkoutLoading ? '…' : 'Passer Pro - 10€/mois'}
               </button>
             </div>
@@ -3236,14 +3599,93 @@ export default function App() {
                               );
                             })}
                           </div>
+                          {!lastAdaptedCv && adaptTodoPlan.languageMismatch ? (() => {
+                            const langCopy = adaptLanguagePreviewCopy(
+                              adaptTodoPlan.cvLanguage,
+                              adaptTodoPlan.offerLanguage,
+                              adaptTodoPlan.outputLanguage,
+                              languagePreviewStatus,
+                              Boolean(adaptTodoPlan.languageRemembered),
+                            );
+                            if (!langCopy) return null;
+                            return (
+                              <div
+                                className={`cv-chat-todo-lang${languagePreviewStatus === 'error' ? ' cv-chat-todo-lang--error' : ''}${languagePreviewStatus === 'loading' ? ' cv-chat-todo-lang--loading' : ''}`}
+                                role="status"
+                                aria-live="polite"
+                                aria-busy={languagePreviewStatus === 'loading' || undefined}
+                              >
+                                <div className="cv-chat-todo-lang-head">
+                                  {languagePreviewStatus === 'loading' ? (
+                                    <span className="cv-lang-spinner" aria-hidden="true" />
+                                  ) : null}
+                                  <p className="cv-chat-todo-lang-title ds-label-sm">{langCopy.title}</p>
+                                </div>
+                                <p className="cv-chat-todo-lang-body ds-body-md">{langCopy.body}</p>
+                                <div className="cv-chat-todo-lang-actions">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={openAdaptLanguageDialog}
+                                    disabled={adapting}
+                                  >
+                                    {langCopy.changeLabel}
+                                  </Button>
+                                  {langCopy.forgetLabel ? (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={forgetStoredLanguageChoice}
+                                      disabled={adapting}
+                                    >
+                                      {langCopy.forgetLabel}
+                                    </Button>
+                                  ) : null}
+                                  {languagePreviewStatus === 'error' && langCopy.retryLabel ? (
+                                    <Button
+                                      type="button"
+                                      variant="secondary"
+                                      size="sm"
+                                      onClick={() => applyLanguagePreview(adaptTodoPlan.outputLanguage || 'offer')}
+                                      disabled={adapting}
+                                    >
+                                      {langCopy.retryLabel}
+                                    </Button>
+                                  ) : null}
+                                </div>
+                              </div>
+                            );
+                          })() : null}
                           {!lastAdaptedCv && (
                             <div className="cv-chat-todo-actions">
-                              <button type="button" className="button button-primary button--sm" onClick={handleRunTodoPlan} disabled={adapting}>
+                              <Button
+                                type="button"
+                                variant="primary"
+                                size="sm"
+                                onClick={handleRunTodoPlan}
+                                disabled={
+                                  adapting
+                                  || (
+                                    !adaptTodoPlan.languageRemembered
+                                    && (
+                                      languagePreviewStatus === 'loading'
+                                      || (
+                                        Boolean(adaptTodoPlan.languageMismatch)
+                                        && adaptTodoPlan.outputLanguage === 'offer'
+                                        && languagePreviewStatus !== 'ready'
+                                      )
+                                    )
+                                  )
+                                }
+                                {...analyticsAttrs('cv-todo-cta-run', 'todo', 'primary', 'cta')}
+                              >
                                 Valider et lancer
-                              </button>
-                              <button type="button" className="button button-secondary button--sm" onClick={requestNewCandidatureWorkspace} disabled={adapting}>
+                              </Button>
+                              <Button type="button" variant="secondary" size="sm" onClick={requestNewCandidatureWorkspace} disabled={adapting}>
                                 Annuler
-                              </button>
+                              </Button>
                             </div>
                           )}
                           {adaptTodoLastAction ? <p className="cv-chat-todo-last-action">{adaptTodoLastAction}</p> : null}
@@ -3343,8 +3785,9 @@ export default function App() {
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
                   rows={1}
                   disabled={adapting || adaptPlanLoading || (!!adaptTodoPlan && !lastAdaptedCv)}
+                  {...analyticsAttrs('cv-chat-input-offer', 'chat', 'tertiary', 'input')}
                 />
-                <button type="button" className="cv-chat-input-send" onClick={handleChatSend} disabled={adapting || adaptPlanLoading || !chatInput.trim() || (!!adaptTodoPlan && !lastAdaptedCv)} aria-label="Envoyer">
+                <button type="button" className="cv-chat-input-send" onClick={handleChatSend} disabled={adapting || adaptPlanLoading || !chatInput.trim() || (!!adaptTodoPlan && !lastAdaptedCv)} aria-label="Envoyer" {...analyticsAttrs('cv-chat-cta-send', 'chat', 'primary', 'cta')}>
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
                 </button>
               </div>
@@ -3373,6 +3816,7 @@ export default function App() {
                       onClick={downloadBaseCvPdf}
                       disabled={baseCvPdfLoading}
                       title="Télécharger ton CV de profil (sans adaptation) en PDF, avec le template et les options actuels"
+                      {...analyticsAttrs('cv-preview-cta-base-pdf', 'preview', 'secondary', 'cta')}
                     >
                       <span className="tpl-btn-bar-extra-icon" aria-hidden>
                         <HiArrowDownTray size={16} strokeWidth={2} />
@@ -3425,6 +3869,24 @@ export default function App() {
                   <span className="preview-editable-hint-inline">Clique sur le texte pour modifier.</span>
                 </div>
               )}
+              {!lastAdaptedCv && adaptTodoPlan?.languageMismatch && adaptTodoPlan.outputLanguage ? (() => {
+                const langCopy = adaptLanguagePreviewCopy(
+                  adaptTodoPlan.cvLanguage,
+                  adaptTodoPlan.offerLanguage,
+                  adaptTodoPlan.outputLanguage,
+                  languagePreviewStatus,
+                  Boolean(adaptTodoPlan.languageRemembered),
+                );
+                if (!langCopy) return null;
+                return (
+                  <p className="cv-preview-lang-banner ds-body-md" role="status">
+                    {languagePreviewStatus === 'loading' ? (
+                      <span className="cv-lang-spinner" aria-hidden="true" />
+                    ) : null}
+                    <span>{langCopy.title}</span>
+                  </p>
+                );
+              })() : null}
               <div className="preview-wrap" ref={previewWrapRef}>
                 <div className="preview-a4-sheet">
                 {previewVariant === 'modified' && lastAdaptedCv && !(templateId || '').startsWith('custom_') && ['classic', 'minimal', 'modern', 'bold', 'creative', 'elegant', 'executive'].includes((templateId || '').trim()) ? (
@@ -3458,7 +3920,7 @@ export default function App() {
                   />
                 ) : (
                   <div
-                    className={`preview-iframe-wrap${adapting && adaptStreamMode ? ' preview-iframe-wrap--adapt-live' : ''}`}
+                    className={`preview-iframe-wrap${adapting && adaptStreamMode ? ' preview-iframe-wrap--adapt-live' : ''}${!lastAdaptedCv && languagePreviewStatus === 'loading' ? ' preview-iframe-wrap--lang-preview' : ''}`}
                   >
                     <iframe
                       ref={iframeRef}
@@ -3466,6 +3928,12 @@ export default function App() {
                       title="Aperçu du CV"
                       onLoad={(e) => resizeIframeToContent(e.target)}
                     />
+                    {!lastAdaptedCv && languagePreviewStatus === 'loading' ? (
+                      <div className="preview-lang-loading" role="status" aria-live="polite">
+                        <span className="cv-lang-spinner" aria-hidden="true" />
+                        <span className="ds-label-sm">Traduction de l’aperçu…</span>
+                      </div>
+                    ) : null}
                   </div>
                 )}
                 </div>
@@ -3519,6 +3987,7 @@ export default function App() {
                           aria-expanded={atsScoreOpen}
                           aria-haspopup="dialog"
                           aria-controls="ats-score-modal"
+                          {...analyticsAttrs('cv-export-cta-ats', 'export', 'tertiary', 'cta')}
                         >
                           <span className="ats-score-pill-label">Score ATS</span>
                           {rapportBefore?.score_global != null && rapportBefore.score_global !== rapport.score_global ? (
@@ -3587,8 +4056,8 @@ export default function App() {
                     </>
                   )}
                   <div className="cv-chat-export-btns">
-                    <button type="button" className="button button-success" onClick={handlePdf} disabled={exporting}>Télécharger le PDF</button>
-                    <button type="button" className="button button-secondary" onClick={handleExportDossier} disabled={exporting} aria-busy={exporting}>
+                    <button type="button" className="button button-success" onClick={handlePdf} disabled={exporting} {...analyticsAttrs('cv-export-cta-pdf', 'export', 'primary', 'cta')}>Télécharger le PDF</button>
+                    <button type="button" className="button button-secondary" onClick={handleExportDossier} disabled={exporting} aria-busy={exporting} {...analyticsAttrs('cv-export-cta-dossier', 'export', 'secondary', 'cta')}>
                       {exporting ? (
                         <>
                           <span className="export-spinner" aria-hidden="true" />
@@ -4116,59 +4585,43 @@ export default function App() {
                   setAnnonce(fiche);
                   setAdaptRating(null);
                   openPhase2AfterFirstAdaptRef.current = true;
-                  setAdapting(true);
                   const userPreview = fiche.slice(0, 300) + (fiche.length > 300 ? '…' : '');
                   setChatMessages([{ role: 'user', content: userPreview }]);
                   try {
-                    const data = await apiPost('/api/adapt', { description: fiche, titre: pos || undefined, entreprise: ent || undefined, ...templateParams });
-                    setLastAdaptedCv(data.cv);
-                    setLastAdaptationId(data.adaptation_id || null);
-                    if (data.export_hints && data.adaptation_id) {
-                      exportHintsRef.current = { ...data.export_hints, adaptation_id: data.adaptation_id };
-                    } else if (data.adaptation_id) {
-                      exportHintsRef.current = {
-                        adaptation_id: data.adaptation_id,
-                        poste: '',
-                        entreprise: '',
-                        entreprise_confidence: 0,
-                      };
-                    }
-                    entrepriseFieldTouchedRef.current = false;
-                    if (data.export_hints) {
-                      setPosteNom((p) => ((p && p.trim()) ? p : (data.export_hints.poste || '')));
-                      setEntrepriseNom((e) => ((e && e.trim()) ? e : (data.export_hints.entreprise || '')));
-                    }
-                    setLastSelectionA4(data.selection_a4 || null);
-                    setRapport(data.rapport || {});
-                    setRapportBefore(data.rapport_before || null);
-                    setExportBlockVisible(true);
-                    setPreviewVariant('modified');
-                    loadApplications();
-                    loadUsage();
-                    let baseCv = null;
-                    try {
-                      baseCv = await apiGet('/api/cv');
-                    } catch {
-                      /* ignore */
-                    }
-                    if (baseCv) setLastBaseCv(baseCv);
-                    const html = await postRenderHtml({
-                      ...templateParams,
-                      cv: data.cv,
-                      base_cv: baseCv ?? undefined,
-                      highlight_changes: true,
-                      selection_a4: data.selection_a4 || undefined,
+                    setAdapting(true);
+                    const langMeta = await apiPost('/api/adapt-language', {
+                      description: fiche,
+                      titre: pos || undefined,
+                      entreprise: ent || undefined,
                     });
-                    setPreviewHtml(html);
-                    setModifiedPreviewHtml(html);
-                    const summary = data.rapport?.score_global != null
-                      ? `CV adapté (score ${data.rapport.score_global}/100). Tu peux affiner en envoyant un autre message.`
-                      : 'CV adapté. Envoie un message pour affiner ou clique sur le texte pour éditer.';
-                    setChatMessages([{ role: 'user', content: userPreview }, { role: 'assistant', content: summary }]);
-                    if (openPhase2AfterFirstAdaptRef.current) {
-                      openPhase2AfterFirstAdaptRef.current = false;
-                      bumpPostFirstAdaptTour();
+                    if (shouldPromptLanguageChoice(langMeta.cv_language, langMeta.offer_language)) {
+                      const autoLang = resolveAdaptLanguageAutoChoice(true, session?.user?.id);
+                      if (!autoLang.prompt && autoLang.outputLanguage) {
+                        await runDirectAdaptFromSetup({
+                          fiche,
+                          pos,
+                          ent,
+                          userPreview,
+                          outputLanguage: autoLang.outputLanguage,
+                        });
+                        return;
+                      }
+                      setAdapting(false);
+                      pendingAdaptAfterLanguageRef.current = { type: 'setup', fiche, pos, ent, userPreview };
+                      setAdaptLanguageMeta({
+                        cvLanguage: langMeta.cv_language,
+                        offerLanguage: langMeta.offer_language,
+                      });
+                      setAdaptLanguageModalOpen(true);
+                      return;
                     }
+                    await runDirectAdaptFromSetup({
+                      fiche,
+                      pos,
+                      ent,
+                      userPreview,
+                      outputLanguage: 'cv',
+                    });
                   } catch (e) {
                     openPhase2AfterFirstAdaptRef.current = false;
                     if (e.status === 402 || (e.status === 403 && (e.message || '').toLowerCase().includes('plafond')) || (e.message && e.message.includes('épuisé'))) {
@@ -4180,7 +4633,6 @@ export default function App() {
                       { role: 'user', content: userPreview },
                       { role: 'assistant', content: 'Erreur : ' + (e.message || '') },
                     ]);
-                  } finally {
                     setAdapting(false);
                   }
                 }} disabled={!setupFiche.trim()}>
@@ -4257,6 +4709,7 @@ export default function App() {
                       type="button"
                       className="support-usecase-card support-usecase-card--clickable"
                       onClick={() => navigate(topic.route, { state: { supportHighlight: { route: topic.route, selector: topic.selector, title: topic.bubbleTitle, content: topic.bubbleContent, position: topic.position, ...(topic.openTemplateOptions && { openTemplateOptions: true }) } } })}
+                      {...analyticsAttrs(`support-topic-${topic.id}`, 'topic', 'tertiary', 'nav')}
                     >
                       <div className="support-usecase-icon-wrap">
                         <Icon className="support-usecase-icon" aria-hidden />
@@ -4323,6 +4776,15 @@ export default function App() {
             </div>
           </div>
         )}
+
+        <AdaptLanguageChoiceDialog
+          open={adaptLanguageModalOpen}
+          cvLanguage={adaptLanguageMeta?.cvLanguage}
+          offerLanguage={adaptLanguageMeta?.offerLanguage}
+          rememberDefault={Boolean(getAdaptLanguagePreference(session?.user?.id))}
+          onKeepCv={(opts) => applyAdaptLanguageChoice('cv', opts)}
+          onUseOffer={(opts) => applyAdaptLanguageChoice('offer', opts)}
+        />
 
         {upgradeModalVisible && (
           <div className="application-detail-overlay linkedin-sync-overlay" onClick={() => setUpgradeModalVisible(false)} role="dialog" aria-modal="true" aria-labelledby="upgrade-modal-title">
@@ -4441,6 +4903,7 @@ export default function App() {
                     requestAnimationFrame(() => cvChatInputRef.current?.focus());
                     trackEvent('first_offer_nudge_cta', { action: 'go_cv' });
                   }}
+                  {...analyticsAttrs('cv-nudge-cta-go', 'nudge', 'primary', 'cta')}
                 >
                   Coller une offre
                 </button>
@@ -4454,6 +4917,7 @@ export default function App() {
                     } catch (_) { /* ignore */ }
                     trackEvent('first_offer_nudge_cta', { action: 'dismiss' });
                   }}
+                  {...analyticsAttrs('cv-nudge-cta-dismiss', 'nudge', 'secondary', 'cta')}
                 >
                   Plus tard
                 </button>

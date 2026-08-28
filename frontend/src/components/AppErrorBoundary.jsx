@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import { ServerErrorPage } from './ErrorPages';
+import { captureSentryException } from '../lib/sentry.js';
 
 /**
  * Capture les erreurs de rendu / lifecycle dans l’arbre React sous-jacent.
@@ -17,6 +18,7 @@ export class AppErrorBoundary extends Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('[AppErrorBoundary]', error, errorInfo);
+    captureSentryException(error, errorInfo);
   }
 
   handleRetry = () => {

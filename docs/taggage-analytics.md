@@ -1,11 +1,13 @@
 # Axel Job — Taggage analytics (landing → signup)
 
-> **Usage Linear :** coller le bloc « Projet » puis chaque ticket (titre + labels + description).  
-> **Ne pas coder** tant que le ticket 1 (inventaire) n’est pas figé.  
-> **Linear MCP** n’était pas authentifié dans l’environnement agent au moment de la rédaction — créer le projet / les issues à la main (team `AXE`, label projet `Axel Job`).  
+> **Inventaire vague 1 figé 2026-08-25** ([AXE-358](https://linear.app/axel-project/issue/AXE-358/spike-inventaire-fige-des-identifiants-data-attr)). 55 IDs, aucun doublon. On n’en renomme aucun ; on ajoute ou on déprécie.  
+> Tickets 2 ([AXE-359](https://linear.app/axel-project/issue/AXE-359)) et 3 ([AXE-360](https://linear.app/axel-project/issue/AXE-360)) : `data-attr` posés (mergés).  
+> **PostHog v1 : no-go** ([AXE-363](https://linear.app/axel-project/issue/AXE-363), 2026-08-25) — ticket 7 ([AXE-364](https://linear.app/axel-project/issue/AXE-364)) annulé. Recette = GA4 seul.  
+> Tracker CMP : [AXE-361](https://linear.app/axel-project/issue/AXE-361) mergé. Runbook GA4 : [`docs/ga4-recette.md`](ga4-recette.md) ([AXE-365](https://linear.app/axel-project/issue/AXE-365)). Attribution signup : [AXE-362](https://linear.app/axel-project/issue/AXE-362).  
+> **Usage Linear (historique) :** coller le bloc « Projet » puis chaque ticket (titre + labels + description).  
 > **Workflow :** [`docs/linear-github-workflow.md`](linear-github-workflow.md) · 1 issue Linear = 1 branche = 1 PR.
 
-État du code (août 2026) : **aucun `data-attr`**, pas de PostHog, pas de tracker CTA. Infra déjà là : CMP + GTM/GA4 (si `VITE_AXEL_GTM_ID` en prod) + analytics **produit** interne (`/api/events/track`) limitée à l’app connectée.
+État du code (août 2026) : `data-attr` marketing posés (landing + globaux/login/contenu/404). Tracker unique `frontend/public/track.js` derrière la CMP (AXE-361). Attribution signup : `frontend/public/signupAttribution.js` (`source_cta_id` / `plan_intent` / `sign_up*`, AXE-362). Infra : CMP + GTM/GA4 (si `VITE_AXEL_GTM_ID` en prod) + analytics **produit** interne (`/api/events/track`) limitée à l’app connectée. **Pas de SDK PostHog.**
 
 ---
 
@@ -16,24 +18,24 @@
 3. Créer **8 issues** dans ce projet : copier § B un par un.
 4. Labels issue : `AxelJob` + `Feature` | `Improvement` | `Spike` (Linear n’a pas toujours `Spike` — utiliser `Improvement` si besoin).
 5. État initial : **Todo**. Assignee : toi (ou le lead growth/front).
-6. Après création : noter chaque `AXE-XX` + `gitBranchName` dans le tableau § B.
-7. Issues GitHub miroir + branches + PR : **plus tard**, au moment de coder (pas maintenant).
+6. Après création : noter chaque `AXE-XX` + `gitBranchName` dans le tableau § B (**fait** — voir tableau).
+7. Issues GitHub miroir + branches + PR : au moment de coder chaque ticket (pas en bloc).
 
 Ordre de livraison (dépendances) :
 
 ```
-1 inventaire  →  2 landing + 3 pages contenu
+1 inventaire  →  2 landing + 3 pages contenu   (faits)
               →  4 tracker CMP
               →  5 attribution signup
               →  8 recette GA4
 
-6 spike PostHog  →  7 PostHog (si go)
+6 spike PostHog  →  no-go v1  (7 AXE-364 annulé)
 ```
 
-Tickets 2 et 3 peuvent partir en parallèle une fois 1 figé.  
-Ticket 4 **après** 2 (sinon le listener n’a rien à lire).  
-Ticket 5 peut chevaucher 4.  
-Ticket 8 est ops (GA4 UI), pas forcément une PR code.
+Ticket 1 **figé 2026-08-25**. Tickets 2, 3 et 4 ([AXE-361](https://linear.app/axel-project/issue/AXE-361)) **mergés**.  
+Ticket 5 ([AXE-362](https://linear.app/axel-project/issue/AXE-362)) attribution signup.  
+Ticket 6 **no-go v1 (2026-08-25)**. Ticket 7 annulé.  
+Ticket 8 ([AXE-365](https://linear.app/axel-project/issue/AXE-365)) recette GA4 : runbook [`docs/ga4-recette.md`](ga4-recette.md) mergé. DebugView `sign_up*` après deploy 362.
 
 ---
 
@@ -84,13 +86,13 @@ Tagger les **deux** arbres. Un tracker qui lit `href` uniquement rate tous les C
 
 - CMP Consent Mode v2 : `frontend/public/consent-gtm.js`
 - GTM injecté au build : `VITE_AXEL_GTM_ID` → `analytics-config.js`
-- `/confidentialite` : GTM/GA4 derrière consentement (**PostHog absent**)
+- `/confidentialite` : GTM/GA4 derrière consentement (**PostHog absent, no-go v1**)
 - First-touch UTM : `frontend/src/analyticsSession.js`
 - Events app connectée : `POST /api/events/track` (whitelist) — **inactif** sur landing/login
 
-## Décision ouverte
+## Décision PostHog (figée v1)
 
-PostHog : go/no-go RGPD (ticket 6) avant tout SDK.
+**No-go v1 (2026-08-25, AXE-363).** GA4 + tracker custom + `/api/events/track` suffisent. Pas de SDK PostHog. Revoir seulement s’il y a un vrai A/B à lancer (alors : Cloud EU, même case CMP « Mesure d’audience », pas d’autocapture sur `/app`).
 ```
 
 ---
@@ -101,19 +103,21 @@ Remplir la colonne `AXE-XX` après création.
 
 | # | Titre Linear | Labels | Bloqué par | AXE-XX | gitBranchName |
 |---|---|---|---|---|---|
-| 1 | `Spike: Inventaire figé des identifiants data-attr` | AxelJob, Improvement | — | | |
-| 2 | `Feat: Balisage data-attr de la landing (React + HTML statique)` | AxelJob, Feature | 1 | | |
-| 3 | `Feat: Balisage globaux, login et pages contenu` | AxelJob, Feature | 1 | | |
-| 4 | `Feat: Tracker unique CTA/nav/plan/section derrière la CMP` | AxelJob, Feature | 2 | | |
-| 5 | `Feat: Attribution source_cta_id et plan_intent jusqu’au compte créé` | AxelJob, Feature | 2 | | |
-| 6 | `Spike: PostHog — go/no-go RGPD` | AxelJob, Improvement | — | | |
-| 7 | `Feat: Brancher PostHog (événements + autocapture data-attr)` | AxelJob, Feature | 4 + 6 (go) | | |
-| 8 | `Chore: Recette GA4 — conversions, dimensions, DebugView` | AxelJob, Improvement | 4 + 5 | | |
+| 1 | `Spike: Inventaire figé des identifiants data-attr` | AxelJob, Improvement | — | [AXE-358](https://linear.app/axel-project/issue/AXE-358) | `louisvedovato/axe-358-spike-inventaire-fige-des-identifiants-data-attr` |
+| 2 | `Feat: Balisage data-attr de la landing (React + HTML statique)` | AxelJob, Feature | 1 | [AXE-359](https://linear.app/axel-project/issue/AXE-359) | `louisvedovato/axe-359-feat-balisage-data-attr-de-la-landing-react-html-statique` |
+| 3 | `Feat: Balisage globaux, login et pages contenu` | AxelJob, Feature | 1 | [AXE-360](https://linear.app/axel-project/issue/AXE-360) | `louisvedovato/axe-360-feat-balisage-globaux-login-et-pages-contenu` |
+| 4 | `Feat: Tracker unique CTA/nav/plan/section derrière la CMP` | AxelJob, Feature | 2 | [AXE-361](https://linear.app/axel-project/issue/AXE-361) | `louisvedovato/axe-361-feat-tracker-unique-ctanavplansection-derriere-la-cmp` |
+| 5 | `Feat: Attribution source_cta_id et plan_intent jusqu’au compte créé` | AxelJob, Feature | 2 | [AXE-362](https://linear.app/axel-project/issue/AXE-362) | `louisvedovato/axe-362-feat-attribution-source_cta_id-et-plan_intent-jusquau-compte` |
+| 6 | `Spike: PostHog — go/no-go RGPD` | AxelJob, Improvement | — | [AXE-363](https://linear.app/axel-project/issue/AXE-363) | `louisvedovato/axe-363-spike-posthog-gono-go-rgpd` |
+| 7 | `Feat: Brancher PostHog (événements + autocapture data-attr)` | AxelJob, Feature | 4 + 6 (go) | [AXE-364](https://linear.app/axel-project/issue/AXE-364) **Canceled** | `louisvedovato/axe-364-feat-brancher-posthog-evenements-autocapture-data-attr` |
+| 8 | `Chore: Recette GA4 — conversions, dimensions, DebugView` | AxelJob, Improvement | 4 + 5 | [AXE-365](https://linear.app/axel-project/issue/AXE-365) | `louisvedovato/axe-365-chore-recette-ga4-conversions-dimensions-debugview` |
 
-Backlog hors vague 1 (créer plus tard si besoin) :
+Convention site-wide (hors ces 8 tickets) : [AXE-356](https://linear.app/axel-project/issue/AXE-356) — contrat : [`docs/analytics-naming.md`](analytics-naming.md) (deux stacks GA4 vs event_log, inventaire surfaces, tickets filles). 358 fige l’instance landing → signup sans l’attendre.
+
+Backlog hors vague 1 :
 
 - `Improve: Un seul bouton primary visible par écran sur la landing`
-- `Fix: Whitelist /api/events/track — events orphelins (base_cv_pdf_downloaded, first_offer_nudge_cta, …)`
+- Events orphelins produit + balisage `/app` : filles d’AXE-356 — [AXE-394](https://linear.app/axel-project/issue/AXE-394) (whitelist, mergé), [AXE-395](https://linear.app/axel-project/issue/AXE-395) (inventaire `/app` C.10–C.16, **49 IDs figés**), [AXE-396](https://linear.app/axel-project/issue/AXE-396) (balisage), [AXE-397](https://linear.app/axel-project/issue/AXE-397) (`login` produit). Contrat : [`docs/analytics-naming.md`](analytics-naming.md).
 
 ---
 
@@ -135,12 +139,12 @@ Le brief growth parle de 55 identifiants. Ils n’existent nulle part dans le re
 
 ## Critères d’acceptation
 
-- [ ] Le tableau § C de `docs/taggage-analytics.md` est relu et **figé** (55 IDs, aucun doublon)
-- [ ] Burger : conserver les 3 IDs distincts `nav-cta-signup` / `nav-cta-start` / `nav-cta-drawer`
-- [ ] FAQ : poser `faq-question-*` sur les `<h2>` ; `faq_open` reporté en v2 (pas d’accordéon)
-- [ ] Login back = `nav-link-back` (pas de `login-link-back`)
-- [ ] Liste v2 (drawer links tertiaires, sources outbound FAQ) **exclue** de la vague 1
-- [ ] Commentaire Linear : « inventaire figé, on peut coder le ticket 2 »
+- [x] Le tableau § C de `docs/taggage-analytics.md` est relu et **figé** (55 IDs, aucun doublon) — **2026-08-25**
+- [x] Burger : conserver les 3 IDs distincts `nav-cta-signup` / `nav-cta-start` / `nav-cta-drawer`
+- [x] FAQ : poser `faq-question-*` sur les `<h2>` ; `faq_open` reporté en v2 (pas d’accordéon)
+- [x] Login back = `nav-link-back` (pas de `login-link-back`)
+- [x] Liste v2 (drawer links tertiaires, sources outbound FAQ) **exclue** de la vague 1
+- [x] Commentaire Linear : « inventaire figé, on peut coder le ticket 2 » (AXE-359) **et** le ticket 3 (AXE-360)
 
 ## Zones
 
@@ -149,6 +153,8 @@ Le brief growth parle de 55 identifiants. Ils n’existent nulle part dans le re
 ## Notes
 
 Un identifiant posé en production ne se renomme jamais. On ajoute, on déprécie.
+
+**Validé AXE-358 (2026-08-25).** Inventaire figé, on peut coder le ticket 2 ([AXE-359](https://linear.app/axel-project/issue/AXE-359)) et le ticket 3 ([AXE-360](https://linear.app/axel-project/issue/AXE-360)).
 ```
 
 ---
@@ -220,10 +226,10 @@ FAQ, ATS, guides, login : mêmes CTA « Essayer gratuitement » vers `/login`, p
 ## Critères d’acceptation
 
 - [ ] IDs globaux `nav-link-back`, `footer-link-*` posés (un ID, toutes les pages)
-- [ ] Login : `login-cta-google`, `login-cta-linkedin`, `login-cta-submit`, `login-link-forgot`, `login-link-toggle`, `login-input-email`, `login-input-email` (jamais la valeur) ; retour accueil = `nav-link-back`
+- [ ] Login : `login-cta-google`, `login-cta-linkedin`, `login-cta-submit`, `login-link-forgot`, `login-link-toggle`, `login-input-email` (jamais la valeur du champ) ; retour accueil = `nav-link-back`
 - [ ] CTA signup de chaque page contenu : `faq-cta-signup`, `ats-cta-signup`, `modeles-cta-signup`, `guide-cta-signup`, `erreurs-cta-signup`, `metier-cta-signup`, `adapte-cta-signup`
-- [ ] FAQ : `faq-question-*` sur les 6 questions (même si pas d’accordéon en v1)
-- [ ] 404 : `error-cta-home`, `error-cta-login`
+- [ ] FAQ : `faq-question-*` sur les 6 `<h2>` (même si pas d’accordéon en v1)
+- [ ] 404 : `error-cta-home`, `error-cta-login`. Aligner `NotFoundPage` (SPA) sur `public/404.html` : Accueil + Connexion. Ne **pas** poser `error-cta-login` sur « Page précédente » / `history.back`.
 - [ ] Miroir HTML statique `public/*.html` **et** JSX
 - [ ] Pas de PII dans un attribut (pas d’email, pas de contenu de champ)
 
@@ -302,7 +308,7 @@ Aucun listener délégué. GTM peut envoyer des page_view si le conteneur prod e
 
 Sans ça, impossible de relier un abonnement au bouton cliqué. `?plan=pro` se perd surtout à l’OAuth : `redirectTo` est `origin + '/login'` **sans query**.
 
-`EVENT_LOGIN` est déclaré dans `backend/event_log.py` et **jamais émis**. AuthForm n’envoie ni `sign_up_start` ni `sign_up`. Un « Créer un compte » sur email déjà connu peut connecter sans être un vrai signup.
+`EVENT_LOGIN` (`login`) est un event **produit** (event_log, [AXE-397](https://linear.app/axel-project/issue/AXE-397)), distinct de GA4 `sign_up` / `sign_up_start`. AuthForm n’envoie pas `sign_up` tout seul : seulement un vrai nouveau compte (`maybeEmitSignUpForSession`). Un « Créer un compte » sur email déjà connu peut connecter sans être un vrai signup.
 
 ## À faire
 
@@ -343,17 +349,17 @@ Le brief suppose PostHog en parallèle de GA4 (autocapture, toolbar `data-attr`,
 
 ## Questions à trancher
 
-- [ ] PostHog EU cloud vs self-host vs **on ne le met pas** (GA4 + tracker custom suffisent en v1)
-- [ ] Finalités / base légale / sous-traitant à ajouter dans `/confidentialite`
-- [ ] Même CMP : analytics_storage granted ⇒ PostHog **ou** consentement distinct
-- [ ] Autocapture : OK si on ne capture pas champs formulaire / CV / annonce (masking)
-- [ ] Qui paie / quel projet PostHog / qui gère les feature flags
+- [x] PostHog EU cloud vs self-host vs **on ne le met pas** (GA4 + tracker custom suffisent en v1)
+- [x] Finalités / base légale / sous-traitant à ajouter dans `/confidentialite` — **N/A v1** (pas de sous-traitant PostHog)
+- [x] Même CMP : analytics_storage granted ⇒ PostHog **ou** consentement distinct — **N/A v1** ; si go futur : même case « Mesure d’audience »
+- [x] Autocapture : OK si on ne capture pas champs formulaire / CV / annonce (masking) — **N/A v1** ; si go futur : pas d’autocapture sur `/app`
+- [x] Qui paie / quel projet PostHog / qui gère les feature flags — **non tranché, donc pas d’outil d’expé en v1**
 
 ## Critères d’acceptation
 
-- [ ] Commentaire Linear : **go** ou **no-go** + 3 lignes de justification
-- [ ] Si go : liste des mentions à ajouter dans `confidentialite` (ticket 7)
-- [ ] Si no-go : ticket 7 **annulé**, recette = GA4 seul
+- [x] Commentaire Linear : **go** ou **no-go** + 3 lignes de justification — **no-go v1**, 2026-08-25
+- [x] Si go : liste des mentions à ajouter dans `confidentialite` (ticket 7) — N/A
+- [x] Si no-go : ticket 7 **annulé**, recette = GA4 seul
 
 ## Zones
 
@@ -361,13 +367,15 @@ Le brief suppose PostHog en parallèle de GA4 (autocapture, toolbar `data-attr`,
 - `frontend/public/consent-gtm.js` (lecture)
 ```
 
+**Validé AXE-363 (2026-08-25).** No-go v1. [AXE-364](https://linear.app/axel-project/issue/AXE-364) annulé. Recette = GA4 seul ([AXE-365](https://linear.app/axel-project/issue/AXE-365)). Revoir PostHog seulement s’il y a un A/B réel (Cloud EU, même CMP, pas d’autocapture `/app`).
+
 ---
 
-### Ticket 7 — Feat: Brancher PostHog (événements + autocapture data-attr)
+### Ticket 7 — Feat: Brancher PostHog (événements + autocapture data-attr) — **ANNULÉ**
 
 **Labels :** `AxelJob` + `Feature`  
 **Priorité :** Medium  
-**Bloqué par** ticket 6 = go **et** ticket 4.
+**Statut :** **Canceled** 2026-08-25 (no-go AXE-363). Ne pas implémenter en v1.
 
 ```markdown
 ## Problème
@@ -410,7 +418,7 @@ Même avec le tracker, GA4 n’affichera pas les funnels tant que les events cus
 - [ ] Params `cta_id`, `cta_zone`, `cta_level` renseignés (jamais `unknown` sur le catalogue)
 - [ ] Dimensions perso : `cta_id`, `cta_zone`, `cta_level`, `plan`, `section_id`
 - [ ] Conversions : `sign_up`, `select_plan`
-- [ ] Funnel de référence créé (GA4) ; PostHog si ticket 7
+- [ ] Funnel de référence créé (GA4) ; PostHog **hors v1** (AXE-364 annulé)
 - [ ] Test manuel : clic Pro → compte test → `plan_intent=pro` visible sur `sign_up`
 
 ## Funnel de référence
@@ -420,10 +428,28 @@ Même avec le tracker, GA4 n’affichera pas les funnels tant que les events cus
 
 ---
 
-## C. Inventaire figé (55 identifiants) — ticket 1 à valider
+## C. Inventaire **figé 2026-08-25** (AXE-358) — 55 identifiants
+
+> **Statut :** figé. Ne plus modifier un ID de cette liste. On ajoute, on déprécie (jamais de rename en prod).  
+> Unicité vérifiée : **55** `data-attr` distincts (13 nav + 12 footer + 9 home + 6 login + 7 FAQ + 8 ATS/articles/404).  
+> Ticket 2 ([AXE-359](https://linear.app/axel-project/issue/AXE-359)) et ticket 3 ([AXE-360](https://linear.app/axel-project/issue/AXE-360)) peuvent coder.
 
 Convention : `page-zone-type-intention` · minuscules, tirets, sans accent.  
 Globaux : **pas** de préfixe de page (`nav-`, `footer-`).
+
+### Décisions de freeze (AXE-358)
+
+| Sujet | Décision |
+|---|---|
+| Burger | 3 IDs distincts conservés : `nav-cta-signup` (desktop « Essayer gratuitement ») / `nav-cta-start` (mobile header « Commencer ») / `nav-cta-drawer` (drawer) |
+| FAQ | `faq-question-*` sur les `<h2>` ; **pas** de `faq_open` en v1 (FAQ = articles ouverts, pas d’accordéon) |
+| Login back | `nav-link-back` (même ID que `content-back`) — pas de `login-link-back` |
+| `nav-logo` | **Réservé** dans les 55. Logo landing = `<img>` non cliquable. Ne pas inventer le clic tant que ce n’est pas un lien. |
+| Surfaces A/B non-clic | Conservées dans le catalogue : `home-hero-title`, `home-pricing-card-free`, `home-pricing-card-pro`, `home-pricing-badge-popular` |
+| C.8 / v2 | Exclue de la vague 1 (drawer tertiaires, sources outbound FAQ, `faq_open`, cookie banner) |
+| C.9 candidatures | Hors vague 1 (déjà figé 2026-08-21) — ne pas retoucher |
+| C.10–C.16 `/app` hors candidatures | Figé 2026-08-25 ([AXE-395](https://linear.app/axel-project/issue/AXE-395)) : **49** IDs. Markup posé ([AXE-396](https://linear.app/axel-project/issue/AXE-396)). Préfixe topbar `app-nav-` (≠ `nav-` marketing). |
+| AXE-356 | Convention site-wide : [`docs/analytics-naming.md`](analytics-naming.md) (figé 2026-08-25). 358 reste l’instance landing → signup |
 
 Attributs HTML types :
 
@@ -447,7 +473,7 @@ Attributs HTML types :
 
 | data-attr | type | level | Où | Intention |
 |---|---|---|---|---|
-| `nav-logo` | logo | tertiary | landing header | Accueil (poser si le logo devient un lien ; aujourd’hui `<img>` non cliquable) |
+| `nav-logo` | logo | tertiary | landing header | **Réservé.** Accueil si le logo devient un lien ; aujourd’hui `<img>` non cliquable — ne pas inventer le clic |
 | `nav-link-how` | link | tertiary | `#comment` | Ancre comment |
 | `nav-link-pricing` | link | tertiary | `#tarifs` | Ancre tarifs |
 | `nav-link-features` | link | tertiary | `#features` | Ancre features |
@@ -534,6 +560,17 @@ Pas d’event `faq_open` tant qu’il n’y a pas d’accordéon (v2).
 | `error-cta-home` | cta | primary | 404 → `/` |
 | `error-cta-login` | cta | secondary | 404 → `/login` |
 
+**404 — écart SPA vs HTML (implémentation AXE-360, pas un changement d’ID) :**
+
+| Surface | CTAs aujourd’hui | IDs catalogue |
+|---|---|---|
+| `frontend/public/404.html` | Accueil `/` + Connexion `/login` | `error-cta-home` + `error-cta-login` |
+| `ErrorPages.jsx` `NotFoundPage` | Accueil `/` + **Page précédente** (`history.back`) | Accueil = `error-cta-home` ; **pas** de CTA Connexion |
+
+AXE-360 aligne la 404 SPA sur le HTML statique (**Accueil + Connexion**).  
+Ne **pas** poser `error-cta-login` sur « Page précédente » : l’event mentirait (ce n’est pas un login).  
+`history.back` n’entre pas dans les 55 (hors catalogue / C.8).
+
 **Total vague 1 = 55** : 13 nav + 12 footer + 9 home + 6 login + 7 FAQ + 8 ATS/articles/404.
 
 ### C.7 `data-section` (hors compte des 55)
@@ -559,11 +596,14 @@ Pas des `data-attr`. Observer à 50 %, une fois par session.
 - Pages légales : pas de CTA signup dédié
 - `faq_open` si on passe en `<details>`
 - Cookie banner (consentement ≠ funnel growth)
+- « Page précédente » / `history.back` sur la 404 SPA (AXE-360 remplace ce bouton par Connexion, aligné HTML)
 
 ### C.9 App connectée — Mes candidatures (`/app/postule`) — **figé 2026-08-21**
 
 Extension hors vague 1 (landing → signup). Même convention `page-zone-type-intention`.  
-Un ID posé en prod ne se renomme jamais. Tracker app = `/api/events/track` + futurs outils (GA4/PostHog) derrière CMP.
+Un ID posé en prod ne se renomme jamais.
+
+**Transport `/app` (contrat [AXE-356](https://linear.app/axel-project/issue/AXE-356) / [`docs/analytics-naming.md`](analytics-naming.md)) :** events explicites `trackEvent()` → `POST /api/events/track` → `event_log`. **Pas** de GA4, **pas** de CMP, **pas** de `track.js` (ignore `/app`). Les `data-attr` C.9 servent la recette DOM ; ils n’émettent rien tant qu’un tracker /app n’existe pas (v2).
 
 | data-attr | type | level | Où | Intention |
 |---|---|---|---|---|
@@ -575,21 +615,138 @@ Un ID posé en prod ne se renomme jamais. Tracker app = `/api/events/track` + fu
 | `candidatures-controls-input-search` | input | tertiary | Barre de filtres | Champ recherche. **Ne jamais** envoyer la valeur dans un event. |
 | `candidatures-list-input-statut` | input | tertiary | Liste mobile (≤768px) | Select changement de statut. **Ne jamais** envoyer la valeur dans un event. |
 
-`data-section` (hors compte) :
+`data-analytics-section` (hors compte, snake_case — observé par `useViewAnalytics` → `page_engagement.sections`) :
 
-| data-section | Zone |
+| data-analytics-section | Zone |
 |---|---|
-| `candidatures` | Board kanban `/app/postule` |
-| `candidatures-stats` | Bandeau métriques |
-| `candidatures-list-mobile` | Liste groupée mobile (AXE-381) |
+| `candidatures_board` | Board kanban `/app/postule` |
+| `candidatures_stats` | Bandeau métriques |
+| `candidatures_list_mobile` | Liste groupée mobile (AXE-381) |
+
+Les `data-section` kebab encore présents sur les mêmes nœuds (`candidatures`, `candidatures-stats`, …) **ne sont pas lus** (`track.js` ignore `/app`). Ne pas s’en servir. Nettoyage markup éventuel : [AXE-396](https://linear.app/axel-project/issue/AXE-396) (hors inventaire).
 
 V2 candidatures (ne pas poser maintenant) : ouverture carte, archive, drag colonne, métriques cliquables.
+
+### C.10–C.16 App connectée hors candidatures — **figé 2026-08-25** ([AXE-395](https://linear.app/axel-project/issue/AXE-395))
+
+Même convention kebab `page-zone-type-intention`. Un ID = un élément. Jamais de doublon avec les 55 public ni C.9.  
+Transport : recette DOM seulement (`track.js` ignore `/app`). **Markup posé** ([AXE-396](https://linear.app/axel-project/issue/AXE-396)).
+
+**Total = 49** : 12 topbar + 8 onboarding + 11 cv + 6 profil + 5 settings + 6 support + 1 monitoring.
+
+`/app/linkedin` : pas de vue dédiée (`getViewFromPathname` → `profil`). Pas d’IDs `linkedin-*`.
+
+#### C.10 Globaux — topbar `/app` (12)
+
+Préfixe `app-nav-` (distinct de `nav-` marketing).
+
+| data-attr | type | level | Où | Intention |
+|---|---|---|---|---|
+| `app-nav-link-cv` | link | tertiary | topbar | `/app/cv` Adapter CV |
+| `app-nav-link-candidatures` | link | tertiary | topbar | `/app/postule` |
+| `app-nav-link-profil` | link | tertiary | topbar | `/app/profil` |
+| `app-nav-link-settings` | link | tertiary | topbar | `/app/settings` |
+| `app-nav-link-support` | link | tertiary | topbar | `/app/support` |
+| `app-nav-link-monitoring` | link | tertiary | topbar | `/app/monitoring` (compte support seulement) |
+| `app-nav-cta-upgrade` | cta | primary | topbar right | Passer Pro (plan free) |
+| `app-nav-cta-pro` | cta | secondary | topbar right | Badge Pro (plan pro) |
+| `app-nav-cta-account` | cta | tertiary | menu compte | Ouvrir le menu |
+| `app-nav-cta-cookies` | cta | tertiary | menu compte | Paramètres cookies |
+| `app-nav-cta-signout` | cta | tertiary | menu compte | Déconnexion |
+| `app-nav-input-promo` | input | tertiary | menu compte | Code partenaire. **Ne jamais** envoyer la valeur |
+
+Logo topbar = `<img>` non cliquable : ne pas inventer de clic.
+
+#### C.11 Onboarding (8)
+
+| data-attr | type | level | Où | Intention |
+|---|---|---|---|---|
+| `onboarding-methods-cta-import` | cta | primary | step 0 | Importer un CV (fichier) |
+| `onboarding-methods-cta-manual` | cta | secondary | step 0 | Saisie manuelle → profil |
+| `onboarding-paste-input-text` | input | tertiary | step 0 details | Texte collé. **Ne jamais** envoyer la valeur |
+| `onboarding-paste-cta-parse` | cta | secondary | step 0 details | Analyser mon CV |
+| `onboarding-review-cta-confirm` | cta | primary | step 1 | Confirmer le profil extrait |
+| `onboarding-done-cta-launch` | cta | primary | step 2 | C’est parti → candidatures |
+| `onboarding-done-cta-profil` | cta | secondary | step 2 | Aller au profil |
+| `onboarding-cta-skip` | cta | tertiary | overlay | Passer pour l’instant |
+
+#### C.12 Adapter un CV `/app/cv` (11)
+
+| data-attr | type | level | Où | Intention |
+|---|---|---|---|---|
+| `cv-header-cta-new` | cta | secondary | header page | Nouvelle candidature (workspace chat) |
+| `cv-banner-cta-upgrade` | cta | primary | bandeau quota free | Passer Pro |
+| `cv-chat-input-offer` | input | tertiary | composer chat | Offre / message. **Ne jamais** envoyer la valeur |
+| `cv-chat-cta-send` | cta | primary | composer chat | Envoyer → adaptation |
+| `cv-todo-cta-run` | cta | primary | carte plan | Valider et lancer |
+| `cv-preview-cta-base-pdf` | cta | secondary | barre template | Exporter le CV de base |
+| `cv-export-cta-pdf` | cta | primary | zone export | Télécharger le PDF adapté |
+| `cv-export-cta-dossier` | cta | secondary | zone export | Dossier complet |
+| `cv-export-cta-ats` | cta | tertiary | zone export | Ouvrir le score ATS |
+| `cv-nudge-cta-go` | cta | primary | modal 1ʳᵉ offre | Coller une offre → `/app/cv` |
+| `cv-nudge-cta-dismiss` | cta | secondary | modal 1ʳᵉ offre | Plus tard |
+
+#### C.13 Profil `/app/profil` (6)
+
+Deux boutons Enregistrer → **deux IDs** (comme `nav-cta-signup` / `nav-cta-start`).
+
+| data-attr | type | level | Où | Intention |
+|---|---|---|---|---|
+| `profil-header-cta-import` | cta | secondary | header | Importer un CV |
+| `profil-header-cta-save` | cta | primary | header | Enregistrer |
+| `profil-footer-cta-save` | cta | primary | footer formulaire | Enregistrer (distinct du header) |
+| `profil-preview-cta-pdf` | cta | secondary | barre template | Exporter le CV de profil |
+| `profil-billing-cta-cancel` | cta | tertiary | abonnement | Résilier |
+| `profil-billing-cta-portal` | cta | tertiary | abonnement | Portail Stripe |
+
+#### C.14 Paramètres `/app/settings` (5)
+
+| data-attr | type | level | Où | Intention |
+|---|---|---|---|---|
+| `settings-account-cta-password` | cta | secondary | compte | Mot de passe |
+| `settings-account-cta-upgrade` | cta | primary | compte | Passer Pro |
+| `settings-account-cta-billing` | cta | secondary | compte | Gérer l’abonnement |
+| `settings-export-cta-save` | cta | primary | export PDF | Enregistrer les prefs fichier |
+| `settings-privacy-cta-cookies` | cta | tertiary | confidentialité | Paramètres cookies |
+
+#### C.15 Support `/app/support` (6)
+
+Topics = `SUPPORT_TOPICS[].id` dans `App.jsx`.
+
+| data-attr | type | level | Où | Intention |
+|---|---|---|---|---|
+| `support-topic-adapter-cv` | link | tertiary | grilles use cases | Deep-link Adapter CV |
+| `support-topic-exporter-pdf` | link | tertiary | grilles use cases | Deep-link export |
+| `support-topic-suivre-candidatures` | link | tertiary | grilles use cases | Deep-link candidatures |
+| `support-topic-modifier-texte-cv` | link | tertiary | grilles use cases | Deep-link édition |
+| `support-topic-personnaliser-couleurs` | link | tertiary | grilles use cases | Deep-link options template |
+| `support-ticket-cta-submit` | cta | primary | formulaire ticket | Envoyer le ticket |
+
+#### C.16 Monitoring `/app/monitoring` (1)
+
+Visible seulement si `usage.is_support`.
+
+| data-attr | type | level | Où | Intention |
+|---|---|---|---|---|
+| `monitoring-header-cta-refresh` | cta | secondary | dashboard | Recharger |
+
+#### V2 /app (ne pas poser en AXE-396)
+
+- Topbar : toggle Beta
+- CV : relancer dernière adaptation, Annuler du plan, thumbs rating, Original/Modifié, langue, tour `?`, inputs entreprise/poste/source, édition manuelle, modales ATS/disclaimer/PDF entreprise
+- Profil : +/− lignes, photo/crop, merge import, modal LinkedIn apply
+- Settings : chips nom de fichier, reset modèle, clear local, liens légaux (IDs **nouveaux**, ne pas réutiliser `footer-link-*`)
+- Support : « autre ticket », reply interne, `mailto`
+- Modales globales : confirm upgrade / signout / portail (le CTA source reste `app-nav-cta-*`)
+- GuidedTour, ReauthModal, écran MFA
 
 ---
 
 ## D. Recette (après tickets 4–5–8)
 
-**Intégration**
+Runbook ops (GTM + GA4 DebugView) : **[`docs/ga4-recette.md`](ga4-recette.md)**.
+
+`sign_up*` / `plan_intent` / `source_cta_id` : [AXE-362](https://linear.app/axel-project/issue/AXE-362) (`signupAttribution.js`). Recette DebugView : events 361 + `sign_up_start` (arrivée `/login`) + `sign_up` (compte **nouveau** seulement).
 
 - [ ] 55 identifiants posés, uniques (grep `data-attr=` + table)
 - [ ] Aucun `data-attr` dans une feuille de style
@@ -604,8 +761,8 @@ V2 candidatures (ne pas poser maintenant) : ouverture carte, archive, drag colon
 - [ ] `cta_id` / `cta_zone` / `cta_level` renseignés
 - [ ] `sign_up` et `select_plan` en conversions
 - [ ] `?plan=pro` survit à l’inscription (email **et** OAuth)
-- [ ] PostHog toolbar : `data-attr` (si go)
-- [ ] Funnel créé dans le(s) outil(s) retenus
+- [x] PostHog toolbar : **hors v1** (no-go AXE-363)
+- [ ] Funnel créé dans GA4
 
 ---
 
@@ -616,7 +773,7 @@ V2 candidatures (ne pas poser maintenant) : ouverture carte, archive, drag colon
 | Tokens `#5B4CFF`, `.btn--primary`, radius 10px | Design system `--ds-*` / `Button.jsx` |
 | Tracker qui lit uniquement `el.href` | Landing = `<button>` sans href |
 | `faq_open` immédiat | FAQ = articles ouverts |
-| PostHog « juste le brancher » | Ticket 6 d’abord |
+| PostHog « juste le brancher » | **No-go v1** (AXE-363) ; GA4 + tracker |
 | Un listener posé en JS après hydratation **sans** attributs SSR/JSX | Attributs dans le markup au render |
 | Cibler `.btn` dans GTM | Interdit |
 
@@ -624,11 +781,11 @@ V2 candidatures (ne pas poser maintenant) : ouverture carte, archive, drag colon
 
 ## F. Commentaire type (après création des issues)
 
-À poster en **project update** Linear (`onTrack`) :
+Project update Linear (`onTrack`) publié au freeze AXE-358 : [activité du projet Tagging](https://linear.app/axel-project/project/axel-job-tagging-interne-and-externe-f932ba5559ef/activity#project-update-5a1fc45b). Texte :
 
 ```markdown
-Chantier taggage analytics ouvert. 8 tickets. Rien à coder avant validation de l’inventaire (ticket 1).
-Infra CMP/GTM déjà là ; il manque data-attr + tracker + attribution signup.
-PostHog = décision RGPD séparée (ticket 6).
-Doc : docs/taggage-analytics.md
+Inventaire data-attr figé (AXE-358, 2026-08-25). 55 IDs, aucun doublon.
+On peut coder le ticket 2 (AXE-359, landing) et le ticket 3 (AXE-360, globaux/login/contenu).
+404 SPA à aligner sur public/404.html (Accueil + Connexion) au ticket 3.
+Doc : docs/taggage-analytics.md § C
 ```

@@ -633,6 +633,68 @@ button.ats-score-trigger {
   color: var(--muted);
 }
 
+.cv-chat-todo-lang {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-xs);
+  margin: 0;
+  padding: var(--ds-space-sm) var(--ds-space-md);
+  background: var(--ds-color-bg-subtle);
+  border: 1px solid var(--ds-color-border-default);
+  border-radius: var(--ds-radius-sm);
+}
+
+.cv-chat-todo-lang--error {
+  border-color: var(--ds-color-text-danger);
+}
+
+.cv-chat-todo-lang-title {
+  margin: 0;
+  color: var(--ds-color-text-default);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.cv-chat-todo-lang-head {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-sm);
+}
+
+.cv-chat-todo-lang-body {
+  margin: 0;
+  color: var(--ds-color-text-muted);
+}
+
+.cv-chat-todo-lang-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-xs);
+}
+
+.cv-lang-spinner {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--ds-color-border-default);
+  border-top-color: var(--ds-color-action-primary-bg);
+  border-radius: var(--ds-radius-full);
+  animation: cv-lang-spin 0.7s linear infinite;
+}
+
+@keyframes cv-lang-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cv-lang-spinner {
+    animation: none;
+    border-top-color: var(--ds-color-border-default);
+    opacity: 0.7;
+  }
+}
+
 .cv-chat-msg-toggle {
   position: absolute;
   left: 0.35rem;
@@ -1133,6 +1195,41 @@ button.ats-score-trigger {
   font-size: 0.8125rem;
   color: var(--muted);
   line-height: 1.35;
+}
+
+.cv-preview-lang-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-sm);
+  margin: 0 0 var(--ds-space-sm);
+  padding: var(--ds-space-sm) var(--ds-space-md);
+  color: var(--ds-color-text-default);
+  background: var(--ds-color-bg-subtle);
+  border: 1px solid var(--ds-color-border-default);
+  border-radius: var(--ds-radius-sm);
+}
+
+.preview-iframe-wrap--lang-preview {
+  position: relative;
+}
+
+.preview-iframe-wrap--lang-preview iframe {
+  opacity: 0.55;
+}
+
+.preview-lang-loading {
+  position: absolute;
+  inset: 0;
+  z-index: var(--ds-z-sticky);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-sm);
+  padding: var(--ds-space-lg);
+  background: color-mix(in srgb, var(--ds-color-bg-default) 72%, transparent);
+  color: var(--ds-color-text-default);
+  pointer-events: none;
 }
 
 .preview-wrap .preview-iframe-wrap iframe {

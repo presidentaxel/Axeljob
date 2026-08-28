@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CONTACT_EMAIL } from '../constants';
+import { analyticsAttrs } from '../lib/analyticsAttrs.js';
+import { persistLoginCta } from '../../public/signupAttribution.js';
 import './LandingPage.css';
 
 /** Liens articles / guides (menu mobile + cohérence avec le footer) */
@@ -83,6 +85,13 @@ export default function LandingPage({ onCtaClick, onProClick }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const drawerId = useId();
   const closeMenu = useCallback(() => setMenuOpen(false), []);
+  const goLogin = useCallback(
+    (dataAttr, then) => {
+      persistLoginCta(dataAttr);
+      then?.();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -119,14 +128,14 @@ export default function LandingPage({ onCtaClick, onProClick }) {
             <img src="/favicon.svg" alt="AxeL Job" className="landing-logo" />
             <span className="landing-brand">AxeL Job</span>
             <nav className="landing-nav" aria-label="Navigation principale">
-              <a href="#comment">Comment ça marche</a>
-              <a href="#tarifs">Tarifs</a>
-              <a href="#features">Fonctionnalités</a>
-              <Link to="/ats">Qu&apos;est-ce que l&apos;ATS ?</Link>
-              <Link to="/faq">FAQ</Link>
-              <Link to="/modeles-cv">Modèles CV</Link>
-              <Link to="/guide-cv">Guide CV</Link>
-              <button type="button" className="button button-primary landing-cta-nav" onClick={onCtaClick}>
+              <a href="#comment" {...analyticsAttrs('nav-link-how', 'header', 'tertiary', 'nav')}>Comment ça marche</a>
+              <a href="#tarifs" {...analyticsAttrs('nav-link-pricing', 'header', 'tertiary', 'nav')}>Tarifs</a>
+              <a href="#features" {...analyticsAttrs('nav-link-features', 'header', 'tertiary', 'nav')}>Fonctionnalités</a>
+              <Link to="/ats" {...analyticsAttrs('nav-link-ats', 'header', 'tertiary', 'nav')}>Qu&apos;est-ce que l&apos;ATS ?</Link>
+              <Link to="/faq" {...analyticsAttrs('nav-link-faq', 'header', 'tertiary', 'nav')}>FAQ</Link>
+              <Link to="/modeles-cv" {...analyticsAttrs('nav-link-modeles', 'header', 'tertiary', 'nav')}>Modèles CV</Link>
+              <Link to="/guide-cv" {...analyticsAttrs('nav-link-guide', 'header', 'tertiary', 'nav')}>Guide CV</Link>
+              <button type="button" className="button button-primary landing-cta-nav" onClick={() => goLogin('nav-cta-signup', onCtaClick)} {...analyticsAttrs('nav-cta-signup', 'header', 'primary', 'cta')}>
                 Essayer gratuitement
               </button>
             </nav>
@@ -138,10 +147,11 @@ export default function LandingPage({ onCtaClick, onProClick }) {
                 aria-expanded={menuOpen}
                 aria-controls={drawerId}
                 aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+                {...analyticsAttrs('nav-burger', 'header', 'tertiary', 'nav')}
               >
                 <BurgerIcon open={menuOpen} />
               </button>
-              <button type="button" className="landing-mobile-cta button button-primary" onClick={onCtaClick}>
+              <button type="button" className="landing-mobile-cta button button-primary" onClick={() => goLogin('nav-cta-start', onCtaClick)} {...analyticsAttrs('nav-cta-start', 'header', 'primary', 'cta')}>
                 Commencer
               </button>
             </div>
@@ -193,7 +203,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
                 <li><Link to="/cgu" onClick={closeMenu}>CGU</Link></li>
               </ul>
               <div className="landing-nav-drawer-cta">
-                <button type="button" className="button button-primary" onClick={() => { closeMenu(); onCtaClick(); }}>
+                <button type="button" className="button button-primary" onClick={() => { closeMenu(); goLogin('nav-cta-drawer', onCtaClick); }} {...analyticsAttrs('nav-cta-drawer', 'drawer', 'primary', 'cta')}>
                   Essayer gratuitement
                 </button>
               </div>
@@ -203,18 +213,18 @@ export default function LandingPage({ onCtaClick, onProClick }) {
       )}
 
       <main id="main-content">
-      <section className="landing-hero">
+      <section className="landing-hero" data-section="hero">
         <div className="landing-container">
           <div className="landing-hero-inner">
             <div className="landing-hero-content">
-              <h1 className="landing-hero-title">
+              <h1 className="landing-hero-title" {...analyticsAttrs('home-hero-title', 'hero', 'tertiary')}>
                 Passe les filtres automatiques. Décroche des entretiens en 1 clic.
               </h1>
               <p className="landing-hero-subtitle">
                 {"L'IA analyse l'offre d'emploi et adapte instantanément ton CV pour passer les filtres (ATS) et taper dans l'œil des recruteurs."}
               </p>
               <div className="landing-hero-ctas">
-                <button type="button" className="button button-primary landing-cta-hero" onClick={onCtaClick}>
+                <button type="button" className="button button-primary landing-cta-hero" onClick={() => goLogin('home-hero-cta-signup', onCtaClick)} {...analyticsAttrs('home-hero-cta-signup', 'hero', 'primary', 'cta')}>
                   Essayer gratuitement
                 </button>
                 <span className="landing-hero-hint">3 adaptations offertes</span>
@@ -250,7 +260,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
         </div>
       </section>
 
-      <section id="comment" className="landing-section">
+      <section id="comment" className="landing-section" data-section="how">
         <div className="landing-container">
           <h2 className="landing-section-title">Comment ça marche</h2>
           <div className="landing-steps">
@@ -282,12 +292,12 @@ export default function LandingPage({ onCtaClick, onProClick }) {
         </div>
       </section>
 
-      <section id="tarifs" className="landing-section">
+      <section id="tarifs" className="landing-section" data-section="pricing">
         <div className="landing-container">
           <h2 className="landing-section-title">Tarifs</h2>
           <p className="landing-section-subtitle">Commence gratuitement. Passe Pro quand tu en as besoin.</p>
           <div className="landing-pricing">
-            <div className="pricing-card">
+            <div className="pricing-card" {...analyticsAttrs('home-pricing-card-free', 'pricing', 'tertiary')}>
               <div className="pricing-card-header">
                 <h3 className="pricing-plan-name">Gratuit</h3>
                 <div className="pricing-price">
@@ -303,13 +313,13 @@ export default function LandingPage({ onCtaClick, onProClick }) {
                   </li>
                 ))}
               </ul>
-              <button type="button" className="button button-secondary pricing-cta" onClick={onCtaClick}>
+              <button type="button" className="button button-secondary pricing-cta" onClick={() => goLogin('home-pricing-cta-free', onCtaClick)} {...analyticsAttrs('home-pricing-cta-free', 'pricing', 'secondary', 'cta')}>
                 Commencer gratuitement
               </button>
             </div>
 
-            <div className="pricing-card pricing-card--pro">
-              <div className="pricing-badge">Populaire</div>
+            <div className="pricing-card pricing-card--pro" {...analyticsAttrs('home-pricing-card-pro', 'pricing', 'tertiary')}>
+              <div className="pricing-badge" {...analyticsAttrs('home-pricing-badge-popular', 'pricing', 'tertiary')}>Populaire</div>
               <div className="pricing-card-header">
                 <h3 className="pricing-plan-name">Pro</h3>
                 <div className="pricing-price">
@@ -325,7 +335,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
                   </li>
                 ))}
               </ul>
-              <button type="button" className="button button-primary pricing-cta" onClick={onProClick || onCtaClick}>
+              <button type="button" className="button button-primary pricing-cta" onClick={() => goLogin('home-pricing-cta-pro', onProClick || onCtaClick)} {...analyticsAttrs('home-pricing-cta-pro', 'pricing', 'primary', 'cta')}>
                 Passer Pro
               </button>
             </div>
@@ -333,7 +343,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
         </div>
       </section>
 
-      <section id="features" className="landing-section">
+      <section id="features" className="landing-section" data-section="features">
         <div className="landing-container">
           <h2 className="landing-section-title">Fonctionnalités</h2>
           <div className="landing-features-grid">
@@ -347,7 +357,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
         </div>
       </section>
 
-      <section className="landing-section">
+      <section className="landing-section" data-section="why">
         <div className="landing-container">
           <h2 className="landing-section-title">Pourquoi AxeL Job ?</h2>
           <div className="landing-features-grid">
@@ -356,7 +366,7 @@ export default function LandingPage({ onCtaClick, onProClick }) {
                 <h3 className="landing-feature-title">{b.title}</h3>
                 <p className="landing-feature-desc">{b.desc}</p>
                 {b.linkToAts && (
-                  <Link to="/ats" className="landing-ats-link">Qu&apos;est-ce que l&apos;ATS ?</Link>
+                  <Link to="/ats" className="landing-ats-link" {...analyticsAttrs('home-why-link-ats', 'why', 'tertiary', 'nav')}>Qu&apos;est-ce que l&apos;ATS ?</Link>
                 )}
               </div>
             ))}
@@ -364,11 +374,11 @@ export default function LandingPage({ onCtaClick, onProClick }) {
         </div>
       </section>
 
-      <section className="landing-cta-bottom">
+      <section className="landing-cta-bottom" data-section="final">
         <div className="landing-container">
           <h2>Prêt à décrocher le job de tes rêves ?</h2>
           <p>Crée ton compte gratuit et teste 3 adaptations de CV.</p>
-          <button type="button" className="button button-primary landing-cta-hero" onClick={onCtaClick}>
+          <button type="button" className="button button-primary landing-cta-hero" onClick={() => goLogin('home-final-cta-signup', onCtaClick)} {...analyticsAttrs('home-final-cta-signup', 'final', 'primary', 'cta')}>
             Essayer gratuitement
           </button>
         </div>
@@ -380,21 +390,21 @@ export default function LandingPage({ onCtaClick, onProClick }) {
           <div className="landing-footer-inner">
             <p>
               © {new Date().getFullYear()} AxeL Job - Ton CV sur-mesure pour chaque annonce. Une réalisation{' '}
-              <a href="https://axelproject.fr" rel="noopener noreferrer">Axel Project</a>.
+              <a href="https://axelproject.fr" rel="noopener noreferrer" {...analyticsAttrs('footer-link-axelproject', 'footer', 'tertiary', 'nav')}>Axel Project</a>.
             </p>
             <nav className="landing-footer-links" aria-label="Guides, FAQ et pages légales">
-              <a href={`mailto:${CONTACT_EMAIL}?subject=Support%20AxeL%20Job`}>Support</a>
-              <Link to="/ats">CV et ATS</Link>
-              <Link to="/faq">FAQ</Link>
-              <Link to="/modeles-cv">Modèles de CV</Link>
-              <Link to="/guide-cv">Guide CV</Link>
-              <Link to="/erreurs-cv">Erreurs à éviter</Link>
-              <Link to="/cv-par-metier">CV par métier</Link>
-              <Link to="/cv-adapte-chaque-offre">CV adapté à chaque offre</Link>
+              <a href={`mailto:${CONTACT_EMAIL}?subject=Support%20AxeL%20Job`} {...analyticsAttrs('footer-link-support', 'footer', 'tertiary', 'nav')}>Support</a>
+              <Link to="/ats" {...analyticsAttrs('footer-link-ats', 'footer', 'tertiary', 'nav')}>CV et ATS</Link>
+              <Link to="/faq" {...analyticsAttrs('footer-link-faq', 'footer', 'tertiary', 'nav')}>FAQ</Link>
+              <Link to="/modeles-cv" {...analyticsAttrs('footer-link-modeles', 'footer', 'tertiary', 'nav')}>Modèles de CV</Link>
+              <Link to="/guide-cv" {...analyticsAttrs('footer-link-guide', 'footer', 'tertiary', 'nav')}>Guide CV</Link>
+              <Link to="/erreurs-cv" {...analyticsAttrs('footer-link-erreurs', 'footer', 'tertiary', 'nav')}>Erreurs à éviter</Link>
+              <Link to="/cv-par-metier" {...analyticsAttrs('footer-link-metier', 'footer', 'tertiary', 'nav')}>CV par métier</Link>
+              <Link to="/cv-adapte-chaque-offre" {...analyticsAttrs('footer-link-adapte', 'footer', 'tertiary', 'nav')}>CV adapté à chaque offre</Link>
               <span className="landing-footer-sep">|</span>
-              <Link to="/mentions-legales">Mentions légales</Link>
-              <Link to="/confidentialite">Confidentialité</Link>
-              <Link to="/cgu">CGU</Link>
+              <Link to="/mentions-legales" {...analyticsAttrs('footer-link-mentions', 'footer', 'tertiary', 'nav')}>Mentions légales</Link>
+              <Link to="/confidentialite" {...analyticsAttrs('footer-link-confidentialite', 'footer', 'tertiary', 'nav')}>Confidentialité</Link>
+              <Link to="/cgu" {...analyticsAttrs('footer-link-cgu', 'footer', 'tertiary', 'nav')}>CGU</Link>
             </nav>
           </div>
         </div>

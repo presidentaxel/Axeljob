@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, wip/innovation]
+    branches: [main, prod, wip/innovation]
   pull_request:
-    branches: [main, wip/innovation]
+    branches: [main, prod, wip/innovation]
 
 # Evite d'empiler des runs identiques (ex. Dependabot qui repousse plusieurs PRs / commits).
 concurrency:

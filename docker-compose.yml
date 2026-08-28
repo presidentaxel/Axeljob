@@ -6,6 +6,9 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      args:
+        # SHA git du build (Sentry release). Pas de SENTRY_AUTH_TOKEN ici.
+        SENTRY_RELEASE: ${SENTRY_RELEASE:-}
     env_file:
       - .env
     environment:
@@ -20,6 +23,12 @@ services:
       - CV_BOT_PDF_CHROMIUM_NO_SANDBOX=${CV_BOT_PDF_CHROMIUM_NO_SANDBOX:-}
       - CV_BOT_PDF_CHROMIUM_ARGS=${CV_BOT_PDF_CHROMIUM_ARGS:-}
       - CV_BOT_PDF_CHROMIUM_VIEWPORT_HEIGHT=${CV_BOT_PDF_CHROMIUM_VIEWPORT_HEIGHT:-}
+      # Sentry (AXE-369). env_file charge tout le .env : AUTH_TOKEN vide ecrase un oubli.
+      - SENTRY_AUTH_TOKEN=
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-}
+      - SENTRY_TRACES_SAMPLE_RATE=${SENTRY_TRACES_SAMPLE_RATE:-}
+      - SENTRY_RELEASE=${SENTRY_RELEASE:-}
     restart: unless-stopped
     # Si CV_BOT_PDF_ENGINE=chromium et plantages aléatoires : décommenter
     # shm_size: "256mb"
@@ -42,6 +51,14 @@ services:
         VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
         # Conteneur GTM (tagmanager.google.com) - sans cela, aucune balise Google n’est chargée en prod
         VITE_AXEL_GTM_ID: ${VITE_AXEL_GTM_ID:-}
+        # Sentry front (AXE-369) : DSN vide = no-op. Rebuild après changement.
+        # Ne pas passer SENTRY_AUTH_TOKEN (secret de build, jamais dans nginx).
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_SENTRY_ENVIRONMENT: ${VITE_SENTRY_ENVIRONMENT:-}
+        VITE_SENTRY_RELEASE: ${VITE_SENTRY_RELEASE:-}
+        VITE_SENTRY_TRACES_SAMPLE_RATE: ${VITE_SENTRY_TRACES_SAMPLE_RATE:-}
+        # Upload source maps (AXE-368). Vide = skip plugin, build OK.
+        SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN:-}
     restart: unless-stopped
     ports:
       - "3000:80"

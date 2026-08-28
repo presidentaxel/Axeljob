@@ -164,7 +164,7 @@ test('buildStructuralImportLayout : copie fidèle, aucun preset', () => {
   assert.equal(title.style.bold, true);
 });
 
-test('buildStructuralImportLayout : lie titres freeform → blocs sémantiques (AXE-329)', () => {
+test('buildStructuralImportLayout : conserve les lignes PDF, pas de widgets sémantiques', () => {
   const structural = {
     version: 3,
     format: 'A4',
@@ -212,9 +212,10 @@ test('buildStructuralImportLayout : lie titres freeform → blocs sémantiques (
   assert.equal(result.importSource, 'structural');
   assert.equal(result.layout.freeform, true);
   const blocks = result.layout.pages[0].blocks;
-  assert.ok(blocks.some((b) => b.type === 'identity' && Array.isArray(b.bind)));
-  assert.ok(blocks.some((b) => b.type === 'experiences' && b.bind === 'experiences'));
-  assert.equal(blocks.some((b) => b.type === 'text' && String(b.content || '').includes('Head of Growth')), false);
+  assert.equal(blocks.some((b) => b.type === 'identity'), false);
+  assert.equal(blocks.some((b) => b.type === 'experiences'), false);
+  assert.ok(blocks.some((b) => b.type === 'text' && String(b.content || '').includes('Head of Growth')));
+  assert.ok(blocks.some((b) => b.type === 'text' && String(b.content || '').includes('Marie Martin')));
 });
 
 test('applyImportedRoundImageShapes : anneau vectoriel → image en cercle', () => {

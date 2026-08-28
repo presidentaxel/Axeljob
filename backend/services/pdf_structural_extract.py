@@ -19,6 +19,7 @@ from __future__ import annotations
 import base64
 import html
 import logging
+import re
 from typing import Any
 
 from backend.services.pdf_font_embed import embedded_family_for, extract_embedded_fonts
@@ -47,6 +48,12 @@ PAGE_BG_AREA_RATIO = 0.82
 MIN_SEPARATOR_LEN_MM = 8.0
 MIN_TEXT_CHARS_FOR_NATIVE = 40
 MAX_PAGES = 3
+# Doit matcher `padding-top` des blocs texte (FreeCanvas.css / layout_renderer).
+CSS_TEXT_PAD_TOP_MM = 1.0
+# Puce à gauche du texte : écart max (mm) et tolérance verticale pour l'alignement.
+MAX_GUTTER_GAP_MM = 14.0
+MAX_BULLET_ALIGN_DY_MM = 8.0
+_BULLET_GLYPH_RE = re.compile(r"^[•●○◦▪■‣▸∙·\-–—*]$")
 MAX_IMAGES_PER_DOC = 8
 MAX_IMAGE_BYTES = 350_000
 # Fond graphique rasterisé (texte retiré) : résolution et poids max.
@@ -316,9 +323,8 @@ def _extract_text_blocks(
             # ce qui fait paraître les shape:line 1 mm trop hauts par rapport au texte.
             # On décale le bloc vers le haut de 1 mm : après le padding CSS, le rendu
             # s'aligne exactement sur les coordonnées du PDF.
-            _CSS_TEXT_PAD_TOP = 1.0  # mm — doit correspondre au padding-top CSS
-            y_mm = max(0.0, y0 * pos_scale - _CSS_TEXT_PAD_TOP)
-            line_h_mm += _CSS_TEXT_PAD_TOP  # restaure l'espace en bas du bloc
+            y_mm = max(0.0, y0 * pos_scale - CSS_TEXT_PAD_TOP_MM)
+            line_h_mm += CSS_TEXT_PAD_TOP_MM  # restaure l'espace en bas du bloc
             blocks.append(
                 {
                     "type": "text",
@@ -908,6 +914,93 @@ def _cleanup_image_overlay_blocks(blocks: list[dict]) -> list[dict]:
     return kept
 
 
+def _plain_text_content(block: dict) -> str:
+    return html.unescape(str(block.get("content") or "")).replace("\xa0", " ").strip()
+
+
+def _is_gutter_marker(block: dict) -> bool:
+    """Puce visuelle isolée (cercle vectoriel, glyphe, micro-vignette)."""
+    w = float(block.get("w") or 0)
+    h = float(block.get("h") or 0)
+    if max(w, h) > MAX_BULLET_MM:
+        return False
+    btype = block.get("type")
+    if btype == "shape:circle":
+        return True
+    if btype == "image" and w <= MAX_BULLET_MM and h <= MAX_BULLET_MM:
+        return True
+    if btype in ("text", "title"):
+        return bool(_BULLET_GLYPH_RE.fullmatch(_plain_text_content(block)))
+    return False
+
+
+def _text_cap_center_mm(block: dict) -> float:
+    """Centre optique d'une ligne (padding CSS + mi-chasse de la police)."""
+    y = float(block.get("y") or 0)
+    size_pt = 10.0
+    style = block.get("style") if isinstance(block.get("style"), dict) else {}
+    try:
+        size_pt = float(style.get("font_size") or 10)
+    except (TypeError, ValueError):
+        size_pt = 10.0
+    return y + CSS_TEXT_PAD_TOP_MM + (size_pt * MM_PER_PT * 0.38)
+
+
+def align_gutter_bullets(blocks: list[dict]) -> list[dict]:
+    """Aligne les puces (cercles / glyphes) sur la ligne de texte à leur droite.
+
+    PyMuPDF pose le cercle à son bbox dessin (souvent près de la baseline) alors
+    que le texte canvas est compensé pour le padding CSS : sans ce calage, chaque
+    puce tombe visuellement sur la ligne suivante (+ puce fantôme sous la liste).
+    """
+    if not blocks:
+        return blocks
+    targets = [
+        b
+        for b in blocks
+        if b.get("type") in ("text", "title")
+        and not _is_gutter_marker(b)
+        and len(_plain_text_content(b)) >= 2
+    ]
+    if not targets:
+        return blocks
+
+    for marker in blocks:
+        if not _is_gutter_marker(marker):
+            continue
+        mx = float(marker.get("x") or 0)
+        mw = float(marker.get("w") or 0)
+        mh = float(marker.get("h") or 0)
+        marker_right = mx + mw
+        mcy = float(marker.get("y") or 0) + mh / 2.0
+        best = None
+        best_score = float("inf")
+        for text in targets:
+            tx = float(text.get("x") or 0)
+            if tx < marker_right - 1.0:
+                continue
+            gap = tx - marker_right
+            if gap > MAX_GUTTER_GAP_MM:
+                continue
+            tcy = _text_cap_center_mm(text)
+            dy = abs(tcy - mcy)
+            if dy > MAX_BULLET_ALIGN_DY_MM:
+                continue
+            ty = float(text.get("y") or 0)
+            # La ligne suivante (y plus bas que le centre de la puce) est pénalisée
+            # pour éviter le décalage d'une ligne observé à l'import.
+            score = dy + (3.0 if ty > mcy else 0.0)
+            if score < best_score:
+                best_score = score
+                best = text
+        if best is None:
+            continue
+        new_y = _text_cap_center_mm(best) - mh / 2.0
+        marker["y"] = round(max(0.0, new_y), 2)
+
+    return blocks
+
+
 def _classify_graphic_cluster(cluster: list, scale: float) -> dict | None:
     """Convertit un cluster vectoriel en bloc forme/icône natif quand c'est possible."""
     if not cluster:
@@ -1270,6 +1363,7 @@ def extract_layout_from_pdf(file_bytes: bytes, max_pages: int = MAX_PAGES) -> di
             if not blocks:
                 continue
             blocks = _cleanup_image_overlay_blocks(blocks)
+            blocks = align_gutter_bullets(blocks)
             pages_out.append({"id": f"page_{page_index + 1}", "blocks": blocks})
 
         if not pages_out or total_chars < MIN_TEXT_CHARS_FOR_NATIVE:

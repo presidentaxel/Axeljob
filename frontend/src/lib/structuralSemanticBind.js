@@ -491,6 +491,76 @@ export function pruneInPlaceImportDuplicates(layout, cv = {}) {
   return { ...layout, pages };
 }
 
+const CSS_TEXT_PAD_TOP_MM = 1;
+const MM_PER_PT = 25.4 / 72;
+const MAX_GUTTER_MARKER_MM = 6.5;
+const MAX_GUTTER_GAP_MM = 14;
+const MAX_BULLET_ALIGN_DY_MM = 8;
+const BULLET_GLYPH_RE = /^[•●○◦▪■‣▸∙·\-–—*]$/;
+
+function isGutterMarker(block) {
+  const w = Number(block?.w) || 0;
+  const h = Number(block?.h) || 0;
+  if (Math.max(w, h) > MAX_GUTTER_MARKER_MM) return false;
+  if (block.type === 'shape:circle') return true;
+  if (block.type === 'image') return true;
+  if (block.type === 'text' || block.type === 'title') {
+    return BULLET_GLYPH_RE.test(normImportText(block.content));
+  }
+  return false;
+}
+
+function textCapCenterMm(block) {
+  const y = Number(block?.y) || 0;
+  const sizePt = Number(block?.style?.font_size) || 10;
+  return y + CSS_TEXT_PAD_TOP_MM + sizePt * MM_PER_PT * 0.38;
+}
+
+/**
+ * Recale les puces (cercles PDF) sur le centre optique de la ligne à droite.
+ * Sans ça, le bbox dessin + padding CSS décale chaque puce d'une ligne.
+ */
+export function alignImportGutterMarkers(layout) {
+  if (!layout?.pages?.length) return layout;
+  const pages = layout.pages.map((page) => {
+    const blocks = Array.isArray(page.blocks) ? page.blocks : [];
+    const targets = blocks.filter((b) => (
+      (b.type === 'text' || b.type === 'title')
+      && !isGutterMarker(b)
+      && normImportText(b.content).length >= 2
+    ));
+    if (!targets.length) return page;
+    const nextBlocks = blocks.map((marker) => {
+      if (!isGutterMarker(marker)) return marker;
+      const mx = Number(marker.x) || 0;
+      const mw = Number(marker.w) || 0;
+      const mh = Number(marker.h) || 0;
+      const markerRight = mx + mw;
+      const mcy = (Number(marker.y) || 0) + mh / 2;
+      let best = null;
+      let bestScore = Infinity;
+      for (const text of targets) {
+        const tx = Number(text.x) || 0;
+        if (tx < markerRight - 1) continue;
+        if (tx - markerRight > MAX_GUTTER_GAP_MM) continue;
+        const tcy = textCapCenterMm(text);
+        const dy = Math.abs(tcy - mcy);
+        if (dy > MAX_BULLET_ALIGN_DY_MM) continue;
+        const ty = Number(text.y) || 0;
+        const score = dy + (ty > mcy ? 3 : 0);
+        if (score < bestScore) {
+          bestScore = score;
+          best = text;
+        }
+      }
+      if (!best) return marker;
+      return { ...marker, y: Math.round(Math.max(0, textCapCenterMm(best) - mh / 2) * 100) / 100 };
+    });
+    return { ...page, blocks: nextBlocks };
+  });
+  return { ...layout, pages };
+}
+
 /**
  * Applique le binding sémantique sur un layout structurel freeform.
  * Si ``annotations`` (API AXE-332) est fourni, elles priment sur l'heuristique locale.
@@ -630,6 +700,7 @@ export function bindStructuralTextToSemanticBlocks(layout, cv = {}, {
   if (mode === BIND_MODE_IN_PLACE) {
     nextLayout = pruneInPlaceImportDuplicates(nextLayout, cv);
   }
+  nextLayout = alignImportGutterMarkers(nextLayout);
   // annotations consommées — inutile de les repasser au canvas
   if ('semantic_annotations' in nextLayout) {
     delete nextLayout.semantic_annotations;

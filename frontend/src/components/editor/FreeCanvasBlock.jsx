@@ -825,7 +825,7 @@ function NonSemanticBlockBody({ block, editing = false, onAutoHeight }) {
         textAlign: style.align || 'left',
         opacity: style.opacity ?? 1,
         margin: 0,
-        minHeight: '1em',
+        minHeight: style.nowrap ? 0 : '1em',
         height: 'auto',
         overflow: 'visible',
       };
@@ -1017,7 +1017,8 @@ export default function FreeCanvasBlock({
   // Répliques figées (Bold/Classic header) : garder h preset pour centrer vs photo.
   const autoHeight = validBlock
     && isAutoHeightBlockType(type)
-    && !blockStyle?.lock_geometry;
+    && !blockStyle?.lock_geometry
+    && !blockStyle?.nowrap;
 
   const reportHeight = useCallback((newHmm) => {
     if (!autoHeight || typeof onBlockAutoHeight !== 'function' || !id) return;

@@ -5,6 +5,7 @@ import { sanitizeLayoutV3 } from '../../src/lib/cvLayoutModelV3.js';
 import {
   BIND_MODE_ABSORB,
   MIN_SEMANTIC_CONFIDENCE,
+  alignImportGutterMarkers,
   bindStructuralTextToSemanticBlocks,
   classifyStructuralTextBlock,
   decodeStructuralText,
@@ -594,4 +595,77 @@ test('bind inPlace : email en-tête + pied → un contact, titres doublés fusio
     b.type === 'title' && b.style?.semantic_section === 'skills'
   ));
   assert.equal(skillTitles.length, 2);
+});
+
+test('alignImportGutterMarkers : puces recalees sur la ligne, pas la suivante', () => {
+  const layout = {
+    version: 3,
+    pages: [{
+      id: 'p1',
+      blocks: [
+        {
+          id: 't1',
+          type: 'text',
+          content: 'Mise en place des equipes',
+          x: 20,
+          y: 37.54,
+          w: 80,
+          h: 5.85,
+          style: { font_size: 10 },
+        },
+        {
+          id: 'c1',
+          type: 'shape:circle',
+          x: 16.16,
+          y: 40.49,
+          w: 1.55,
+          h: 1.55,
+          style: { color: '#000' },
+        },
+        {
+          id: 't2',
+          type: 'text',
+          content: 'Gestion et ecoute des membres',
+          x: 20,
+          y: 42.47,
+          w: 80,
+          h: 5.85,
+          style: { font_size: 10 },
+        },
+        {
+          id: 'c2',
+          type: 'shape:circle',
+          x: 16.16,
+          y: 45.43,
+          w: 1.55,
+          h: 1.55,
+          style: { color: '#000' },
+        },
+        {
+          id: 't3',
+          type: 'text',
+          content: 'Gestion des reseaux sociaux',
+          x: 20,
+          y: 52.35,
+          w: 80,
+          h: 5.85,
+          style: { font_size: 10 },
+        },
+        {
+          id: 'c3',
+          type: 'shape:circle',
+          x: 16.16,
+          y: 55.31,
+          w: 1.55,
+          h: 1.55,
+          style: { color: '#000' },
+        },
+      ],
+    }],
+  };
+  const out = alignImportGutterMarkers(layout);
+  const byId = Object.fromEntries(out.pages[0].blocks.map((b) => [b.id, b]));
+  assert.ok(byId.c1.y < byId.t2.y, '1re puce au-dessus de la 2e ligne');
+  assert.ok(Math.abs(byId.c1.y - (byId.t1.y + 1 + 10 * (25.4 / 72) * 0.38 - 1.55 / 2)) < 0.2);
+  assert.ok(byId.c3.y < byId.t3.y + byId.t3.h * 0.7, 'pas de puce fantôme sous la liste');
 });

@@ -3,6 +3,7 @@
 import unittest
 
 from backend.services.pdf_structural_extract import (
+    CSS_TEXT_PAD_TOP_MM,
     _extract_shape_blocks,
     _float_rgb_to_hex,
     _frame_strips_from_rects,
@@ -237,6 +238,58 @@ class ExtractLayoutTest(unittest.TestCase):
 
     def test_non_pdf_bytes_returns_none(self):
         self.assertIsNone(extract_layout_from_pdf(b"not a pdf at all"))
+
+    def test_gutter_bullets_align_with_text_lines(self):
+        """Cercles à gauche : y recalé sur la ligne, pas sur la suivante."""
+        import fitz
+
+        lines = [
+            "Mise en place des equipes de ambassadeurs",
+            "Gestion et ecoute des membres actifs",
+            "Organisation d evenements internes",
+            "Gestion des reseaux sociaux de l application",
+        ]
+        doc = fitz.open()
+        page = doc.new_page(width=595, height=842)
+        page.insert_text(
+            (40, 50),
+            "Header enough characters for native extract threshold xxxxxx",
+            fontsize=11,
+        )
+        for i, line in enumerate(lines):
+            y = 120 + i * 14
+            page.draw_circle(fitz.Point(48, y - 3), 2.2, color=(0, 0, 0), fill=(0, 0, 0))
+            page.insert_text((58, y), line, fontsize=10)
+        data = doc.tobytes()
+        doc.close()
+
+        layout = extract_layout_from_pdf(data)
+        self.assertIsNotNone(layout)
+        blocks = layout["pages"][0]["blocks"]
+        bullets = sorted(
+            [b for b in blocks if b["type"] == "shape:circle"],
+            key=lambda b: b["y"],
+        )
+        texts = sorted(
+            [
+                b
+                for b in blocks
+                if b["type"] == "text" and "Header" not in (b.get("content") or "")
+            ],
+            key=lambda b: b["y"],
+        )
+        self.assertEqual(len(bullets), 4)
+        self.assertEqual(len(texts), 4)
+        font_mm = 10 * MM_PER_PT
+        for bullet, text in zip(bullets, texts, strict=True):
+            expected = text["y"] + CSS_TEXT_PAD_TOP_MM + font_mm * 0.38 - bullet["h"] / 2
+            self.assertLess(
+                abs(bullet["y"] - expected),
+                0.35,
+                f"bullet y={bullet['y']} expected={expected:.2f} text={text.get('content')}",
+            )
+            # Pas de puce sous la dernière ligne (décalage d'une ligne).
+            self.assertLess(bullet["y"], text["y"] + text["h"] * 0.7)
 
 
 if __name__ == "__main__":

@@ -411,3 +411,187 @@ test('bind inPlace : titres annotés, corps PDF conservé', () => {
   assert.ok(blocks.some((b) => b.type === 'text' && String(b.content).includes('Head of Growth')));
   assert.equal(blocks.some((b) => b.type === 'experiences'), false);
 });
+
+test('classifyStructuralTextBlock : bullet XP qui cite le nom → pas identity', () => {
+  const hit = classifyStructuralTextBlock(
+    {
+      type: 'text',
+      content: 'Marie Martin a lancé 3 features chez ScaleUp en 2022',
+      x: 20,
+      y: 80,
+      w: 120,
+      h: 5,
+      style: { font_size: 11, bold: true },
+    },
+    { prenom: 'Marie', nom: 'Martin' },
+  );
+  assert.equal(hit, null);
+});
+
+test('bind inPlace : fragments de nom + texte fantôme → une identity', () => {
+  const layout = sanitizeLayoutV3({
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    freeform: true,
+    pages: [{
+      id: 'p1',
+      blocks: [
+        {
+          id: 'first',
+          type: 'text',
+          content: 'Marie',
+          x: 20,
+          y: 16,
+          w: 28,
+          h: 8,
+          z: 3,
+          style: { font_size: 12, bold: true },
+        },
+        {
+          id: 'full',
+          type: 'text',
+          content: 'Marie Martin',
+          x: 20,
+          y: 16,
+          w: 90,
+          h: 8,
+          z: 4,
+          style: { font_size: 18, bold: true },
+        },
+        {
+          id: 'ghost',
+          type: 'text',
+          content: 'Marie Martin',
+          x: 21,
+          y: 17,
+          w: 88,
+          h: 7,
+          z: 2,
+          style: { font_size: 18 },
+        },
+        {
+          id: 'body',
+          type: 'text',
+          content: 'Marie Martin a lancé 3 features chez ScaleUp',
+          x: 20,
+          y: 90,
+          w: 120,
+          h: 5,
+          z: 3,
+          style: { font_size: 10 },
+        },
+      ],
+    }],
+  });
+  const { layout: out } = bindStructuralTextToSemanticBlocks(layout, {
+    prenom: 'Marie',
+    nom: 'Martin',
+  });
+  const blocks = out.pages[0].blocks;
+  const identities = blocks.filter((b) => b.type === 'identity');
+  assert.equal(identities.length, 1);
+  assert.equal(identities[0].id, 'full');
+  assert.equal(blocks.some((b) => b.id === 'ghost'), false);
+  assert.equal(blocks.some((b) => b.id === 'first'), false);
+  assert.ok(blocks.some((b) => b.id === 'body'));
+});
+
+test('bind inPlace : email en-tête + pied → un contact, titres doublés fusionnés', () => {
+  const layout = sanitizeLayoutV3({
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    freeform: true,
+    pages: [{
+      id: 'p1',
+      blocks: [
+        {
+          id: 'mail1',
+          type: 'text',
+          content: 'marie@ex.com',
+          x: 20,
+          y: 28,
+          w: 50,
+          h: 4,
+          z: 3,
+          style: { font_size: 9 },
+        },
+        {
+          id: 'mail2',
+          type: 'text',
+          content: 'marie@ex.com',
+          x: 20,
+          y: 280,
+          w: 50,
+          h: 4,
+          z: 3,
+          style: { font_size: 8 },
+        },
+        {
+          id: 'h1',
+          type: 'text',
+          content: 'Expérience professionnelle',
+          x: 20,
+          y: 70,
+          w: 90,
+          h: 6,
+          z: 3,
+          style: { font_size: 12, bold: true },
+        },
+        {
+          id: 'h1b',
+          type: 'text',
+          content: 'Expérience professionnelle',
+          x: 20.5,
+          y: 70.4,
+          w: 88,
+          h: 6,
+          z: 2,
+          style: { font_size: 11, bold: true },
+        },
+        {
+          id: 'hSide',
+          type: 'text',
+          content: 'Compétences',
+          x: 8,
+          y: 70,
+          w: 40,
+          h: 6,
+          z: 3,
+          style: { font_size: 11, bold: true },
+        },
+        {
+          id: 'hMainSkills',
+          type: 'text',
+          content: 'Compétences',
+          x: 72,
+          y: 140,
+          w: 40,
+          h: 6,
+          z: 3,
+          style: { font_size: 11, bold: true },
+        },
+      ],
+    }],
+  });
+  const { layout: out } = bindStructuralTextToSemanticBlocks(layout, {
+    prenom: 'Marie',
+    nom: 'Martin',
+    email: 'marie@ex.com',
+  });
+  const blocks = out.pages[0].blocks;
+  const contacts = blocks.filter((b) => b.type === 'contact');
+  assert.equal(contacts.length, 1);
+  assert.equal(contacts[0].id, 'mail1');
+  const expTitles = blocks.filter((b) => (
+    b.type === 'title' && b.style?.semantic_section === 'experiences'
+  ));
+  assert.equal(expTitles.length, 1);
+  const skillTitles = blocks.filter((b) => (
+    b.type === 'title' && b.style?.semantic_section === 'skills'
+  ));
+  assert.equal(skillTitles.length, 2);
+});

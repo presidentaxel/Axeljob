@@ -13,6 +13,7 @@ import {
   buildStructuralImportLayout,
   buildThemeFromVisionImport,
   estimateSemanticBlockHeight,
+  ensureImportLayoutHasContent,
   inferThemeFromProfile,
   isStructuralLayout,
   mergePresetDecorations,
@@ -216,6 +217,35 @@ test('buildStructuralImportLayout : mix in-place (identity/title, corps PDF cons
   assert.ok(blocks.some((b) => b.type === 'title' && b.style?.semantic_section === 'experiences'));
   assert.ok(blocks.some((b) => b.type === 'text' && String(b.content || '').includes('Head of Growth')));
   assert.equal(blocks.some((b) => b.type === 'experiences'), false);
+});
+
+test('ensureImportLayoutHasContent : copie PDF freeform ne seed pas de widgets', () => {
+  const layout = sanitizeLayoutV3({
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    freeform: true,
+    pages: [{
+      id: 'p1',
+      blocks: [
+        {
+          id: 'bg',
+          type: 'shape:rect',
+          x: 0,
+          y: 0,
+          w: 18,
+          h: 297,
+          z: 0,
+          style: { color: '#003c33' },
+        },
+      ],
+    }],
+  });
+  const out = ensureImportLayoutHasContent(layout, DENSE_CV);
+  assert.equal(out.pages[0].blocks.some((b) => b.type === 'experiences'), false);
+  assert.equal(out.pages[0].blocks.some((b) => b.type === 'identity'), false);
+  assert.equal(out.pages[0].blocks.length, 1);
 });
 
 test('applyImportedRoundImageShapes : anneau vectoriel → image en cercle', () => {

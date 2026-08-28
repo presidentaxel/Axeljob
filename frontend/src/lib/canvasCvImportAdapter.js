@@ -60,6 +60,11 @@ export function countContentBlocks(layout) {
 export function ensureImportLayoutHasContent(layout, cv) {
   if (!layout?.pages?.length) return layout;
   if (countContentBlocks(layout) > 0) return layout;
+  // Copie PDF : ne pas coller identity/XP générés sous une géométrie extraite
+  // (même décorative-only). Les répliques template gardent le seed AXE-344.
+  if (layout.freeform === true && layout.replica_cascade !== true) {
+    return layout;
+  }
   return optimizeAddMissingProfileSections(layout, cv || {});
 }
 

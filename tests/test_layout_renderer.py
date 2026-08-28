@@ -446,8 +446,49 @@ class TestLayoutRenderer(unittest.TestCase):
         cv = _sample_cv()
         cv["photo_url"] = "https://example.com/p.jpg"
         html = render_html(cv, layout)
-        self.assertIn("cv-layout-identity-divider", html)
+        self.assertIn("cv-layout-identity--with-divider", html)
         self.assertIn("border:0.5mm solid #111111", html)
+
+    def test_title_accent_is_not_a_divider(self):
+        layout = {
+            "version": 3,
+            "theme": {
+                "template_id": "bold",
+                "color_accent": "#dc2626",
+                "font_heading": "'Plus Jakarta Sans', Arial, sans-serif",
+            },
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "id",
+                            "type": "identity",
+                            "x": 10,
+                            "y": 10,
+                            "w": 120,
+                            "h": 18,
+                            "z": 1,
+                            "style": {
+                                "zone": "header",
+                                "header_layout": "inline-title",
+                                "title_accent": True,
+                            },
+                        }
+                    ],
+                }
+            ],
+        }
+        html = render_html(_sample_cv(), layout)
+        body = html.split("<body", 1)[-1]
+        self.assertNotIn("identity--with-divider", body)
+        self.assertIn("cv-layout-identity-title--accent", body)
+        self.assertIn("@font-face", html)
+        self.assertIn("PlusJakartaSans", html)
+        self.assertIn("--layout-muted", html)
+        style_block = html.split("<style>")[1].split("</style>")[0]
+        self.assertIn("Plus Jakarta Sans", style_block)
+        self.assertNotIn("&#x27;", style_block)
 
     def test_qrcode_remains_placeholder(self):
         layout = {
@@ -503,6 +544,641 @@ class TestLayoutRenderer(unittest.TestCase):
         html = render_html(_sample_cv(), layout)
         self.assertIn("cv-layout-section-title--pill", html)
         self.assertIn(">Parcours<", html)
+
+    def test_twin_title_and_exp_styles(self):
+        """AXE-38 tranche 2 : mapping title_style / exp_style catalogue."""
+        layout = {
+            "version": 3,
+            "theme": {
+                "template_id": "creative",
+                "color_accent": "#f59e0b",
+                "color_section_title": "#6366f1",
+                "color_sidebar": "#6366f1",
+                "color_header": "#6366f1",
+            },
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "exp",
+                            "type": "experiences",
+                            "x": 10,
+                            "y": 10,
+                            "w": 180,
+                            "h": 60,
+                            "z": 1,
+                            "style": {
+                                "section_label": "EXPÉRIENCE",
+                                "title_style": "creative-main",
+                                "exp_style": "creative",
+                            },
+                        },
+                        {
+                            "id": "skills",
+                            "type": "skills",
+                            "x": 10,
+                            "y": 80,
+                            "w": 60,
+                            "h": 40,
+                            "z": 2,
+                            "style": {
+                                "zone": "sidebar",
+                                "color": "#ffffff",
+                                "section_label": "COMPÉTENCES",
+                                "title_style": "creative-sidebar",
+                            },
+                        },
+                        {
+                            "id": "photo",
+                            "type": "photo",
+                            "x": 10,
+                            "y": 10,
+                            "w": 30,
+                            "h": 30,
+                            "z": 3,
+                            "style": {
+                                "zone": "sidebar",
+                                "shape": "circle",
+                                "photo_border": "accent",
+                            },
+                        },
+                        {
+                            "id": "bold",
+                            "type": "experiences",
+                            "x": 10,
+                            "y": 130,
+                            "w": 180,
+                            "h": 40,
+                            "z": 4,
+                            "limit": 1,
+                            "style": {
+                                "section_label": "PARCOURS",
+                                "title_style": "bold-main",
+                                "exp_style": "bold",
+                            },
+                        },
+                    ],
+                }
+            ],
+        }
+        html = render_html(_sample_cv(), layout)
+        self.assertIn("--layout-section-title: #6366f1", html)
+        self.assertIn("--layout-header: #6366f1", html)
+        self.assertIn("cv-layout-doc--tpl-creative", html)
+        body = html.split("<body", 1)[1]
+        self.assertIn("cv-layout-section-title--creative-main", body)
+        self.assertIn("cv-layout-section-title--creative-sidebar", body)
+        self.assertIn("cv-layout-section-title--bold-main", body)
+        self.assertNotIn("cv-layout-section-title--twin-main", body)
+        self.assertNotIn("cv-layout-section-title--sidebar-bar", body)
+        self.assertIn('data-zone="sidebar"', html)
+        self.assertIn("cv-layout-ats-label", html)
+        self.assertIn("cv-layout-exp-left", html)
+        self.assertIn("cv-layout-bullets--dash", html)
+        self.assertIn("cv-layout-bullets--chevron", html)
+        self.assertIn("Organisation :", html)
+        # Dates twin : tiret ASCII
+        self.assertRegex(html, r"\d{4} - \d{4}|\d{4} - | - \d{4}")
+
+    def test_title_style_zone_and_empty_intersections(self):
+        """title_style × template × zone × empty — aligné FreeCanvasBlock."""
+        cv = _sample_cv()
+        cv["certifications"] = []
+        cv["formations"] = [
+            {
+                "diplome": "BBA",
+                "etablissement": "ESSEC",
+                "date": "2023-2027",
+            }
+        ]
+        layout = {
+            "version": 3,
+            "theme": {
+                "template_id": "bold",
+                "color_accent": "#dc2626",
+                "color_section_title": "#1e293b",
+                "color_header": "#1e293b",
+                "color_sidebar": "#f1f5f9",
+            },
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "id",
+                            "type": "identity",
+                            "x": 10,
+                            "y": 10,
+                            "w": 120,
+                            "h": 20,
+                            "z": 1,
+                            "style": {
+                                "zone": "header",
+                                "header_layout": "inline-title",
+                                "title_accent": True,
+                            },
+                        },
+                        {
+                            "id": "contact",
+                            "type": "contact",
+                            "x": 10,
+                            "y": 32,
+                            "w": 180,
+                            "h": 10,
+                            "z": 1,
+                            "style": {
+                                "zone": "header",
+                                "align": "center",
+                                "contact_layout": "header-bar",
+                                "contact_icons": True,
+                                "contact_uppercase": True,
+                            },
+                        },
+                        {
+                            "id": "skills",
+                            "type": "skills",
+                            "x": 140,
+                            "y": 50,
+                            "w": 50,
+                            "h": 40,
+                            "z": 2,
+                            "style": {
+                                "zone": "sidebar-light",
+                                "section_label": "COMPÉTENCES",
+                                "sidebar_category": "Compétences techniques",
+                                "title_style": "bold-sidebar-section",
+                                "list_format": "list",
+                            },
+                        },
+                        {
+                            "id": "certs",
+                            "type": "certifications",
+                            "x": 140,
+                            "y": 95,
+                            "w": 50,
+                            "h": 20,
+                            "z": 2,
+                            "style": {
+                                "zone": "sidebar-light",
+                                "sidebar_category": "Certifications",
+                                "title_style": "bold-sidebar-category",
+                            },
+                        },
+                        {
+                            "id": "form",
+                            "type": "formations",
+                            "x": 10,
+                            "y": 50,
+                            "w": 120,
+                            "h": 30,
+                            "z": 2,
+                            "style": {
+                                "zone": "main",
+                                "section_label": "FORMATION",
+                                "title_style": "bold-main",
+                                "formation_style": "minimal",
+                            },
+                        },
+                        {
+                            "id": "resume",
+                            "type": "resume",
+                            "x": 10,
+                            "y": 85,
+                            "w": 120,
+                            "h": 20,
+                            "z": 2,
+                            "style": {
+                                "zone": "header",
+                                "show_section_title": False,
+                            },
+                        },
+                    ],
+                }
+            ],
+        }
+        html = render_html(cv, layout)
+        self.assertIn("cv-layout-section-title--bold-sidebar-section", html)
+        self.assertIn("cv-layout-section-title--bold-main", html)
+        self.assertIn("cv-layout-sidebar-category--bold-sidebar-category", html)
+        self.assertIn('data-zone="sidebar-light"', html)
+        self.assertIn("cv-layout-contact--align-center", html)
+        self.assertIn("cv-layout-formation--minimal", html)
+        self.assertIn("cv-layout-formation-date", html)
+        self.assertIn("cv-layout-dates--accent", html)
+        self.assertIn("ESSEC - BBA", html)
+        self.assertNotIn("(2023-2027)", html)
+        # Catégorie seule : pas de h3 défaut « Certifications » empilé.
+        self.assertNotRegex(
+            html.split('data-block-id="certs"', 1)[1].split("</div>", 1)[0],
+            r"<h3[^>]*>Certifications</h3>",
+        )
+        # Liste vide : pas de titre section (placeholder seul, comme le canvas).
+        certs_chunk = html.split('data-block-id="certs"', 1)[1][:800]
+        self.assertNotIn("COMPÉTENCES", certs_chunk)
+        self.assertIn("cv-layout-placeholder", certs_chunk)
+        # show_section_title false : pas de PROFIL.
+        resume_chunk = html.split('data-block-id="resume"', 1)[1][:600]
+        self.assertNotIn("PROFIL", resume_chunk)
+        self.assertNotIn("cv-layout-section-title", resume_chunk)
+
+    def test_style_tokens_apply_without_template_id(self):
+        """Canva : les tokens de bloc suffisent, sans cv-layout-doc--tpl-*."""
+        cv = _sample_cv()
+        cv["competences"] = {
+            "techniques": ["Python"],
+            "logiciels": ["Excel"],
+            "langues": [{"langue": "Français", "niveau": "Natif"}],
+        }
+        cv["formations"] = [
+            {"diplome": "BBA", "etablissement": "ESSEC", "date": "2023-2027"},
+        ]
+        layout = {
+            "version": 3,
+            "theme": {"color_accent": "#dc2626", "color_section_title": "#6366f1"},
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "exp",
+                            "type": "experiences",
+                            "x": 10,
+                            "y": 10,
+                            "w": 120,
+                            "h": 50,
+                            "z": 1,
+                            "style": {
+                                "title_style": "creative-main",
+                                "exp_style": "creative",
+                                "section_label": "EXP",
+                            },
+                        },
+                        {
+                            "id": "form",
+                            "type": "formations",
+                            "x": 10,
+                            "y": 65,
+                            "w": 120,
+                            "h": 20,
+                            "z": 1,
+                            "style": {
+                                "title_style": "bold-main",
+                                "formation_style": "minimal",
+                                "section_label": "FORMATION",
+                            },
+                        },
+                        {
+                            "id": "skills",
+                            "type": "skills",
+                            "x": 140,
+                            "y": 10,
+                            "w": 50,
+                            "h": 40,
+                            "z": 1,
+                            "style": {
+                                "title_style": "modern-sidebar",
+                                "zone": "sidebar",
+                                "skills_nested_outils": True,
+                                "format": "chips",
+                                "section_label": "SKILLS",
+                            },
+                        },
+                        {
+                            "id": "langs",
+                            "type": "languages",
+                            "x": 140,
+                            "y": 55,
+                            "w": 50,
+                            "h": 20,
+                            "z": 1,
+                            "style": {
+                                "title_style": "minimal-section",
+                                "list_format": "list",
+                                "section_label": "LANGUES",
+                            },
+                        },
+                        {
+                            "id": "contact",
+                            "type": "contact",
+                            "x": 10,
+                            "y": 90,
+                            "w": 180,
+                            "h": 10,
+                            "z": 1,
+                            "style": {
+                                "zone": "header",
+                                "contact_layout": "header-bar",
+                                "contact_separator": " · ",
+                                "align": "left",
+                                "nowrap": True,
+                            },
+                        },
+                    ],
+                }
+            ],
+        }
+        html = render_html(cv, layout)
+        self.assertRegex(html, r'class="cv-layout-doc">')
+        self.assertNotRegex(html, r'class="cv-layout-doc cv-layout-doc--tpl-')
+        body = html.split("<body", 1)[1]
+        self.assertIn("cv-layout-section-title--creative-main", body)
+        self.assertIn("cv-layout-section-title--bold-main", body)
+        self.assertIn("cv-layout-section-title--modern-sidebar", body)
+        self.assertIn("cv-layout-section-title--minimal-section", body)
+        self.assertIn("cv-layout-exp--creative", body)
+        self.assertIn("cv-layout-dates--accent", body)
+        self.assertIn("cv-layout-bullets--chevron", body)
+        self.assertIn("cv-layout-formation--minimal", body)
+        self.assertIn("cv-layout-chip--tool", body)
+        self.assertIn("Excel", html)
+        self.assertIn("cv-layout-contact-spacer", body)
+        self.assertIn(" · ", html)
+        self.assertIn("white-space:nowrap", html)
+        self.assertIn("Français - Natif", html)
+        self.assertNotIn("Français (Natif)", body)
+
+    def test_photo_border_light_preset(self):
+        layout = {
+            "version": 3,
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "ph",
+                            "type": "photo",
+                            "x": 5,
+                            "y": 5,
+                            "w": 28,
+                            "h": 28,
+                            "z": 1,
+                            "style": {
+                                "shape": "circle",
+                                "zone": "sidebar",
+                                "photo_border": "light",
+                            },
+                        }
+                    ],
+                }
+            ],
+        }
+        cv = _sample_cv()
+        cv["photo_url"] = "https://example.com/p.jpg"
+        html = render_html(cv, layout)
+        self.assertIn("rgba(255, 255, 255, 0.3)", html)
+        self.assertIn("border:0.79mm", html)
+        self.assertIn('data-zone="sidebar"', html)
+
+    def test_photo_border_accent_thick_matches_canvas(self):
+        layout = {
+            "version": 3,
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "ph",
+                            "type": "photo",
+                            "x": 5,
+                            "y": 5,
+                            "w": 28,
+                            "h": 28,
+                            "z": 1,
+                            "style": {
+                                "shape": "circle",
+                                "zone": "header",
+                                "photo_border": "accent-thick",
+                            },
+                        }
+                    ],
+                }
+            ],
+        }
+        cv = _sample_cv()
+        cv["photo_url"] = "https://example.com/p.jpg"
+        html = render_html(cv, layout)
+        self.assertIn("border:0.8mm solid var(--layout-accent", html)
+        self.assertIn("cv-layout-image-clip", html)
+        self.assertNotIn("border:1.1mm", html)
+
+    def test_hairline_shape_line_minimum(self):
+        layout = {
+            "version": 3,
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "line",
+                            "type": "shape:line",
+                            "x": 10,
+                            "y": 40,
+                            "w": 80,
+                            "h": 0.15,
+                            "z": 1,
+                            "style": {"color": "#e2e8f0", "stroke_width": 0.15},
+                        }
+                    ],
+                }
+            ],
+        }
+        html = render_html(_sample_cv(), layout)
+        self.assertIn("cv-layout-shape-line", html)
+        self.assertIn("height:0.4mm;width:100%", html)
+        self.assertIn("overflow: visible", html)
+
+    def test_contact_icon_and_dash_colors_in_css(self):
+        html = render_html(_sample_cv(), _starter_layout())
+        self.assertIn(".cv-layout-bullets--dash li::before", html)
+        self.assertIn("color: #1e293b", html)
+
+    def test_contact_icons_are_outline_with_accent_stroke(self):
+        layout = {
+            "version": 3,
+            "theme": {"template_id": "bold", "color_accent": "#dc2626"},
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "c",
+                            "type": "contact",
+                            "x": 10,
+                            "y": 10,
+                            "w": 180,
+                            "h": 10,
+                            "z": 1,
+                            "style": {
+                                "zone": "header",
+                                "contact_layout": "header-bar",
+                                "contact_icons": True,
+                            },
+                        }
+                    ],
+                }
+            ],
+        }
+        html = render_html(_sample_cv(), layout)
+        self.assertIn('fill="none"', html)
+        self.assertIn('stroke="#dc2626"', html)
+        self.assertIn('stroke-width="1.5"', html)
+
+    def test_elegant_chips_have_no_border(self):
+        cv = _sample_cv()
+        cv["competences"] = {
+            "techniques": ["Python", "Excel"],
+            "logiciels": ["Claude"],
+        }
+        layout = {
+            "version": 3,
+            "theme": {"template_id": "elegant", "font_heading": "Georgia, serif"},
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "sk",
+                            "type": "skills",
+                            "x": 10,
+                            "y": 40,
+                            "w": 180,
+                            "h": 20,
+                            "z": 1,
+                            "style": {
+                                "title_style": "elegant-section",
+                                "format": "chips",
+                                "section_label": "COMPÉTENCES",
+                                "skills_nested_outils": True,
+                            },
+                        },
+                        {
+                            "id": "rule",
+                            "type": "shape:rect",
+                            "x": 10,
+                            "y": 30,
+                            "w": 180,
+                            "h": 0.15,
+                            "z": 0,
+                            "style": {"color": "#e2e8f0"},
+                        },
+                    ],
+                }
+            ],
+        }
+        html = render_html(cv, layout)
+        self.assertIn("cv-layout-section--elegant", html)
+        self.assertIn("cv-layout-chip--tool", html)
+        self.assertIn("cv-layout-block--hairline", html)
+        self.assertIn("height:0.4mm;width:100%", html)
+        self.assertIn("border: none", html)
+
+    def test_header_zone_without_dark_rect_keeps_readable_ink(self):
+        layout = {
+            "version": 3,
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "id",
+                            "type": "identity",
+                            "x": 10,
+                            "y": 10,
+                            "w": 100,
+                            "h": 20,
+                            "z": 1,
+                            "style": {"zone": "header"},
+                        }
+                    ],
+                }
+            ],
+        }
+        html = render_html(_sample_cv(), layout)
+        ident = html.split('data-block-id="id"', 1)[1].split("</div>", 1)[0]
+        self.assertIn('data-zone="header"', ident)
+        self.assertNotIn("data-on-dark", ident)
+
+    def test_header_zone_on_dark_rect_marks_on_dark(self):
+        layout = {
+            "version": 3,
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "bg",
+                            "type": "shape:rect",
+                            "x": 0,
+                            "y": 0,
+                            "w": 210,
+                            "h": 40,
+                            "z": 0,
+                            "style": {"color": "#1e293b"},
+                        },
+                        {
+                            "id": "id",
+                            "type": "identity",
+                            "x": 10,
+                            "y": 8,
+                            "w": 100,
+                            "h": 20,
+                            "z": 2,
+                            "style": {"zone": "header"},
+                        },
+                    ],
+                }
+            ],
+        }
+        html = render_html(_sample_cv(), layout)
+        ident = html.split('data-block-id="id"', 1)[1].split(">", 1)[0]
+        self.assertIn('data-on-dark="1"', ident)
+
+    def test_invalid_photo_border_color_falls_back(self):
+        layout = {
+            "version": 3,
+            "pages": [
+                {
+                    "id": "p1",
+                    "blocks": [
+                        {
+                            "id": "ph",
+                            "type": "photo",
+                            "x": 5,
+                            "y": 5,
+                            "w": 28,
+                            "h": 28,
+                            "z": 1,
+                            "style": {
+                                "photo_border": 0.5,
+                                "image_border_color": "red;background:yellow",
+                            },
+                        }
+                    ],
+                }
+            ],
+        }
+        cv = _sample_cv()
+        cv["photo_url"] = "https://example.com/p.jpg"
+        html = render_html(cv, layout)
+        self.assertIn("border:0.5mm solid #1e293b", html)
+        self.assertNotIn("background:yellow", html)
+
+
+class TestCssColor(unittest.TestCase):
+    def test_hex_and_rgb_accepted(self):
+        from backend.services.layout_renderer import _css_color
+
+        self.assertEqual(_css_color("#1e293b"), "#1e293b")
+        self.assertEqual(_css_color("rgb(30, 41, 59)"), "rgb(30, 41, 59)")
+        self.assertEqual(_css_color("rgba(255, 255, 255, 0.3)"), "rgba(255, 255, 255, 0.3)")
+
+    def test_junk_falls_back(self):
+        from backend.services.layout_renderer import _css_color
+
+        self.assertEqual(_css_color("rgb(" * 40), "#1e293b")
+        self.assertEqual(_css_color("red"), "#1e293b")
+        self.assertEqual(_css_color("rgb(1,2,3);background:red"), "#1e293b")
 
 
 if __name__ == "__main__":

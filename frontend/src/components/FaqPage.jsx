@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ARTICLE_SOURCE_URLS as U } from '../content/articleSources.js';
+import { analyticsAttrs } from '../lib/analyticsAttrs.js';
+import { persistLoginCta } from '../../public/signupAttribution.js';
 import ContentScrollToTop from './ContentScrollToTop';
 import './ContentPages.css';
 
@@ -97,7 +99,7 @@ export default function FaqPage({ onBack }) {
     <div className="content-page">
       <header className="content-header">
         <div className="content-header-inner">
-          <Link to="/" className="content-back" onClick={(e) => { e.preventDefault(); onBack?.(); }}>
+          <Link to="/" className="content-back" onClick={(e) => { e.preventDefault(); onBack?.(); }} {...analyticsAttrs('nav-link-back', 'header', 'tertiary', 'nav')}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6" /></svg>
             Retour à l&apos;accueil
           </Link>
@@ -113,36 +115,36 @@ export default function FaqPage({ onBack }) {
         </div>
       </section>
 
-      <section className="content-section">
+      <section className="content-section" data-section="faq">
         <div className="content-section-inner faq-inner">
           {FAQ_ITEMS.map((item) => (
             <article key={item.slug} id={item.slug} className="faq-item">
-              <h2 className="faq-question">{item.q}</h2>
+              <h2 className="faq-question" {...analyticsAttrs(`faq-question-${item.slug}`, 'faq', 'tertiary')}>{item.q}</h2>
               <div className="faq-answer">{item.a}</div>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="content-cta">
+      <section className="content-cta" data-section="content-cta">
         <div className="content-cta-inner">
           <h2>Un CV adapté à chaque offre, en un clic</h2>
           <p>Essaie AxeL Job gratuitement. 3 adaptations offertes, sans carte bancaire.</p>
-          <Link to="/login" className="button button-primary">Essayer gratuitement</Link>
+          <Link to="/login" className="button button-primary" onClick={() => persistLoginCta('faq-cta-signup')} {...analyticsAttrs('faq-cta-signup', 'content', 'primary', 'cta')}>Essayer gratuitement</Link>
         </div>
       </section>
 
       <footer className="content-footer">
         <nav className="content-footer-nav">
-          <Link to="/ats">CV et ATS</Link>
-          <Link to="/modeles-cv">Modèles de CV</Link>
-          <Link to="/guide-cv">Guide CV</Link>
-          <Link to="/erreurs-cv">Erreurs à éviter</Link>
-          <Link to="/cv-par-metier">CV par métier</Link>
-          <Link to="/cv-adapte-chaque-offre">CV adapté à chaque offre</Link>
-          <Link to="/mentions-legales">Mentions légales</Link>
-          <Link to="/confidentialite">Confidentialité</Link>
-          <Link to="/cgu">CGU</Link>
+          <Link to="/ats" {...analyticsAttrs('footer-link-ats', 'footer', 'tertiary', 'nav')}>CV et ATS</Link>
+          <Link to="/modeles-cv" {...analyticsAttrs('footer-link-modeles', 'footer', 'tertiary', 'nav')}>Modèles de CV</Link>
+          <Link to="/guide-cv" {...analyticsAttrs('footer-link-guide', 'footer', 'tertiary', 'nav')}>Guide CV</Link>
+          <Link to="/erreurs-cv" {...analyticsAttrs('footer-link-erreurs', 'footer', 'tertiary', 'nav')}>Erreurs à éviter</Link>
+          <Link to="/cv-par-metier" {...analyticsAttrs('footer-link-metier', 'footer', 'tertiary', 'nav')}>CV par métier</Link>
+          <Link to="/cv-adapte-chaque-offre" {...analyticsAttrs('footer-link-adapte', 'footer', 'tertiary', 'nav')}>CV adapté à chaque offre</Link>
+          <Link to="/mentions-legales" {...analyticsAttrs('footer-link-mentions', 'footer', 'tertiary', 'nav')}>Mentions légales</Link>
+          <Link to="/confidentialite" {...analyticsAttrs('footer-link-confidentialite', 'footer', 'tertiary', 'nav')}>Confidentialité</Link>
+          <Link to="/cgu" {...analyticsAttrs('footer-link-cgu', 'footer', 'tertiary', 'nav')}>CGU</Link>
         </nav>
       </footer>
       <ContentScrollToTop />

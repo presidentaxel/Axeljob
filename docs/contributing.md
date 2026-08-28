@@ -22,7 +22,7 @@ Flux recommande pour produire des PR petites, lisibles et faciles a merger.
 > Branche = **exactement** le `gitBranchName` Linear (`louisvedovato/axe-XX-…`), titre PR `fix(AXE-XX): …` / `feat(AXE-XX): …`,
 > body avec `Fixes AXE-XX` + `Closes #N`, et attachments liens sur l'issue Linear.
 >
-> Workflow Git / PR-first (`main`, `wip/innovation`) : [`docs/git-workflow.md`](git-workflow.md).  
+> Workflow Git / PR-first (`main` = intégration, `prod` = production, `wip/innovation`) : [`docs/git-workflow.md`](git-workflow.md) · [`docs/ADR_MAIN_PROD.md`](ADR_MAIN_PROD.md).  
 > Protections branches : [`docs/branch-protections.md`](branch-protections.md).
 
 > [!TIP]

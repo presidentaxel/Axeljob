@@ -270,6 +270,12 @@ def _gemini_usage_guard():
         return lambda uid: None, lambda uid, op, r: None
 
 
+def _capture_adapt_failure(kind: str | None = None, exc: BaseException | None = None) -> None:
+    from backend.sentry_business import capture_adapt_gemini_failure
+
+    capture_adapt_gemini_failure(kind=kind, exc=exc)
+
+
 def adapter_cv(
     cv_base: dict,
     offre: dict,
@@ -305,12 +311,17 @@ def adapter_cv(
 
     def _call(prompt: str) -> tuple[str, object]:
         full_prompt = SYSTEM_PROMPT.strip() + "\n\n---\n\n" + prompt
-        r = client.models.generate_content(
-            model=model_id,
-            contents=full_prompt,
-            config=config,
-        )
+        try:
+            r = client.models.generate_content(
+                model=model_id,
+                contents=full_prompt,
+                config=config,
+            )
+        except Exception as exc:
+            _capture_adapt_failure(exc=exc)
+            raise
         if not r or not getattr(r, "text", None):
+            _capture_adapt_failure(kind="gemini_empty")
             raise ValueError("Réponse Gemini vide")
         return r.text, r
 
@@ -327,6 +338,7 @@ def adapter_cv(
         tweaks = _extract_json(raw or "")
 
     if tweaks is None:
+        _capture_adapt_failure(kind="gemini_unparseable")
         raise ValueError("Impossible d'extraire un JSON valide de la réponse Gemini.")
 
     _sanitize_tweaks_text(tweaks)
@@ -451,12 +463,17 @@ def _adapt_gemini_json(system: str, user: str, user_id: str | None, operation: s
 
     def _call(prompt: str) -> tuple[str, object]:
         full_prompt = system.strip() + "\n\n---\n\n" + prompt
-        r = client.models.generate_content(
-            model=GEMINI_MODEL_DEFAULT,
-            contents=full_prompt,
-            config=config,
-        )
+        try:
+            r = client.models.generate_content(
+                model=GEMINI_MODEL_DEFAULT,
+                contents=full_prompt,
+                config=config,
+            )
+        except Exception as exc:
+            _capture_adapt_failure(exc=exc)
+            raise
         if not r or not getattr(r, "text", None):
+            _capture_adapt_failure(kind="gemini_empty")
             raise ValueError("Réponse Gemini vide")
         return r.text, r
 
@@ -471,6 +488,7 @@ def _adapt_gemini_json(system: str, user: str, user_id: str | None, operation: s
         record_and_check(user_id, operation, resp2)
         data = _extract_json(raw2 or "")
     if data is None:
+        _capture_adapt_failure(kind="gemini_unparseable")
         raise ValueError("Impossible d'extraire un JSON valide de la réponse Gemini.")
     return data
 

@@ -53,7 +53,8 @@ test('listNonFaithfulBlocks et résumé', () => {
       blocks: [
         { id: 'a', type: 'identity' },
         { id: 'b', type: 'qrcode' },
-        { id: 'c', type: 'experiences', style: { exp_style: 'bold' } },
+        { id: 'c', type: 'experiences', style: { exp_style: 'bold', title_style: 'bold-main' } },
+        { id: 'd', type: 'text', style: { effect: 'glow' } },
       ],
     }],
   };
@@ -61,4 +62,31 @@ test('listNonFaithfulBlocks et résumé', () => {
   assert.equal(issues.length, 2);
   assert.equal(layoutHasNonFaithfulBlocks(layout, {}), true);
   assert.match(summarizeNonFaithfulBlocks(issues), /qrcode/);
+});
+
+test('getBlockPdfFidelity : title_style / exp_style twin = ok (AXE-38 t2)', () => {
+  for (const title_style of [
+    'modern-main',
+    'creative-main',
+    'classic-main',
+    'executive-main',
+    'bold-main',
+    'elegant-section',
+    'minimal-section',
+    'modern-sidebar',
+    'creative-sidebar',
+  ]) {
+    assert.equal(
+      getBlockPdfFidelity({ id: '1', type: 'resume', style: { title_style } }).level,
+      'ok',
+      title_style,
+    );
+  }
+  for (const exp_style of ['bold', 'modern', 'creative', 'executive', 'classic', 'minimal', 'elegant']) {
+    assert.equal(
+      getBlockPdfFidelity({ id: '2', type: 'experiences', style: { exp_style } }).level,
+      'ok',
+      exp_style,
+    );
+  }
 });

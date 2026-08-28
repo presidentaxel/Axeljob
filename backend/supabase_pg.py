@@ -20,6 +20,39 @@ logger = logging.getLogger(__name__)
 _pool = None
 
 
+class _SentryAwarePool:
+    """Relais ConnectionPool : signale un PoolTimeout sans changer l'API."""
+
+    def __init__(self, pool: Any) -> None:
+        self._pool = pool
+
+    def connection(self, *args: Any, **kwargs: Any) -> Any:
+        try:
+            return self._pool.connection(*args, **kwargs)
+        except Exception as exc:
+            name = type(exc).__name__
+            if name in {"PoolTimeout", "PoolClosed"} or "pooltimeout" in name.lower():
+                from backend.sentry_business import capture_pg_pool_exhausted
+
+                capture_pg_pool_exhausted(exc)
+            raise
+
+    def __enter__(self) -> _SentryAwarePool:
+        enter = getattr(self._pool, "__enter__", None)
+        if callable(enter):
+            enter()
+        return self
+
+    def __exit__(self, *args: Any) -> Any:
+        leave = getattr(self._pool, "__exit__", None)
+        if callable(leave):
+            return leave(*args)
+        return None
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._pool, name)
+
+
 def is_configured() -> bool:
     from backend.config import SUPABASE_DATABASE_URL, USE_SUPABASE
 
@@ -37,16 +70,18 @@ def get_pool():
 
     from backend.config import SUPABASE_DATABASE_URL, supabase_pg_pool_max
 
-    _pool = ConnectionPool(
-        conninfo=SUPABASE_DATABASE_URL,
-        min_size=1,
-        max_size=supabase_pg_pool_max(),
-        kwargs={
-            "connect_timeout": int(os.environ.get("SUPABASE_PG_CONNECT_TIMEOUT", "10")),
-            "options": "-c statement_timeout=30000",  # 30s max par statement
-        },
-        open=True,
-        name="cv_bot_supabase",
+    _pool = _SentryAwarePool(
+        ConnectionPool(
+            conninfo=SUPABASE_DATABASE_URL,
+            min_size=1,
+            max_size=supabase_pg_pool_max(),
+            kwargs={
+                "connect_timeout": int(os.environ.get("SUPABASE_PG_CONNECT_TIMEOUT", "10")),
+                "options": "-c statement_timeout=30000",  # 30s max par statement
+            },
+            open=True,
+            name="cv_bot_supabase",
+        )
     )
     return _pool
 

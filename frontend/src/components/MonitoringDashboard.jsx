@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { apiGet } from '../api';
 import { HiChartBarSquare } from 'react-icons/hi2';
+import { analyticsAttrs } from '../lib/analyticsAttrs.js';
 
 const DAY_OPTIONS = [7, 14, 30];
 
@@ -123,7 +124,7 @@ export default function MonitoringDashboard({ usage }) {
               ))}
             </select>
           </label>
-          <button type="button" className="button button-secondary monitoring-refresh" onClick={load} disabled={loading}>
+          <button type="button" className="button button-secondary monitoring-refresh" onClick={load} disabled={loading} {...analyticsAttrs('monitoring-header-cta-refresh', 'header', 'secondary', 'cta')}>
             {loading ? 'Chargement…' : 'Actualiser'}
           </button>
         </div>

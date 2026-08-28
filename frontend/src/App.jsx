@@ -16,10 +16,13 @@ import {
   trackEvent,
 } from './api';
 import { ensureAnalyticsFirstTouch, getStoredAttribution } from './analyticsSession';
+import { consumePlanIntentIfPro, maybeEmitSignUpForSession, wantsProCheckout } from '../public/signupAttribution.js';
+import { maybeEmitProductLogin, clearProductLoginSent } from './lib/productLogin.js';
 import { resetTemplateOptionsToDefaults } from './lib/templateOptionsSchema.js';
 import { useViewAnalytics } from './useViewAnalytics';
 import { supabase } from './lib/supabase';
 import { fetchAuthSessionWithTimeout } from './lib/supabaseAuthSession';
+import { analyticsAttrs } from './lib/analyticsAttrs.js';
 import AuthForm from './components/AuthForm';
 import AppTopbar from './components/AppTopbar';
 import CompanyLogo from './components/CompanyLogo';
@@ -573,7 +576,7 @@ function SupportTicketSection() {
                 required
               />
               {error && <p className="support-ticket-error">{error}</p>}
-              <button type="submit" className="button button-primary support-ticket-submit" disabled={loading}>
+              <button type="submit" className="button button-primary support-ticket-submit" disabled={loading} {...analyticsAttrs('support-ticket-cta-submit', 'ticket', 'primary', 'cta')}>
                 {loading ? 'Envoi…' : 'Envoyer le ticket'}
               </button>
             </form>
@@ -1110,6 +1113,11 @@ export default function App() {
       setAuthToken(s?.access_token ?? null);
       if (event === 'PASSWORD_RECOVERY') setRecoveryMode(true);
       if (s) setMfaChallengeChecked(false);
+      if (event === 'SIGNED_IN' && s?.user) {
+        maybeEmitSignUpForSession(s.user);
+        maybeEmitProductLogin(s.user, trackEvent);
+      }
+      if (event === 'SIGNED_OUT') clearProductLoginSent();
     });
     return () => subscription?.unsubscribe();
   }, []);
@@ -1279,7 +1287,8 @@ export default function App() {
     if (session) {
       const params = new URLSearchParams(location.search);
       if (pathname === '/' || pathname === '/login') {
-        if (params.get('plan') === 'pro') {
+        if (wantsProCheckout(location.search)) {
+          consumePlanIntentIfPro();
           navigate(APP_DEFAULT_ROUTE, { replace: true });
           setTimeout(() => handleUpgradeClick(), 500);
         } else {
@@ -3333,8 +3342,8 @@ export default function App() {
   if (!session) {
     if (pathname === '/login') {
       return (
-        <div className="login-screen">
-          <button type="button" className="login-screen-back" onClick={() => navigate('/')} aria-label="Retour à l'accueil">
+        <div className="login-screen" data-section="login">
+          <button type="button" className="login-screen-back" onClick={() => navigate('/')} aria-label="Retour à l'accueil" {...analyticsAttrs('nav-link-back', 'header', 'tertiary', 'nav')}>
             &larr; Retour à l&apos;accueil
           </button>
           <div className="login-screen-card">
@@ -3491,6 +3500,7 @@ export default function App() {
                   onClick={requestNewCandidatureWorkspace}
                   disabled={adapting}
                   title="Vider le chat et l’aperçu pour adapter ton CV à une autre offre (sans supprimer tes candidatures enregistrées)"
+                  {...analyticsAttrs('cv-header-cta-new', 'header', 'secondary', 'cta')}
                 >
                   Nouvelle candidature
                 </button>
@@ -3520,7 +3530,7 @@ export default function App() {
                 const rem = usage.adaptations_quota_remaining ?? (usage.adaptations_limit - usage.adaptations_used);
                 return rem <= 0 ? 'Tes adaptations gratuites sont épuisées.' : `Il te reste ${rem} adaptation${rem > 1 ? 's' : ''} gratuite${rem > 1 ? 's' : ''}.`;
               })()}</span>
-              <button type="button" className="button button-primary button--sm" onClick={handleUpgradeClick} disabled={checkoutLoading}>
+              <button type="button" className="button button-primary button--sm" onClick={handleUpgradeClick} disabled={checkoutLoading} {...analyticsAttrs('cv-banner-cta-upgrade', 'banner', 'primary', 'cta')}>
                 {checkoutLoading ? '…' : 'Passer Pro - 10€/mois'}
               </button>
             </div>
@@ -3669,6 +3679,7 @@ export default function App() {
                                     )
                                   )
                                 }
+                                {...analyticsAttrs('cv-todo-cta-run', 'todo', 'primary', 'cta')}
                               >
                                 Valider et lancer
                               </Button>
@@ -3774,8 +3785,9 @@ export default function App() {
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
                   rows={1}
                   disabled={adapting || adaptPlanLoading || (!!adaptTodoPlan && !lastAdaptedCv)}
+                  {...analyticsAttrs('cv-chat-input-offer', 'chat', 'tertiary', 'input')}
                 />
-                <button type="button" className="cv-chat-input-send" onClick={handleChatSend} disabled={adapting || adaptPlanLoading || !chatInput.trim() || (!!adaptTodoPlan && !lastAdaptedCv)} aria-label="Envoyer">
+                <button type="button" className="cv-chat-input-send" onClick={handleChatSend} disabled={adapting || adaptPlanLoading || !chatInput.trim() || (!!adaptTodoPlan && !lastAdaptedCv)} aria-label="Envoyer" {...analyticsAttrs('cv-chat-cta-send', 'chat', 'primary', 'cta')}>
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
                 </button>
               </div>
@@ -3804,6 +3816,7 @@ export default function App() {
                       onClick={downloadBaseCvPdf}
                       disabled={baseCvPdfLoading}
                       title="Télécharger ton CV de profil (sans adaptation) en PDF, avec le template et les options actuels"
+                      {...analyticsAttrs('cv-preview-cta-base-pdf', 'preview', 'secondary', 'cta')}
                     >
                       <span className="tpl-btn-bar-extra-icon" aria-hidden>
                         <HiArrowDownTray size={16} strokeWidth={2} />
@@ -3974,6 +3987,7 @@ export default function App() {
                           aria-expanded={atsScoreOpen}
                           aria-haspopup="dialog"
                           aria-controls="ats-score-modal"
+                          {...analyticsAttrs('cv-export-cta-ats', 'export', 'tertiary', 'cta')}
                         >
                           <span className="ats-score-pill-label">Score ATS</span>
                           {rapportBefore?.score_global != null && rapportBefore.score_global !== rapport.score_global ? (
@@ -4042,8 +4056,8 @@ export default function App() {
                     </>
                   )}
                   <div className="cv-chat-export-btns">
-                    <button type="button" className="button button-success" onClick={handlePdf} disabled={exporting}>Télécharger le PDF</button>
-                    <button type="button" className="button button-secondary" onClick={handleExportDossier} disabled={exporting} aria-busy={exporting}>
+                    <button type="button" className="button button-success" onClick={handlePdf} disabled={exporting} {...analyticsAttrs('cv-export-cta-pdf', 'export', 'primary', 'cta')}>Télécharger le PDF</button>
+                    <button type="button" className="button button-secondary" onClick={handleExportDossier} disabled={exporting} aria-busy={exporting} {...analyticsAttrs('cv-export-cta-dossier', 'export', 'secondary', 'cta')}>
                       {exporting ? (
                         <>
                           <span className="export-spinner" aria-hidden="true" />
@@ -4695,6 +4709,7 @@ export default function App() {
                       type="button"
                       className="support-usecase-card support-usecase-card--clickable"
                       onClick={() => navigate(topic.route, { state: { supportHighlight: { route: topic.route, selector: topic.selector, title: topic.bubbleTitle, content: topic.bubbleContent, position: topic.position, ...(topic.openTemplateOptions && { openTemplateOptions: true }) } } })}
+                      {...analyticsAttrs(`support-topic-${topic.id}`, 'topic', 'tertiary', 'nav')}
                     >
                       <div className="support-usecase-icon-wrap">
                         <Icon className="support-usecase-icon" aria-hidden />
@@ -4888,6 +4903,7 @@ export default function App() {
                     requestAnimationFrame(() => cvChatInputRef.current?.focus());
                     trackEvent('first_offer_nudge_cta', { action: 'go_cv' });
                   }}
+                  {...analyticsAttrs('cv-nudge-cta-go', 'nudge', 'primary', 'cta')}
                 >
                   Coller une offre
                 </button>
@@ -4901,6 +4917,7 @@ export default function App() {
                     } catch (_) { /* ignore */ }
                     trackEvent('first_offer_nudge_cta', { action: 'dismiss' });
                   }}
+                  {...analyticsAttrs('cv-nudge-cta-dismiss', 'nudge', 'secondary', 'cta')}
                 >
                   Plus tard
                 </button>

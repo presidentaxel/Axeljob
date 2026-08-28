@@ -21,6 +21,7 @@ import { applyA4PageFramesToDocument, syncCvPreviewIframeHeight } from '../lib/c
 import { buildBetaToStableOffer } from '../lib/designModeBridge.js';
 import { betaCanvasRenderFields } from '../lib/betaCanvasTemplate.js';
 import { HiArrowDownTray } from 'react-icons/hi2';
+import { analyticsAttrs } from '../lib/analyticsAttrs.js';
 import '../styles/ProfileView.css';
 import '../styles/TemplatePicker.css';
 import '../styles/DesignModeBridgeModal.css';
@@ -825,11 +826,11 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
         <p className="profile-subtitle">Complète tes informations. Le CV est généré à partir de ces données.</p>
         <div className="profile-header-actions">
           <input ref={importFileRef} type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style={{ display: 'none' }} onChange={handleImportCv} />
-          <button type="button" className="btn btn-import-cv" onClick={() => importFileRef.current?.click()} disabled={importLoading}>
+          <button type="button" className="btn btn-import-cv" onClick={() => importFileRef.current?.click()} disabled={importLoading} {...analyticsAttrs('profil-header-cta-import', 'header', 'secondary', 'cta')}>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             {importLoading ? 'Import…' : 'Importer un CV'}
           </button>
-          <button type="button" className="button button-primary profile-save-btn" onClick={handleSave} disabled={saving}>
+          <button type="button" className="button button-primary profile-save-btn" onClick={handleSave} disabled={saving} {...analyticsAttrs('profil-header-cta-save', 'header', 'primary', 'cta')}>
             {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
           </button>
         </div>
@@ -1128,11 +1129,12 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                       className="button button-secondary profile-btn-cancel-sub"
                       onClick={() => setCancelSubModalOpen(true)}
                       disabled={cancelSubLoading}
+                      {...analyticsAttrs('profil-billing-cta-cancel', 'billing', 'tertiary', 'cta')}
                     >
                       Résilier mon abonnement
                     </button>
                     {typeof onBillingPortalClick === 'function' && (
-                      <button type="button" className="button button-secondary" onClick={onBillingPortalClick}>
+                      <button type="button" className="button button-secondary" onClick={onBillingPortalClick} {...analyticsAttrs('profil-billing-cta-portal', 'billing', 'tertiary', 'cta')}>
                         Facturation &amp; moyens de paiement (Stripe)
                       </button>
                     )}
@@ -1146,7 +1148,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                 Le détail Stripe n&apos;est pas disponible pour l&apos;instant (connexion ou synchronisation). Tu peux ouvrir le portail de facturation pour gérer ton abonnement.
               </p>
               {typeof onBillingPortalClick === 'function' && (
-                <button type="button" className="button button-secondary" onClick={onBillingPortalClick}>
+                <button type="button" className="button button-secondary" onClick={onBillingPortalClick} {...analyticsAttrs('profil-billing-cta-portal', 'billing', 'tertiary', 'cta')}>
                   Ouvrir le portail de facturation
                 </button>
               )}
@@ -1204,7 +1206,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
       )}
 
       <div className="profile-footer">
-        <button type="button" className="button button-primary" onClick={handleSave} disabled={saving}>
+        <button type="button" className="button button-primary" onClick={handleSave} disabled={saving} {...analyticsAttrs('profil-footer-cta-save', 'footer', 'primary', 'cta')}>
           {saving ? 'Enregistrement…' : 'Enregistrer le CV'}
         </button>
       </div>
@@ -1234,6 +1236,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                 onClick={downloadBaseCvPdf}
                 disabled={baseCvPdfLoading || loading}
                 title="Télécharger ton CV de profil (tel qu’affiché dans l’aperçu) en PDF"
+                {...analyticsAttrs('profil-preview-cta-pdf', 'preview', 'secondary', 'cta')}
               >
                 <span className="tpl-btn-bar-extra-icon" aria-hidden>
                   <HiArrowDownTray size={16} strokeWidth={2} />

@@ -26,7 +26,7 @@ Classification UI : `frontend/src/lib/canvasPdfFidelity.js`
 | `contact` | oui | oui | ok | `contact_uppercase` / `contact_divider` exportés ; icônes téléphone/email/lien |
 | `photo` | oui | oui | ok | Focal, zoom, formes, bordures |
 | `resume` | oui | oui | ok | Typo bloc + rich text sanitize |
-| `experiences` | oui | oui | ok / **partial** | `exp_style: bold` → partial |
+| `experiences` | oui | oui | ok | `exp_style` twin (ATS, dates `-`/`–`, bullets dash / ▸ creative) |
 | `formations` | oui | oui | ok | |
 | `certifications` | oui | oui | ok | |
 | `projets` | oui | oui | ok | |
@@ -46,14 +46,51 @@ Classification UI : `frontend/src/lib/canvasPdfFidelity.js`
 | `shape:circle` … `shape:heart` | SVG | SVG | ok | Paths alignés sur `canvasShapePresets.js` |
 | Autres formes | — | — | **unsupported** | Doivent être ajoutées au renderer + matrice |
 
-## Styles template encore partiels
+## Styles template (twins)
 
-Les `title_style` template (`creative-main`, `executive-main`, `bold-main`,
-`elegant-section`, `minimal-section`, …) restent **partial** : le PDF utilise
-un titre de section générique (éventuellement `underline-accent` / `pill` /
-`sidebar-bar`).
+## Styles (interprète canvas, pas un template figé)
+
+Le PDF lit **`block.style`** comme `FreeCanvasBlock` : `title_style`, `exp_style`,
+`formation_style`, `zone`, `contact_layout` × `align` × `contact_separator`,
+`list_format`, `skills_nested_outils`, `show_section_title`, `header_layout`,
+`identity_layout`, `nowrap`. Un layout libre (Beta) ou un mix de tokens
+(titre Creative + expériences Bold) s’exporte sans `template_id`.
+
+`theme.template_id` ne sert qu’à l’exception canvas Classic : la page
+`--tpl-classic` restyle les tokens `bold-*` en filet bas (comme
+`CanvasTemplateFidelity.css`). Couleurs / polices viennent des CSS vars
+thème (`--layout-accent`, `--layout-section-title`, …).
+
+Règles d’en-tête alignées sur `FreeCanvasBlock` :
+
+- `section_label` → titre ; `sidebar_category` seul → catégorie
+- `show_section_title: false` → pas de titre (résumé header)
+- liste vide → placeholder seul, sans titre
+- `formation_style: minimal|classic` → dates à droite
+- `list_format: list` vs `inline` (langues / compétences)
+- zones `header` / `sidebar` : encre claire **seulement** si le bloc recouvre
+  un `shape:rect` sombre (`data-on-dark`) ; `sidebar-light` / `main` : sombre
+
+Presets `photo_border` (`light`, `accent`, `accent-thick`, `accent-thin`)
+exportés — `accent-thick` = **0.8 mm** (comme le canvas Bold), pas 1.1 mm.
+Contour photo : bordure sur le cadre, clip de l’image en enfant (WeasyPrint
+clippe sinon l’anneau). Filets < 0.4 mm relevés, y compris les `shape:rect` (`bar()` canvas, pas seulement
+`shape:line`). Icônes contact = **outline hi2** + `stroke` hex (pas fill solid).
+Chips Elegant : pas de bordure (`#edf2f7`) ; filet sous section `#e2e8f0`.
+Tirets bullets : `#1e293b` (chevron Creative / Elegant = accent).
+Dates formation : tone `ink` / `brand` / `accent` / `soft` selon le token,
+pas toujours `--layout-accent`.
+
+Polices : `@font-face` locaux `pdf_export/fonts/` (Inter + Plus Jakarta Sans)
+pour WeasyPrint (pas de fetch Google Fonts à l’export).
+
+Centrage vertical header/sidebar identité + contact ; séparateurs expériences
+twin ; titres Bold sidebar = barre gauche (pas filet bas).
 
 Les effets de bloc (`style.effect`) ne sont pas exportés → **partial**.
+
+**Limite :** densités / line-height twin CSS ne sont pas toutes portées. Objectif =
+chrome + couleurs + polices + structure lisibles, pas un clone pixel-perfect.
 
 ---
 

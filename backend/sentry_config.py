@@ -1,0 +1,298 @@
+"""Sentry backend (AXE-367) : init no-op si DSN vide, scrubbing PII, ignore 4xx."""
+
+from __future__ import annotations
+
+import os
+import re
+from typing import Any
+
+from pydantic import ValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+_SENSITIVE_KEYS = frozenset(
+    {
+        "authorization",
+        "cookie",
+        "set-cookie",
+        "email",
+        "password",
+        "secret",
+        "token",
+        "jwt",
+        "access_token",
+        "refresh_token",
+        "api_key",
+        "apikey",
+        "gemini_api_key",
+        "stripe_secret_key",
+        "stripe_webhook_secret",
+        "supabase_service_key",
+        "supabase_jwt_secret",
+        "sentry_auth_token",
+        "dsn",
+        "cv",
+        "cv_base",
+        "html",
+        "html_str",
+        "annonce",
+        "offer",
+        "offer_text",
+        "job_description",
+        "photo",
+        "phone",
+        "telephone",
+        "address",
+        "adresse",
+        "nom",
+        "name",
+        "fullname",
+        "full_name",
+    }
+)
+_SENSITIVE_KEY_RE = re.compile(
+    r"(password|secret|token|jwt|authorization|cookie|api[_-]?key|email|annonce|offer)",
+    re.I,
+)
+_SENSITIVE_PATH_RE = re.compile(
+    r"/api/(adapt|import|cv|stripe|billing)|/webhook",
+    re.I,
+)
+_FILTERED = "[Filtered]"
+_HTTP_IGNORE_MAX = 499
+
+
+def sentry_dsn() -> str:
+    return os.environ.get("SENTRY_DSN", "").strip()
+
+
+def sentry_environment() -> str:
+    env = os.environ.get("SENTRY_ENVIRONMENT", "").strip()
+    if env:
+        return env
+    return os.environ.get("ENVIRONMENT", "").strip() or "production"
+
+
+def traces_sample_rate(environment: str | None = None) -> float:
+    raw = os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "").strip()
+    if raw:
+        try:
+            return max(0.0, min(1.0, float(raw)))
+        except ValueError:
+            pass
+    env = environment or sentry_environment()
+    return 1.0 if env == "staging" else 0.1
+
+
+def _is_sensitive_key(key: str) -> bool:
+    lowered = key.lower().replace("-", "_")
+    if lowered in _SENSITIVE_KEYS:
+        return True
+    return bool(_SENSITIVE_KEY_RE.search(lowered))
+
+
+def _redact(value: Any, key: str = "") -> Any:
+    if key and _is_sensitive_key(key):
+        return _FILTERED
+    if isinstance(value, dict):
+        return {str(k): _redact(v, str(k)) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_redact(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_redact(item) for item in value)
+    return value
+
+
+def _is_sensitive_route(event: dict[str, Any]) -> bool:
+    transaction = str(event.get("transaction") or "")
+    request = event.get("request") if isinstance(event.get("request"), dict) else {}
+    url = str(request.get("url") or "")
+    return bool(_SENSITIVE_PATH_RE.search(url) or _SENSITIVE_PATH_RE.search(transaction))
+
+
+def _scrub_free_text_fields(event: dict[str, Any], *, keep_message: bool = False) -> None:
+    """Routes sensibles : exception / breadcrumbs ne doivent pas porter de CV.
+
+    ``keep_message`` : events métier AXE-370 — conserver le libellé contrôlé.
+    """
+    if not keep_message:
+        event["message"] = _FILTERED
+        logentry = event.get("logentry")
+        if isinstance(logentry, dict) and "message" in logentry:
+            logentry["message"] = _FILTERED
+    exception = event.get("exception")
+    values: list[Any] = []
+    if isinstance(exception, dict):
+        raw_values = exception.get("values")
+        if isinstance(raw_values, list):
+            values = raw_values
+    elif isinstance(exception, list):
+        values = exception
+    for item in values:
+        if isinstance(item, dict) and "value" in item:
+            item["value"] = _FILTERED
+    crumbs = event.get("breadcrumbs")
+    crumb_list: list[Any] = []
+    if isinstance(crumbs, dict):
+        raw_crumbs = crumbs.get("values")
+        if isinstance(raw_crumbs, list):
+            crumb_list = raw_crumbs
+    elif isinstance(crumbs, list):
+        crumb_list = crumbs
+    for crumb in crumb_list:
+        if not isinstance(crumb, dict):
+            continue
+        if "message" in crumb:
+            crumb["message"] = _FILTERED
+        data = crumb.get("data")
+        if isinstance(data, dict):
+            data.pop("body", None)
+            data.pop("data", None)
+
+
+def _is_business_event(event: dict[str, Any]) -> bool:
+    """Messages métier AXE-370 : ne pas écraser le libellé contrôlé sur /api/adapt*."""
+    tags = event.get("tags")
+    if not isinstance(tags, dict):
+        return False
+    try:
+        from backend.sentry_business import is_business_kind
+
+        return is_business_kind(tags.get("kind"))
+    except Exception:
+        return False
+
+
+def _drop_http_noise(hint: dict[str, Any]) -> bool:
+    exc_info = hint.get("exc_info")
+    if not exc_info or len(exc_info) < 2:
+        return False
+    exc = exc_info[1]
+    if isinstance(exc, StarletteHTTPException):
+        return int(getattr(exc, "status_code", 500) or 500) <= _HTTP_IGNORE_MAX
+    if isinstance(exc, ValidationError):
+        return True
+    return False
+
+
+def _pdf_engine_tag() -> str:
+    try:
+        from backend.cv_pdf_dispatch import cv_pdf_engine
+
+        return cv_pdf_engine()
+    except Exception:
+        return "unknown"
+
+
+def scrub_event(event: dict[str, Any], hint: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    """before_send : drop 4xx / validation, redacte PII, pose les tags pdf_engine / flow."""
+    hint = hint or {}
+    if _drop_http_noise(hint):
+        return None
+
+    transaction = str(event.get("transaction") or "")
+    if transaction in ("/health", "/metrics") or transaction.endswith("/health"):
+        if event.get("level") in ("info", "warning"):
+            return None
+
+    event = _redact(event) if isinstance(event, dict) else event
+    if not isinstance(event, dict):
+        return event
+
+    request = event.get("request")
+    business = _is_business_event(event)
+    sensitive = _is_sensitive_route(event)
+    if isinstance(request, dict):
+        if sensitive:
+            request.pop("data", None)
+            request.pop("cookies", None)
+            headers = request.get("headers")
+            if isinstance(headers, dict):
+                request["headers"] = {
+                    k: _FILTERED if _is_sensitive_key(str(k)) else v for k, v in headers.items()
+                }
+            _scrub_free_text_fields(event, keep_message=business)
+        event["request"] = request
+    elif sensitive:
+        _scrub_free_text_fields(event, keep_message=business)
+
+    tags = event.setdefault("tags", {})
+    if isinstance(tags, dict):
+        tags.setdefault("pdf_engine", _pdf_engine_tag())
+        exc_info = hint.get("exc_info")
+        exc = exc_info[1] if exc_info and len(exc_info) >= 2 else None
+        if exc is not None:
+            name = type(exc).__name__
+            module = getattr(type(exc), "__module__", "") or ""
+            if "Gemini" in name or "gemini" in module:
+                tags.setdefault("flow", "adapt")
+            elif "pdf" in name.lower() or "playwright" in module.lower():
+                tags.setdefault("flow", "export")
+
+    raw_user = event.get("user")
+    if isinstance(raw_user, dict):
+        uid = raw_user.get("id")
+        if uid:
+            event["user"] = {"id": uid}
+        else:
+            event.pop("user", None)
+    elif "user" in event:
+        event.pop("user", None)
+
+    return event
+
+
+def _traces_sampler(sampling_context: dict[str, Any]) -> float:
+    asgi = sampling_context.get("asgi_scope") or {}
+    path = str(asgi.get("path") or "")
+    if path in ("/health", "/metrics", "/favicon.ico"):
+        return 0.0
+    tx = sampling_context.get("transaction_context") or {}
+    name = str(tx.get("name") or "")
+    if name in ("/health", "/metrics") or name.endswith("/health"):
+        return 0.0
+    return traces_sample_rate()
+
+
+def init_sentry() -> bool:
+    """Init SDK. False = DSN vide, aucun client, aucun warning."""
+    dsn = sentry_dsn()
+    if not dsn:
+        return False
+
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
+    from sentry_sdk.integrations.starlette import StarletteIntegration
+
+    environment = sentry_environment()
+    only_5xx = frozenset(range(500, 600))
+    sentry_sdk.init(
+        dsn=dsn,
+        environment=environment,
+        release=os.environ.get("SENTRY_RELEASE", "").strip() or None,
+        send_default_pii=False,
+        include_local_variables=False,
+        max_request_body_size="never",
+        traces_sampler=_traces_sampler,
+        profiles_sample_rate=0.0,
+        before_send=scrub_event,
+        integrations=[
+            StarletteIntegration(failed_request_status_codes=only_5xx),
+            FastApiIntegration(failed_request_status_codes=only_5xx),
+            LoggingIntegration(level=None, event_level=None),
+        ],
+    )
+    sentry_sdk.set_tag("pdf_engine", _pdf_engine_tag())
+    return True
+
+
+def bind_sentry_user(user_id: str | None, plan: str | None = None) -> None:
+    """UUID opaque + tag plan. Jamais d'email."""
+    if not sentry_dsn() or not user_id:
+        return
+    import sentry_sdk
+
+    sentry_sdk.set_user({"id": user_id})
+    if plan in ("free", "pro"):
+        sentry_sdk.set_tag("user_plan", plan)
+        sentry_sdk.set_tag("plan", plan)

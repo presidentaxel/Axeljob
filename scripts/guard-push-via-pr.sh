@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Refuse un push direct vers main/master - les changements passent par PR.
+# Refuse un push direct vers main/master/prod - les changements passent par PR.
 # Usage :
 #   guard-push-via-pr.sh --git-command "git push origin main"
 #   guard-push-via-pr.sh --pre-push-stdin   (lit les refs du hook pre-push)
 set -euo pipefail
 
-PROTECTED_RE='^(main|master)$'
-MSG='Push direct vers main/master interdit - créer une branche et ouvrir une PR (gh pr create).'
+PROTECTED_RE='^(main|master|prod)$'
+MSG='Push direct vers main/master/prod interdit - créer une branche et ouvrir une PR (gh pr create).'
 
 deny() {
   echo "$MSG" >&2
@@ -25,18 +25,22 @@ if [[ "${1:-}" == "--git-command" ]]; then
     exit 0
   fi
 
-  if printf '%s' "$command" | grep -qE '(HEAD:main|HEAD:master|:refs/heads/main|:refs/heads/master|\s(main|master)\s*$)'; then
+  if printf '%s' "$command" | grep -qE '(HEAD:main|HEAD:master|HEAD:prod|:refs/heads/main|:refs/heads/master|:refs/heads/prod|\s(main|master|prod)\s*$)'; then
     deny
   fi
 
-  # git push / git push origin (sans branche explicite) : vérifier la branche courante
-  if printf '%s' "$command" | grep -qE '^git[[:space:]]+push(\s|$)' \
-    && ! printf '%s' "$command" | grep -qE '(HEAD:|refs/heads/|\s(main|master)\s*$)'; then
-    current="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-    if [[ "$current" =~ $PROTECTED_RE ]]; then
-      deny
-    fi
-  fi
+  # Destination explicite autre que HEAD (ex. git push origin feat/x) : autoriser
+  # même si le checkout local est main — sinon la CI GitHub sur main refuse à tort
+  # un --git-command de test / un push vers une branche feature.
+  last="${command##* }"
+  case "$last" in
+    push|origin|upstream|-u|--set-upstream|--force|-f|HEAD)
+      current="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+      if [[ "$current" =~ $PROTECTED_RE ]]; then
+        deny
+      fi
+      ;;
+  esac
   exit 0
 fi
 

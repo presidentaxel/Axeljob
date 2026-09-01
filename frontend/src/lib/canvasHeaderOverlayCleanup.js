@@ -272,9 +272,11 @@ export function shrinkOverlappingTextLines(layout) {
         cur.box.x < nxt.box.x + nxt.box.w && nxt.box.x < cur.box.x + cur.box.w
       );
       if (!sameCol) continue;
+      if (cur.box.h > 11) continue;
       const gap = nxt.box.y - cur.box.y;
       if (gap <= 0.4 || gap >= cur.box.h - 0.4) continue;
       if (gap > 12) continue;
+      if (cur.box.y > 48 && nxt.box.y > 48) continue;
       heightByIdx.set(cur.idx, round1(Math.max(3.2, gap)));
     }
     if (!heightByIdx.size) return page;

@@ -208,6 +208,16 @@ export function stretchHeaderBandToContent(layout) {
       if (isAccent) {
         return { ...block, y: round1(headerBox.y + nextH) };
       }
+      const isSidebar = block.type === 'shape:rect'
+        && box.x > PAGE_WIDTH_MM * 0.55
+        && box.h > 80
+        && box.y > 18
+        && box.y < 70;
+      if (isSidebar) {
+        const bottom = box.y + box.h;
+        const nextY = round1(headerBox.y + nextH);
+        return { ...block, y: nextY, h: round1(Math.max(40, bottom - nextY)) };
+      }
       return block;
     });
     return { ...page, blocks: nextBlocks };
@@ -289,10 +299,90 @@ export function shrinkOverlappingTextLines(layout) {
       heightByIdx.set(cur.idx, round1(Math.max(3.2, gap)));
     }
     if (!heightByIdx.size) return page;
-    const nextBlocks = blocks.map((block, idx) => (
-      heightByIdx.has(idx) ? { ...block, h: heightByIdx.get(idx) } : block
-    ));
+    const nextBlocks = blocks.map((block, idx) => {
+      if (!heightByIdx.has(idx)) return block;
+      return {
+        ...block,
+        h: heightByIdx.get(idx),
+        style: { ...(block.style || {}), lock_height: true },
+      };
+    });
     return { ...page, blocks: nextBlocks };
+  });
+  return { ...layout, pages };
+}
+
+/**
+ * Fusionne les lignes PDF empilées du bandeau (même paragraphe) en un bloc
+ * pour éviter le double paint / la couture une fois l’auto-height réappliqué.
+ */
+export function mergeStackedHeaderTextLines(layout) {
+  if (!layout?.pages?.length) return layout;
+  const pages = layout.pages.map((page) => {
+    const blocks = Array.isArray(page?.blocks) ? [...page.blocks] : [];
+    const texts = blocks
+      .map((b, idx) => ({ b, idx, box: asBox(b) }))
+      .filter(({ b, box }) => (
+        b?.type === 'text'
+        && box.y < 42
+        && box.h <= 11
+        && box.w > 70
+      ));
+    texts.sort((a, c) => a.box.y - c.box.y || a.box.x - c.box.x);
+    const drop = new Set();
+    const mergedByIdx = new Map();
+    let i = 0;
+    while (i < texts.length) {
+      const run = [texts[i]];
+      let j = i + 1;
+      while (j < texts.length) {
+        const prev = run[run.length - 1];
+        const cur = texts[j];
+        const sameCol = Math.abs(prev.box.x - cur.box.x) < 10 || (
+          prev.box.x < cur.box.x + cur.box.w && cur.box.x < prev.box.x + prev.box.w
+        );
+        const gap = cur.box.y - prev.box.y;
+        if (!sameCol || gap <= 0.4 || gap > 8 || gap >= prev.box.h - 0.15) break;
+        run.push(cur);
+        j += 1;
+      }
+      if (run.length >= 2) {
+        const first = run[0];
+        const last = run[run.length - 1];
+        const runIdx = new Set(run.map((r) => r.idx));
+        const afterYs = blocks
+          .map((b, idx) => ({ b, idx, box: asBox(b) }))
+          .filter(({ idx, box, b }) => (
+            !runIdx.has(idx)
+            && b?.type !== 'shape:rect'
+            && b?.type !== 'shape:line'
+            && box.y > first.box.y + 2
+          ))
+          .map(({ box }) => box.y);
+        const cap = afterYs.length ? Math.min(...afterYs) - first.box.y - 0.8 : 24;
+        const natural = last.box.y - first.box.y + Math.min(last.box.h, 5.2);
+        const content = run
+          .map((r) => decodeStructuralText(r.b.content))
+          .filter(Boolean)
+          .join(' ');
+        mergedByIdx.set(first.idx, {
+          ...first.b,
+          content,
+          w: round1(Math.max(...run.map((r) => r.box.w))),
+          h: round1(Math.max(first.box.h, Math.min(cap, natural))),
+          style: { ...(first.b.style || {}), italic: true, lock_height: true },
+        });
+        run.slice(1).forEach((r) => drop.add(r.idx));
+      }
+      i = j > i ? j : i + 1;
+    }
+    if (!drop.size) return page;
+    return {
+      ...page,
+      blocks: blocks
+        .map((block, idx) => (mergedByIdx.has(idx) ? mergedByIdx.get(idx) : block))
+        .filter((_, idx) => !drop.has(idx)),
+    };
   });
   return { ...layout, pages };
 }
@@ -351,6 +441,7 @@ export function cleanupCanvasHeaderOverlays(layout, cv = {}) {
   let next = dedupeOverlappingIdentities(layout);
   next = removeTextDuplicatingIdentity(next, cv);
   next = insertMissingSpaceAfterColonLabels(next);
+  next = mergeStackedHeaderTextLines(next);
   next = shrinkOverlappingTextLines(next);
   next = expandClippedIdentity(next);
   next = stretchHeaderBandToContent(next);

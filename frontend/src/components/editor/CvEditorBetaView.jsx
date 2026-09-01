@@ -1217,6 +1217,7 @@ function CvEditorBeta({
       const found = findBlock(next, blockId);
       if (!found?.block) continue;
       if (found.block.style?.lock_geometry) continue;
+      if (found.block.style?.lock_height) continue;
       const cur = found.block.h ?? 0;
       if (Math.abs(newHmm - cur) < 0.4) continue;
       next = updateBlock(next, blockId, { h: newHmm });

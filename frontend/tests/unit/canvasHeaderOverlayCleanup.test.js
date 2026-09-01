@@ -7,6 +7,7 @@ import {
   expandClippedIdentity,
   insertMissingSpaceAfterColonLabels,
   isFullWidthHeaderRect,
+  mergeStackedHeaderTextLines,
   removeTextDuplicatingIdentity,
   shrinkOverlappingTextLines,
   stretchHeaderBandToContent,
@@ -336,6 +337,49 @@ test('shrinkOverlappingTextLines réduit les hauteurs empilées', () => {
   const out = shrinkOverlappingTextLines(layout);
   const l1 = out.pages[0].blocks.find((b) => b.id === 'l1');
   assert.ok(l1.h < 5, `l1 h=${l1.h}`);
+  assert.equal(l1.style?.lock_height, true);
+});
+
+test('mergeStackedHeaderTextLines fusionne le paragraphe du bandeau', () => {
+  const layout = layoutWith([
+    {
+      id: 'l1',
+      type: 'text',
+      content: 'ligne un du résumé',
+      x: 2,
+      y: 16.25,
+      w: 200,
+      h: 7.85,
+      z: 3,
+      style: { italic: true },
+    },
+    {
+      id: 'l2',
+      type: 'text',
+      content: 'ligne deux du résumé',
+      x: 2,
+      y: 20.53,
+      w: 200,
+      h: 7.85,
+      z: 3,
+      style: { italic: true },
+    },
+    {
+      id: 'contact',
+      type: 'contact',
+      x: 8,
+      y: 34.3,
+      w: 190,
+      h: 4,
+      z: 3,
+      style: {},
+    },
+  ]);
+  const out = mergeStackedHeaderTextLines(layout);
+  const texts = out.pages[0].blocks.filter((b) => b.type === 'text');
+  assert.equal(texts.length, 1);
+  assert.ok(texts[0].content.includes('ligne deux'));
+  assert.ok(texts[0].y + texts[0].h <= 34.3, 'ne recouvre pas le contact');
 });
 
 test('cleanupCanvasHeaderOverlays combine les passes', () => {
@@ -448,6 +492,16 @@ test('cleanupCanvasHeaderOverlays répare un bandeau Beta trop haut + titre fant
       style: { italic: true },
     },
     {
+      id: 'sidebar',
+      type: 'shape:rect',
+      x: 159.73,
+      y: 41.73,
+      w: 50.27,
+      h: 255.27,
+      z: 0,
+      style: { color: '#1e293b' },
+    },
+    {
       id: 'contact',
       type: 'contact',
       x: 8,
@@ -480,7 +534,12 @@ test('cleanupCanvasHeaderOverlays répare un bandeau Beta trop haut + titre fant
   assert.ok(ident.w > 120, `identity w=${ident.w}`);
   assert.equal(ident.style?.zone, 'header');
   const r1 = out.pages[0].blocks.find((b) => b.id === 'r1');
-  assert.ok(r1.h <= 4.4, `r1 h=${r1.h} ne doit plus recouvrir r2`);
+  assert.equal(ids.includes('r2'), false, 'lignes de résumé fusionnées');
+  assert.ok(r1.content.includes('Achats'), r1.content);
+  assert.equal(r1.style?.lock_height, true);
+  assert.ok(r1.h > 6, `résumé fusionné h=${r1.h}`);
+  const sidebar = out.pages[0].blocks.find((b) => b.id === 'sidebar');
+  assert.ok(Math.abs(sidebar.y - bg.h) < 0.3, `sidebar y=${sidebar.y} header h=${bg.h}`);
 });
 
 test('bindStructuralTextToSemanticBlocks absorbe le titre PDF voisin', () => {

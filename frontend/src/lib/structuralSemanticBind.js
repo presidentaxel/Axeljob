@@ -313,6 +313,35 @@ export function bindStructuralTextToSemanticBlocks(layout, cv = {}, {
       boundCount += 1;
     }
 
+    // 3) Titre professionnel PDF resté en `text` à côté de l’identité sémantique
+    // (le preset identity rebind aussi titre_professionnel → ghosting).
+    const identityBoxes = semanticNew.filter((b) => b.type === 'identity');
+    if (identityBoxes.length) {
+      const titre = decodeStructuralText(cv?.titre_professionnel).toLowerCase();
+      const name = decodeStructuralText(
+        `${cv?.prenom || cv?.first_name || ''} ${cv?.nom || cv?.last_name || ''}`,
+      ).toLowerCase();
+      for (const block of textBlocks) {
+        if (consumed.has(block.id)) continue;
+        const text = decodeStructuralText(block.content).toLowerCase();
+        if (!text || text.length < 4) continue;
+        const by = Number(block.y) || 0;
+        const near = identityBoxes.some((idb) => {
+          const iy = Number(idb.y) || 0;
+          const ih = Number(idb.h) || 0;
+          return by < iy + ih + 16 && by > iy - 10;
+        });
+        if (!near) continue;
+        const titreHit = titre && (
+          titre.includes(text)
+          || text.includes(titre)
+          || (titre.length >= 10 && text.includes(titre.slice(0, 12)))
+        );
+        const nameHit = name && name.length >= 5 && (text.includes(name) || name.includes(text));
+        if (titreHit || nameHit) consumed.add(block.id);
+      }
+    }
+
     const kept = blocks.filter((b) => !consumed.has(b.id));
     return {
       ...page,

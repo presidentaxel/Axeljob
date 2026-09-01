@@ -246,6 +246,42 @@ def _fit_factor(page_width_pt: float, page_height_pt: float) -> float:
     return min(PAGE_W_MM / w_mm, PAGE_H_MM / h_mm, 1.0)
 
 
+def _join_line_span_texts(spans: list) -> str:
+    """Concatène les spans d'une ligne PDF en insérant l'espace manquant.
+
+    PyMuPDF coupe souvent « Organisation : » et « Loulitos » en deux spans
+    collés (gap ≥ 0 ou deux-points collé à la lettre suivante).
+    """
+    parts: list[str] = []
+    prev_x1: float | None = None
+    for span in spans:
+        text = str(span.get("text", "") or "")
+        if not text:
+            continue
+        bbox = span.get("bbox") or (0, 0, 0, 0)
+        try:
+            x0 = float(bbox[0])
+            x1 = float(bbox[2])
+        except (TypeError, ValueError, IndexError):
+            x0, x1 = 0.0, 0.0
+        if parts:
+            left = parts[-1]
+            gap = 0.0 if prev_x1 is None else x0 - prev_x1
+            glued_after_colon = bool(left and left[-1] in ":;" and text[0].isalnum())
+            need_space = glued_after_colon or (
+                gap > 0.55
+                and not left[-1].isspace()
+                and not text[0].isspace()
+                and text[0] not in ".,;:!?)]}/»"
+                and left[-1] not in "«(/["
+            )
+            if need_space:
+                parts.append(" ")
+        parts.append(text)
+        prev_x1 = x1
+    return "".join(parts).strip()
+
+
 def _extract_text_blocks(
     page, pos_scale: float, font_scale: float, embedded_roots: set[str] | None = None
 ) -> tuple[list[dict], int]:
@@ -268,7 +304,7 @@ def _extract_text_blocks(
             if not spans:
                 continue
             x0, y0, x1, y1 = line.get("bbox", (0, 0, 0, 0))
-            text = "".join(s.get("text", "") for s in spans).strip()
+            text = _join_line_span_texts(spans)
             if not text:
                 continue
             char_count += len(text)

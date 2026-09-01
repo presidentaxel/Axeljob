@@ -112,6 +112,7 @@ import {
 import { isAtsSafe, sortTemplatesForEditor } from '../../lib/editorTemplateUtils.js';
 import { resetTemplateOptionsToDefaults } from '../../lib/templateOptionsSchema.js';
 import { reflowColumnBlocksOnPage } from '../../lib/layoutReflow.js';
+import { cleanupCanvasHeaderOverlays } from '../../lib/canvasHeaderOverlayCleanup.js';
 import { moveBlockToPage } from '../../lib/canvasPageTransfer.js';
 import { applyLayoutPagination } from '../../lib/layoutPagination.js';
 import { useAutoSave } from '../../lib/useAutoSave.js';
@@ -414,7 +415,10 @@ function CvEditorBeta({
   }, [layout, activeLayoutContextKey, templatesList, refreshCanvasDrafts, cv, profileLoadError]);
 
   const openCanvasContext = useCallback((contextKey, nextLayout, persistExtras = {}) => {
-    const hydrated = migrateLayoutToV3(nextLayout || createCanvasLayoutBlank());
+    const hydrated = cleanupCanvasHeaderOverlays(
+      migrateLayoutToV3(nextLayout || createCanvasLayoutBlank()),
+      cv,
+    );
     layoutRef.current = hydrated;
     resetLayout(hydrated);
     setSelectedBlockIds([]);
@@ -467,9 +471,12 @@ function CvEditorBeta({
           seedableProfile: cvHasSeedableProfileContent(mergedCv),
           localDraftLayout: draft?.layout || null,
         });
-        const hydratedLayout = hydration.mode === 'draft'
-          ? migrateLayoutToV3(draft.layout)
-          : (rawLayout ? migrateLayoutToV3(rawLayout) : createBlankLayoutV3());
+        const hydratedLayout = cleanupCanvasHeaderOverlays(
+          hydration.mode === 'draft'
+            ? migrateLayoutToV3(draft.layout)
+            : (rawLayout ? migrateLayoutToV3(rawLayout) : createBlankLayoutV3()),
+          mergedCv,
+        );
         setActiveLayoutContextKey(contextKey);
         setActiveCanvasContext(contextKey);
         if (hydration.mode === 'server' || hydration.mode === 'draft') {
@@ -619,10 +626,11 @@ function CvEditorBeta({
     if (!layout || !payload || profileLoadError) return;
     const nextCv = mergeHeaderComposerCv(cv, payload.values, payload.fields);
     handleCvChange(nextCv);
-    const { layout: nextLayout, placedIds } = applyHeaderComposerToLayout(layout, 0, {
+    const { layout: composedLayout, placedIds } = applyHeaderComposerToLayout(layout, 0, {
       variantId: payload.variantId,
       fields: payload.fields,
     });
+    const nextLayout = cleanupCanvasHeaderOverlays(composedLayout, nextCv);
     commitLayout(nextLayout);
     // Persister cv + layout ensemble (évite un flush avec l’ancien cv).
     if (nextCv) autoSave.schedule({ ...nextCv, layout: nextLayout });

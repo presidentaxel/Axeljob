@@ -1,0 +1,266 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import {
+  cleanupCanvasHeaderOverlays,
+  dedupeOverlappingIdentities,
+  insertMissingSpaceAfterColonLabels,
+  isFullWidthHeaderRect,
+  removeTextDuplicatingIdentity,
+  stretchHeaderBandToContent,
+  textDuplicatesIdentityContent,
+} from '../../src/lib/canvasHeaderOverlayCleanup.js';
+import { sanitizeLayoutV3 } from '../../src/lib/cvLayoutModelV3.js';
+import { bindStructuralTextToSemanticBlocks } from '../../src/lib/structuralSemanticBind.js';
+
+const CV = {
+  prenom: 'Louis',
+  nom: 'Vedovato',
+  titre_professionnel: 'Étudiant ESSEC – Entrepreneuriat, Tech & Conseil',
+};
+
+function layoutWith(blocks) {
+  return sanitizeLayoutV3({
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    freeform: true,
+    pages: [{ id: 'p1', blocks }],
+  });
+}
+
+test('textDuplicatesIdentityContent : titre PDF vs CV', () => {
+  assert.equal(
+    textDuplicatesIdentityContent('- Étudiant ESSEC -', CV),
+    true,
+  );
+  assert.equal(
+    textDuplicatesIdentityContent('Étudiant ESSEC – Entrepreneuriat, Tech & Conseil', CV),
+    true,
+  );
+  assert.equal(
+    textDuplicatesIdentityContent('Organisation : Loulitos', CV),
+    false,
+  );
+});
+
+test('dedupeOverlappingIdentities garde le inline-title', () => {
+  const layout = layoutWith([
+    {
+      id: 'id-stack',
+      type: 'identity',
+      bind: ['titre_professionnel'],
+      x: 40,
+      y: 8,
+      w: 140,
+      h: 16,
+      z: 5,
+      style: { align: 'left' },
+    },
+    {
+      id: 'id-inline',
+      type: 'identity',
+      bind: ['prenom', 'nom', 'titre_professionnel'],
+      x: 42,
+      y: 9,
+      w: 130,
+      h: 14,
+      z: 5,
+      style: { header_layout: 'inline-title' },
+    },
+  ]);
+  const out = dedupeOverlappingIdentities(layout);
+  const ids = out.pages[0].blocks.filter((b) => b.type === 'identity').map((b) => b.id);
+  assert.deepEqual(ids, ['id-inline']);
+});
+
+test('removeTextDuplicatingIdentity retire le titre PDF superposé', () => {
+  const layout = layoutWith([
+    {
+      id: 'ident',
+      type: 'identity',
+      bind: ['prenom', 'nom', 'titre_professionnel'],
+      x: 40,
+      y: 8,
+      w: 140,
+      h: 16,
+      z: 5,
+      style: { header_layout: 'inline-title' },
+    },
+    {
+      id: 'ghost',
+      type: 'text',
+      content: '- Étudiant ESSEC -',
+      x: 55,
+      y: 10,
+      w: 80,
+      h: 6,
+      z: 4,
+      style: { align: 'center' },
+    },
+    {
+      id: 'body',
+      type: 'text',
+      content: 'Organisation : Loulitos',
+      x: 12,
+      y: 90,
+      w: 80,
+      h: 4,
+      z: 3,
+      style: {},
+    },
+  ]);
+  const out = removeTextDuplicatingIdentity(layout, CV);
+  const ids = out.pages[0].blocks.map((b) => b.id);
+  assert.equal(ids.includes('ghost'), false);
+  assert.equal(ids.includes('body'), true);
+  assert.equal(ids.includes('ident'), true);
+});
+
+test('stretchHeaderBandToContent allonge le bandeau sous le résumé', () => {
+  assert.equal(
+    isFullWidthHeaderRect({ type: 'shape:rect', x: 0, y: 0, w: 210, h: 41.7 }),
+    true,
+  );
+  const layout = layoutWith([
+    {
+      id: 'bg',
+      type: 'shape:rect',
+      x: 0,
+      y: 0,
+      w: 210,
+      h: 41.7,
+      z: 0,
+      style: { color: '#1e293b' },
+    },
+    {
+      id: 'bar',
+      type: 'shape:rect',
+      x: 0,
+      y: 41.7,
+      w: 210,
+      h: 1.1,
+      z: 1,
+      style: { color: '#dc2626' },
+    },
+    {
+      id: 'resume',
+      type: 'resume',
+      bind: 'resume',
+      x: 8,
+      y: 28,
+      w: 194,
+      h: 22,
+      z: 5,
+      style: { zone: 'header' },
+    },
+  ]);
+  const out = stretchHeaderBandToContent(layout);
+  const bg = out.pages[0].blocks.find((b) => b.id === 'bg');
+  const bar = out.pages[0].blocks.find((b) => b.id === 'bar');
+  assert.ok(bg.h > 50, `header h=${bg.h}`);
+  assert.ok(Math.abs(bar.y - bg.h) < 0.2, `accent y=${bar.y} header h=${bg.h}`);
+});
+
+test('insertMissingSpaceAfterColonLabels', () => {
+  const layout = layoutWith([
+    {
+      id: 'a',
+      type: 'text',
+      content: 'Organisation :Loulitos',
+      x: 12,
+      y: 90,
+      w: 80,
+      h: 4,
+      z: 3,
+      style: {},
+    },
+  ]);
+  const out = insertMissingSpaceAfterColonLabels(layout);
+  assert.equal(out.pages[0].blocks[0].content, 'Organisation : Loulitos');
+});
+
+test('cleanupCanvasHeaderOverlays combine les passes', () => {
+  const layout = layoutWith([
+    {
+      id: 'bg',
+      type: 'shape:rect',
+      x: 0,
+      y: 0,
+      w: 210,
+      h: 30,
+      z: 0,
+      style: { color: '#1e293b' },
+    },
+    {
+      id: 'id1',
+      type: 'identity',
+      bind: ['prenom', 'nom', 'titre_professionnel'],
+      x: 40,
+      y: 8,
+      w: 140,
+      h: 16,
+      z: 5,
+      style: { header_layout: 'inline-title' },
+    },
+    {
+      id: 'ghost',
+      type: 'text',
+      content: '- Étudiant ESSEC -',
+      x: 50,
+      y: 10,
+      w: 90,
+      h: 6,
+      z: 4,
+      style: {},
+    },
+    {
+      id: 'resume',
+      type: 'text',
+      content: 'Étudiant ESSEC, je recherche une alternance',
+      x: 8,
+      y: 26,
+      w: 190,
+      h: 12,
+      z: 4,
+      style: { italic: true },
+    },
+  ]);
+  const out = cleanupCanvasHeaderOverlays(layout, CV);
+  const ids = out.pages[0].blocks.map((b) => b.id);
+  assert.equal(ids.includes('ghost'), false);
+  const bg = out.pages[0].blocks.find((b) => b.id === 'bg');
+  assert.ok(bg.h >= 40, `header h=${bg.h}`);
+});
+
+test('bindStructuralTextToSemanticBlocks absorbe le titre PDF voisin', () => {
+  const layout = layoutWith([
+    {
+      id: 'name',
+      type: 'text',
+      content: 'Louis Vedovato',
+      x: 40,
+      y: 10,
+      w: 90,
+      h: 8,
+      z: 3,
+      style: { bold: true, font_size: 18 },
+    },
+    {
+      id: 'title',
+      type: 'text',
+      content: '- Étudiant ESSEC -',
+      x: 50,
+      y: 12,
+      w: 80,
+      h: 6,
+      z: 3,
+      style: {},
+    },
+  ]);
+  const { layout: out } = bindStructuralTextToSemanticBlocks(layout, CV);
+  const types = out.pages[0].blocks.map((b) => b.type);
+  assert.ok(types.includes('identity'));
+  assert.equal(out.pages[0].blocks.some((b) => b.id === 'title'), false);
+});

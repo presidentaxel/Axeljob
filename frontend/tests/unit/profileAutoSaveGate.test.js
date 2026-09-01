@@ -5,6 +5,7 @@ import {
   buildProfileCvPutPayload,
   decideProfileAutoSaveOnActiveChange,
   decideProfileAutoSaveOnCvChange,
+  decideProfileAutoSaveOnLifecycle,
 } from '../../src/lib/profileAutoSaveGate.js';
 
 test('chargement initial : skip le PUT (pas une édition)', () => {
@@ -60,6 +61,30 @@ test('revenir sur le profil : pas de PUT non sollicité', () => {
 test('rester sur le profil : le debounce n’est pas flushé', () => {
   assert.equal(
     decideProfileAutoSaveOnActiveChange({ wasActive: true, isActive: true, hasPending: true }),
+    'noop',
+  );
+});
+
+test('démontage / pagehide / onglet caché : flush si pending (AXE-29)', () => {
+  assert.equal(
+    decideProfileAutoSaveOnLifecycle({ event: 'unmount', hasPending: true }),
+    'flush',
+  );
+  assert.equal(
+    decideProfileAutoSaveOnLifecycle({ event: 'pagehide', hasPending: true }),
+    'flush',
+  );
+  assert.equal(
+    decideProfileAutoSaveOnLifecycle({ event: 'visibility', hasPending: true, visibilityState: 'hidden' }),
+    'flush',
+  );
+});
+
+test('cycle de vie sans pending : pas de PUT', () => {
+  assert.equal(decideProfileAutoSaveOnLifecycle({ event: 'unmount', hasPending: false }), 'noop');
+  assert.equal(decideProfileAutoSaveOnLifecycle({ event: 'pagehide', hasPending: false }), 'noop');
+  assert.equal(
+    decideProfileAutoSaveOnLifecycle({ event: 'visibility', hasPending: true, visibilityState: 'visible' }),
     'noop',
   );
 });

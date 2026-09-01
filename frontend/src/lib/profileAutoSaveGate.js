@@ -16,6 +16,17 @@ export function decideProfileAutoSaveOnActiveChange({ wasActive, isActive, hasPe
 }
 
 /**
+ * AXE-29 : flush aussi au démontage (toggle Beta), pagehide, onglet caché.
+ * Pas de PUT si rien n’est pending.
+ */
+export function decideProfileAutoSaveOnLifecycle({ event, hasPending, visibilityState } = {}) {
+  if (!hasPending) return 'noop';
+  if (event === 'unmount' || event === 'pagehide') return 'flush';
+  if (event === 'visibility' && visibilityState === 'hidden') return 'flush';
+  return 'noop';
+}
+
+/**
  * PUT profil Stable : ne pas envoyer `layout: null` (ça efface le canvas Beta).
  * Si le formulaire n’a pas de layout, on omet la clé pour que le serveur conserve l’existant.
  */

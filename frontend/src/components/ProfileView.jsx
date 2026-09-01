@@ -26,6 +26,7 @@ import {
   buildProfileCvPutPayload,
   decideProfileAutoSaveOnActiveChange,
   decideProfileAutoSaveOnCvChange,
+  decideProfileAutoSaveOnLifecycle,
 } from '../lib/profileAutoSaveGate.js';
 import Button from './ui/Button.jsx';
 import Input from './ui/Input.jsx';
@@ -244,6 +245,13 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
     autoSaveTimerRef.current = null;
   }, []);
 
+  const flushPendingAutoSave = useCallback(() => {
+    if (!pendingAutoSaveRef.current) return;
+    pendingAutoSaveRef.current = false;
+    clearAutoSaveTimer();
+    void saveToApiRef.current?.({ silent: true });
+  }, [clearAutoSaveTimer]);
+
   // Auto-save : sauvegarde automatique après modification (debounce)
   const saveToApi = useCallback(async ({ silent = false } = {}) => {
     setError('');
@@ -397,11 +405,50 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
       isActive,
       hasPending: pendingAutoSaveRef.current,
     }) === 'flush') {
-      pendingAutoSaveRef.current = false;
-      clearAutoSaveTimer();
-      void saveToApiRef.current?.({ silent: true });
+      flushPendingAutoSave();
     }
-  }, [isActive, clearAutoSaveTimer]);
+  }, [isActive, flushPendingAutoSave]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const onPageHide = () => {
+      if (decideProfileAutoSaveOnLifecycle({
+        event: 'pagehide',
+        hasPending: pendingAutoSaveRef.current,
+      }) === 'flush') {
+        flushPendingAutoSave();
+      }
+    };
+    const onVisibility = () => {
+      if (decideProfileAutoSaveOnLifecycle({
+        event: 'visibility',
+        hasPending: pendingAutoSaveRef.current,
+        visibilityState: document.visibilityState,
+      }) === 'flush') {
+        flushPendingAutoSave();
+      }
+    };
+    const onBeforeUnload = (event) => {
+      if (!pendingAutoSaveRef.current) return undefined;
+      event.preventDefault();
+      event.returnValue = '';
+      return '';
+    };
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('beforeunload', onBeforeUnload);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (decideProfileAutoSaveOnLifecycle({
+        event: 'unmount',
+        hasPending: pendingAutoSaveRef.current,
+      }) === 'flush') {
+        flushPendingAutoSave();
+      }
+    };
+  }, [flushPendingAutoSave]);
 
   useEffect(() => {
     if (onTemplateIdChange) return;

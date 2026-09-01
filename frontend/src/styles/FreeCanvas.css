@@ -771,6 +771,20 @@
   padding: 1mm 1.5mm;
 }
 
+/* Import PDF (nowrap) : le padding 1 mm décalait le texte au-dessus des puces. */
+.free-canvas-block[data-nowrap='true'][data-block-type='text'] .free-canvas-block__inner,
+.free-canvas-block[data-nowrap='true'][data-block-type='title'] .free-canvas-block__inner {
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.free-canvas-block[data-nowrap='true'] .free-canvas-block__text,
+.free-canvas-block[data-nowrap='true'] .free-canvas-block__title {
+  line-height: 1;
+  width: 100%;
+}
+
 .free-canvas-block__section-title {
   margin: 0 0 1.5mm;
   font-size: 9pt;

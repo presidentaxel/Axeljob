@@ -101,6 +101,17 @@ body.cv-layout-body {
 .cv-layout-block[data-type="resume"] .cv-layout-block__inner {
   padding: 1mm 1.5mm;
 }
+.cv-layout-block[data-nowrap="true"][data-type="text"] .cv-layout-block__inner,
+.cv-layout-block[data-nowrap="true"][data-type="title"] .cv-layout-block__inner {
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+.cv-layout-block[data-nowrap="true"] .cv-layout-text,
+.cv-layout-block[data-nowrap="true"] .cv-layout-title {
+  line-height: 1;
+  width: 100%;
+}
 .cv-layout-doc--tpl-bold .cv-layout-block[data-type="resume"] .cv-layout-block__inner,
 .cv-layout-doc--tpl-classic .cv-layout-block[data-type="resume"] .cv-layout-block__inner,
 .cv-layout-doc--tpl-creative .cv-layout-block[data-type="resume"] .cv-layout-block__inner,
@@ -785,9 +796,10 @@ def _render_block(cv: dict, block: dict, ctx: dict[str, Any] | None = None) -> s
     bid = _esc(str(block.get("id") or ""))
     zone_attr = f' data-zone="{_esc(zone)}"' if zone else ""
     on_dark_attr = ' data-on-dark="1"' if on_dark else ""
+    nowrap_attr = ' data-nowrap="true"' if block_style.get("nowrap") else ""
     return (
         f'<div class="cv-layout-block{hairline_cls}" data-block-id="{bid}" '
-        f'data-type="{_esc(btype)}"{zone_attr}{on_dark_attr} '
+        f'data-type="{_esc(btype)}"{zone_attr}{on_dark_attr}{nowrap_attr} '
         f'style="{style_attr}">'
         f'<div class="cv-layout-block__inner"{inner_style}>{inner}</div></div>'
     )

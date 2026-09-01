@@ -3,6 +3,11 @@
  * vers des types sémantiques éditables (identity, experiences, …).
  *
  * Heuristique pure (pas d'IA) : confiance basse → le bloc reste `text`.
+ *
+ * Deux modes :
+ * - `inPlace` (défaut, import design) : même géométrie/typo PDF ; titres → `title` ;
+ *   identité/contact bindés étroitement. Le corps n’est pas fusionné.
+ * - `absorb` : ancien AXE-329 (région titre→corps → un widget sémantique).
  */
 
 import { createCvSectionBlockPreset } from './canvasCvSectionPresets.js';
@@ -142,9 +147,13 @@ export function classifyStructuralTextBlock(block, cv = {}, { pageHeightMm = 297
   }
 
   // Identité : nom/prénom CV (+ dual-key EN) + haut de page + emphase.
+  // Ligne courte seulement : un bullet XP qui cite le nom ne doit pas
+  // devenir un second widget identity.
   const prenom = String(cv?.prenom || cv?.first_name || '').trim().toLowerCase();
   const nom = String(cv?.nom || cv?.last_name || '').trim().toLowerCase();
-  if (prenom || nom) {
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+  const nameLine = text.length <= 48 && wordCount <= 6;
+  if (nameLine && (prenom || nom)) {
     const lower = text.toLowerCase();
     const hasPrenom = prenom && lower.includes(prenom);
     const hasNom = nom && lower.includes(nom);
@@ -157,8 +166,27 @@ export function classifyStructuralTextBlock(block, cv = {}, { pageHeightMm = 297
       if (fontSize >= 14 || bold) confidence += 0.2;
       if (hasPrenom && hasNom) confidence += 0.15;
       if (confidence >= MIN_SEMANTIC_CONFIDENCE) {
-        return { type: 'identity', confidence: Math.min(1, confidence), kind: 'identity' };
+        return {
+          type: 'identity',
+          confidence: Math.min(1, confidence),
+          kind: 'identity',
+          bindPaths: ['prenom', 'nom'],
+        };
       }
+    }
+  }
+
+  const titre = String(cv?.titre_professionnel || '').trim().toLowerCase();
+  if (titre && text.toLowerCase().includes(titre) && text.length <= 80) {
+    const lower = text.toLowerCase();
+    const looksLikeName = (prenom && lower.includes(prenom)) || (nom && lower.includes(nom));
+    if (!looksLikeName) {
+      return {
+        type: 'identity',
+        confidence: 0.82,
+        kind: 'identity',
+        bindPaths: ['titre_professionnel'],
+      };
     }
   }
 
@@ -173,6 +201,63 @@ export function classifyStructuralTextBlock(block, cv = {}, { pageHeightMm = 297
   }
 
   return null;
+}
+
+export const BIND_MODE_IN_PLACE = 'inPlace';
+export const BIND_MODE_ABSORB = 'absorb';
+
+function contactBindPaths(block) {
+  const text = decodeStructuralText(block.content);
+  const paths = [];
+  if (EMAIL_RE.test(text)) paths.push('email');
+  if (PHONE_RE.test(text)) paths.push('telephone');
+  return paths;
+}
+
+function preservedPdfStyle(baseBlock, extra = {}) {
+  const src = baseBlock.style && typeof baseBlock.style === 'object' ? baseBlock.style : {};
+  return {
+    ...src,
+    lock_geometry: true,
+    ...extra,
+  };
+}
+
+/**
+ * Bind in-place : même bbox / typo PDF, pas d’absorption du corps.
+ * Titres → `title` (le corps reste du texte). Identité / contact → widgets
+ * avec un bind étroit (un champ par ligne).
+ */
+function toInPlaceBlock(baseBlock, classification) {
+  if (classification.kind === 'heading') {
+    const extra = { semantic_section: classification.type };
+    if (classification.sectionLabel) extra.section_label = classification.sectionLabel;
+    return {
+      ...baseBlock,
+      type: 'title',
+      content: decodeStructuralText(baseBlock.content) || baseBlock.content,
+      style: preservedPdfStyle(baseBlock, extra),
+    };
+  }
+  const preset = createCvSectionBlockPreset(classification.type);
+  if (!preset) return null;
+  let bind = classification.bindPaths;
+  if (!bind && classification.kind === 'identity') bind = ['prenom', 'nom'];
+  if (!bind && classification.kind === 'contact') {
+    bind = contactBindPaths(baseBlock);
+  }
+  if (!bind || bind.length === 0) return null;
+  return {
+    id: baseBlock.id,
+    type: preset.type,
+    x: baseBlock.x,
+    y: baseBlock.y,
+    w: baseBlock.w,
+    h: baseBlock.h,
+    z: baseBlock.z,
+    bind,
+    style: preservedPdfStyle(baseBlock),
+  };
 }
 
 function toSemanticBlock(baseBlock, classification, regionBlocks) {
@@ -208,14 +293,313 @@ function toSemanticBlock(baseBlock, classification, regionBlocks) {
   return out;
 }
 
+function normImportText(value) {
+  return decodeStructuralText(value).toLowerCase();
+}
+
+function sortedBindPaths(block) {
+  if (!Array.isArray(block?.bind)) return [];
+  return [...block.bind].map(String).sort();
+}
+
+function identityBindSignature(block) {
+  return `identity:${sortedBindPaths(block).join(',')}`;
+}
+
+function titleBindSignature(block) {
+  const section = block?.style?.semantic_section;
+  if (!section) return null;
+  const col = Math.round((Number(block.x) || 0) / 16);
+  return `title:${section}:${col}`;
+}
+
+function boxesOverlap(a, b, padMm = 1.5) {
+  const ax1 = Number(a.x) || 0;
+  const ay1 = Number(a.y) || 0;
+  const ax2 = ax1 + (Number(a.w) || 0);
+  const ay2 = ay1 + (Number(a.h) || 0);
+  const bx1 = Number(b.x) || 0;
+  const by1 = Number(b.y) || 0;
+  const bx2 = bx1 + (Number(b.w) || 0);
+  const by2 = by1 + (Number(b.h) || 0);
+  return ax1 < bx2 + padMm && ax2 + padMm > bx1 && ay1 < by2 + padMm && ay2 + padMm > by1;
+}
+
+function isNearBlock(a, b, maxDy = 42, maxDx = 52) {
+  return Math.abs((Number(a.y) || 0) - (Number(b.y) || 0)) <= maxDy
+    && Math.abs((Number(a.x) || 0) - (Number(b.x) || 0)) <= maxDx;
+}
+
+function visualScore(block) {
+  const fontSize = Number(block?.style?.font_size) || 0;
+  const area = (Number(block?.w) || 0) * (Number(block?.h) || 0);
+  return fontSize * 1000 + area;
+}
+
+function pickBetterBlock(current, candidate, preferTop) {
+  if (!current) return candidate;
+  if (preferTop) {
+    const dy = (Number(candidate.y) || 0) - (Number(current.y) || 0);
+    if (dy < -0.5) return candidate;
+    if (dy > 0.5) return current;
+  }
+  return visualScore(candidate) > visualScore(current) ? candidate : current;
+}
+
+function isShortReprintOf(textNorm, values) {
+  return values.some((value) => {
+    if (!value || value.length < 2) return false;
+    if (textNorm === value) return true;
+    if (textNorm.length > 40) return false;
+    return value.startsWith(`${textNorm} `) || value.endsWith(` ${textNorm}`);
+  });
+}
+
+/**
+ * Après bind in-place : un widget par champ, pas de texte fantôme à côté
+ * du nom/contact, pas de titres de section doublés dans la même colonne.
+ */
+export function pruneInPlaceImportDuplicates(layout, cv = {}) {
+  if (!layout?.pages?.length) return layout;
+
+  const prenom = String(cv.prenom || cv.first_name || '').trim();
+  const nom = String(cv.nom || cv.last_name || '').trim();
+  const fullName = [prenom, nom].filter(Boolean).join(' ');
+  const titre = String(cv.titre_professionnel || '').trim();
+  const email = String(cv.email || '').trim();
+  const phone = String(cv.telephone || cv.phone || '').trim();
+  const identityValues = [fullName, prenom, nom].map(normImportText).filter((s) => s.length >= 2);
+  const titreValue = normImportText(titre);
+  const contactValues = [email, phone].map(normImportText).filter((s) => s.length >= 3);
+
+  const pages = layout.pages.map((page) => {
+    const blocks = Array.isArray(page.blocks) ? [...page.blocks] : [];
+    const dropIds = new Set();
+
+    const bestIdentity = new Map();
+    for (const block of blocks) {
+      if (block?.type !== 'identity') continue;
+      const sig = identityBindSignature(block);
+      bestIdentity.set(sig, pickBetterBlock(bestIdentity.get(sig), block, false));
+    }
+    for (const block of blocks) {
+      if (block?.type !== 'identity') continue;
+      const winner = bestIdentity.get(identityBindSignature(block));
+      if (winner && winner.id !== block.id) dropIds.add(block.id);
+    }
+
+    const bestContact = { email: null, telephone: null };
+    for (const block of blocks) {
+      if (block?.type !== 'contact' || dropIds.has(block.id)) continue;
+      const paths = sortedBindPaths(block);
+      for (const path of paths) {
+        if (path !== 'email' && path !== 'telephone') continue;
+        bestContact[path] = pickBetterBlock(bestContact[path], block, true);
+      }
+    }
+    for (const block of blocks) {
+      if (block?.type !== 'contact' || dropIds.has(block.id)) continue;
+      const paths = sortedBindPaths(block).filter((p) => p === 'email' || p === 'telephone');
+      const keepsAny = paths.some((path) => bestContact[path]?.id === block.id);
+      if (!keepsAny) dropIds.add(block.id);
+    }
+
+    const bestTitle = new Map();
+    for (const block of blocks) {
+      if (block?.type !== 'title' || dropIds.has(block.id)) continue;
+      const sig = titleBindSignature(block);
+      if (!sig) continue;
+      bestTitle.set(sig, pickBetterBlock(bestTitle.get(sig), block, true));
+    }
+    for (const block of blocks) {
+      if (block?.type !== 'title' || dropIds.has(block.id)) continue;
+      const sig = titleBindSignature(block);
+      if (!sig) continue;
+      const winner = bestTitle.get(sig);
+      if (winner && winner.id !== block.id) dropIds.add(block.id);
+    }
+
+    const identityKept = blocks.filter((b) => b.type === 'identity' && !dropIds.has(b.id));
+    const nameIdentities = identityKept.filter((b) => {
+      const paths = sortedBindPaths(b);
+      return paths.includes('prenom') || paths.includes('nom');
+    });
+    const titreIdentities = identityKept.filter((b) => (
+      sortedBindPaths(b).includes('titre_professionnel')
+    ));
+    const contactKept = blocks.filter((b) => b.type === 'contact' && !dropIds.has(b.id));
+    const titleKept = blocks.filter((b) => b.type === 'title' && !dropIds.has(b.id));
+
+    for (const block of blocks) {
+      if (dropIds.has(block.id)) continue;
+      if (block.type !== 'text' && block.type !== 'title') continue;
+      const textNorm = normImportText(block.content);
+      if (!textNorm) {
+        dropIds.add(block.id);
+        continue;
+      }
+      if (block.type === 'text' && nameIdentities.some((idb) => isNearBlock(block, idb))
+        && isShortReprintOf(textNorm, identityValues)) {
+        dropIds.add(block.id);
+        continue;
+      }
+      if (
+        block.type === 'text'
+        && titreValue.length >= 2
+        && titreIdentities.some((idb) => isNearBlock(block, idb))
+        && isShortReprintOf(textNorm, [titreValue])
+      ) {
+        dropIds.add(block.id);
+        continue;
+      }
+      if (block.type === 'text' && contactKept.some((cb) => isNearBlock(block, cb, 56, 80))
+        && isShortReprintOf(textNorm, contactValues)) {
+        dropIds.add(block.id);
+        continue;
+      }
+      if (block.type === 'text' && titleKept.some((tb) => {
+        const titleNorm = normImportText(tb.content);
+        return titleNorm && textNorm === titleNorm && (boxesOverlap(block, tb, 2) || isNearBlock(block, tb, 8, 20));
+      })) {
+        dropIds.add(block.id);
+      }
+    }
+
+    const remaining = blocks.filter((b) => (
+      (b.type === 'text' || b.type === 'title') && !dropIds.has(b.id)
+    ));
+    for (let i = 0; i < remaining.length; i += 1) {
+      for (let j = i + 1; j < remaining.length; j += 1) {
+        const a = remaining[i];
+        const b = remaining[j];
+        if (dropIds.has(a.id) || dropIds.has(b.id)) continue;
+        if (normImportText(a.content) !== normImportText(b.content)) continue;
+        if (normImportText(a.content).length < 2) continue;
+        const close = boxesOverlap(a, b, 2)
+          || (
+            Math.abs((Number(a.y) || 0) - (Number(b.y) || 0)) < 3
+            && Math.abs((Number(a.x) || 0) - (Number(b.x) || 0)) < 8
+          );
+        if (!close) continue;
+        dropIds.add(visualScore(a) >= visualScore(b) ? b.id : a.id);
+      }
+    }
+
+    return { ...page, blocks: blocks.filter((b) => !dropIds.has(b.id)) };
+  });
+
+  return { ...layout, pages };
+}
+
+const MAX_GUTTER_MARKER_MM = 6.5;
+const MAX_GUTTER_GAP_MM = 14;
+const MAX_BULLET_ALIGN_DY_MM = 8;
+const BULLET_GLYPH_RE = /^[•●○◦▪■‣▸∙·\-–—*]$/;
+const JOB_TITLE_DASH_RE = /\s[–—-]\s/;
+
+function isGutterMarker(block) {
+  const w = Number(block?.w) || 0;
+  const h = Number(block?.h) || 0;
+  if (Math.max(w, h) > MAX_GUTTER_MARKER_MM) return false;
+  if (block.type === 'shape:circle') return true;
+  if (block.type === 'image') return true;
+  if (block.type === 'text' || block.type === 'title') {
+    return BULLET_GLYPH_RE.test(normImportText(block.content));
+  }
+  return false;
+}
+
+function isListBodyLine(block) {
+  const text = normImportText(block.content);
+  if (text.length < 10) return false;
+  const italic = Boolean(block.style?.italic || block.style?.font_style === 'italic');
+  if (italic && text.length < 28) return false;
+  if (block.style?.bold && JOB_TITLE_DASH_RE.test(text) && text.length < 90) return false;
+  return true;
+}
+
+function snapMarkerToTextLine(marker, text) {
+  const mh = Number(marker.h) || 0;
+  const th = Number(text.h) || 0;
+  const ty = Number(text.y) || 0;
+  return { ...marker, y: Math.round(Math.max(0, ty + (th - mh) / 2) * 100) / 100 };
+}
+
+/**
+ * Recale les puces sur les lignes de corps (zip par colonne), pas sur le
+ * titre / la date au-dessus — sinon toute la liste glisse d'une ligne.
+ */
+export function alignImportGutterMarkers(layout) {
+  if (!layout?.pages?.length) return layout;
+  const pages = layout.pages.map((page) => {
+    const blocks = Array.isArray(page.blocks) ? page.blocks : [];
+    const targets = blocks.filter((b) => (
+      (b.type === 'text' || b.type === 'title')
+      && !isGutterMarker(b)
+      && normImportText(b.content).length >= 2
+    ));
+    const markers = blocks.filter((b) => isGutterMarker(b));
+    if (!targets.length || !markers.length) return page;
+
+    const columns = new Map();
+    for (const marker of markers) {
+      const key = Math.round((Number(marker.x) || 0) / 2.5);
+      const list = columns.get(key) || [];
+      list.push(marker);
+      columns.set(key, list);
+    }
+
+    const snapped = new Map();
+    for (const colMarkers of columns.values()) {
+      colMarkers.sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0));
+      const mx = Number(colMarkers[0].x) || 0;
+      const mw = Number(colMarkers[0].w) || 0;
+      const markerRight = mx + mw;
+      const colTexts = targets
+        .filter((t) => {
+          const tx = Number(t.x) || 0;
+          return tx >= markerRight - 1 && tx - markerRight <= MAX_GUTTER_GAP_MM;
+        })
+        .sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0));
+      let body = colTexts.filter((t) => isListBodyLine(t));
+      if (body.length < Math.max(1, Math.floor(colMarkers.length * 0.6))) {
+        body = colTexts.filter((t) => {
+          const text = normImportText(t.content);
+          const italic = Boolean(t.style?.italic || t.style?.font_style === 'italic');
+          return text.length >= 10 && !(italic && text.length < 28);
+        });
+      }
+      const n = Math.min(colMarkers.length, body.length);
+      for (let i = 0; i < n; i += 1) {
+        const marker = colMarkers[i];
+        const text = body[i];
+        if (Math.abs((Number(text.y) || 0) - (Number(marker.y) || 0)) > MAX_BULLET_ALIGN_DY_MM + 6) {
+          continue;
+        }
+        snapped.set(marker.id, snapMarkerToTextLine(marker, text));
+      }
+    }
+
+    return {
+      ...page,
+      blocks: blocks.map((b) => snapped.get(b.id) || b),
+    };
+  });
+  return { ...layout, pages };
+}
+
 /**
  * Applique le binding sémantique sur un layout structurel freeform.
  * Si ``annotations`` (API AXE-332) est fourni, elles priment sur l'heuristique locale.
+ * @param {{ minConfidence?: number, annotations?: Array|null, mode?: 'inPlace'|'absorb' }} [options]
+ *   `inPlace` (défaut) : géométrie PDF conservée, titres → title, pas d’absorption.
+ *   `absorb` : ancien comportement AXE-329 (région titre→corps → un widget).
  * @returns {{ layout: object, boundCount: number, skippedLowConfidence: number }}
  */
 export function bindStructuralTextToSemanticBlocks(layout, cv = {}, {
   minConfidence = MIN_SEMANTIC_CONFIDENCE,
   annotations = null,
+  mode = BIND_MODE_IN_PLACE,
 } = {}) {
   if (!layout || !Array.isArray(layout.pages)) {
     return { layout, boundCount: 0, skippedLowConfidence: 0 };
@@ -252,6 +636,9 @@ export function bindStructuralTextToSemanticBlocks(layout, cv = {}, {
             ? fromApi.type
             : 'heading'),
           sectionLabel: fromApi.section_label || fromApi.sectionLabel,
+          bindPaths: Array.isArray(fromApi.bind_paths)
+            ? fromApi.bind_paths
+            : (Array.isArray(fromApi.bind) ? fromApi.bind : undefined),
         });
         continue;
       }
@@ -264,10 +651,26 @@ export function bindStructuralTextToSemanticBlocks(layout, cv = {}, {
       classifications.set(block.id, hit);
     }
 
+    if (mode === BIND_MODE_IN_PLACE) {
+      const replaced = new Map();
+      for (const block of textBlocks) {
+        const cls = classifications.get(block.id);
+        if (!cls) continue;
+        const next = toInPlaceBlock(block, cls);
+        if (!next) continue;
+        replaced.set(block.id, next);
+        boundCount += 1;
+      }
+      return {
+        ...page,
+        blocks: blocks.map((b) => replaced.get(b.id) || b),
+      };
+    }
+
     const consumed = new Set();
     const semanticNew = [];
 
-    // 1) Titres → région jusqu'au prochain titre (même colonne).
+    // absorb : titres → région jusqu'au prochain titre (même colonne).
     for (let i = 0; i < textBlocks.length; i += 1) {
       const head = textBlocks[i];
       if (consumed.has(head.id)) continue;
@@ -301,7 +704,7 @@ export function bindStructuralTextToSemanticBlocks(layout, cv = {}, {
       }
     }
 
-    // 2) Identité / contact (blocs isolés, non déjà absorbés).
+    // Identité / contact (blocs isolés, non déjà absorbés).
     for (const block of textBlocks) {
       if (consumed.has(block.id)) continue;
       const cls = classifications.get(block.id);
@@ -320,7 +723,11 @@ export function bindStructuralTextToSemanticBlocks(layout, cv = {}, {
     };
   });
 
-  const nextLayout = { ...layout, pages, freeform: true };
+  let nextLayout = { ...layout, pages, freeform: true };
+  if (mode === BIND_MODE_IN_PLACE) {
+    nextLayout = pruneInPlaceImportDuplicates(nextLayout, cv);
+  }
+  nextLayout = alignImportGutterMarkers(nextLayout);
   // annotations consommées — inutile de les repasser au canvas
   if ('semantic_annotations' in nextLayout) {
     delete nextLayout.semantic_annotations;

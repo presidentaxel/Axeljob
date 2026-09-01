@@ -29,6 +29,7 @@ import {
   setBlockPosition,
 } from './cvLayoutModelV3.js';
 import { syncCvDualKeys } from './cvDualKey.js';
+import { bindStructuralTextToSemanticBlocks } from './structuralSemanticBind.js';
 import {
   resolveBoundText,
   resolveCertifications,
@@ -39,7 +40,6 @@ import {
   resolvePhotoUrl,
   resolveProjets,
 } from './freeCanvasContent.js';
-import { bindStructuralTextToSemanticBlocks } from './structuralSemanticBind.js';
 
 const DECORATIVE_TYPES = new Set(['shape:rect', 'shape:line']);
 
@@ -60,6 +60,11 @@ export function countContentBlocks(layout) {
 export function ensureImportLayoutHasContent(layout, cv) {
   if (!layout?.pages?.length) return layout;
   if (countContentBlocks(layout) > 0) return layout;
+  // Copie PDF : ne pas coller identity/XP générés sous une géométrie extraite
+  // (même décorative-only). Les répliques template gardent le seed AXE-344.
+  if (layout.freeform === true && layout.replica_cascade !== true) {
+    return layout;
+  }
   return optimizeAddMissingProfileSections(layout, cv || {});
 }
 
@@ -1213,14 +1218,15 @@ export function buildStructuralImportLayout(cv, structuralLayout, {
   const analysis = analyzeCvProfile(cv);
   // `freeform` : positions absolues figées (cf. reflow/pagination) → copie
   // fidèle du PDF, jamais ré-empilée en colonnes par l'auto-height.
+  //
+  // Mix juin + août : bind in-place (identité / contact éditables, titres
+  // annotés) sans fusionner le corps en widgets experiences.
   const sanitized = sanitizeLayoutV3({ ...structuralLayout, freeform: true });
-  // AXE-329 / AXE-332 : annotations API > heuristiques locales.
-  const { layout: boundLayout } = bindStructuralTextToSemanticBlocks(sanitized, cv, {
+  const { layout } = bindStructuralTextToSemanticBlocks(sanitized, cv, {
     annotations: annotations
       ?? structuralLayout?.semantic_annotations
       ?? null,
   });
-  const layout = applyLayoutPagination(boundLayout);
   // Python extrait les couleurs thème directement depuis page.get_drawings()
   // (fiable quel que soit le chemin de rendu). Le JS n'intervient qu'en
   // fallback pour les couleurs que Python n'a pas trouvées.

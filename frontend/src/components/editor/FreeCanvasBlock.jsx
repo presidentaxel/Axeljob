@@ -812,7 +812,10 @@ function inlineTypographyStyle(style = {}) {
   if (deco.length) css.textDecoration = deco.join(' ');
   // Import "copie fidèle" : une ligne PDF reste sur une ligne (pas de wrap qui
   // chevaucherait le bloc suivant, les positions étant figées).
-  if (style.nowrap) css.whiteSpace = 'nowrap';
+  if (style.nowrap) {
+    css.whiteSpace = 'nowrap';
+    css.lineHeight = 1;
+  }
   return css;
 }
 
@@ -825,7 +828,7 @@ function NonSemanticBlockBody({ block, editing = false, onAutoHeight }) {
         textAlign: style.align || 'left',
         opacity: style.opacity ?? 1,
         margin: 0,
-        minHeight: '1em',
+        minHeight: style.nowrap ? 0 : '1em',
         height: 'auto',
         overflow: 'visible',
       };
@@ -1017,7 +1020,8 @@ export default function FreeCanvasBlock({
   // Répliques figées (Bold/Classic header) : garder h preset pour centrer vs photo.
   const autoHeight = validBlock
     && isAutoHeightBlockType(type)
-    && !blockStyle?.lock_geometry;
+    && !blockStyle?.lock_geometry
+    && !blockStyle?.nowrap;
 
   const reportHeight = useCallback((newHmm) => {
     if (!autoHeight || typeof onBlockAutoHeight !== 'function' || !id) return;
@@ -1134,6 +1138,7 @@ export default function FreeCanvasBlock({
       className={blockClassName({ selected, dragging, resizing, interactable, editing, locked })}
       data-block-id={id}
       data-block-type={type}
+      data-nowrap={blockStyle?.nowrap ? 'true' : undefined}
       tabIndex={interactable && !editing ? 0 : undefined}
       aria-label={interactable ? a11yLabel : undefined}
       aria-disabled={interactable && locked ? true : undefined}

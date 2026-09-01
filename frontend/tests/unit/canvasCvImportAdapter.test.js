@@ -13,6 +13,7 @@ import {
   buildStructuralImportLayout,
   buildThemeFromVisionImport,
   estimateSemanticBlockHeight,
+  ensureImportLayoutHasContent,
   inferThemeFromProfile,
   isStructuralLayout,
   mergePresetDecorations,
@@ -164,7 +165,7 @@ test('buildStructuralImportLayout : copie fidèle, aucun preset', () => {
   assert.equal(title.style.bold, true);
 });
 
-test('buildStructuralImportLayout : lie titres freeform → blocs sémantiques (AXE-329)', () => {
+test('buildStructuralImportLayout : mix in-place (identity/title, corps PDF conservé)', () => {
   const structural = {
     version: 3,
     format: 'A4',
@@ -213,8 +214,38 @@ test('buildStructuralImportLayout : lie titres freeform → blocs sémantiques (
   assert.equal(result.layout.freeform, true);
   const blocks = result.layout.pages[0].blocks;
   assert.ok(blocks.some((b) => b.type === 'identity' && Array.isArray(b.bind)));
-  assert.ok(blocks.some((b) => b.type === 'experiences' && b.bind === 'experiences'));
-  assert.equal(blocks.some((b) => b.type === 'text' && String(b.content || '').includes('Head of Growth')), false);
+  assert.ok(blocks.some((b) => b.type === 'title' && b.style?.semantic_section === 'experiences'));
+  assert.ok(blocks.some((b) => b.type === 'text' && String(b.content || '').includes('Head of Growth')));
+  assert.equal(blocks.some((b) => b.type === 'experiences'), false);
+});
+
+test('ensureImportLayoutHasContent : copie PDF freeform ne seed pas de widgets', () => {
+  const layout = sanitizeLayoutV3({
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    freeform: true,
+    pages: [{
+      id: 'p1',
+      blocks: [
+        {
+          id: 'bg',
+          type: 'shape:rect',
+          x: 0,
+          y: 0,
+          w: 18,
+          h: 297,
+          z: 0,
+          style: { color: '#003c33' },
+        },
+      ],
+    }],
+  });
+  const out = ensureImportLayoutHasContent(layout, DENSE_CV);
+  assert.equal(out.pages[0].blocks.some((b) => b.type === 'experiences'), false);
+  assert.equal(out.pages[0].blocks.some((b) => b.type === 'identity'), false);
+  assert.equal(out.pages[0].blocks.length, 1);
 });
 
 test('applyImportedRoundImageShapes : anneau vectoriel → image en cercle', () => {

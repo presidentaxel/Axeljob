@@ -33,7 +33,7 @@ export const CV_IMPORT_STEPS = [
   'Finalisation du canvas',
 ];
 
-/** Étapes affichées à la création de compte (pas de canvas / vision). */
+/** Étapes overlay à la création de compte (AXE-341). Le layout design est persisté à part (AXE-398). */
 export const ONBOARDING_IMPORT_STEPS = [
   'Lecture du document',
   'Extraction du texte',

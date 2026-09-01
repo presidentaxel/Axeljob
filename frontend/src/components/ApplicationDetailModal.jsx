@@ -4,6 +4,8 @@ import { HiPencil, HiCheck, HiChevronDown } from 'react-icons/hi2';
 import { apiGet, apiPost, apiPatch, apiGetBlob, apiPostFormData, prepareAppleDownloadWindow, saveBlobWithPreferredMethod, getDownloadPermissionHint } from '../api';
 import CompanyLogo from './CompanyLogo';
 import { formatApplicationDateLabel } from '../lib/applicationDates';
+import Button from './ui/Button.jsx';
+import Input from './ui/Input.jsx';
 
 const DOC_LABELS = { lettre: 'Lettre de motivation', cv: 'CV', fiche: 'Fiche de poste' };
 
@@ -163,9 +165,9 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
             <span className="detail-entreprise">{applicationDetail.entreprise || ''}</span>
             {editingPoste ? (
               <div className="detail-header-title-edit-wrap">
-                <input
+                <Input
                   type="text"
-                  className="input-field detail-header-poste-input"
+                  className="detail-header-poste-input"
                   style={posteInputWidthStyle}
                   value={posteDraft}
                   onChange={(e) => setPosteDraft(e.target.value)}
@@ -309,14 +311,14 @@ export default function ApplicationDetailModal({ applicationDetailId, applicatio
                 <div className="detail-lettre-empty">
                   <p>Aucune lettre pour cette candidature.</p>
                   {letterGenEnabled ? (
-                    <button type="button" className="button button-primary" onClick={handleGenerateLetter} disabled={!applicationDetail.full_cv}>Générer la lettre</button>
+                    <Button type="button" variant="primary" onClick={handleGenerateLetter} disabled={!applicationDetail.full_cv}>Générer la lettre</Button>
                   ) : (
                     <div>
                       <p style={{ fontSize: '0.9rem', color: 'var(--muted)', marginTop: '0.5rem' }}>La génération de lettre par IA est réservée au plan Pro.</p>
                       {typeof onUpgradeClick === 'function' && (
-                        <button type="button" className="button button-primary" style={{ marginTop: '0.75rem' }} onClick={onUpgradeClick}>
+                        <Button type="button" variant="primary" style={{ marginTop: '0.75rem' }} onClick={onUpgradeClick}>
                           Passer en Pro
-                        </button>
+                        </Button>
                       )}
                     </div>
                   )}

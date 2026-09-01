@@ -4,9 +4,11 @@ import test from 'node:test';
 import {
   cleanupCanvasHeaderOverlays,
   dedupeOverlappingIdentities,
+  expandClippedIdentity,
   insertMissingSpaceAfterColonLabels,
   isFullWidthHeaderRect,
   removeTextDuplicatingIdentity,
+  shrinkOverlappingTextLines,
   stretchHeaderBandToContent,
   textDuplicatesIdentityContent,
 } from '../../src/lib/canvasHeaderOverlayCleanup.js';
@@ -100,6 +102,28 @@ test('removeTextDuplicatingIdentity retire le titre PDF superposé', () => {
       style: { align: 'center' },
     },
     {
+      id: 'ghost-html',
+      type: 'text',
+      content: '<span>- Étudiant ESSEC -</span>',
+      x: 70,
+      y: 9,
+      w: 60,
+      h: 5,
+      z: 4,
+      style: { align: 'center' },
+    },
+    {
+      id: 'ghost-band',
+      type: 'text',
+      content: 'Étudiant ESSEC – Entrepreneuriat, Tech & Conseil',
+      x: 20,
+      y: 12,
+      w: 160,
+      h: 6,
+      z: 4,
+      style: {},
+    },
+    {
       id: 'body',
       type: 'text',
       content: 'Organisation : Loulitos',
@@ -114,6 +138,8 @@ test('removeTextDuplicatingIdentity retire le titre PDF superposé', () => {
   const out = removeTextDuplicatingIdentity(layout, CV);
   const ids = out.pages[0].blocks.map((b) => b.id);
   assert.equal(ids.includes('ghost'), false);
+  assert.equal(ids.includes('ghost-html'), false);
+  assert.equal(ids.includes('ghost-band'), false);
   assert.equal(ids.includes('body'), true);
   assert.equal(ids.includes('ident'), true);
 });
@@ -181,6 +207,107 @@ test('insertMissingSpaceAfterColonLabels', () => {
   assert.equal(out.pages[0].blocks[0].content, 'Organisation : Loulitos');
 });
 
+test('stretchHeaderBandToContent n’avale pas les titres de section du corps', () => {
+  const layout = layoutWith([
+    {
+      id: 'bg',
+      type: 'shape:rect',
+      x: 0,
+      y: 0,
+      w: 210,
+      h: 41.7,
+      z: 0,
+      style: { color: '#1e293b' },
+    },
+    {
+      id: 'resume',
+      type: 'text',
+      content: 'Résumé dans le bandeau',
+      x: 8,
+      y: 28,
+      w: 194,
+      h: 8,
+      z: 5,
+      style: {},
+    },
+    {
+      id: 'exp-title',
+      type: 'title',
+      content: 'EXPÉRIENCE PROFESSIONNELLE',
+      x: 4,
+      y: 43.5,
+      w: 60,
+      h: 4,
+      z: 3,
+      style: {},
+    },
+  ]);
+  const out = stretchHeaderBandToContent(layout);
+  const bg = out.pages[0].blocks.find((b) => b.id === 'bg');
+  assert.ok(bg.h < 43, `header ne doit pas avaler le corps, h=${bg.h}`);
+});
+
+test('expandClippedIdentity agrandit une identité trop basse', () => {
+  const layout = layoutWith([
+    {
+      id: 'ident',
+      type: 'identity',
+      bind: ['prenom', 'nom', 'titre_professionnel'],
+      x: 19,
+      y: 5.6,
+      w: 106,
+      h: 6.3,
+      z: 3,
+      style: { header_layout: 'inline-title' },
+    },
+    {
+      id: 'resume',
+      type: 'text',
+      content: 'Résumé',
+      x: 2,
+      y: 16.2,
+      w: 200,
+      h: 8,
+      z: 3,
+      style: {},
+    },
+  ]);
+  const out = expandClippedIdentity(layout);
+  const ident = out.pages[0].blocks.find((b) => b.id === 'ident');
+  assert.ok(ident.h > 8, `identity h=${ident.h}`);
+  assert.ok(ident.h < 16.2 - 5.6, 'ne doit pas recouvrir le résumé');
+});
+
+test('shrinkOverlappingTextLines réduit les hauteurs empilées', () => {
+  const layout = layoutWith([
+    {
+      id: 'l1',
+      type: 'text',
+      content: 'ligne un',
+      x: 2,
+      y: 16.25,
+      w: 200,
+      h: 7.85,
+      z: 3,
+      style: {},
+    },
+    {
+      id: 'l2',
+      type: 'text',
+      content: 'ligne deux',
+      x: 2,
+      y: 20.53,
+      w: 200,
+      h: 7.85,
+      z: 3,
+      style: {},
+    },
+  ]);
+  const out = shrinkOverlappingTextLines(layout);
+  const l1 = out.pages[0].blocks.find((b) => b.id === 'l1');
+  assert.ok(l1.h < 5, `l1 h=${l1.h}`);
+});
+
 test('cleanupCanvasHeaderOverlays combine les passes', () => {
   const layout = layoutWith([
     {
@@ -231,7 +358,99 @@ test('cleanupCanvasHeaderOverlays combine les passes', () => {
   const ids = out.pages[0].blocks.map((b) => b.id);
   assert.equal(ids.includes('ghost'), false);
   const bg = out.pages[0].blocks.find((b) => b.id === 'bg');
-  assert.ok(bg.h >= 40, `header h=${bg.h}`);
+  assert.ok(bg.h >= 38, `header h=${bg.h}`);
+});
+
+test('cleanupCanvasHeaderOverlays répare un bandeau Beta trop haut + titre fantôme', () => {
+  const layout = layoutWith([
+    {
+      id: 'bg',
+      type: 'shape:rect',
+      x: 0,
+      y: 0,
+      w: 210,
+      h: 53.8,
+      z: 0,
+      style: { color: '#1e293b' },
+    },
+    {
+      id: 'ident',
+      type: 'identity',
+      bind: ['prenom', 'nom', 'titre_professionnel'],
+      x: 19,
+      y: 5.62,
+      w: 106.39,
+      h: 6.32,
+      z: 3,
+      style: { header_layout: 'inline-title' },
+    },
+    {
+      id: 'ghost',
+      type: 'text',
+      content: '- Étudiant ESSEC -',
+      x: 65,
+      y: 8.1,
+      w: 80,
+      h: 6,
+      z: 4,
+      style: { align: 'center' },
+    },
+    {
+      id: 'r1',
+      type: 'text',
+      content: 'Étudiant ESSEC, je recherche une alternance',
+      x: 2,
+      y: 16.25,
+      w: 200,
+      h: 7.85,
+      z: 3,
+      style: { italic: true },
+    },
+    {
+      id: 'r2',
+      type: 'text',
+      content: 'en Achats pour mettre à profit mes compétences',
+      x: 2,
+      y: 20.53,
+      w: 200,
+      h: 7.85,
+      z: 3,
+      style: { italic: true },
+    },
+    {
+      id: 'contact',
+      type: 'contact',
+      x: 8,
+      y: 34.3,
+      w: 194,
+      h: 4.1,
+      z: 3,
+      style: {},
+    },
+    {
+      id: 'exp-title',
+      type: 'title',
+      content: 'EXPÉRIENCE PROFESSIONNELLE',
+      x: 4,
+      y: 43.54,
+      w: 80,
+      h: 4,
+      z: 3,
+      style: {},
+    },
+  ]);
+  const out = cleanupCanvasHeaderOverlays(layout, CV);
+  const ids = out.pages[0].blocks.map((b) => b.id);
+  assert.equal(ids.includes('ghost'), false);
+  const bg = out.pages[0].blocks.find((b) => b.id === 'bg');
+  assert.ok(bg.h < 43, `header ne doit pas avaler EXPÉRIENCE, h=${bg.h}`);
+  assert.ok(bg.h >= 36, `header doit couvrir le contact, h=${bg.h}`);
+  const ident = out.pages[0].blocks.find((b) => b.id === 'ident');
+  assert.ok(ident.h > 8, `identity h=${ident.h}`);
+  assert.ok(ident.w > 120, `identity w=${ident.w}`);
+  assert.equal(ident.style?.zone, 'header');
+  const r1 = out.pages[0].blocks.find((b) => b.id === 'r1');
+  assert.ok(r1.h <= 4.4, `r1 h=${r1.h} ne doit plus recouvrir r2`);
 });
 
 test('bindStructuralTextToSemanticBlocks absorbe le titre PDF voisin', () => {

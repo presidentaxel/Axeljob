@@ -77,6 +77,36 @@ test('dedupeOverlappingIdentities garde le inline-title', () => {
   assert.deepEqual(ids, ['id-inline']);
 });
 
+test('dedupeOverlappingIdentities garde une seule identité dans le bandeau', () => {
+  const layout = layoutWith([
+    {
+      id: 'id-title-only',
+      type: 'identity',
+      bind: ['titre_professionnel'],
+      x: 18,
+      y: 8,
+      w: 150,
+      h: 8,
+      z: 4,
+      style: { align: 'left' },
+    },
+    {
+      id: 'id-inline',
+      type: 'identity',
+      bind: ['prenom', 'nom', 'titre_professionnel'],
+      x: 42,
+      y: 5.6,
+      w: 106,
+      h: 6.3,
+      z: 5,
+      style: { header_layout: 'inline-title' },
+    },
+  ]);
+  const out = dedupeOverlappingIdentities(layout);
+  const ids = out.pages[0].blocks.filter((b) => b.type === 'identity').map((b) => b.id);
+  assert.deepEqual(ids, ['id-inline']);
+});
+
 test('removeTextDuplicatingIdentity retire le titre PDF superposé', () => {
   const layout = layoutWith([
     {

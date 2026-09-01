@@ -109,6 +109,15 @@ export function dedupeOverlappingIdentities(layout) {
         drop.add(loser.id);
       }
     }
+    const headerIdentities = identities.filter((b) => !drop.has(b.id) && asBox(b).y < 28);
+    if (headerIdentities.length >= 2) {
+      const winner = headerIdentities.reduce((a, b) => (
+        identityKeepScore(a) >= identityKeepScore(b) ? a : b
+      ));
+      headerIdentities.forEach((b) => {
+        if (b.id !== winner.id) drop.add(b.id);
+      });
+    }
     if (!drop.size) return page;
     return { ...page, blocks: blocks.filter((b) => !drop.has(b.id)) };
   });

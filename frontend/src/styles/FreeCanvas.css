@@ -990,8 +990,8 @@
 .free-canvas-block[data-block-type='resume'] .free-canvas-block__inner--zone-header,
 .free-canvas-block[data-block-type='identity'] .free-canvas-block__inner--zone-header,
 .free-canvas-block[data-block-type='contact'] .free-canvas-block__inner--zone-header {
-  overflow: visible;
-  max-height: none;
+  overflow: visible !important;
+  max-height: none !important;
 }
 
 .free-canvas--placing {

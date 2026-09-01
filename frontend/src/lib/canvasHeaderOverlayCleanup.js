@@ -189,16 +189,17 @@ export function stretchHeaderBandToContent(layout) {
     const bodyTitleYs = blocks
       .filter((b) => b?.type === 'title' && (Number(b.y) || 0) > 36)
       .map((b) => Number(b.y) || 0);
-    const titleCap = bodyTitleYs.length ? Math.min(...bodyTitleYs) - 1.4 : 88;
+    const titleCap = bodyTitleYs.length ? Math.min(...bodyTitleYs) - 2.8 : 88;
     const nextH = round1(Math.min(
       Math.max(18, titleCap - headerBox.y),
       Math.max(18, contentBottom - headerBox.y + 2.2),
     ));
-    if (Math.abs(nextH - headerBox.h) < 0.6) return page;
+    const headerNeedsResize = Math.abs(nextH - headerBox.h) >= 0.6;
+    const appliedH = headerNeedsResize ? nextH : headerBox.h;
 
     const nextBlocks = blocks.map((block, idx) => {
       if (idx === headerIdx) {
-        return { ...block, h: nextH };
+        return headerNeedsResize ? { ...block, h: appliedH } : block;
       }
       const box = asBox(block);
       const isAccent = (block.type === 'shape:rect' || block.type === 'shape:line')
@@ -206,21 +207,22 @@ export function stretchHeaderBandToContent(layout) {
         && box.h < 3.2
         && Math.abs(box.y - headerBottom) < 2.5;
       if (isAccent) {
-        return { ...block, y: round1(headerBox.y + nextH) };
+        return { ...block, y: round1(headerBox.y + appliedH) };
       }
       const isSidebar = block.type === 'shape:rect'
         && box.x > PAGE_WIDTH_MM * 0.55
         && box.h > 80
         && box.y > 18
         && box.y < 70;
-      if (isSidebar) {
+      if (isSidebar && Math.abs(box.y - (headerBox.y + appliedH)) >= 0.3) {
         const bottom = box.y + box.h;
-        const nextY = round1(headerBox.y + nextH);
+        const nextY = round1(headerBox.y + appliedH);
         return { ...block, y: nextY, h: round1(Math.max(40, bottom - nextY)) };
       }
       return block;
     });
-    return { ...page, blocks: nextBlocks };
+    const changed = nextBlocks.some((block, idx) => block !== blocks[idx]);
+    return changed ? { ...page, blocks: nextBlocks } : page;
   });
   return { ...layout, pages };
 }
@@ -402,10 +404,19 @@ export function tagBlocksOnHeaderBand(layout) {
       if (!HEADER_CONTENT_TYPES.has(block.type)) return block;
       if (block.type === 'title') return block;
       const box = asBox(block);
-      if (box.y >= headerBottom - 0.5 || box.y + Math.min(box.h, 3) <= hb.y) return block;
-      if (block.style?.zone === 'header') return block;
-      changed = true;
-      return { ...block, style: { ...(block.style || {}), zone: 'header' } };
+      const onBand = box.y < headerBottom - 0.5 && box.y + Math.min(box.h, 3) > hb.y;
+      if (onBand) {
+        if (block.style?.zone === 'header') return block;
+        changed = true;
+        return { ...block, style: { ...(block.style || {}), zone: 'header' } };
+      }
+      if (block.style?.zone === 'header' && box.y >= headerBottom - 0.5) {
+        changed = true;
+        const nextStyle = { ...(block.style || {}) };
+        delete nextStyle.zone;
+        return { ...block, style: nextStyle };
+      }
+      return block;
     });
     return changed ? { ...page, blocks: nextBlocks } : page;
   });

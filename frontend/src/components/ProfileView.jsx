@@ -22,6 +22,7 @@ import { buildBetaToStableOffer } from '../lib/designModeBridge.js';
 import { betaCanvasRenderFields } from '../lib/betaCanvasTemplate.js';
 import { HiArrowDownTray } from 'react-icons/hi2';
 import { analyticsAttrs } from '../lib/analyticsAttrs.js';
+import { decideProfileAutoSaveOnActiveChange, decideProfileAutoSaveOnCvChange } from '../lib/profileAutoSaveGate.js';
 import Button from './ui/Button.jsx';
 import Input from './ui/Input.jsx';
 import '../styles/ProfileView.css';
@@ -179,9 +180,17 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
   const importFileRef = useRef(null);
   const skipNextAutoSaveRef = useRef(true);
   const onSaveSuccessRef = useRef(onSaveSuccess);
+  const saveToApiRef = useRef(null);
+  const pendingAutoSaveRef = useRef(false);
+  const autoSaveTimerRef = useRef(null);
+  const isActiveRef = useRef(isActive);
+  const wasActiveRef = useRef(isActive);
   useEffect(() => {
     onSaveSuccessRef.current = onSaveSuccess;
   }, [onSaveSuccess]);
+  useEffect(() => {
+    isActiveRef.current = isActive;
+  }, [isActive]);
 
   // Données profil : exclusivement depuis Supabase (liées au compte connecté via JWT)
   useEffect(() => {
@@ -224,14 +233,22 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
     } catch (_) { /* ignore */ }
   }, []);
 
+  const clearAutoSaveTimer = useCallback(() => {
+    if (autoSaveTimerRef.current == null) return;
+    clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = null;
+  }, []);
+
   // Auto-save : sauvegarde automatique après modification (debounce)
-  const saveToApi = useCallback(async () => {
+  const saveToApi = useCallback(async ({ silent = false } = {}) => {
     setError('');
     setSaving(true);
     try {
       await apiPut('/api/cv', { ...cv, template_id: templateId, template_options: templateOptions });
-      setMessage('Sauvegardé');
-      setTimeout(() => setMessage(''), 2000);
+      if (!silent) {
+        setMessage('Sauvegardé');
+        setTimeout(() => setMessage(''), 2000);
+      }
       onSaveSuccessRef.current?.();
     } catch (e) {
       setError(e.message || 'Erreur lors de l’enregistrement.');
@@ -239,6 +256,9 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
       setSaving(false);
     }
   }, [cv, templateId, templateOptions]);
+  useEffect(() => {
+    saveToApiRef.current = saveToApi;
+  }, [saveToApi]);
 
   const handleConfirmDesignBridge = useCallback(async (offer) => {
     if (!offer?.templateId) {
@@ -343,14 +363,44 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
   }, [session?.provider_token, loading, fetchLinkedInWithToken, handleImportLinkedInPhotoWithToken]);
 
   useEffect(() => {
-    if (!isActive || loading) return;
-    if (skipNextAutoSaveRef.current) {
+    const action = decideProfileAutoSaveOnCvChange({
+      loading,
+      skipNext: skipNextAutoSaveRef.current,
+      isActive: isActiveRef.current,
+    });
+    if (action === 'wait') return undefined;
+    if (action === 'skip') {
       skipNextAutoSaveRef.current = false;
-      return;
+      pendingAutoSaveRef.current = false;
+      clearAutoSaveTimer();
+      return undefined;
     }
-    const t = setTimeout(() => saveToApi(), AUTO_SAVE_DELAY_MS);
-    return () => clearTimeout(t);
-  }, [cv, loading, saveToApi, isActive]);
+    if (action === 'ignore') return undefined;
+    pendingAutoSaveRef.current = true;
+    clearAutoSaveTimer();
+    autoSaveTimerRef.current = setTimeout(() => {
+      autoSaveTimerRef.current = null;
+      pendingAutoSaveRef.current = false;
+      void saveToApiRef.current?.({ silent: !isActiveRef.current });
+    }, AUTO_SAVE_DELAY_MS);
+    return () => clearAutoSaveTimer();
+  }, [cv, loading, clearAutoSaveTimer]);
+
+  // AXE-29 / Bugbot : flush le debounce si on quitte Profil (le panel reste monté).
+  // Ne pas replanifier un PUT rien qu’en redevenant actif.
+  useEffect(() => {
+    const wasActive = wasActiveRef.current;
+    wasActiveRef.current = isActive;
+    if (decideProfileAutoSaveOnActiveChange({
+      wasActive,
+      isActive,
+      hasPending: pendingAutoSaveRef.current,
+    }) === 'flush') {
+      pendingAutoSaveRef.current = false;
+      clearAutoSaveTimer();
+      void saveToApiRef.current?.({ silent: true });
+    }
+  }, [isActive, clearAutoSaveTimer]);
 
   useEffect(() => {
     if (onTemplateIdChange) return;

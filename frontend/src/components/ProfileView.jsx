@@ -129,7 +129,7 @@ function formatScalarPreviewForPrivacy(fieldKey, value, maxLen) {
   return s.slice(0, maxLen) + (s.length > maxLen ? '…' : '');
 }
 
-export default function ProfileView({ onSaveSuccess, session, refreshKey, usage, onUpgradeClick, onUsageRefresh, onBillingPortalClick, templatesList, templateId: templateIdProp, templateOptions: templateOptionsProp, onTemplateIdChange, onTemplateOptionsChange, onPhotoSessionExpired }) {
+export default function ProfileView({ isActive = true, onSaveSuccess, session, refreshKey, usage, onUpgradeClick, onUsageRefresh, onBillingPortalClick, templatesList, templateId: templateIdProp, templateOptions: templateOptionsProp, onTemplateIdChange, onTemplateOptionsChange, onPhotoSessionExpired }) {
   const [cv, setCv] = useState(defaultCv());
   const [localTemplateId, setLocalTemplateId] = useState(() => localStorage.getItem('cv_template_id') || 'minimal');
   const [localTemplateOptions, setLocalTemplateOptions] = useState(() => {
@@ -178,6 +178,10 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
   const fileInputRef = useRef(null);
   const importFileRef = useRef(null);
   const skipNextAutoSaveRef = useRef(true);
+  const onSaveSuccessRef = useRef(onSaveSuccess);
+  useEffect(() => {
+    onSaveSuccessRef.current = onSaveSuccess;
+  }, [onSaveSuccess]);
 
   // Données profil : exclusivement depuis Supabase (liées au compte connecté via JWT)
   useEffect(() => {
@@ -228,13 +232,13 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
       await apiPut('/api/cv', { ...cv, template_id: templateId, template_options: templateOptions });
       setMessage('Sauvegardé');
       setTimeout(() => setMessage(''), 2000);
-      onSaveSuccess?.();
+      onSaveSuccessRef.current?.();
     } catch (e) {
       setError(e.message || 'Erreur lors de l’enregistrement.');
     } finally {
       setSaving(false);
     }
-  }, [cv, templateId, templateOptions, onSaveSuccess]);
+  }, [cv, templateId, templateOptions]);
 
   const handleConfirmDesignBridge = useCallback(async (offer) => {
     if (!offer?.templateId) {
@@ -339,14 +343,14 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
   }, [session?.provider_token, loading, fetchLinkedInWithToken, handleImportLinkedInPhotoWithToken]);
 
   useEffect(() => {
-    if (loading) return;
+    if (!isActive || loading) return;
     if (skipNextAutoSaveRef.current) {
       skipNextAutoSaveRef.current = false;
       return;
     }
     const t = setTimeout(() => saveToApi(), AUTO_SAVE_DELAY_MS);
     return () => clearTimeout(t);
-  }, [cv, loading, saveToApi]);
+  }, [cv, loading, saveToApi, isActive]);
 
   useEffect(() => {
     if (onTemplateIdChange) return;
@@ -360,7 +364,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
   // Aperçu = même HTML que le rendu navigateur (render-html), pas le PDF, pour éviter les soucis WeasyPrint sur le profil
   const templateKey = templateId + '|' + JSON.stringify(templateOptions);
   useEffect(() => {
-    if (loading) return;
+    if (!isActive || loading) return;
     let cancelled = false;
     setProfilePreviewLoading(true);
     const t = setTimeout(async () => {
@@ -383,7 +387,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
       cancelled = true;
       clearTimeout(t);
     };
-  }, [cv, loading, templateKey]);
+  }, [cv, loading, templateKey, isActive]);
 
   const downloadBaseCvPdf = useCallback(async () => {
     if (loading) return;

@@ -27,6 +27,8 @@ import {
   decideProfileAutoSaveOnActiveChange,
   decideProfileAutoSaveOnCvChange,
   decideProfileAutoSaveOnLifecycle,
+  profileHasUnloadGuard,
+  profilePutShouldKeepalive,
 } from '../lib/profileAutoSaveGate.js';
 import Button from './ui/Button.jsx';
 import Input from './ui/Input.jsx';
@@ -188,6 +190,7 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
   const onSaveSuccessRef = useRef(onSaveSuccess);
   const saveToApiRef = useRef(null);
   const pendingAutoSaveRef = useRef(false);
+  const savingAutoSaveRef = useRef(false);
   const autoSaveTimerRef = useRef(null);
   const isActiveRef = useRef(isActive);
   const wasActiveRef = useRef(isActive);
@@ -245,19 +248,24 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
     autoSaveTimerRef.current = null;
   }, []);
 
-  const flushPendingAutoSave = useCallback(() => {
+  const flushPendingAutoSave = useCallback((opts = {}) => {
     if (!pendingAutoSaveRef.current) return;
     pendingAutoSaveRef.current = false;
     clearAutoSaveTimer();
-    void saveToApiRef.current?.({ silent: true });
+    void saveToApiRef.current?.({ silent: true, keepalive: Boolean(opts.keepalive) });
   }, [clearAutoSaveTimer]);
 
   // Auto-save : sauvegarde automatique après modification (debounce)
-  const saveToApi = useCallback(async ({ silent = false } = {}) => {
+  const saveToApi = useCallback(async ({ silent = false, keepalive = false } = {}) => {
+    const payload = buildProfileCvPutPayload(cv, templateId, templateOptions);
+    pendingAutoSaveRef.current = false;
+    savingAutoSaveRef.current = true;
     setError('');
     setSaving(true);
     try {
-      await apiPut('/api/cv', buildProfileCvPutPayload(cv, templateId, templateOptions));
+      await apiPut('/api/cv', payload, {
+        keepalive: keepalive && profilePutShouldKeepalive(payload),
+      });
       if (!silent) {
         setMessage('Sauvegardé');
         setTimeout(() => setMessage(''), 2000);
@@ -266,6 +274,7 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
     } catch (e) {
       setError(e.message || 'Erreur lors de l’enregistrement.');
     } finally {
+      savingAutoSaveRef.current = false;
       setSaving(false);
     }
   }, [cv, templateId, templateOptions]);
@@ -389,7 +398,6 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
     clearAutoSaveTimer();
     autoSaveTimerRef.current = setTimeout(() => {
       autoSaveTimerRef.current = null;
-      pendingAutoSaveRef.current = false;
       void saveToApiRef.current?.({ silent: !isActiveRef.current });
     }, AUTO_SAVE_DELAY_MS);
     return () => clearAutoSaveTimer();
@@ -416,7 +424,7 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
         event: 'pagehide',
         hasPending: pendingAutoSaveRef.current,
       }) === 'flush') {
-        flushPendingAutoSave();
+        flushPendingAutoSave({ keepalive: true });
       }
     };
     const onVisibility = () => {
@@ -425,11 +433,14 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
         hasPending: pendingAutoSaveRef.current,
         visibilityState: document.visibilityState,
       }) === 'flush') {
-        flushPendingAutoSave();
+        flushPendingAutoSave({ keepalive: true });
       }
     };
     const onBeforeUnload = (event) => {
-      if (!pendingAutoSaveRef.current) return undefined;
+      if (!profileHasUnloadGuard({
+        hasPending: pendingAutoSaveRef.current,
+        saving: savingAutoSaveRef.current,
+      })) return undefined;
       event.preventDefault();
       event.returnValue = '';
       return '';
@@ -445,7 +456,7 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
         event: 'unmount',
         hasPending: pendingAutoSaveRef.current,
       }) === 'flush') {
-        flushPendingAutoSave();
+        flushPendingAutoSave({ keepalive: true });
       }
     };
   }, [flushPendingAutoSave]);

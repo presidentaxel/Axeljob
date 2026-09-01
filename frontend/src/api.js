@@ -210,11 +210,12 @@ export async function apiPatch(path, body) {
   return r.json();
 }
 
-export async function apiPut(path, body) {
+export async function apiPut(path, body, { keepalive = false } = {}) {
   const r = await fetch(apiUrl(path), {
     method: 'PUT',
     headers: getHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(body),
+    keepalive,
   });
   if (!r.ok) {
     checkUnauthorized(r);

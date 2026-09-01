@@ -6,6 +6,9 @@ import {
   decideProfileAutoSaveOnActiveChange,
   decideProfileAutoSaveOnCvChange,
   decideProfileAutoSaveOnLifecycle,
+  PROFILE_KEEPALIVE_MAX_CHARS,
+  profileHasUnloadGuard,
+  profilePutShouldKeepalive,
 } from '../../src/lib/profileAutoSaveGate.js';
 
 test('chargement initial : skip le PUT (pas une édition)', () => {
@@ -104,4 +107,15 @@ test('PUT profil : omettre layout null pour ne pas effacer le canvas', () => {
 
   const nullLayout = buildProfileCvPutPayload({ prenom: 'Ada', layout: null }, 'minimal', {});
   assert.equal('layout' in nullLayout, false);
+});
+
+test('beforeunload : pending ou PUT en vol', () => {
+  assert.equal(profileHasUnloadGuard({ hasPending: true, saving: false }), true);
+  assert.equal(profileHasUnloadGuard({ hasPending: false, saving: true }), true);
+  assert.equal(profileHasUnloadGuard({ hasPending: false, saving: false }), false);
+});
+
+test('keepalive seulement si le payload reste sous la limite navigateur', () => {
+  assert.equal(profilePutShouldKeepalive({ prenom: 'Ada' }), true);
+  assert.equal(profilePutShouldKeepalive({ blob: 'x'.repeat(PROFILE_KEEPALIVE_MAX_CHARS) }), false);
 });

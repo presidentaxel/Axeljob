@@ -26,6 +26,22 @@ export function decideProfileAutoSaveOnLifecycle({ event, hasPending, visibility
   return 'noop';
 }
 
+/** Fetch keepalive ~64 KiB ; rester sous la limite navigateur. */
+export const PROFILE_KEEPALIVE_MAX_CHARS = 60_000;
+
+export function profilePutShouldKeepalive(payload) {
+  try {
+    return JSON.stringify(payload).length <= PROFILE_KEEPALIVE_MAX_CHARS;
+  } catch {
+    return false;
+  }
+}
+
+/** beforeunload : debounce pending OU PUT encore en vol (comme useAutoSave hasPendingChanges). */
+export function profileHasUnloadGuard({ hasPending, saving } = {}) {
+  return Boolean(hasPending || saving);
+}
+
 /**
  * PUT profil Stable : ne pas envoyer `layout: null` (ça efface le canvas Beta).
  * Si le formulaire n’a pas de layout, on omet la clé pour que le serveur conserve l’existant.

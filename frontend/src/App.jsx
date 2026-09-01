@@ -140,7 +140,7 @@ function MfaChallengeScreen({ onSuccess }) {
         <h1>Vérification en deux étapes</h1>
         <p className="login-screen-intro">Entre le code à 6 chiffres de ton application authentificatrice.</p>
         <form className="auth-form" onSubmit={handleSubmit}>
-          <input
+          <Input
             type="text"
             inputMode="numeric"
             maxLength={6}
@@ -151,9 +151,9 @@ function MfaChallengeScreen({ onSuccess }) {
             autoComplete="one-time-code"
           />
           {error && <div className="auth-error">{error}</div>}
-          <button type="submit" className="button button-primary auth-submit" disabled={loading || code.length !== 6}>
+          <Button type="submit" variant="primary" className="auth-submit" disabled={loading || code.length !== 6} loading={loading}>
             {loading ? '…' : 'Vérifier'}
-          </button>
+          </Button>
         </form>
       </div>
     </div>
@@ -194,7 +194,7 @@ function RecoveryPasswordForm({ onDone }) {
         <h1>Nouveau mot de passe</h1>
         <p className="login-screen-intro">Choisis un nouveau mot de passe pour ton compte.</p>
         <form className="auth-form" onSubmit={handleSubmit}>
-          <input
+          <Input
             type="password"
             placeholder="Nouveau mot de passe"
             value={password}
@@ -203,7 +203,7 @@ function RecoveryPasswordForm({ onDone }) {
             autoComplete="new-password"
             minLength={6}
           />
-          <input
+          <Input
             type="password"
             placeholder="Confirmer le mot de passe"
             value={confirm}
@@ -213,9 +213,9 @@ function RecoveryPasswordForm({ onDone }) {
             minLength={6}
           />
           {error && <div className="auth-error">{error}</div>}
-          <button type="submit" className="button button-primary auth-submit" disabled={loading}>
+          <Button type="submit" variant="primary" className="auth-submit" disabled={loading} loading={loading}>
             {loading ? '…' : 'Définir le mot de passe'}
-          </button>
+          </Button>
         </form>
       </div>
     </div>

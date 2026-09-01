@@ -22,6 +22,8 @@ import { buildBetaToStableOffer } from '../lib/designModeBridge.js';
 import { betaCanvasRenderFields } from '../lib/betaCanvasTemplate.js';
 import { HiArrowDownTray } from 'react-icons/hi2';
 import { analyticsAttrs } from '../lib/analyticsAttrs.js';
+import Button from './ui/Button.jsx';
+import Input from './ui/Input.jsx';
 import '../styles/ProfileView.css';
 import '../styles/TemplatePicker.css';
 import '../styles/DesignModeBridgeModal.css';
@@ -830,9 +832,9 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             {importLoading ? 'Import…' : 'Importer un CV'}
           </button>
-          <button type="button" className="button button-primary profile-save-btn" onClick={handleSave} disabled={saving} {...analyticsAttrs('profil-header-cta-save', 'header', 'primary', 'cta')}>
+          <Button type="button" variant="primary" className="profile-save-btn" onClick={handleSave} disabled={saving} loading={saving} {...analyticsAttrs('profil-header-cta-save', 'header', 'primary', 'cta')}>
             {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -887,9 +889,9 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
               <span className="profile-photo-placeholder">Aucune photo</span>
             )}
           </div>
-          <button type="button" className="button button-secondary profile-photo-edit-btn" onClick={() => setPhotoModalOpen(true)}>
+          <Button type="button" variant="secondary" className="profile-photo-edit-btn" onClick={() => setPhotoModalOpen(true)}>
             Modifier la photo
-          </button>
+          </Button>
         </div>
         {photoModalOpen && (
           <div className="profile-photo-modal-overlay" onClick={() => setPhotoModalOpen(false)} role="dialog" aria-modal="true" aria-labelledby="photo-modal-title">
@@ -903,13 +905,13 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                 onChange={(e) => { openCropModal(e); }}
                 aria-label="Choisir une image"
               />
-              <button type="button" className="button button-secondary profile-photo-modal-btn" onClick={() => { fileInputRef.current?.click(); }} disabled={uploadPhotoLoading}>
+              <Button type="button" variant="secondary" className="profile-photo-modal-btn" onClick={() => { fileInputRef.current?.click(); }} disabled={uploadPhotoLoading} loading={uploadPhotoLoading}>
                 {uploadPhotoLoading ? 'Import…' : 'Importer depuis mon PC'}
-              </button>
-              <button type="button" className="button button-secondary btn-linkedin-sync profile-photo-modal-btn" onClick={() => { handleImportLinkedInPhoto(); setPhotoModalOpen(false); }} disabled={importPhotoLoading}>
+              </Button>
+              <Button type="button" variant="secondary" className="btn-linkedin-sync profile-photo-modal-btn" onClick={() => { handleImportLinkedInPhoto(); setPhotoModalOpen(false); }} disabled={importPhotoLoading} loading={importPhotoLoading}>
                 {importPhotoLoading ? 'Import…' : 'Importer la photo LinkedIn'}
-              </button>
-              <button type="button" className="button button-tertiary profile-photo-modal-close" onClick={() => setPhotoModalOpen(false)}>Fermer</button>
+              </Button>
+              <Button type="button" variant="tertiary" className="profile-photo-modal-close" onClick={() => setPhotoModalOpen(false)}>Fermer</Button>
             </div>
           </div>
         )}
@@ -944,23 +946,23 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                 />
               </div>
               <div className="profile-crop-modal-actions">
-                <button type="button" className="button button-tertiary" onClick={closeCropModal}>Annuler</button>
-                <button type="button" className="button button-primary" onClick={handleConfirmCrop} disabled={uploadPhotoLoading || !croppedAreaPixels}>
+                <Button type="button" variant="tertiary" onClick={closeCropModal}>Annuler</Button>
+                <Button type="button" variant="primary" onClick={handleConfirmCrop} disabled={uploadPhotoLoading || !croppedAreaPixels} loading={uploadPhotoLoading}>
                   {uploadPhotoLoading ? 'Import…' : 'Valider le cadrage'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
         )}
         <div className="profile-grid profile-grid-identity">
-          <label>Prénom <input type="text" value={cv.prenom || ''} onChange={(e) => update('prenom', e.target.value)} /></label>
-          <label>Nom <input type="text" value={cv.nom || ''} onChange={(e) => update('nom', e.target.value)} /></label>
-          <label>Email <input type="email" value={cv.email || ''} onChange={(e) => update('email', e.target.value)} /></label>
-          <label>Téléphone <input type="text" value={cv.telephone || ''} onChange={(e) => update('telephone', e.target.value)} /></label>
-          <label>LinkedIn <input type="text" value={cv.linkedin || ''} onChange={(e) => update('linkedin', e.target.value)} placeholder="URL" /></label>
-          <label>Ville <input type="text" value={cv.ville || ''} onChange={(e) => update('ville', e.target.value)} /></label>
+          <label>Prénom <Input type="text" value={cv.prenom || ''} onChange={(e) => update('prenom', e.target.value)} /></label>
+          <label>Nom <Input type="text" value={cv.nom || ''} onChange={(e) => update('nom', e.target.value)} /></label>
+          <label>Email <Input type="email" value={cv.email || ''} onChange={(e) => update('email', e.target.value)} /></label>
+          <label>Téléphone <Input type="text" value={cv.telephone || ''} onChange={(e) => update('telephone', e.target.value)} /></label>
+          <label>LinkedIn <Input type="text" value={cv.linkedin || ''} onChange={(e) => update('linkedin', e.target.value)} placeholder="URL" /></label>
+          <label>Ville <Input type="text" value={cv.ville || ''} onChange={(e) => update('ville', e.target.value)} /></label>
         </div>
-        <label className="profile-full">Titre professionnel <input type="text" value={cv.titre_professionnel || ''} onChange={(e) => update('titre_professionnel', e.target.value)} placeholder="ex. Étudiant HEC - Data Analyst ou Data Analyst" /></label>
+        <label className="profile-full">Titre professionnel <Input type="text" value={cv.titre_professionnel || ''} onChange={(e) => update('titre_professionnel', e.target.value)} placeholder="ex. Étudiant HEC - Data Analyst ou Data Analyst" /></label>
         <label className="profile-full">Résumé / Accroche <textarea value={cv.resume || ''} onChange={(e) => update('resume', e.target.value)} rows={3} placeholder="Quelques lignes pour te présenter" /></label>
       </CollapsibleSection>
 
@@ -975,14 +977,14 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
               <button type="button" className="btn btn-remove" onClick={() => removeExp(i)} title="Supprimer">×</button>
             </div>
             <div className="profile-grid">
-              <label>Poste <input type="text" value={exp.poste || ''} onChange={(e) => updateExp(i, 'poste', e.target.value)} /></label>
-              <label>Organisation <input type="text" value={exp.entreprise || ''} onChange={(e) => updateExp(i, 'entreprise', e.target.value)} placeholder="Entreprise, association, administration…" /></label>
-              <label>Secteur <input type="text" value={exp.secteur || ''} onChange={(e) => updateExp(i, 'secteur', e.target.value)} /></label>
-              <label>Date début <input type="text" value={exp.date_debut || ''} onChange={(e) => updateExp(i, 'date_debut', e.target.value)} placeholder="ex. 2022, 01/2024" title="Année ou mois (vide = pas affiché sur le CV)" /></label>
-              <label>Date fin <input type="text" value={exp.date_fin || ''} onChange={(e) => updateExp(i, 'date_fin', e.target.value)} placeholder="ex. Aujourd'hui, 08/2024" title="Année, mois ou Aujourd'hui (vide = pas affiché)" /></label>
-              <label>Lieu <input type="text" value={exp.lieu || ''} onChange={(e) => updateExp(i, 'lieu', e.target.value)} /></label>
+              <label>Poste <Input type="text" value={exp.poste || ''} onChange={(e) => updateExp(i, 'poste', e.target.value)} /></label>
+              <label>Organisation <Input type="text" value={exp.entreprise || ''} onChange={(e) => updateExp(i, 'entreprise', e.target.value)} placeholder="Entreprise, association, administration…" /></label>
+              <label>Secteur <Input type="text" value={exp.secteur || ''} onChange={(e) => updateExp(i, 'secteur', e.target.value)} /></label>
+              <label>Date début <Input type="text" value={exp.date_debut || ''} onChange={(e) => updateExp(i, 'date_debut', e.target.value)} placeholder="ex. 2022, 01/2024" title="Année ou mois (vide = pas affiché sur le CV)" /></label>
+              <label>Date fin <Input type="text" value={exp.date_fin || ''} onChange={(e) => updateExp(i, 'date_fin', e.target.value)} placeholder="ex. Aujourd'hui, 08/2024" title="Année, mois ou Aujourd'hui (vide = pas affiché)" /></label>
+              <label>Lieu <Input type="text" value={exp.lieu || ''} onChange={(e) => updateExp(i, 'lieu', e.target.value)} /></label>
             </div>
-            <label className="profile-full">Contexte <input type="text" value={exp.contexte || ''} onChange={(e) => updateExp(i, 'contexte', e.target.value)} /></label>
+            <label className="profile-full">Contexte <Input type="text" value={exp.contexte || ''} onChange={(e) => updateExp(i, 'contexte', e.target.value)} /></label>
             <div className="profile-bullets">
               <div className="profile-bullets-head">
                 <span>Bullet points</span>
@@ -995,7 +997,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                 </div>
               ))}
             </div>
-            <label className="profile-full">Clients <input type="text" value={exp.clients || ''} onChange={(e) => updateExp(i, 'clients', e.target.value)} placeholder="ex. L'Oréal, Charal, Herta (vide = pas affiché sur le CV)" title="Liste de clients ou types de clients (vide = pas affiché)" /></label>
+            <label className="profile-full">Clients <Input type="text" value={exp.clients || ''} onChange={(e) => updateExp(i, 'clients', e.target.value)} placeholder="ex. L'Oréal, Charal, Herta (vide = pas affiché sur le CV)" title="Liste de clients ou types de clients (vide = pas affiché)" /></label>
           </div>
         ))}
       </CollapsibleSection>
@@ -1011,9 +1013,9 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
               <button type="button" className="btn btn-remove" onClick={() => removeFormation(i)}>×</button>
             </div>
             <div className="profile-grid">
-              <label>Diplôme <input type="text" value={form.diplome || ''} onChange={(e) => updateFormation(i, 'diplome', e.target.value)} /></label>
-              <label>Établissement <input type="text" value={form.etablissement || ''} onChange={(e) => updateFormation(i, 'etablissement', e.target.value)} /></label>
-              <label>Date <input type="text" value={form.date || ''} onChange={(e) => updateFormation(i, 'date', e.target.value)} placeholder="ex. 2024, 06/2023" title="Année ou mois (vide = pas affiché sur le CV)" /></label>
+              <label>Diplôme <Input type="text" value={form.diplome || ''} onChange={(e) => updateFormation(i, 'diplome', e.target.value)} /></label>
+              <label>Établissement <Input type="text" value={form.etablissement || ''} onChange={(e) => updateFormation(i, 'etablissement', e.target.value)} /></label>
+              <label>Date <Input type="text" value={form.date || ''} onChange={(e) => updateFormation(i, 'date', e.target.value)} placeholder="ex. 2024, 06/2023" title="Année ou mois (vide = pas affiché sur le CV)" /></label>
               <label className="profile-full">Description <textarea className="profile-mention-field" value={form.mention || ''} onChange={(e) => updateFormation(i, 'mention', e.target.value)} rows={4} placeholder="ex. Mention Bien, Félicitations du jury" /></label>
             </div>
           </div>
@@ -1032,9 +1034,9 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
               <button type="button" className="btn btn-remove" onClick={() => removeCertification(i)}>×</button>
             </div>
             <div className="profile-grid">
-              <label>Intitulé <input type="text" value={cert.nom || ''} onChange={(e) => updateCertification(i, 'nom', e.target.value)} placeholder="ex. PMP, AWS Solutions Architect" /></label>
-              <label>Organisme <input type="text" value={cert.organisme || ''} onChange={(e) => updateCertification(i, 'organisme', e.target.value)} placeholder="ex. PMI, Amazon" /></label>
-              <label>Date <input type="text" value={cert.date || ''} onChange={(e) => updateCertification(i, 'date', e.target.value)} placeholder="ex. 2024, 06/2023" /></label>
+              <label>Intitulé <Input type="text" value={cert.nom || ''} onChange={(e) => updateCertification(i, 'nom', e.target.value)} placeholder="ex. PMP, AWS Solutions Architect" /></label>
+              <label>Organisme <Input type="text" value={cert.organisme || ''} onChange={(e) => updateCertification(i, 'organisme', e.target.value)} placeholder="ex. PMI, Amazon" /></label>
+              <label>Date <Input type="text" value={cert.date || ''} onChange={(e) => updateCertification(i, 'date', e.target.value)} placeholder="ex. 2024, 06/2023" /></label>
             </div>
           </div>
         ))}
@@ -1050,7 +1052,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
               <span>Projet {i + 1}</span>
               <button type="button" className="btn btn-remove" onClick={() => removeProjet(i)}>×</button>
             </div>
-            <label>Nom <input type="text" value={proj.nom || ''} onChange={(e) => updateProjet(i, 'nom', e.target.value)} /></label>
+            <label>Nom <Input type="text" value={proj.nom || ''} onChange={(e) => updateProjet(i, 'nom', e.target.value)} /></label>
             <label className="profile-full">Description <textarea value={proj.description || ''} onChange={(e) => updateProjet(i, 'description', e.target.value)} rows={2} /></label>
           </div>
         ))}
@@ -1061,7 +1063,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
           <h3 className="sidebar-category">Compétences techniques</h3>
           {(comp.techniques || []).map((item, i) => (
             <div key={i} className="profile-comp-row">
-              <input type="text" value={typeof item === 'string' ? item : ''} onChange={(e) => updateCompList('techniques', i, e.target.value)} placeholder="ex. Python, Gestion de projet" />
+              <Input type="text" value={typeof item === 'string' ? item : ''} onChange={(e) => updateCompList('techniques', i, e.target.value)} placeholder="ex. Python, Gestion de projet" />
               <button type="button" className="btn btn-remove" onClick={() => removeCompList('techniques', i)} title="Supprimer">×</button>
             </div>
           ))}
@@ -1071,7 +1073,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
           <h3 className="sidebar-category">Logiciels & outils</h3>
           {(comp.logiciels || []).map((item, i) => (
             <div key={i} className="profile-comp-row">
-              <input type="text" value={typeof item === 'string' ? item : ''} onChange={(e) => updateCompList('logiciels', i, e.target.value)} placeholder="ex. Excel, React, Git" />
+              <Input type="text" value={typeof item === 'string' ? item : ''} onChange={(e) => updateCompList('logiciels', i, e.target.value)} placeholder="ex. Excel, React, Git" />
               <button type="button" className="btn btn-remove" onClick={() => removeCompList('logiciels', i)} title="Supprimer">×</button>
             </div>
           ))}
@@ -1081,8 +1083,8 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
           <h3 className="sidebar-category">Langues</h3>
           {(comp.langues || []).map((l, i) => (
             <div key={i} className="profile-langue-row">
-              <input type="text" value={l?.langue || ''} onChange={(e) => updateCompList('langues', i, { ...l, langue: e.target.value })} placeholder="Langue" />
-              <input type="text" value={l?.niveau || ''} onChange={(e) => updateCompList('langues', i, { ...l, niveau: e.target.value })} placeholder="ex. Natif, Courant (C1)" />
+              <Input type="text" value={l?.langue || ''} onChange={(e) => updateCompList('langues', i, { ...l, langue: e.target.value })} placeholder="Langue" />
+              <Input type="text" value={l?.niveau || ''} onChange={(e) => updateCompList('langues', i, { ...l, niveau: e.target.value })} placeholder="ex. Natif, Courant (C1)" />
               <button type="button" className="btn btn-remove" onClick={() => removeCompList('langues', i)} title="Supprimer">×</button>
             </div>
           ))}
@@ -1092,7 +1094,7 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
           <h3 className="sidebar-category">Autres</h3>
           {(comp.autres || []).map((item, i) => (
             <div key={i} className="profile-comp-row">
-              <input type="text" value={typeof item === 'string' ? item : ''} onChange={(e) => updateCompList('autres', i, e.target.value)} placeholder="ex. Permis B, Piano" />
+              <Input type="text" value={typeof item === 'string' ? item : ''} onChange={(e) => updateCompList('autres', i, e.target.value)} placeholder="ex. Permis B, Piano" />
               <button type="button" className="btn btn-remove" onClick={() => removeCompList('autres', i)} title="Supprimer">×</button>
             </div>
           ))}
@@ -1124,19 +1126,20 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                     Résilier mon abonnement - La résiliation prend effet à la fin de la période en cours. Vos données restent accessibles jusqu&apos;à cette date.
                   </p>
                   <div className="profile-subscription-actions">
-                    <button
+                    <Button
                       type="button"
-                      className="button button-secondary profile-btn-cancel-sub"
+                      variant="secondary"
+                      className="profile-btn-cancel-sub"
                       onClick={() => setCancelSubModalOpen(true)}
                       disabled={cancelSubLoading}
                       {...analyticsAttrs('profil-billing-cta-cancel', 'billing', 'tertiary', 'cta')}
                     >
                       Résilier mon abonnement
-                    </button>
+                    </Button>
                     {typeof onBillingPortalClick === 'function' && (
-                      <button type="button" className="button button-secondary" onClick={onBillingPortalClick} {...analyticsAttrs('profil-billing-cta-portal', 'billing', 'tertiary', 'cta')}>
+                      <Button type="button" variant="secondary" onClick={onBillingPortalClick} {...analyticsAttrs('profil-billing-cta-portal', 'billing', 'tertiary', 'cta')}>
                         Facturation &amp; moyens de paiement (Stripe)
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </>
@@ -1148,9 +1151,9 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                 Le détail Stripe n&apos;est pas disponible pour l&apos;instant (connexion ou synchronisation). Tu peux ouvrir le portail de facturation pour gérer ton abonnement.
               </p>
               {typeof onBillingPortalClick === 'function' && (
-                <button type="button" className="button button-secondary" onClick={onBillingPortalClick} {...analyticsAttrs('profil-billing-cta-portal', 'billing', 'tertiary', 'cta')}>
+                <Button type="button" variant="secondary" onClick={onBillingPortalClick} {...analyticsAttrs('profil-billing-cta-portal', 'billing', 'tertiary', 'cta')}>
                   Ouvrir le portail de facturation
-                </button>
+                </Button>
               )}
             </div>
           )}
@@ -1169,10 +1172,11 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
               . Aucun remboursement automatique de la période en cours : tu conserves l&apos;accès Pro jusqu&apos;à cette date. Un email de confirmation te sera envoyé.
             </p>
             <div className="reauth-actions">
-              <button
+              <Button
                 type="button"
-                className="button button-primary"
+                variant="primary"
                 disabled={cancelSubLoading}
+                loading={cancelSubLoading}
                 onClick={async () => {
                   setCancelSubLoading(true);
                   setError('');
@@ -1196,19 +1200,19 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                 }}
               >
                 {cancelSubLoading ? 'Traitement…' : 'Résilier mon abonnement'}
-              </button>
-              <button type="button" className="button button-secondary" disabled={cancelSubLoading} onClick={() => setCancelSubModalOpen(false)}>
+              </Button>
+              <Button type="button" variant="secondary" disabled={cancelSubLoading} onClick={() => setCancelSubModalOpen(false)}>
                 Retour
-              </button>
+              </Button>
             </div>
           </div>
         </div>
       )}
 
       <div className="profile-footer">
-        <button type="button" className="button button-primary" onClick={handleSave} disabled={saving} {...analyticsAttrs('profil-footer-cta-save', 'footer', 'primary', 'cta')}>
+        <Button type="button" variant="primary" onClick={handleSave} disabled={saving} loading={saving} {...analyticsAttrs('profil-footer-cta-save', 'footer', 'primary', 'cta')}>
           {saving ? 'Enregistrement…' : 'Enregistrer le CV'}
-        </button>
+        </Button>
       </div>
       </div>
 
@@ -1303,17 +1307,17 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
                   ))}
                 </ul>
                 <div className="linkedin-sync-actions">
-                  <button type="button" className="button button-primary" onClick={handleApplyLinkedInChanges} disabled={linkedinApplyLoading || selectedChangeIds.size === 0}>
+                  <Button type="button" variant="primary" onClick={handleApplyLinkedInChanges} disabled={linkedinApplyLoading || selectedChangeIds.size === 0} loading={linkedinApplyLoading}>
                     {linkedinApplyLoading ? 'Application…' : `Appliquer ${selectedChangeIds.size} changement(s)`}
-                  </button>
-                  <button type="button" className="button button-secondary" onClick={() => setLinkedinModalOpen(false)}>Fermer</button>
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={() => setLinkedinModalOpen(false)}>Fermer</Button>
                 </div>
               </>
             )}
             {!linkedinLoading && proposedChanges.length === 0 && (
               <>
                 {!linkedinError && <p>Aucune mise à jour proposée.</p>}
-                <button type="button" className="button button-secondary linkedin-sync-close" onClick={() => setLinkedinModalOpen(false)}>Fermer</button>
+                <Button type="button" variant="secondary" className="linkedin-sync-close" onClick={() => setLinkedinModalOpen(false)}>Fermer</Button>
               </>
             )}
           </div>
@@ -1398,10 +1402,10 @@ export default function ProfileView({ onSaveSuccess, session, refreshKey, usage,
               })}
             </ul>
             <div className="linkedin-sync-actions import-merge-actions">
-              <button type="button" className="button button-primary" onClick={applyImportMerge}>
+              <Button type="button" variant="primary" onClick={applyImportMerge}>
                 Appliquer les choix
-              </button>
-              <button type="button" className="button button-secondary" onClick={() => { setImportMergeOpen(false); setImportMergeParsed(null); }}>Annuler</button>
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => { setImportMergeOpen(false); setImportMergeParsed(null); }}>Annuler</Button>
             </div>
           </div>
         </div>

@@ -41,11 +41,15 @@ export default function ReauthModal({ title = 'Confirmer ton identité', message
             type="password"
             placeholder="Mot de passe"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              if (error) setError('');
+            }}
             className="auth-input"
             autoComplete="current-password"
+            invalid={Boolean(error)}
           />
-          {error && <div className="auth-error">{error}</div>}
+          {error ? <p className="ds-field-error" role="alert">{error}</p> : null}
           <div className="reauth-actions">
             <Button type="submit" variant="primary" disabled={loading}>
               {loading ? '…' : 'Confirmer'}

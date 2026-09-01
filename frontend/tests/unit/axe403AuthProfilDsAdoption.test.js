@@ -12,7 +12,7 @@ const FRONTEND_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const SRC = path.join(FRONTEND_ROOT, 'src');
 
 const LEGACY_BUTTON_CLASS_RE =
-  /(?:className|class)\s*=\s*(?:["'`][^"'`]*|\{\s*["'`][^"'`]*)\bbutton-(?:primary|secondary|tertiary|ghost|success)\b/;
+  /(?:className|class)\s*=\s*(?:["'`][^"'`]*|\{\s*["'`][^"'`]*)\b(?:button|btn)-(?:primary|secondary|tertiary|ghost|success)\b/;
 
 const FILES = [
   'components/AuthForm.jsx',
@@ -51,6 +51,16 @@ test('AuthForm / Reauth / Profil importent Input pour les champs texte', async (
   assert.match(auth, /<Input\s+type="password"/);
   assert.match(profile, /<Input type="text"/);
   assert.doesNotMatch(app, /className="button button-primary auth-submit"/);
+});
+
+test('Recovery et Reauth exposent invalid + ds-field-error', async () => {
+  const app = await readFile(path.join(SRC, 'App.jsx'), 'utf8');
+  const reauth = await readFile(path.join(SRC, 'components/ReauthModal.jsx'), 'utf8');
+  assert.match(app, /invalid=\{invalidField === 'password'\}/);
+  assert.match(app, /invalid=\{invalidField === 'confirm'\}/);
+  assert.match(app, /className="ds-field-error"/);
+  assert.match(reauth, /invalid=\{Boolean\(error\)\}/);
+  assert.match(reauth, /className="ds-field-error"/);
 });
 
 test('OnboardingWizard importe Button et n’a plus de markup button-primary', async () => {

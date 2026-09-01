@@ -22,7 +22,11 @@ import { buildBetaToStableOffer } from '../lib/designModeBridge.js';
 import { betaCanvasRenderFields } from '../lib/betaCanvasTemplate.js';
 import { HiArrowDownTray } from 'react-icons/hi2';
 import { analyticsAttrs } from '../lib/analyticsAttrs.js';
-import { decideProfileAutoSaveOnActiveChange, decideProfileAutoSaveOnCvChange } from '../lib/profileAutoSaveGate.js';
+import {
+  buildProfileCvPutPayload,
+  decideProfileAutoSaveOnActiveChange,
+  decideProfileAutoSaveOnCvChange,
+} from '../lib/profileAutoSaveGate.js';
 import Button from './ui/Button.jsx';
 import Input from './ui/Input.jsx';
 import '../styles/ProfileView.css';
@@ -159,6 +163,7 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
   const [profilePreviewLoading, setProfilePreviewLoading] = useState(false);
   const [baseCvPdfLoading, setBaseCvPdfLoading] = useState(false);
   const profilePreviewIframeRef = useRef(null);
+  const profilePreviewHtmlRef = useRef('');
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [cropImageSrc, setCropImageSrc] = useState(null);
@@ -244,7 +249,7 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
     setError('');
     setSaving(true);
     try {
-      await apiPut('/api/cv', { ...cv, template_id: templateId, template_options: templateOptions });
+      await apiPut('/api/cv', buildProfileCvPutPayload(cv, templateId, templateOptions));
       if (!silent) {
         setMessage('Sauvegardé');
         setTimeout(() => setMessage(''), 2000);
@@ -271,11 +276,7 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
       const templateChanged = offer.templateId !== templateId;
       const nextOptions = templateChanged ? {} : (templateOptions || {});
       // Persister d’abord — ne mettre à jour l’UI locale qu’après succès API.
-      await apiPut('/api/cv', {
-        ...cv,
-        template_id: offer.templateId,
-        template_options: nextOptions,
-      });
+      await apiPut('/api/cv', buildProfileCvPutPayload(cv, offer.templateId, nextOptions));
       if (onTemplateIdChange) onTemplateIdChange(offer.templateId);
       else setLocalTemplateId(offer.templateId);
       if (templateChanged) {
@@ -414,9 +415,17 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
   // Aperçu = même HTML que le rendu navigateur (render-html), pas le PDF, pour éviter les soucis WeasyPrint sur le profil
   const templateKey = templateId + '|' + JSON.stringify(templateOptions);
   useEffect(() => {
-    if (!isActive || loading) return;
+    profilePreviewHtmlRef.current = profilePreviewHtml;
+  }, [profilePreviewHtml]);
+  useEffect(() => {
+    if (loading) return undefined;
+    if (!isActive) {
+      setProfilePreviewLoading(false);
+      return undefined;
+    }
     let cancelled = false;
-    setProfilePreviewLoading(true);
+    const keepExistingPreview = Boolean(profilePreviewHtmlRef.current);
+    if (!keepExistingPreview) setProfilePreviewLoading(true);
     const t = setTimeout(async () => {
       try {
         const html = await apiPost('/api/render-html', {
@@ -428,7 +437,7 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
         if (cancelled) return;
         setProfilePreviewHtml(typeof html === 'string' ? html : '');
       } catch {
-        if (!cancelled) setProfilePreviewHtml('');
+        if (!cancelled && !profilePreviewHtmlRef.current) setProfilePreviewHtml('');
       } finally {
         if (!cancelled) setProfilePreviewLoading(false);
       }
@@ -628,7 +637,7 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
     setMessage('');
     setSaving(true);
     try {
-      await apiPut('/api/cv', { ...cv, template_id: templateId, template_options: templateOptions });
+      await apiPut('/api/cv', buildProfileCvPutPayload(cv, templateId, templateOptions));
       setMessage('CV enregistré.');
       onSaveSuccess?.();
     } catch (e) {
@@ -861,7 +870,7 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
     setSaving(true);
     setError('');
     try {
-      await apiPut('/api/cv', { ...next, template_id: templateId, template_options: templateOptions });
+      await apiPut('/api/cv', buildProfileCvPutPayload(next, templateId, templateOptions));
       setMessage('CV importé et enregistré.');
       onSaveSuccess?.();
     } catch (e) {
@@ -1306,13 +1315,13 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
         </div>
         <div className="profile-preview-pane-scroll">
           <div className="profile-preview-wrap profile-preview-a4">
-            {profilePreviewLoading && (
+            {profilePreviewLoading && !profilePreviewHtml && (
               <p className="profile-preview-empty">Génération de l&apos;aperçu…</p>
             )}
             {!profilePreviewLoading && !profilePreviewHtml && (
               <p className="profile-preview-empty">Modifiez le formulaire pour voir l&apos;aperçu.</p>
             )}
-            {!profilePreviewLoading && profilePreviewHtml && (
+            {profilePreviewHtml && (
               <iframe
                 key={templateKey}
                 ref={(el) => { profilePreviewIframeRef.current = el; }}

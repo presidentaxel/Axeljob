@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  buildProfileCvPutPayload,
   decideProfileAutoSaveOnActiveChange,
   decideProfileAutoSaveOnCvChange,
 } from '../../src/lib/profileAutoSaveGate.js';
@@ -61,4 +62,21 @@ test('rester sur le profil : le debounce n’est pas flushé', () => {
     decideProfileAutoSaveOnActiveChange({ wasActive: true, isActive: true, hasPending: true }),
     'noop',
   );
+});
+
+test('PUT profil : omettre layout null pour ne pas effacer le canvas', () => {
+  const withLayout = buildProfileCvPutPayload(
+    { prenom: 'Ada', layout: { version: 3, pages: [{ blocks: [{ id: 'a' }] }] } },
+    'minimal',
+    { show_photo: true },
+  );
+  assert.equal(withLayout.prenom, 'Ada');
+  assert.equal(withLayout.template_id, 'minimal');
+  assert.equal(withLayout.layout.version, 3);
+
+  const withoutLayout = buildProfileCvPutPayload({ prenom: 'Ada' }, 'minimal', {});
+  assert.equal('layout' in withoutLayout, false);
+
+  const nullLayout = buildProfileCvPutPayload({ prenom: 'Ada', layout: null }, 'minimal', {});
+  assert.equal('layout' in nullLayout, false);
 });

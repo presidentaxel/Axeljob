@@ -66,6 +66,7 @@
     flex-direction: column;
   }
   .profile-header-actions .button,
+  .profile-header-actions .ds-button,
   .profile-header-actions .btn,
   .profile-header-actions .btn-import-cv {
     width: 100%;
@@ -547,6 +548,17 @@
 .profile-langue-row input:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+/* Input DS : ne pas appliquer la marge/largeur « page formulaire » dans la grille profil. */
+.profile-form-pane .ds-input {
+  margin-bottom: 0;
+}
+.profile-comp-row .ds-input,
+.profile-langue-row .ds-input {
+  width: auto;
+  flex: 1;
+  min-width: 0;
 }
 
 .profile-mention-field {

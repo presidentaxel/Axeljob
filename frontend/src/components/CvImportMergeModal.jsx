@@ -3,6 +3,7 @@ import {
   CV_IMPORT_SECTION_KEYS,
   formatScalarPreviewForPrivacy,
 } from '../lib/cvImportUtils.js';
+import Button from './ui/Button.jsx';
 import '../styles/ProfileView.css';
 
 export default function CvImportMergeModal({
@@ -161,10 +162,10 @@ export default function CvImportMergeModal({
           })}
         </ul>
         <div className="linkedin-sync-actions import-merge-actions">
-          <button type="button" className="button button-primary" onClick={onConfirm} disabled={confirming}>
+          <Button type="button" variant="primary" onClick={onConfirm} disabled={confirming} loading={confirming}>
             {confirming ? 'Application…' : 'Appliquer et générer le canvas'}
-          </button>
-          <button type="button" className="button button-secondary" onClick={onCancel}>Annuler</button>
+          </Button>
+          <Button type="button" variant="secondary" onClick={onCancel}>Annuler</Button>
         </div>
       </div>
     </div>

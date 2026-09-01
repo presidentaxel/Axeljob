@@ -29,6 +29,7 @@ import CompanyLogo from './components/CompanyLogo';
 import CandidatureBoardCard from './components/CandidatureBoardCard';
 import { NotFoundPage } from './components/ErrorPages';
 import Button from './components/ui/Button.jsx';
+import Input from './components/ui/Input.jsx';
 import AdaptLanguageChoiceDialog from './components/ui/AdaptLanguageChoiceDialog.jsx';
 import { CONTACT_EMAIL, STORAGE_EXPORT_DIR, STORAGE_EXPORT_ATS_BLOCK_SNOOZE, STORAGE_PRE_EXPORT_TEMPLATE_OPTIONS_DONE, STORAGE_PDF_EXPORT_FILENAME_PATTERN, STATUT_LABELS, KANBAN_COLUMNS, getExportFolderName } from './constants';
 import { buildAdaptedPdfFilename } from './lib/pdfExportFilename';
@@ -271,7 +272,7 @@ function CvEditPanel({ cv, onSave, onClose }) {
         </div>
         <div className="cv-edit-body">
           <label className="input-label">Titre professionnel</label>
-          <input type="text" className="input-field" value={edited.titre_professionnel || ''} onChange={(e) => update('titre_professionnel', e.target.value)} />
+          <Input type="text" value={edited.titre_professionnel || ''} onChange={(e) => update('titre_professionnel', e.target.value)} />
           <label className="input-label">Résumé / Accroche</label>
           <textarea className="input-field" rows={4} value={edited.resume || ''} onChange={(e) => update('resume', e.target.value)} />
           {(edited.experiences || []).map((exp, i) => (
@@ -284,8 +285,8 @@ function CvEditPanel({ cv, onSave, onClose }) {
           ))}
         </div>
         <div className="cv-edit-actions">
-          <button type="button" className="button button-primary" onClick={handleSave}>Enregistrer les modifications</button>
-          <button type="button" className="button button-secondary" onClick={onClose}>Annuler</button>
+          <Button type="button" variant="primary" onClick={handleSave}>Enregistrer les modifications</Button>
+          <Button type="button" variant="secondary" onClick={onClose}>Annuler</Button>
         </div>
       </div>
     </div>
@@ -3406,18 +3407,18 @@ export default function App() {
               Pour adapter ton CV, l’aperçu et le suivi des candidatures, ça fonctionne <strong>beaucoup mieux sur ordinateur</strong> - repasse depuis un PC ou une grande tablette.
             </p>
             <div className="app-mobile-gate-actions">
-              <button type="button" className="button button-primary" onClick={() => navigate('/faq')}>
+              <Button type="button" variant="primary" onClick={() => navigate('/faq')}>
                 Voir le site (FAQ, guides…)
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                className="button button-secondary"
+                variant="secondary"
                 onClick={async () => {
                   if (supabase) await supabase.auth.signOut();
                 }}
               >
                 Se déconnecter
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -3428,18 +3429,18 @@ export default function App() {
             <h1 id="profile-load-err-title">Profil inaccessible</h1>
             <p className="app-mobile-gate-lead">{profileCvLoadError}</p>
             <div className="app-mobile-gate-actions">
-              <button type="button" className="button button-primary" onClick={() => setProfileRefreshKey((k) => k + 1)}>
+              <Button type="button" variant="primary" onClick={() => setProfileRefreshKey((k) => k + 1)}>
                 Réessayer
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                className="button button-secondary"
+                variant="secondary"
                 onClick={async () => {
                   if (supabase) await supabase.auth.signOut();
                 }}
               >
                 Se déconnecter
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -4554,18 +4555,18 @@ export default function App() {
               <p className="setup-modal-intro">Renseigne l&apos;entreprise et la fiche de poste. L&apos;IA adaptera ton CV dans l&apos;espace de travail.</p>
               <label className="setup-field">
                 <span>Nom de l&apos;entreprise</span>
-                <input type="text" value={setupEntreprise} onChange={(e) => setSetupEntreprise(e.target.value)} placeholder="ex. Société Dupont" />
+                <Input type="text" value={setupEntreprise} onChange={(e) => setSetupEntreprise(e.target.value)} placeholder="ex. Société Dupont" />
               </label>
               <label className="setup-field">
                 <span>Intitulé du poste (optionnel, améliore le score ATS)</span>
-                <input type="text" value={setupPoste} onChange={(e) => setSetupPoste(e.target.value)} placeholder="ex. Analyste Risk & Contrôle" />
+                <Input type="text" value={setupPoste} onChange={(e) => setSetupPoste(e.target.value)} placeholder="ex. Analyste Risk & Contrôle" />
               </label>
               <label className="setup-field">
                 <span>Lien ou texte de la fiche de poste</span>
                 <textarea value={setupFiche} onChange={(e) => setSetupFiche(e.target.value)} placeholder="Colle le lien de l'annonce ou le texte de l'offre…" rows={6} />
               </label>
               <div className="setup-modal-actions">
-                <button type="button" className="button button-primary" onClick={async () => {
+                <Button type="button" variant="primary" onClick={async () => {
                   const fiche = setupFiche.trim();
                   const ent = setupEntreprise.trim();
                   const pos = setupPoste.trim();
@@ -4637,8 +4638,8 @@ export default function App() {
                   }
                 }} disabled={!setupFiche.trim()}>
                   Démarrer l&apos;adaptation
-                </button>
-                <button type="button" className="button button-secondary" onClick={() => setSetupModalOpen(false)}>Annuler</button>
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => setSetupModalOpen(false)}>Annuler</Button>
               </div>
             </div>
           </div>
@@ -4763,15 +4764,15 @@ export default function App() {
               <label className="input-label">Précisions (texte libre)</label>
               <textarea className="input-field" value={refusRaison} onChange={(e) => setRefusRaison(e.target.value)} rows={3} placeholder="Optionnel" />
               <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
-                <button type="button" className="button button-primary" onClick={() => submitRefusModal(false)} disabled={statutModalSubmitting}>
+                <Button type="button" variant="primary" onClick={() => submitRefusModal(false)} disabled={statutModalSubmitting} loading={statutModalSubmitting}>
                   {statutModalSubmitting ? 'Enregistrement…' : 'Enregistrer'}
-                </button>
-                <button type="button" className="button button-secondary" onClick={() => submitRefusModal(true)} disabled={statutModalSubmitting}>
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => submitRefusModal(true)} disabled={statutModalSubmitting}>
                   Passer (refus sans détail)
-                </button>
-                <button type="button" className="button button-secondary" onClick={() => { setStatutModalType(null); setStatutModalAppId(null); setStatutModalApp(null); }}>
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => { setStatutModalType(null); setStatutModalAppId(null); setStatutModalApp(null); }}>
                   Annuler
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -4799,12 +4800,12 @@ export default function App() {
                 <li>Lettre de motivation ciblée</li>
               </ul>
               <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
-                <button type="button" className="button button-primary" onClick={() => { setUpgradeModalVisible(false); handleStartCheckout(); }} disabled={checkoutLoading}>
+                <Button type="button" variant="primary" onClick={() => { setUpgradeModalVisible(false); handleStartCheckout(); }} disabled={checkoutLoading} loading={checkoutLoading}>
                   {checkoutLoading ? 'Redirection…' : 'Passer en Pro - 10€/mois'}
-                </button>
-                <button type="button" className="button button-secondary" onClick={() => setUpgradeModalVisible(false)}>
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => setUpgradeModalVisible(false)}>
                   Plus tard
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -4826,12 +4827,12 @@ export default function App() {
                     <li><span className="pro-check"><HiCheck size={14} strokeWidth={2.5} /></span>Lettre de motivation ciblée</li>
                   </ul>
                   <div className="linkedin-sync-actions" style={{ marginTop: '1rem', flexDirection: 'column', gap: '0.5rem' }}>
-                    <button type="button" className="button button-secondary" onClick={() => { setProModalVisible(false); handleManageSubscriptionClick(); }} disabled={checkoutLoading}>
+                    <Button type="button" variant="secondary" onClick={() => { setProModalVisible(false); handleManageSubscriptionClick(); }} disabled={checkoutLoading} loading={checkoutLoading}>
                       {checkoutLoading ? 'Redirection…' : 'Gérer mon abonnement / Annuler'}
-                    </button>
-                    <button type="button" className="button button-ghost" onClick={() => setProModalVisible(false)}>
+                    </Button>
+                    <Button type="button" variant="ghost" onClick={() => setProModalVisible(false)}>
                       Fermer
-                    </button>
+                    </Button>
                   </div>
                 </>
               ) : (
@@ -4860,12 +4861,12 @@ export default function App() {
                     </div>
                   </div>
                   <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
-                    <button type="button" className="button button-primary" onClick={() => { setProModalVisible(false); handleStartCheckout(); }} disabled={checkoutLoading}>
+                    <Button type="button" variant="primary" onClick={() => { setProModalVisible(false); handleStartCheckout(); }} disabled={checkoutLoading} loading={checkoutLoading}>
                       {checkoutLoading ? 'Redirection…' : 'Passer en Pro - 10€/mois'}
-                    </button>
-                    <button type="button" className="button button-secondary" onClick={() => setProModalVisible(false)}>
+                    </Button>
+                    <Button type="button" variant="secondary" onClick={() => setProModalVisible(false)}>
                       Plus tard
-                    </button>
+                    </Button>
                   </div>
                 </>
               )}
@@ -4879,8 +4880,8 @@ export default function App() {
               <h3 id="signout-confirm-title">Déconnexion</h3>
               <p className="profile-subtitle" style={{ marginTop: 0 }}>Tu es sûr de vouloir te déconnecter ?</p>
               <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
-                <button type="button" className="button button-primary" onClick={handleSignOut}>Oui, me déconnecter</button>
-                <button type="button" className="button button-secondary" onClick={() => setSignOutConfirmOpen(false)}>Annuler</button>
+                <Button type="button" variant="primary" onClick={handleSignOut}>Oui, me déconnecter</Button>
+                <Button type="button" variant="secondary" onClick={() => setSignOutConfirmOpen(false)}>Annuler</Button>
               </div>
             </div>
           </div>
@@ -4894,9 +4895,9 @@ export default function App() {
                 C’est l’étape qui adapte ton CV à un poste réel. Va sur « Adapter un CV », colle le texte de l’annonce (ou le lien) dans le champ en bas, puis envoie.
               </p>
               <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
-                <button
+                <Button
                   type="button"
-                  className="button button-primary"
+                  variant="primary"
                   onClick={() => {
                     setFirstOfferNudgeOpen(false);
                     navigate('/app/cv');
@@ -4906,10 +4907,10 @@ export default function App() {
                   {...analyticsAttrs('cv-nudge-cta-go', 'nudge', 'primary', 'cta')}
                 >
                   Coller une offre
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className="button button-secondary"
+                  variant="secondary"
                   onClick={() => {
                     setFirstOfferNudgeOpen(false);
                     try {
@@ -4920,7 +4921,7 @@ export default function App() {
                   {...analyticsAttrs('cv-nudge-cta-dismiss', 'nudge', 'secondary', 'cta')}
                 >
                   Plus tard
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -4941,8 +4942,8 @@ export default function App() {
               <label className="input-label" style={{ display: 'block', marginTop: '0.75rem' }}>Commentaire (optionnel)</label>
               <textarea className="input-field" value={cancelReasonText} onChange={(e) => setCancelReasonText(e.target.value)} placeholder="Ton avis nous aide à nous améliorer…" rows={2} style={{ width: '100%', marginTop: '0.25rem', resize: 'vertical' }} />
               <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
-                <button type="button" className="button button-primary" onClick={handleManageSubscriptionConfirm} disabled={checkoutLoading}>{checkoutLoading ? 'Redirection…' : 'Accéder au portail'}</button>
-                <button type="button" className="button button-secondary" onClick={() => setManageSubscriptionModalOpen(false)}>Annuler</button>
+                <Button type="button" variant="primary" onClick={handleManageSubscriptionConfirm} disabled={checkoutLoading} loading={checkoutLoading}>{checkoutLoading ? 'Redirection…' : 'Accéder au portail'}</Button>
+                <Button type="button" variant="secondary" onClick={() => setManageSubscriptionModalOpen(false)}>Annuler</Button>
               </div>
             </div>
           </div>
@@ -4965,14 +4966,14 @@ export default function App() {
               <label className="input-label">Comment s’est passé l’entretien ? (texte libre)</label>
               <textarea className="input-field" value={interviewFeedback} onChange={(e) => setInterviewFeedback(e.target.value)} rows={3} placeholder="Optionnel" />
               <label className="input-label">Date de l’entretien (optionnel)</label>
-              <input type="date" className="input-field" value={interviewDate} onChange={(e) => setInterviewDate(e.target.value)} />
+              <Input type="date" value={interviewDate} onChange={(e) => setInterviewDate(e.target.value)} />
               <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
-                <button type="button" className="button button-primary" onClick={submitInterviewModal} disabled={statutModalSubmitting}>
+                <Button type="button" variant="primary" onClick={submitInterviewModal} disabled={statutModalSubmitting} loading={statutModalSubmitting}>
                   {statutModalSubmitting ? 'Enregistrement…' : 'Enregistrer'}
-                </button>
-                <button type="button" className="button button-secondary" onClick={() => { setStatutModalType(null); setStatutModalAppId(null); setStatutModalApp(null); }}>
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => { setStatutModalType(null); setStatutModalAppId(null); setStatutModalApp(null); }}>
                   Annuler
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -5063,12 +5064,12 @@ export default function App() {
                 </label>
               </fieldset>
               <div className="linkedin-sync-actions export-ats-block-actions">
-                <button type="button" className="button button-primary" onClick={confirmExportAtsBlockModal}>
+                <Button type="button" variant="primary" onClick={confirmExportAtsBlockModal}>
                   Valider et continuer
-                </button>
-                <button type="button" className="button button-secondary" onClick={closeExportAtsBlockModal}>
+                </Button>
+                <Button type="button" variant="secondary" onClick={closeExportAtsBlockModal}>
                   Annuler
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -5084,9 +5085,8 @@ export default function App() {
               </p>
               <label className="setup-field" style={{ marginTop: '1rem', display: 'block' }}>
                 <span>Entreprise</span>
-                <input
+                <Input
                   type="text"
-                  className="input-field"
                   value={pdfEntrepriseModalValue}
                   onChange={(e) => setPdfEntrepriseModalValue(e.target.value)}
                   placeholder="ex. Société recruteuse"
@@ -5094,12 +5094,12 @@ export default function App() {
                 />
               </label>
               <div className="linkedin-sync-actions export-ats-block-actions" style={{ marginTop: '1.25rem' }}>
-                <button type="button" className="button button-primary" onClick={() => void confirmPdfEntrepriseModal()}>
+                <Button type="button" variant="primary" onClick={() => void confirmPdfEntrepriseModal()}>
                   Télécharger le PDF
-                </button>
-                <button type="button" className="button button-secondary" onClick={closePdfEntrepriseModal}>
+                </Button>
+                <Button type="button" variant="secondary" onClick={closePdfEntrepriseModal}>
                   Annuler
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -5121,7 +5121,7 @@ export default function App() {
                 ou du résultat de vos candidatures.
               </p>
               <div className="linkedin-sync-actions" style={{ marginTop: '1rem' }}>
-                <button type="button" className="button button-primary" onClick={() => {
+                <Button type="button" variant="primary" onClick={() => {
                   setAtsDisclaimerVisible(false);
                   if (pendingPdfAction === 'pdf') {
                     const o = pendingExportTemplateOptionsRef.current;
@@ -5131,10 +5131,10 @@ export default function App() {
                   setPendingPdfAction(null);
                 }}>
                   J'ai compris, télécharger
-                </button>
-                <button type="button" className="button button-secondary" onClick={() => { setAtsDisclaimerVisible(false); setPendingPdfAction(null); pendingExportTemplateOptionsRef.current = null; }}>
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => { setAtsDisclaimerVisible(false); setPendingPdfAction(null); pendingExportTemplateOptionsRef.current = null; }}>
                   Annuler
-                </button>
+                </Button>
               </div>
             </div>
           </div>

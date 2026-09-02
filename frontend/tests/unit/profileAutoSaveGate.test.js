@@ -1,0 +1,141 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+
+import {
+  buildProfileCvPutPayload,
+  decideProfileAutoSaveOnActiveChange,
+  decideProfileAutoSaveOnCvChange,
+  decideProfileAutoSaveOnLifecycle,
+  decideProfileFlushStart,
+  decideProfileReplayKeepalive,
+  decideProfileSaveFinish,
+  decideProfileSaveStart,
+  nextKeepalivePending,
+  PROFILE_KEEPALIVE_MAX_CHARS,
+  profileHasUnloadGuard,
+  profilePutShouldKeepalive,
+} from '../../src/lib/profileAutoSaveGate.js';
+
+test('chargement initial : skip le PUT (pas une édition)', () => {
+  assert.equal(
+    decideProfileAutoSaveOnCvChange({ loading: true, skipNext: true, isActive: true }),
+    'wait',
+  );
+  assert.equal(
+    decideProfileAutoSaveOnCvChange({ loading: false, skipNext: true, isActive: true }),
+    'skip',
+  );
+});
+
+test('édition sur le profil actif : debounce', () => {
+  assert.equal(
+    decideProfileAutoSaveOnCvChange({ loading: false, skipNext: false, isActive: true }),
+    'schedule',
+  );
+});
+
+test('cv change hors profil : ne pas PUT en arrière-plan', () => {
+  assert.equal(
+    decideProfileAutoSaveOnCvChange({ loading: false, skipNext: false, isActive: false }),
+    'ignore',
+  );
+});
+
+test('quitter le profil avec debounce pending : flush immédiat', () => {
+  assert.equal(
+    decideProfileAutoSaveOnActiveChange({ wasActive: true, isActive: false, hasPending: true }),
+    'flush',
+  );
+});
+
+test('quitter sans édition pending : pas de PUT', () => {
+  assert.equal(
+    decideProfileAutoSaveOnActiveChange({ wasActive: true, isActive: false, hasPending: false }),
+    'noop',
+  );
+});
+
+test('revenir sur le profil : pas de PUT non sollicité', () => {
+  assert.equal(
+    decideProfileAutoSaveOnActiveChange({ wasActive: false, isActive: true, hasPending: false }),
+    'noop',
+  );
+  assert.equal(
+    decideProfileAutoSaveOnActiveChange({ wasActive: false, isActive: true, hasPending: true }),
+    'noop',
+  );
+});
+
+test('rester sur le profil : le debounce n’est pas flushé', () => {
+  assert.equal(
+    decideProfileAutoSaveOnActiveChange({ wasActive: true, isActive: true, hasPending: true }),
+    'noop',
+  );
+});
+
+test('démontage / pagehide / onglet caché : flush si pending (AXE-29)', () => {
+  assert.equal(
+    decideProfileAutoSaveOnLifecycle({ event: 'unmount', hasPending: true }),
+    'flush',
+  );
+  assert.equal(
+    decideProfileAutoSaveOnLifecycle({ event: 'pagehide', hasPending: true }),
+    'flush',
+  );
+  assert.equal(
+    decideProfileAutoSaveOnLifecycle({ event: 'visibility', hasPending: true, visibilityState: 'hidden' }),
+    'flush',
+  );
+});
+
+test('cycle de vie sans pending : pas de PUT', () => {
+  assert.equal(decideProfileAutoSaveOnLifecycle({ event: 'unmount', hasPending: false }), 'noop');
+  assert.equal(decideProfileAutoSaveOnLifecycle({ event: 'pagehide', hasPending: false }), 'noop');
+  assert.equal(
+    decideProfileAutoSaveOnLifecycle({ event: 'visibility', hasPending: true, visibilityState: 'visible' }),
+    'noop',
+  );
+});
+
+test('PUT profil : omettre layout null pour ne pas effacer le canvas', () => {
+  const withLayout = buildProfileCvPutPayload(
+    { prenom: 'Ada', layout: { version: 3, pages: [{ blocks: [{ id: 'a' }] }] } },
+    'minimal',
+    { show_photo: true },
+  );
+  assert.equal(withLayout.prenom, 'Ada');
+  assert.equal(withLayout.template_id, 'minimal');
+  assert.equal(withLayout.layout.version, 3);
+
+  const withoutLayout = buildProfileCvPutPayload({ prenom: 'Ada' }, 'minimal', {});
+  assert.equal('layout' in withoutLayout, false);
+
+  const nullLayout = buildProfileCvPutPayload({ prenom: 'Ada', layout: null }, 'minimal', {});
+  assert.equal('layout' in nullLayout, false);
+});
+
+test('beforeunload : pending ou PUT en vol', () => {
+  assert.equal(profileHasUnloadGuard({ hasPending: true, saving: false }), true);
+  assert.equal(profileHasUnloadGuard({ hasPending: false, saving: true }), true);
+  assert.equal(profileHasUnloadGuard({ hasPending: false, saving: false }), false);
+});
+
+test('PUT en vol : ne pas lancer un second save, rejouer après', () => {
+  assert.equal(decideProfileSaveStart({ saving: true }), 'defer');
+  assert.equal(decideProfileSaveStart({ saving: false }), 'start');
+  assert.equal(decideProfileFlushStart({ hasPending: true, saving: true }), 'defer');
+  assert.equal(decideProfileFlushStart({ hasPending: true, saving: false }), 'start');
+  assert.equal(decideProfileFlushStart({ hasPending: false, saving: false }), 'noop');
+  assert.equal(decideProfileSaveFinish({ hasPending: true }), 'replay');
+  assert.equal(decideProfileSaveFinish({ hasPending: false }), 'idle');
+  assert.equal(nextKeepalivePending({ already: false, keepalive: true }), true);
+  assert.equal(nextKeepalivePending({ already: true, keepalive: false }), true);
+  assert.equal(nextKeepalivePending({ already: false, keepalive: false }), false);
+  assert.equal(decideProfileReplayKeepalive({ keepalivePending: true }), true);
+  assert.equal(decideProfileReplayKeepalive({ keepalivePending: false }), false);
+});
+
+test('keepalive seulement si le payload reste sous la limite navigateur', () => {
+  assert.equal(profilePutShouldKeepalive({ prenom: 'Ada' }), true);
+  assert.equal(profilePutShouldKeepalive({ blob: 'x'.repeat(PROFILE_KEEPALIVE_MAX_CHARS) }), false);
+});

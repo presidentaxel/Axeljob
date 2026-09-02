@@ -7,6 +7,8 @@ import {
   emitSignUpStartOnce,
   hydratePlanIntentFromSearch,
 } from '../../public/signupAttribution.js';
+import Button from './ui/Button.jsx';
+import Input from './ui/Input.jsx';
 import '../styles/AuthForm.css';
 
 function GoogleIcon() {
@@ -179,9 +181,9 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
           <div className="auth-popup">
             <h2 id="auth-popup-title" className="auth-popup-title">Vous aviez déjà un compte</h2>
             <p className="auth-popup-message">Nous vous avons connecté(e).</p>
-            <button type="button" className="button button-primary auth-popup-ok" onClick={() => { setShowAlreadyHadAccountPopup(false); onSuccess?.(); }}>
+            <Button type="button" variant="primary" className="auth-popup-ok" onClick={() => { setShowAlreadyHadAccountPopup(false); onSuccess?.(); }}>
               OK
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -207,7 +209,7 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
         <span>{linkedInLoading ? 'Redirection…' : 'Continuer avec LinkedIn'}</span>
       </button>
       <span className="auth-divider">ou</span>
-      <input
+      <Input
         type="email"
         placeholder="Email"
         value={email}
@@ -217,7 +219,7 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
         {...analyticsAttrs('login-input-email', 'login', 'tertiary', 'input')}
       />
       {!resetMode && (
-        <input
+        <Input
           type="password"
           placeholder="Mot de passe"
           value={password}
@@ -228,9 +230,9 @@ export default function AuthForm({ onSuccess, linkedInOnly = false }) {
       )}
       {error && <div className="auth-error">{error}</div>}
       {message && <div className="auth-message">{message}</div>}
-      <button type="submit" className="button button-primary auth-submit" disabled={loading} {...analyticsAttrs('login-cta-submit', 'login', 'primary', 'cta')}>
+      <Button type="submit" variant="primary" className="auth-submit" disabled={loading} loading={loading} {...analyticsAttrs('login-cta-submit', 'login', 'primary', 'cta')}>
         {loading ? '…' : resetMode ? 'Envoyer le lien' : isSignUp ? 'Créer un compte' : 'Se connecter'}
-      </button>
+      </Button>
       {!resetMode && (
         <button type="button" className="auth-toggle" onClick={() => { setResetMode(true); setError(''); setMessage(''); }} {...analyticsAttrs('login-link-forgot', 'login', 'tertiary', 'nav')}>
           Mot de passe oublié ?

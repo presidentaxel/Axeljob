@@ -140,20 +140,24 @@ function MfaChallengeScreen({ onSuccess }) {
         <h1>Vérification en deux étapes</h1>
         <p className="login-screen-intro">Entre le code à 6 chiffres de ton application authentificatrice.</p>
         <form className="auth-form" onSubmit={handleSubmit}>
-          <input
+          <Input
             type="text"
             inputMode="numeric"
             maxLength={6}
             placeholder="000000"
             value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            onChange={(e) => {
+              setCode(e.target.value.replace(/\D/g, '').slice(0, 6));
+              if (error) setError('');
+            }}
             className="auth-input"
             autoComplete="one-time-code"
+            invalid={Boolean(error)}
           />
-          {error && <div className="auth-error">{error}</div>}
-          <button type="submit" className="button button-primary auth-submit" disabled={loading || code.length !== 6}>
+          {error ? <p className="ds-field-error" role="alert">{error}</p> : null}
+          <Button type="submit" variant="primary" className="auth-submit" disabled={loading || code.length !== 6} loading={loading}>
             {loading ? '…' : 'Vérifier'}
-          </button>
+          </Button>
         </form>
       </div>
     </div>
@@ -165,15 +169,21 @@ function RecoveryPasswordForm({ onDone }) {
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [invalidField, setInvalidField] = useState(null);
+  const setFieldError = (field, message) => {
+    setInvalidField(field);
+    setError(message);
+  };
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setInvalidField(null);
     if (password.length < 6) {
-      setError('Le mot de passe doit faire au moins 6 caractères.');
+      setFieldError('password', 'Le mot de passe doit faire au moins 6 caractères.');
       return;
     }
     if (password !== confirm) {
-      setError('Les deux mots de passe ne correspondent pas.');
+      setFieldError('confirm', 'Les deux mots de passe ne correspondent pas.');
       return;
     }
     setLoading(true);
@@ -182,7 +192,7 @@ function RecoveryPasswordForm({ onDone }) {
       if (err) throw err;
       onDone();
     } catch (err) {
-      setError(err.message || 'Impossible de mettre à jour le mot de passe.');
+      setFieldError('password', err.message || 'Impossible de mettre à jour le mot de passe.');
     } finally {
       setLoading(false);
     }
@@ -194,28 +204,42 @@ function RecoveryPasswordForm({ onDone }) {
         <h1>Nouveau mot de passe</h1>
         <p className="login-screen-intro">Choisis un nouveau mot de passe pour ton compte.</p>
         <form className="auth-form" onSubmit={handleSubmit}>
-          <input
+          <Input
             type="password"
             placeholder="Nouveau mot de passe"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              if (invalidField === 'password') {
+                setError('');
+                setInvalidField(null);
+              }
+            }}
             className="auth-input"
             autoComplete="new-password"
             minLength={6}
+            invalid={invalidField === 'password'}
           />
-          <input
+          <Input
             type="password"
             placeholder="Confirmer le mot de passe"
             value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
+            onChange={(e) => {
+              setConfirm(e.target.value);
+              if (invalidField === 'confirm') {
+                setError('');
+                setInvalidField(null);
+              }
+            }}
             className="auth-input"
             autoComplete="new-password"
             minLength={6}
+            invalid={invalidField === 'confirm'}
           />
-          {error && <div className="auth-error">{error}</div>}
-          <button type="submit" className="button button-primary auth-submit" disabled={loading}>
+          {error ? <p className="ds-field-error" role="alert">{error}</p> : null}
+          <Button type="submit" variant="primary" className="auth-submit" disabled={loading} loading={loading}>
             {loading ? '…' : 'Définir le mot de passe'}
-          </button>
+          </Button>
         </form>
       </div>
     </div>

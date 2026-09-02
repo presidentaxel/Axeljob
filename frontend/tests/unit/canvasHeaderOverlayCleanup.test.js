@@ -8,12 +8,15 @@ import {
   expandClippedSectionHeadings,
   allowWrapOnParagraphText,
   insertMissingSpaceAfterColonLabels,
+  isDarkCssColor,
   isFullWidthHeaderRect,
+  isLockedReplicaLayout,
   looksLikeSectionHeading,
   mergeStackedHeaderTextLines,
   removeTextDuplicatingIdentity,
   shrinkOverlappingTextLines,
   stretchHeaderBandToContent,
+  tagBlocksOnHeaderBand,
   textDuplicatesIdentityContent,
   wrapAtsColonLabels,
 } from '../../src/lib/canvasHeaderOverlayCleanup.js';
@@ -48,6 +51,13 @@ test('textDuplicatesIdentityContent : titre PDF vs CV', () => {
   );
   assert.equal(
     textDuplicatesIdentityContent('Organisation : Loulitos', CV),
+    false,
+  );
+  assert.equal(
+    textDuplicatesIdentityContent(
+      'Étudiant ESSEC, je recherche une alternance en Achats pour mettre à profit mes compétences.',
+      CV,
+    ),
     false,
   );
 });
@@ -169,6 +179,17 @@ test('removeTextDuplicatingIdentity retire le titre PDF superposé', () => {
       z: 3,
       style: {},
     },
+    {
+      id: 'about',
+      type: 'text',
+      content: 'Étudiant ESSEC, je recherche une alternance en Achats pour mettre à profit mes compétences.',
+      x: 8,
+      y: 18,
+      w: 190,
+      h: 12,
+      z: 4,
+      style: {},
+    },
   ]);
   const out = removeTextDuplicatingIdentity(layout, CV);
   const ids = out.pages[0].blocks.map((b) => b.id);
@@ -177,6 +198,7 @@ test('removeTextDuplicatingIdentity retire le titre PDF superposé', () => {
   assert.equal(ids.includes('ghost-band'), false);
   assert.equal(ids.includes('body'), true);
   assert.equal(ids.includes('ident'), true);
+  assert.equal(ids.includes('about'), true);
 });
 
 test('stretchHeaderBandToContent allonge le bandeau sous le résumé', () => {
@@ -340,8 +362,10 @@ test('expandClippedSectionHeadings agrandit un titre PDF trop bas', () => {
   assert.ok(title.h > 4.06, `title h=${title.h}`);
   assert.ok(title.y + title.h <= org.y - 0.2, 'ne recouvre pas Organisation');
   assert.equal(title.style?.role, 'heading');
+  assert.equal(title.style?.lock_height, true);
   assert.ok(skills.h > 4.06, `skills h=${skills.h}`);
   assert.equal(skills.style?.role, 'heading');
+  assert.equal(skills.style?.lock_height, true);
 });
 
 test('stretchHeaderBandToContent n’avale pas les titres de section du corps', () => {
@@ -519,6 +543,24 @@ test('allowWrapOnParagraphText retire nowrap sur un à-propos, pas sur Organisat
   const org = out.pages[0].blocks.find((b) => b.id === 'org');
   assert.equal(resume.style?.nowrap, undefined);
   assert.equal(org.style?.nowrap, true);
+});
+
+test('allowWrapOnParagraphText conserve nowrap sur une ligne PDF unique', () => {
+  const layout = layoutWith([
+    {
+      id: 'line',
+      type: 'text',
+      content: 'Étudiant ESSEC, je recherche une alternance en Achats pour mettre à profit mes compétences en résolution de problèmes.',
+      x: 2,
+      y: 16,
+      w: 200,
+      h: 4,
+      z: 3,
+      style: { nowrap: true },
+    },
+  ]);
+  const out = allowWrapOnParagraphText(layout);
+  assert.equal(out.pages[0].blocks[0].style?.nowrap, true);
 });
 
 test('cleanupCanvasHeaderOverlays combine les passes', () => {
@@ -710,4 +752,155 @@ test('bindStructuralTextToSemanticBlocks absorbe le titre PDF voisin', () => {
   const types = out.pages[0].blocks.map((b) => b.type);
   assert.ok(types.includes('identity'));
   assert.equal(out.pages[0].blocks.some((b) => b.id === 'title'), false);
+});
+
+test('isDarkCssColor : navy vs crème', () => {
+  assert.equal(isDarkCssColor('#1e293b'), true);
+  assert.equal(isDarkCssColor('#f5f0e8'), false);
+  assert.equal(isDarkCssColor('rgb(255, 255, 255)'), false);
+  assert.equal(isDarkCssColor(''), false);
+});
+
+test('stretchHeaderBandToContent ignore une zone=header périmée sous le bandeau', () => {
+  const layout = layoutWith([
+    {
+      id: 'bg',
+      type: 'shape:rect',
+      x: 0,
+      y: 0,
+      w: 210,
+      h: 41.7,
+      z: 0,
+      style: { color: '#1e293b' },
+    },
+    {
+      id: 'stale',
+      type: 'text',
+      content: 'Compétence hors bandeau',
+      x: 12,
+      y: 55,
+      w: 80,
+      h: 8,
+      z: 3,
+      style: { zone: 'header' },
+    },
+  ]);
+  const out = stretchHeaderBandToContent(layout);
+  const bg = out.pages[0].blocks.find((b) => b.id === 'bg');
+  assert.equal(bg.h, 41.7);
+});
+
+test('tagBlocksOnHeaderBand ne blanchit pas un bandeau clair', () => {
+  const layout = layoutWith([
+    {
+      id: 'bg',
+      type: 'shape:rect',
+      x: 0,
+      y: 0,
+      w: 210,
+      h: 36,
+      z: 0,
+      style: { color: '#f5f0e8' },
+    },
+    {
+      id: 'ident',
+      type: 'identity',
+      bind: ['prenom', 'nom'],
+      x: 12,
+      y: 8,
+      w: 140,
+      h: 14,
+      z: 3,
+      style: { zone: 'header' },
+    },
+  ]);
+  const out = tagBlocksOnHeaderBand(layout);
+  const ident = out.pages[0].blocks.find((b) => b.id === 'ident');
+  assert.notEqual(ident.style?.zone, 'header');
+});
+
+test('cleanupCanvasHeaderOverlays ne réécrit pas la géométrie d’une réplique', () => {
+  const layout = sanitizeLayoutV3({
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    freeform: true,
+    replica_cascade: true,
+    pages: [{
+      id: 'p1',
+      blocks: [
+        {
+          id: 'bg',
+          type: 'shape:rect',
+          x: 0,
+          y: 0,
+          w: 210,
+          h: 48,
+          z: 0,
+          style: { color: '#1e293b' },
+        },
+        {
+          id: 'ident',
+          type: 'identity',
+          bind: ['prenom', 'nom', 'titre_professionnel'],
+          x: 40,
+          y: 8,
+          w: 120,
+          h: 10,
+          z: 5,
+          style: { header_layout: 'inline-title', lock_geometry: true, zone: 'header' },
+        },
+        {
+          id: 'sidebar',
+          type: 'shape:rect',
+          x: 160,
+          y: 52,
+          w: 50,
+          h: 240,
+          z: 0,
+          style: { color: '#1e293b' },
+        },
+      ],
+    }],
+  });
+  assert.equal(isLockedReplicaLayout(layout), true);
+  const out = cleanupCanvasHeaderOverlays(layout, CV);
+  const bg = out.pages[0].blocks.find((b) => b.id === 'bg');
+  const ident = out.pages[0].blocks.find((b) => b.id === 'ident');
+  const sidebar = out.pages[0].blocks.find((b) => b.id === 'sidebar');
+  assert.equal(bg.h, 48);
+  assert.equal(ident.h, 10);
+  assert.equal(ident.w, 120);
+  assert.equal(sidebar.y, 52);
+  assert.equal(ident.style?.zone, 'header');
+});
+
+test('bindStructuralTextToSemanticBlocks ne consomme pas un à-propos qui cite le titre', () => {
+  const layout = layoutWith([
+    {
+      id: 'name',
+      type: 'text',
+      content: 'Louis Vedovato',
+      x: 40,
+      y: 10,
+      w: 90,
+      h: 8,
+      z: 3,
+      style: { bold: true, font_size: 18 },
+    },
+    {
+      id: 'about',
+      type: 'text',
+      content: 'Étudiant ESSEC, je recherche une alternance en Achats pour mettre à profit mes compétences.',
+      x: 8,
+      y: 20,
+      w: 190,
+      h: 12,
+      z: 3,
+      style: {},
+    },
+  ]);
+  const { layout: out } = bindStructuralTextToSemanticBlocks(layout, CV);
+  assert.equal(out.pages[0].blocks.some((b) => b.id === 'about'), true);
 });

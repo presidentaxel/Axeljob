@@ -68,6 +68,64 @@ export function isFullWidthHeaderRect(block) {
   return y < 18 && x < 12 && w > PAGE_WIDTH_MM * 0.7 && h > 8 && h < 95;
 }
 
+/**
+ * Luminance relative sRGB (canal 0–255). Seuil ~0.45 = bandeau « sombre ».
+ * @param {string|null|undefined} value
+ * @returns {boolean}
+ */
+export function isDarkCssColor(value) {
+  if (!value || typeof value !== 'string') return false;
+  const raw = value.trim().toLowerCase();
+  if (!raw || raw === 'transparent' || raw === 'none') return false;
+  let r;
+  let g;
+  let b;
+  const hex = raw.match(/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i);
+  if (hex) {
+    let h = hex[1];
+    if (h.length === 3) h = [...h].map((ch) => ch + ch).join('');
+    if (h.length === 8) h = h.slice(0, 6);
+    const n = Number.parseInt(h, 16);
+    r = (n >> 16) & 255;
+    g = (n >> 8) & 255;
+    b = n & 255;
+  } else {
+    const rgb = raw.match(/^rgba?\(\s*([\d.]+)\s*[, ]\s*([\d.]+)\s*[, ]\s*([\d.]+)/);
+    if (!rgb) return false;
+    r = Number(rgb[1]);
+    g = Number(rgb[2]);
+    b = Number(rgb[3]);
+  }
+  if (![r, g, b].every((ch) => Number.isFinite(ch))) return false;
+  const luma = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return luma < 0.45;
+}
+
+/**
+ * Répliques Bold/Classic/Minimal : géométrie déjà figée (`replica_cascade`
+ * ou `lock_geometry` sur identity/contact). Ne pas réécrire le bandeau.
+ * @param {object} layout
+ * @returns {boolean}
+ */
+export function isLockedReplicaLayout(layout) {
+  if (!layout || typeof layout !== 'object') return false;
+  if (layout.replica_cascade === true) return true;
+  const pages = Array.isArray(layout.pages) ? layout.pages : [];
+  return pages.some((page) => (
+    (Array.isArray(page?.blocks) ? page.blocks : []).some((block) => (
+      (block?.type === 'identity' || block?.type === 'contact')
+      && Boolean(block.style?.lock_geometry)
+    ))
+  ));
+}
+
+function isShortIdentityGhost(text, needle, extraChars = 12) {
+  if (!needle || needle.length < 4 || !text) return false;
+  if (text === needle) return true;
+  if (needle.includes(text)) return true;
+  return text.includes(needle) && text.length <= needle.length + extraChars;
+}
+
 export function textDuplicatesIdentityContent(content, cv = {}) {
   const text = normalizeIdentityText(content);
   if (!text || text.length < 4) return false;
@@ -75,11 +133,16 @@ export function textDuplicatesIdentityContent(content, cv = {}) {
   const name = normalizeIdentityText(
     `${cv.prenom || cv.first_name || ''} ${cv.nom || cv.last_name || ''}`,
   );
-  if (name && (text === name || text.includes(name) || name.includes(text))) return true;
+  if (isShortIdentityGhost(text, name)) return true;
   if (!titre) return false;
-  if (text === titre || titre.includes(text) || text.includes(titre)) return true;
+  if (isShortIdentityGhost(text, titre)) return true;
   const titreHead = titre.split(' ').slice(0, 3).join(' ');
-  return Boolean(titreHead && titreHead.length >= 8 && text.includes(titreHead));
+  return Boolean(
+    titreHead
+    && titreHead.length >= 8
+    && text.includes(titreHead)
+    && text.length <= titreHead.length + 12,
+  );
 }
 
 /**
@@ -150,6 +213,8 @@ export function removeTextDuplicatingIdentity(layout, cv = {}) {
         ) >= 0.01)
       ));
       if (!nearIdentity && !inTitleBand) return true;
+      const line = normalizeIdentityText(block.content);
+      if (!nearIdentity && line.length > 48) return true;
       return !textDuplicatesIdentityContent(block.content, cv);
     });
     return nextBlocks.length === blocks.length ? page : { ...page, blocks: nextBlocks };
@@ -178,10 +243,11 @@ export function stretchHeaderBandToContent(layout) {
       if (block.type === 'shape:rect' || block.type === 'shape:line' || block.type === 'title') continue;
       const box = asBox(block);
       const headerType = ['identity', 'photo', 'image', 'contact', 'resume'].includes(block.type);
-      const headerText = block.type === 'text' && box.y < 40;
-      const headerZone = block.style?.zone === 'header';
-      if (!headerType && !headerText && !headerZone) continue;
-      if (box.y > 42 && !headerZone) continue;
+      const headerText = block.type === 'text'
+        && box.y < 40
+        && box.y <= headerBottom + 4;
+      if (!headerType && !headerText) continue;
+      if (box.y > 42) continue;
       contentBottom = Math.max(contentBottom, box.y + box.h);
     }
 
@@ -398,6 +464,18 @@ export function tagBlocksOnHeaderBand(layout) {
     const blocks = Array.isArray(page?.blocks) ? page.blocks : [];
     const header = blocks.find(isFullWidthHeaderRect);
     if (!header) return page;
+    if (!isDarkCssColor(header.style?.color)) {
+      let stripped = false;
+      const nextBlocks = blocks.map((block) => {
+        if (!block || block.type === 'shape:rect' || block.type === 'shape:line') return block;
+        if (block.style?.zone !== 'header') return block;
+        stripped = true;
+        const nextStyle = { ...(block.style || {}) };
+        delete nextStyle.zone;
+        return { ...block, style: nextStyle };
+      });
+      return stripped ? { ...page, blocks: nextBlocks } : page;
+    }
     const hb = asBox(header);
     const headerBottom = hb.y + hb.h;
     let changed = false;
@@ -406,7 +484,12 @@ export function tagBlocksOnHeaderBand(layout) {
       if (!HEADER_CONTENT_TYPES.has(block.type)) return block;
       if (block.type === 'title') return block;
       const box = asBox(block);
-      const onBand = box.y < headerBottom - 0.5 && box.y + Math.min(box.h, 3) > hb.y;
+      const overlapY = Math.max(
+        0,
+        Math.min(box.y + box.h, headerBottom) - Math.max(box.y, hb.y),
+      );
+      const minOverlap = Math.min(Math.max(box.h, 0), 4) * 0.5;
+      const onBand = overlapY >= Math.max(0.8, minOverlap);
       if (onBand) {
         if (block.style?.zone === 'header') return block;
         changed = true;
@@ -502,13 +585,13 @@ export function expandClippedSectionHeadings(layout) {
       const cap = nextY != null ? Math.max(box.h, nextY - box.y - 0.35) : needed;
       const nextH = round1(Math.min(Math.max(box.h, needed), cap));
       const taller = nextH > box.h + 0.15;
-      const alreadyTagged = block.style?.role === 'heading';
+      const alreadyTagged = block.style?.role === 'heading' && block.style?.lock_height === true;
       if (!taller && alreadyTagged) return block;
       changed = true;
       return {
         ...block,
         ...(taller ? { h: nextH } : {}),
-        style: { ...(block.style || {}), role: 'heading' },
+        style: { ...(block.style || {}), role: 'heading', lock_height: true },
       };
     });
     return changed ? { ...page, blocks: nextBlocks } : page;
@@ -556,7 +639,7 @@ function looksLikeWrappingParagraph(block) {
   if (ATS_COLON_LINE_RE.test(text)) return false;
   if (looksLikeSectionHeading(block)) return false;
   const box = asBox(block);
-  return box.w >= 55;
+  return box.w >= 55 && box.h >= 12;
 }
 
 /**
@@ -593,11 +676,12 @@ export function cleanupCanvasHeaderOverlays(layout, cv = {}) {
   next = removeTextDuplicatingIdentity(next, cv);
   next = insertMissingSpaceAfterColonLabels(next);
   next = wrapAtsColonLabels(next);
-  next = mergeStackedHeaderTextLines(next);
   next = allowWrapOnParagraphText(next);
+  next = expandClippedSectionHeadings(next);
+  if (isLockedReplicaLayout(next)) return next;
+  next = mergeStackedHeaderTextLines(next);
   next = shrinkOverlappingTextLines(next);
   next = expandClippedIdentity(next);
-  next = expandClippedSectionHeadings(next);
   next = stretchHeaderBandToContent(next);
   next = tagBlocksOnHeaderBand(next);
   return next;

@@ -332,12 +332,29 @@ export function bindStructuralTextToSemanticBlocks(layout, cv = {}, {
           return by < iy + ih + 16 && by > iy - 10;
         });
         if (!near) continue;
-        const titreHit = titre && (
-          titre.includes(text)
-          || text.includes(titre)
-          || (titre.length >= 10 && text.includes(titre.slice(0, 12)))
+        const compact = (value) => String(value || '')
+          .replace(/[\s|/·•\-–—_.,;:!?«»"'()]+/g, ' ')
+          .trim();
+        const textC = compact(text);
+        const titreC = compact(titre);
+        const nameC = compact(name);
+        const titreHit = Boolean(
+          titreC
+          && (
+            titreC === textC
+            || titreC.includes(textC)
+            || (textC.includes(titreC) && textC.length <= titreC.length + 12)
+          ),
         );
-        const nameHit = name && name.length >= 5 && (text.includes(name) || name.includes(text));
+        const nameHit = Boolean(
+          nameC
+          && nameC.length >= 5
+          && (
+            nameC === textC
+            || nameC.includes(textC)
+            || (textC.includes(nameC) && textC.length <= nameC.length + 12)
+          ),
+        );
         if (titreHit || nameHit) consumed.add(block.id);
       }
     }

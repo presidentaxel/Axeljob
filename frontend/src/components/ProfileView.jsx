@@ -28,8 +28,10 @@ import {
   decideProfileAutoSaveOnCvChange,
   decideProfileAutoSaveOnLifecycle,
   decideProfileFlushStart,
+  decideProfileReplayKeepalive,
   decideProfileSaveFinish,
   decideProfileSaveStart,
+  nextKeepalivePending,
   profileHasUnloadGuard,
   profilePutShouldKeepalive,
 } from '../lib/profileAutoSaveGate.js';
@@ -194,6 +196,7 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
   const saveToApiRef = useRef(null);
   const pendingAutoSaveRef = useRef(false);
   const savingAutoSaveRef = useRef(false);
+  const pendingKeepaliveRef = useRef(false);
   const autoSaveTimerRef = useRef(null);
   const isActiveRef = useRef(isActive);
   const wasActiveRef = useRef(isActive);
@@ -258,6 +261,10 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
     });
     if (action === 'defer') {
       pendingAutoSaveRef.current = true;
+      pendingKeepaliveRef.current = nextKeepalivePending({
+        already: pendingKeepaliveRef.current,
+        keepalive: opts.keepalive,
+      });
       clearAutoSaveTimer();
       return;
     }
@@ -271,6 +278,10 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
   const saveToApi = useCallback(async ({ silent = false, keepalive = false } = {}) => {
     if (decideProfileSaveStart({ saving: savingAutoSaveRef.current }) === 'defer') {
       pendingAutoSaveRef.current = true;
+      pendingKeepaliveRef.current = nextKeepalivePending({
+        already: pendingKeepaliveRef.current,
+        keepalive,
+      });
       return;
     }
     const payload = buildProfileCvPutPayload(cv, templateId, templateOptions);
@@ -293,7 +304,11 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
       savingAutoSaveRef.current = false;
       setSaving(false);
       if (decideProfileSaveFinish({ hasPending: pendingAutoSaveRef.current }) === 'replay') {
-        void saveToApiRef.current?.({ silent: true });
+        const keepaliveReplay = decideProfileReplayKeepalive({
+          keepalivePending: pendingKeepaliveRef.current,
+        });
+        pendingKeepaliveRef.current = false;
+        void saveToApiRef.current?.({ silent: true, keepalive: keepaliveReplay });
       }
     }
   }, [cv, templateId, templateOptions]);

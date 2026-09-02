@@ -59,6 +59,15 @@ export function decideProfileSaveFinish({ hasPending } = {}) {
   return 'idle';
 }
 
+/** Flush pagehide/hidden différé : le replay doit garder keepalive. */
+export function nextKeepalivePending({ already, keepalive } = {}) {
+  return Boolean(already || keepalive);
+}
+
+export function decideProfileReplayKeepalive({ keepalivePending } = {}) {
+  return Boolean(keepalivePending);
+}
+
 /** beforeunload : debounce pending OU PUT encore en vol (comme useAutoSave hasPendingChanges). */
 export function profileHasUnloadGuard({ hasPending, saving } = {}) {
   return Boolean(hasPending || saving);

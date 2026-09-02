@@ -7,8 +7,10 @@ import {
   decideProfileAutoSaveOnCvChange,
   decideProfileAutoSaveOnLifecycle,
   decideProfileFlushStart,
+  decideProfileReplayKeepalive,
   decideProfileSaveFinish,
   decideProfileSaveStart,
+  nextKeepalivePending,
   PROFILE_KEEPALIVE_MAX_CHARS,
   profileHasUnloadGuard,
   profilePutShouldKeepalive,
@@ -126,6 +128,11 @@ test('PUT en vol : ne pas lancer un second save, rejouer après', () => {
   assert.equal(decideProfileFlushStart({ hasPending: false, saving: false }), 'noop');
   assert.equal(decideProfileSaveFinish({ hasPending: true }), 'replay');
   assert.equal(decideProfileSaveFinish({ hasPending: false }), 'idle');
+  assert.equal(nextKeepalivePending({ already: false, keepalive: true }), true);
+  assert.equal(nextKeepalivePending({ already: true, keepalive: false }), true);
+  assert.equal(nextKeepalivePending({ already: false, keepalive: false }), false);
+  assert.equal(decideProfileReplayKeepalive({ keepalivePending: true }), true);
+  assert.equal(decideProfileReplayKeepalive({ keepalivePending: false }), false);
 });
 
 test('keepalive seulement si le payload reste sous la limite navigateur', () => {

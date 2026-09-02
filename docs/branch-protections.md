@@ -11,15 +11,15 @@
 
 | Contrôle | Statut | Notes |
 |----------|--------|-------|
-| Branch protection `main` | **Non activée** | Repo public → disponible sans GitHub Pro ; **pas encore configurée** (API 404). Ticket [AXE-318](https://linear.app/axel-project/issue/AXE-318) |
-| Branch protection `prod` | **Non activée** | Même ticket AXE-318 — clics Settings |
-| Repository rulesets | **Non activés** | Disponibles sur repo public ; à activer si on préfère rulesets aux classic rules |
+| Branch protection `main` | **Ruleset actif** | [AXE-318](https://linear.app/axel-project/issue/AXE-318) — ruleset `main` (PR + status checks CI) |
+| Branch protection `prod` | **Ruleset actif** | Même ticket — ruleset `prod` |
+| Repository rulesets | **Actifs** | `main` (id 21561178) et `prod` (id 21561319), enforcement Active |
 | CI sur PR vers `main` | **Actif** | [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) + [`security.yml`](../.github/workflows/security.yml) |
-| CI sur PR vers `prod` | **En cours** | [AXE-316](https://linear.app/axel-project/issue/AXE-316) — [PR #168](https://github.com/presidentaxel/Axeljob/pull/168) (In Review). Sur `main` aujourd’hui, `pull_request` ne liste pas encore `prod` |
-| CD auto sur `prod` | **Pas encore** | [AXE-317](https://linear.app/axel-project/issue/AXE-317) (`deploy-prod.yml`). **Fallback :** `git pull origin prod` + Docker — [`deploy.md`](deploy.md) |
+| CI sur PR vers `prod` | **Actif** | [AXE-316](https://linear.app/axel-project/issue/AXE-316) — `pull_request` vers `prod` (smoke PR #208 fermée sans merge) |
+| CD auto sur `prod` | **Workflow livré** | [AXE-317](https://linear.app/axel-project/issue/AXE-317) — [`.github/workflows/deploy-prod.yml`](../.github/workflows/deploy-prod.yml). **Secrets** environment `production` à coller ; fallback [`deploy.md`](deploy.md) §9 |
 | Garde-fous locaux | **Actifs** | Hooks Git + Cursor (voir §2) — `main` / `master` / **`prod`** |
 
-**Conséquence :** GitHub n’empêche pas encore un admin de pousser direct sur `main` ou `prod`. La discipline équipe + les hooks locaux + la CI sur les PR vers `main` sont les garde-fous effectifs aujourd’hui. **À faire :** activer la branch protection §4 (repo public → pas besoin de Pro).
+**Conséquence :** les rulesets GitHub refusent un push direct (hors bypass admin). Les hooks locaux + la CI sur les PR vers `main` **et** `prod` restent le filet quotidien. CD : workflow livré, secrets environment `production` à coller ([`deploy.md`](deploy.md) §10).
 
 `origin/prod` **existe**. Elle peut être en retard sur `origin/main` tant que le premier promote n’est pas mergé.
 
@@ -102,7 +102,7 @@ Dès que c’est coché, un `git push origin main` ou `git push origin prod` est
 | Branche `prod` | **Présente** (`origin/prod`) | Prod dédiée |
 | Staging DO | Absent | Présent (WhatsApp) |
 | Visibilité repo | **Public** → branch protection possible sans Pro | Privé Free → Pro requis |
-| CD | **Pas encore** (AXE-317) — fallback `git pull origin prod` | `deploy-prod.yml` |
+| CD | `deploy-prod.yml` (AXE-317) — secrets environment `production` | `deploy-prod.yml` |
 | Garde-fous locaux | Hooks Git + Cursor (`main` + `prod`) | Discipline + env policies CD |
 
 Le flux `main` → `prod` **est** le modèle AxeL Job. Merger dans `main` met à jour l’intégration ; le **déploiement serveur** suit le merge dans `prod` ([`deploy.md`](deploy.md)).

@@ -14,7 +14,8 @@ Branche Git de production : **`prod`**. `main` est l'integration — voir [`ADR_
 6. Configuration critique
 7. Checklist production
 8. Sentry (observabilite)
-9. Fallback CD (jusqu'a AXE-317)
+9. Fallback CD (si le workflow GitHub est down)
+10. Environment GitHub `production` (secrets CD)
 
 ## 1) Prerequis
 
@@ -71,7 +72,7 @@ Fixes AXE-XX
 
 ## Test plan
 - [ ] CI verte sur cette PR
-- [ ] Apres merge : CD (AXE-317) ou fallback §9
+- [ ] Apres merge : CD `deploy-prod.yml` part ; sinon fallback §9
 - [ ] `curl …/health` → ok
 EOF
 )"
@@ -84,21 +85,16 @@ Hotfix urgence : brancher depuis `origin/prod`, PR vers `prod`, puis backport `m
 
 ## 5) Mise a jour serveur (depuis `prod`)
 
-Apres merge de la PR promote (ou hotfix) dans `prod` :
+Chemin **nominal** ([AXE-317](https://linear.app/axel-project/issue/AXE-317)) : un merge dans `prod` (PR promote `main` → `prod`, ou hotfix) pousse `origin/prod` et GitHub Actions lance [`.github/workflows/deploy-prod.yml`](../.github/workflows/deploy-prod.yml). Le job SSH dans `/opt/cv-bot`, aligne `prod`, puis exécute `scripts/deploy-prod.sh` (build Compose + smoke `/health`).
 
-```bash
-cd /opt/cv-bot
-git fetch origin
-git checkout prod
-git pull origin prod
-docker compose build
-docker compose up -d
-```
+Un push sur `main`, une feature, ou une PR **ne déclenche pas** ce workflow (`on.push.branches: [prod]` + `if: github.ref == 'refs/heads/prod'`).
+
+Prérequis une fois (clics GitHub, pas dans Git) : §10 — environment `production` + secrets SSH.
 
 > [!WARNING]
 > Ne plus `git pull origin main` sur le serveur de production. `main` n'est plus la prod.
 
-Quand [AXE-317](https://linear.app/axel-project/issue/AXE-317) sera livre, un `push` sur `prod` declenchera le CD (`deploy-prod.yml`) et cette etape manuelle ne sera plus le chemin nominal — garder §9 si le CD est down.
+Si le CD est down ou les secrets manquent : fallback §9 (même script, à la main).
 
 ## 6) Configuration critique
 
@@ -114,6 +110,7 @@ Quand [AXE-317](https://linear.app/axel-project/issue/AXE-317) sera livre, un `p
 ## 7) Checklist production
 
 - [ ] PR promote (ou hotfix) mergee dans `prod` — pas un simple merge `main`.
+- [ ] Run GitHub **Deploy production** vert (ou fallback §9 documenté).
 - [ ] Serveur sur la branche `prod` (`git rev-parse --abbrev-ref HEAD`).
 - [ ] Variables d'environnement completees et verifiees.
 - [ ] Build Docker ok.
@@ -161,11 +158,42 @@ Recuperer les DSN : Sentry → projet → Settings → Client Keys (DSN). Un DSN
 Session Replay : **off**. CV / annonce : **jamais** dans un event.
 Recette post-deploy : [AXE-371](https://linear.app/axel-project/issue/AXE-371).
 
-## 9) Fallback CD (jusqu'a AXE-317)
+## 9) Fallback CD (si le workflow GitHub est down)
 
-Le workflow GitHub `deploy-prod.yml` n'existe pas encore. Apres merge dans `prod` :
+Le chemin nominal est le workflow `deploy-prod.yml`. Si Actions est rouge, timeout, ou secrets absents, **même déploiement**, toujours depuis `prod` :
 
-1. Executer §5 a la main (toujours `prod`, jamais `main`).
-2. Verifier `/health`.
+```bash
+cd /opt/cv-bot
+git fetch origin
+git checkout -B prod origin/prod
+bash scripts/deploy-prod.sh --skip-pull
+```
 
-Si le CD est down plus tard : **meme fallback**.
+(`deploy-prod.sh` refuse de tourner si HEAD n'est pas `prod`. Smoke `/health` inclus.)
+
+Équivalent historique (sans le script) :
+
+```bash
+cd /opt/cv-bot
+git fetch origin
+git checkout prod
+git pull --ff-only origin prod
+docker compose build
+docker compose up -d
+curl http://localhost/health
+```
+
+## 10) Environment GitHub `production` (secrets CD)
+
+Repo → **Settings → Environments → New environment** → nom exact `production`.
+
+| Réglage | Valeur |
+| --- | --- |
+| Deployment branches | Restricted → `prod` uniquement |
+| Required reviewers | optionnel (solo : 0) |
+| Secrets (obligatoires) | `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` |
+| Secrets (optionnels) | `DEPLOY_PORT` (défaut `22`), `DEPLOY_PATH` (défaut `/opt/cv-bot`), `DEPLOY_HEALTH_URL` (défaut `http://127.0.0.1/health`) |
+
+`DEPLOY_SSH_KEY` = clé **privée** dont la publique est dans `~/.ssh/authorized_keys` du user deploy sur le droplet. Le user SSH doit pouvoir `docker compose` (groupe `docker`). Pas Docker Hub : le build Compose se fait **sur le serveur**, comme aujourd'hui.
+
+Sans ces secrets, le workflow échoue tout de suite (« Secret DEPLOY_* manquant ») et n'ouvre pas de session SSH. Le fallback §9 reste valable.

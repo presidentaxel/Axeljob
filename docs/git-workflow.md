@@ -111,7 +111,7 @@ Détail (titre, body, fallback CD) : [`ADR_MAIN_PROD.md`](ADR_MAIN_PROD.md) et [
 
 Cette PR emporte **tout** `main` qui n’est pas déjà dans `prod`. Ne pas y coller un correctif isolé « par-dessus » : soit il est déjà dans `main`, soit c’est un hotfix depuis `prod`.
 
-Jusqu’à [AXE-317](https://linear.app/axel-project/issue/AXE-317) (CD), le merge dans `prod` **ne déploie pas tout seul** : enchaîner le fallback serveur (`git pull origin prod` + Docker) décrit dans [`deploy.md`](deploy.md).
+Après merge dans `prod`, le CD [`.github/workflows/deploy-prod.yml`](../.github/workflows/deploy-prod.yml) déploie tout seul (SSH + `scripts/deploy-prod.sh`). Si Actions est down : fallback [`deploy.md`](deploy.md) §9.
 
 ---
 

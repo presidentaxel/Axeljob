@@ -585,12 +585,11 @@ export function expandClippedSectionHeadings(layout) {
       const cap = nextY != null ? Math.max(box.h, nextY - box.y - 0.35) : needed;
       const nextH = round1(Math.min(Math.max(box.h, needed), cap));
       const taller = nextH > box.h + 0.15;
-      const alreadyTagged = block.style?.role === 'heading' && block.style?.lock_height === true;
-      if (!taller && alreadyTagged) return block;
+      if (!taller) return block;
       changed = true;
       return {
         ...block,
-        ...(taller ? { h: nextH } : {}),
+        h: nextH,
         style: { ...(block.style || {}), role: 'heading', lock_height: true },
       };
     });
@@ -677,11 +676,11 @@ export function cleanupCanvasHeaderOverlays(layout, cv = {}) {
   next = insertMissingSpaceAfterColonLabels(next);
   next = wrapAtsColonLabels(next);
   next = allowWrapOnParagraphText(next);
-  next = expandClippedSectionHeadings(next);
   if (isLockedReplicaLayout(next)) return next;
   next = mergeStackedHeaderTextLines(next);
   next = shrinkOverlappingTextLines(next);
   next = expandClippedIdentity(next);
+  next = expandClippedSectionHeadings(next);
   next = stretchHeaderBandToContent(next);
   next = tagBlocksOnHeaderBand(next);
   return next;

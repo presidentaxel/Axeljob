@@ -368,6 +368,26 @@ test('expandClippedSectionHeadings agrandit un titre PDF trop bas', () => {
   assert.equal(skills.style?.lock_height, true);
 });
 
+test('expandClippedSectionHeadings ne gèle pas un titre déjà assez haut', () => {
+  const layout = layoutWith([
+    {
+      id: 'exp-title',
+      type: 'title',
+      content: 'EXPÉRIENCE PROFESSIONNELLE',
+      x: 4,
+      y: 50,
+      w: 80,
+      h: 12,
+      z: 3,
+      style: { bold: true, font_size: 10 },
+    },
+  ]);
+  const out = expandClippedSectionHeadings(layout);
+  const title = out.pages[0].blocks.find((b) => b.id === 'exp-title');
+  assert.equal(title.h, 12);
+  assert.equal(title.style?.lock_height, undefined);
+});
+
 test('stretchHeaderBandToContent n’avale pas les titres de section du corps', () => {
   const layout = layoutWith([
     {
@@ -852,6 +872,17 @@ test('cleanupCanvasHeaderOverlays ne réécrit pas la géométrie d’une répli
           style: { header_layout: 'inline-title', lock_geometry: true, zone: 'header' },
         },
         {
+          id: 'exp-title',
+          type: 'title',
+          content: 'EXPÉRIENCE PROFESSIONNELLE',
+          x: 8,
+          y: 56,
+          w: 80,
+          h: 6,
+          z: 3,
+          style: { bold: true, font_size: 11 },
+        },
+        {
           id: 'sidebar',
           type: 'shape:rect',
           x: 160,
@@ -869,11 +900,14 @@ test('cleanupCanvasHeaderOverlays ne réécrit pas la géométrie d’une répli
   const bg = out.pages[0].blocks.find((b) => b.id === 'bg');
   const ident = out.pages[0].blocks.find((b) => b.id === 'ident');
   const sidebar = out.pages[0].blocks.find((b) => b.id === 'sidebar');
+  const title = out.pages[0].blocks.find((b) => b.id === 'exp-title');
   assert.equal(bg.h, 48);
   assert.equal(ident.h, 10);
   assert.equal(ident.w, 120);
   assert.equal(sidebar.y, 52);
   assert.equal(ident.style?.zone, 'header');
+  assert.equal(title.h, 6);
+  assert.equal(title.style?.lock_height, undefined);
 });
 
 test('bindStructuralTextToSemanticBlocks ne consomme pas un à-propos qui cite le titre', () => {
@@ -903,4 +937,46 @@ test('bindStructuralTextToSemanticBlocks ne consomme pas un à-propos qui cite l
   ]);
   const { layout: out } = bindStructuralTextToSemanticBlocks(layout, CV);
   assert.equal(out.pages[0].blocks.some((b) => b.id === 'about'), true);
+});
+
+test('bindStructuralTextToSemanticBlocks ne consomme pas un filet de ponctuation', () => {
+  const layout = layoutWith([
+    {
+      id: 'name',
+      type: 'text',
+      content: 'Louis Vedovato',
+      x: 40,
+      y: 10,
+      w: 90,
+      h: 8,
+      z: 3,
+      style: { bold: true, font_size: 18 },
+    },
+    {
+      id: 'rule',
+      type: 'text',
+      content: '--------',
+      x: 40,
+      y: 20,
+      w: 90,
+      h: 3,
+      z: 3,
+      style: {},
+    },
+    {
+      id: 'dots',
+      type: 'text',
+      content: '···· ····',
+      x: 40,
+      y: 24,
+      w: 90,
+      h: 3,
+      z: 3,
+      style: {},
+    },
+  ]);
+  const { layout: out } = bindStructuralTextToSemanticBlocks(layout, CV);
+  const ids = out.pages[0].blocks.map((b) => b.id);
+  assert.equal(ids.includes('rule'), true);
+  assert.equal(ids.includes('dots'), true);
 });

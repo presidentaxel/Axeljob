@@ -336,6 +336,8 @@ export function bindStructuralTextToSemanticBlocks(layout, cv = {}, {
           .replace(/[\s|/·•\-–—_.,;:!?«»"'()]+/g, ' ')
           .trim();
         const textC = compact(text);
+        // `compact("----") === ""` et `haystack.includes("")` est toujours vrai.
+        if (!textC || textC.length < 4) continue;
         const titreC = compact(titre);
         const nameC = compact(name);
         const titreHit = Boolean(

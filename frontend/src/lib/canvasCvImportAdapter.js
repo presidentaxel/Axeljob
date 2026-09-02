@@ -40,6 +40,7 @@ import {
   resolveProjets,
 } from './freeCanvasContent.js';
 import { bindStructuralTextToSemanticBlocks } from './structuralSemanticBind.js';
+import { cleanupCanvasHeaderOverlays } from './canvasHeaderOverlayCleanup.js';
 
 const DECORATIVE_TYPES = new Set(['shape:rect', 'shape:line']);
 
@@ -1030,6 +1031,8 @@ export function adaptCanvasLayoutForCv(cv, layout, {
     next = ensureImportLayoutHasContent(next, cv);
   }
 
+  next = cleanupCanvasHeaderOverlays(next, cv);
+
   return {
     layout: next,
     analysis,
@@ -1245,6 +1248,7 @@ export function buildStructuralImportLayout(cv, structuralLayout, {
     }
   }
   finalLayout = ensureImportLayoutHasContent(finalLayout, cv);
+  finalLayout = cleanupCanvasHeaderOverlays(finalLayout, cv);
   const persistedTemplateId = resolveImportPersistTemplateId(
     templateId || finalLayout.theme?.template_id,
     'minimal',

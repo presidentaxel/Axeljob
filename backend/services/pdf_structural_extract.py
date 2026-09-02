@@ -352,9 +352,12 @@ def _extract_text_blocks(
             # ce qui fait paraître les shape:line 1 mm trop hauts par rapport au texte.
             # On décale le bloc vers le haut de 1 mm : après le padding CSS, le rendu
             # s'aligne exactement sur les coordonnées du PDF.
+            # Le padding bas (1 mm) doit aussi entrer dans h, sinon les glyphes
+            # (titres de section surtout) sont clipés par overflow:hidden.
             _CSS_TEXT_PAD_TOP = 1.0  # mm — doit correspondre au padding-top CSS
+            _CSS_TEXT_PAD_BOTTOM = 1.0  # mm — padding-bottom CSS
             y_mm = max(0.0, y0 * pos_scale - _CSS_TEXT_PAD_TOP)
-            line_h_mm += _CSS_TEXT_PAD_TOP  # restaure l'espace en bas du bloc
+            line_h_mm += _CSS_TEXT_PAD_TOP + _CSS_TEXT_PAD_BOTTOM
             blocks.append(
                 {
                     "type": "text",

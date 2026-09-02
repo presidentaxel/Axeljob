@@ -789,6 +789,19 @@
   padding: 1mm 1.5mm;
 }
 
+/* Titres de section importés : bbox PDF trop basse — ne pas clipper les glyphes. */
+.free-canvas-block[data-block-type='title'] .free-canvas-block__inner,
+.free-canvas-block__inner--heading {
+  overflow: visible !important;
+  max-height: none !important;
+}
+
+.free-canvas-block[data-block-type='title'] .free-canvas-block__title,
+.free-canvas-block__inner--heading .free-canvas-block__title,
+.free-canvas-block__inner--heading .free-canvas-block__text {
+  line-height: 1.2;
+}
+
 .free-canvas-block__section-title {
   margin: 0 0 1.5mm;
   font-size: 9pt;
@@ -992,6 +1005,19 @@
 .free-canvas-block[data-block-type='contact'] .free-canvas-block__inner--zone-header {
   overflow: visible !important;
   max-height: none !important;
+}
+
+/* Contact sur bandeau sombre : lisible (le gris Minimal #666 ne s'applique pas ici). */
+.free-canvas-block__inner--zone-header .free-canvas-block__contact,
+.free-canvas-block__inner--zone-header .free-canvas-block__contact--header-bar,
+.free-canvas-block__inner--zone-header .free-canvas-block__contact p,
+.free-canvas-block__inner--zone-header .free-canvas-block__contact span,
+.free-canvas-block__inner--zone-header .free-canvas-block__contact-icon {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.free-canvas-block[data-block-type='text'] .free-canvas-block__text strong {
+  font-weight: 700;
 }
 
 .free-canvas--placing {

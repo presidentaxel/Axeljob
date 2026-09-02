@@ -1187,6 +1187,14 @@
   white-space: pre;
 }
 
+.free-canvas-page--tpl-minimal .free-canvas-block__inner--zone-header .free-canvas-block__contact,
+.free-canvas-page--tpl-minimal .free-canvas-block__inner--zone-header .free-canvas-block__contact--header-bar,
+.free-canvas-page--tpl-minimal .free-canvas-block__inner--zone-header .free-canvas-block__contact p,
+.free-canvas-page--tpl-minimal .free-canvas-block__inner--zone-header .free-canvas-block__contact span,
+.free-canvas-page--tpl-minimal .free-canvas-block__inner--zone-header .free-canvas-block__contact-icon {
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+
 .free-canvas-page--tpl-minimal .free-canvas-block__section-title--minimal-section {
   font-family: var(--free-canvas-font-heading) !important;
   font-size: 10.5pt !important;
@@ -1231,6 +1239,11 @@
 }
 
 .free-canvas-page--tpl-minimal .free-canvas-block__exp--minimal .free-canvas-block__exp-entreprise strong {
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block[data-block-type='text'] .free-canvas-block__text strong {
   font-weight: 700;
   color: #1a1a1a;
 }

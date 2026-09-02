@@ -5,13 +5,16 @@ import {
   cleanupCanvasHeaderOverlays,
   dedupeOverlappingIdentities,
   expandClippedIdentity,
+  expandClippedSectionHeadings,
   insertMissingSpaceAfterColonLabels,
   isFullWidthHeaderRect,
+  looksLikeSectionHeading,
   mergeStackedHeaderTextLines,
   removeTextDuplicatingIdentity,
   shrinkOverlappingTextLines,
   stretchHeaderBandToContent,
   textDuplicatesIdentityContent,
+  wrapAtsColonLabels,
 } from '../../src/lib/canvasHeaderOverlayCleanup.js';
 import { sanitizeLayoutV3 } from '../../src/lib/cvLayoutModelV3.js';
 import { bindStructuralTextToSemanticBlocks } from '../../src/lib/structuralSemanticBind.js';
@@ -236,6 +239,108 @@ test('insertMissingSpaceAfterColonLabels', () => {
   ]);
   const out = insertMissingSpaceAfterColonLabels(layout);
   assert.equal(out.pages[0].blocks[0].content, 'Organisation : Loulitos');
+});
+
+test('wrapAtsColonLabels : libellé regular + nom gras, y compris si le PDF était tout gras', () => {
+  const layout = layoutWith([
+    {
+      id: 'org-bold',
+      type: 'text',
+      content: 'Organisation : Louitos',
+      x: 4,
+      y: 50,
+      w: 40,
+      h: 4,
+      z: 3,
+      style: { bold: true, font_size: 9 },
+    },
+    {
+      id: 'org-plain',
+      type: 'text',
+      content: 'Organisation : Another Co',
+      x: 4,
+      y: 70,
+      w: 40,
+      h: 4,
+      z: 3,
+      style: { font_size: 9 },
+    },
+    {
+      id: 'body',
+      type: 'text',
+      content: 'Pilotage du projet et de la relation client.',
+      x: 4,
+      y: 80,
+      w: 80,
+      h: 8,
+      z: 3,
+      style: {},
+    },
+  ]);
+  const out = wrapAtsColonLabels(layout);
+  const bold = out.pages[0].blocks.find((b) => b.id === 'org-bold');
+  const plain = out.pages[0].blocks.find((b) => b.id === 'org-plain');
+  const body = out.pages[0].blocks.find((b) => b.id === 'body');
+  assert.equal(bold.style?.bold, false);
+  assert.match(bold.content, /<span style="font-weight:400">Organisation : <\/span><strong>Louitos<\/strong>/);
+  assert.match(plain.content, /<strong>Another Co<\/strong>/);
+  assert.equal(body.content, 'Pilotage du projet et de la relation client.');
+  const again = wrapAtsColonLabels(out);
+  assert.equal(again.pages[0].blocks.find((b) => b.id === 'org-bold').content, bold.content);
+});
+
+test('expandClippedSectionHeadings agrandit un titre PDF trop bas', () => {
+  assert.equal(
+    looksLikeSectionHeading({
+      type: 'title',
+      content: 'EXPÉRIENCE PROFESSIONNELLE',
+    }),
+    true,
+  );
+  const layout = layoutWith([
+    {
+      id: 'exp-title',
+      type: 'title',
+      content: 'EXPÉRIENCE PROFESSIONNELLE',
+      x: 4,
+      y: 43.54,
+      w: 60,
+      h: 4.06,
+      z: 3,
+      style: { bold: true, font_size: 10 },
+    },
+    {
+      id: 'org',
+      type: 'text',
+      content: 'Organisation : Louitos',
+      x: 4,
+      y: 49.83,
+      w: 40,
+      h: 4,
+      z: 3,
+      style: {},
+    },
+    {
+      id: 'skills-title',
+      type: 'text',
+      content: 'COMPÉTENCES',
+      x: 162,
+      y: 47.25,
+      w: 30,
+      h: 4.06,
+      z: 3,
+      style: { bold: true, font_size: 10 },
+    },
+  ]);
+  const out = expandClippedSectionHeadings(layout);
+  const title = out.pages[0].blocks.find((b) => b.id === 'exp-title');
+  const org = out.pages[0].blocks.find((b) => b.id === 'org');
+  const skills = out.pages[0].blocks.find((b) => b.id === 'skills-title');
+  assert.ok(title.h > 4.06, `title h=${title.h}`);
+  assert.ok(title.y + title.h <= org.y - 0.2, 'ne recouvre pas Organisation');
+  assert.equal(title.style?.role, 'heading');
+  assert.ok(skills.h > 4.06, `skills h=${skills.h}`);
+  assert.equal(skills.style?.role, 'heading');
 });
 
 test('stretchHeaderBandToContent n’avale pas les titres de section du corps', () => {

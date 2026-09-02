@@ -442,6 +442,112 @@ export function insertMissingSpaceAfterColonLabels(layout) {
   return { ...layout, pages };
 }
 
+const SECTION_HEADING_TEXT_RE = /^(?:[\s|/·•\-–—]*)((?:work|professional)\s+experiences?|exp[ée]riences?(?:\s+professionnelles?)?|work\s+history|employment|formations?|education|[ée]tudes|dipl[oô]mes?|comp[ée]tences?|skills?|technologies?|outils?|langues?|languages?|certifications?|accreditations?|projets?|projects?|r[ée]alisations?|profil|r[ée]sum[ée]|summary|about|[àa] propos|contact|coordonn[ée]es)\s*[:.]?\s*$/i;
+
+function stripTagsToText(value) {
+  return decodeStructuralText(value).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function escapeHtmlText(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+export function looksLikeSectionHeading(block) {
+  if (!block) return false;
+  if (block.type === 'title') return true;
+  if (block.type !== 'text') return false;
+  const text = stripTagsToText(block.content);
+  return Boolean(text) && text.length <= 48 && SECTION_HEADING_TEXT_RE.test(text);
+}
+
+function inferFontSizeMm(block) {
+  const pt = Number(block?.style?.font_size);
+  const fallback = block?.type === 'title' ? 11 : 10;
+  return (Number.isFinite(pt) && pt > 0 ? pt : fallback) * (25.4 / 72);
+}
+
+function nextContentTopBelow(blocks, block, box) {
+  const tops = [];
+  for (const other of blocks) {
+    if (!other || other === block) continue;
+    if (other.type === 'shape:rect' || other.type === 'shape:line') continue;
+    const bb = asBox(other);
+    const sameCol = bb.x < box.x + box.w && box.x < bb.x + bb.w;
+    if (!sameCol || bb.y <= box.y + 0.8) continue;
+    tops.push(bb.y);
+  }
+  return tops.length ? Math.min(...tops) : null;
+}
+
+/**
+ * Titres de section importés : bbox PDF trop basse + padding CSS → glyphes
+ * coupés en bas. On agrandit sans recouvrir le bloc suivant.
+ */
+export function expandClippedSectionHeadings(layout) {
+  if (!layout?.pages?.length) return layout;
+  const pages = layout.pages.map((page) => {
+    const blocks = Array.isArray(page?.blocks) ? page.blocks : [];
+    let changed = false;
+    const nextBlocks = blocks.map((block) => {
+      if (!looksLikeSectionHeading(block)) return block;
+      const box = asBox(block);
+      const needed = round1(inferFontSizeMm(block) * 1.28 + 2.2);
+      const nextY = nextContentTopBelow(blocks, block, box);
+      const cap = nextY != null ? Math.max(box.h, nextY - box.y - 0.35) : needed;
+      const nextH = round1(Math.min(Math.max(box.h, needed), cap));
+      const taller = nextH > box.h + 0.15;
+      const alreadyTagged = block.style?.role === 'heading';
+      if (!taller && alreadyTagged) return block;
+      changed = true;
+      return {
+        ...block,
+        ...(taller ? { h: nextH } : {}),
+        style: { ...(block.style || {}), role: 'heading' },
+      };
+    });
+    return changed ? { ...page, blocks: nextBlocks } : page;
+  });
+  return { ...layout, pages };
+}
+
+const ATS_COLON_LINE_RE = /^(Organisation|Organization|Fonction|Function|Poste|Clients?)\s*:\s*(.+)$/i;
+
+/**
+ * Lignes ATS leftover PDF (`Organisation : Name`) : libellé regular + nom gras,
+ * comme les blocs sémantiques experiences. Ne touche pas au corps de texte.
+ */
+export function wrapAtsColonLabels(layout) {
+  if (!layout?.pages?.length) return layout;
+  const pages = layout.pages.map((page) => {
+    const blocks = Array.isArray(page?.blocks) ? page.blocks : [];
+    let changed = false;
+    const nextBlocks = blocks.map((block) => {
+      if (block?.type !== 'text') return block;
+      const content = String(block.content || '');
+      if (/<strong[\s>]/i.test(content) && /font-weight\s*:\s*400/i.test(content)) {
+        return block;
+      }
+      const plain = stripTagsToText(content);
+      const match = plain.match(ATS_COLON_LINE_RE);
+      if (!match) return block;
+      const value = String(match[2] || '').trim();
+      if (!value || value.length > 90 || value.includes('. ')) return block;
+      const wrapped = `<span style="font-weight:400">${escapeHtmlText(match[1])} : </span><strong>${escapeHtmlText(value)}</strong>`;
+      if (wrapped === content && !block.style?.bold) return block;
+      changed = true;
+      const nextStyle = { ...(block.style || {}) };
+      if (nextStyle.bold) nextStyle.bold = false;
+      return { ...block, content: wrapped, style: nextStyle };
+    });
+    return changed ? { ...page, blocks: nextBlocks } : page;
+  });
+  return { ...layout, pages };
+}
+
 /**
  * @param {object} layout
  * @param {object} [cv]
@@ -452,9 +558,11 @@ export function cleanupCanvasHeaderOverlays(layout, cv = {}) {
   let next = dedupeOverlappingIdentities(layout);
   next = removeTextDuplicatingIdentity(next, cv);
   next = insertMissingSpaceAfterColonLabels(next);
+  next = wrapAtsColonLabels(next);
   next = mergeStackedHeaderTextLines(next);
   next = shrinkOverlappingTextLines(next);
   next = expandClippedIdentity(next);
+  next = expandClippedSectionHeadings(next);
   next = stretchHeaderBandToContent(next);
   next = tagBlocksOnHeaderBand(next);
   return next;

@@ -1170,6 +1170,7 @@ export default function FreeCanvasBlock({
           editing ? 'free-canvas-block__inner--editing' : '',
           autoHeight ? 'free-canvas-block__inner--content-fit' : '',
           supportsBlockEffects ? 'free-canvas-block__inner--shape-effects' : '',
+          (type === 'title' || blockStyle?.role === 'heading') ? 'free-canvas-block__inner--heading' : '',
         ].filter(Boolean).join(' ')}
         style={innerTypography}
         onPointerDown={editing ? handleInnerPointerDown : undefined}

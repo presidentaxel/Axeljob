@@ -6,6 +6,7 @@ import {
   dedupeOverlappingIdentities,
   expandClippedIdentity,
   expandClippedSectionHeadings,
+  allowWrapOnParagraphText,
   insertMissingSpaceAfterColonLabels,
   isFullWidthHeaderRect,
   looksLikeSectionHeading,
@@ -456,7 +457,7 @@ test('mergeStackedHeaderTextLines fusionne le paragraphe du bandeau', () => {
       w: 200,
       h: 7.85,
       z: 3,
-      style: { italic: true },
+      style: { italic: true, nowrap: true },
     },
     {
       id: 'l2',
@@ -467,7 +468,7 @@ test('mergeStackedHeaderTextLines fusionne le paragraphe du bandeau', () => {
       w: 200,
       h: 7.85,
       z: 3,
-      style: { italic: true },
+      style: { italic: true, nowrap: true },
     },
     {
       id: 'contact',
@@ -485,6 +486,39 @@ test('mergeStackedHeaderTextLines fusionne le paragraphe du bandeau', () => {
   assert.equal(texts.length, 1);
   assert.ok(texts[0].content.includes('ligne deux'));
   assert.ok(texts[0].y + texts[0].h <= 34.3, 'ne recouvre pas le contact');
+  assert.equal(texts[0].style?.nowrap, undefined);
+});
+
+test('allowWrapOnParagraphText retire nowrap sur un à-propos, pas sur Organisation', () => {
+  const layout = layoutWith([
+    {
+      id: 'resume',
+      type: 'text',
+      content: 'Étudiant ESSEC, je recherche une alternance en Achats pour mettre à profit mes compétences en résolution de problèmes, automatisation et gestion de projet.',
+      x: 2,
+      y: 16,
+      w: 200,
+      h: 17,
+      z: 3,
+      style: { italic: true, nowrap: true },
+    },
+    {
+      id: 'org',
+      type: 'text',
+      content: 'Organisation : Louitos',
+      x: 4,
+      y: 50,
+      w: 40,
+      h: 4,
+      z: 3,
+      style: { nowrap: true },
+    },
+  ]);
+  const out = allowWrapOnParagraphText(layout);
+  const resume = out.pages[0].blocks.find((b) => b.id === 'resume');
+  const org = out.pages[0].blocks.find((b) => b.id === 'org');
+  assert.equal(resume.style?.nowrap, undefined);
+  assert.equal(org.style?.nowrap, true);
 });
 
 test('cleanupCanvasHeaderOverlays combine les passes', () => {

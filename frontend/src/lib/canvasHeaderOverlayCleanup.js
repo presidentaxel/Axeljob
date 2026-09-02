@@ -367,12 +367,14 @@ export function mergeStackedHeaderTextLines(layout) {
           .map((r) => decodeStructuralText(r.b.content))
           .filter(Boolean)
           .join(' ');
+        const mergedStyle = { ...(first.b.style || {}), italic: true, lock_height: true };
+        delete mergedStyle.nowrap;
         mergedByIdx.set(first.idx, {
           ...first.b,
           content,
           w: round1(Math.max(...run.map((r) => r.box.w))),
           h: round1(Math.max(first.box.h, Math.min(cap, natural))),
-          style: { ...(first.b.style || {}), italic: true, lock_height: true },
+          style: mergedStyle,
         });
         run.slice(1).forEach((r) => drop.add(r.idx));
       }
@@ -548,6 +550,38 @@ export function wrapAtsColonLabels(layout) {
   return { ...layout, pages };
 }
 
+function looksLikeWrappingParagraph(block) {
+  const text = stripTagsToText(block.content);
+  if (!text || text.length < 70) return false;
+  if (ATS_COLON_LINE_RE.test(text)) return false;
+  if (looksLikeSectionHeading(block)) return false;
+  const box = asBox(block);
+  return box.w >= 55;
+}
+
+/**
+ * Paragraphe d’en-tête / à propos importé : une ligne PDF a `nowrap`, mais un
+ * vrai paragraphe doit revenir à la ligne dans sa boîte.
+ */
+export function allowWrapOnParagraphText(layout) {
+  if (!layout?.pages?.length) return layout;
+  const pages = layout.pages.map((page) => {
+    const blocks = Array.isArray(page?.blocks) ? page.blocks : [];
+    let changed = false;
+    const nextBlocks = blocks.map((block) => {
+      if (block?.type !== 'text' && block?.type !== 'resume') return block;
+      if (!block.style?.nowrap) return block;
+      if (!looksLikeWrappingParagraph(block)) return block;
+      changed = true;
+      const nextStyle = { ...(block.style || {}) };
+      delete nextStyle.nowrap;
+      return { ...block, style: nextStyle };
+    });
+    return changed ? { ...page, blocks: nextBlocks } : page;
+  });
+  return { ...layout, pages };
+}
+
 /**
  * @param {object} layout
  * @param {object} [cv]
@@ -560,6 +594,7 @@ export function cleanupCanvasHeaderOverlays(layout, cv = {}) {
   next = insertMissingSpaceAfterColonLabels(next);
   next = wrapAtsColonLabels(next);
   next = mergeStackedHeaderTextLines(next);
+  next = allowWrapOnParagraphText(next);
   next = shrinkOverlappingTextLines(next);
   next = expandClippedIdentity(next);
   next = expandClippedSectionHeadings(next);

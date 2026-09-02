@@ -904,6 +904,12 @@
   margin: 0;
 }
 
+.free-canvas-block__text,
+.free-canvas-block__resume {
+  overflow-wrap: anywhere;
+  word-wrap: break-word;
+}
+
 .free-canvas-block__title {
   font-size: 11pt;
   font-weight: 700;

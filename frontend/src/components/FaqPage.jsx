@@ -3,6 +3,7 @@ import { ARTICLE_SOURCE_URLS as U } from '../content/articleSources.js';
 import { analyticsAttrs } from '../lib/analyticsAttrs.js';
 import { persistLoginCta } from '../../public/signupAttribution.js';
 import ContentScrollToTop from './ContentScrollToTop';
+import Button from './ui/Button.jsx';
 import './ContentPages.css';
 
 function Out({ href, children }) {
@@ -130,7 +131,9 @@ export default function FaqPage({ onBack }) {
         <div className="content-cta-inner">
           <h2>Un CV adapté à chaque offre, en un clic</h2>
           <p>Essaie AxeL Job gratuitement. 3 adaptations offertes, sans carte bancaire.</p>
-          <Link to="/login" className="button button-primary" onClick={() => persistLoginCta('faq-cta-signup')} {...analyticsAttrs('faq-cta-signup', 'content', 'primary', 'cta')}>Essayer gratuitement</Link>
+          <Button as={Link} to="/login" variant="primary" onClick={() => persistLoginCta('faq-cta-signup')} {...analyticsAttrs('faq-cta-signup', 'content', 'primary', 'cta')}>
+            Essayer gratuitement
+          </Button>
         </div>
       </section>
 

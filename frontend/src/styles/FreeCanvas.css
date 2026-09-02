@@ -659,10 +659,28 @@
 }
 
 .free-canvas-block__identity--inline-title {
-  display: block;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0;
+  max-width: 100%;
   margin: 0;
   font-weight: inherit;
   font-size: inherit;
+  overflow: visible;
+}
+
+.free-canvas-block__identity--inline-title .free-canvas-block__identity-name,
+.free-canvas-block__identity--inline-title .free-canvas-block__identity-sep {
+  display: inline;
+  margin: 0 !important;
+  white-space: nowrap;
+}
+
+.free-canvas-block__identity--inline-title .free-canvas-block__identity-title {
+  display: inline;
+  margin: 0 !important;
+  white-space: normal;
 }
 
 .free-canvas-block__contact--header-bar {
@@ -771,6 +789,19 @@
   padding: 1mm 1.5mm;
 }
 
+/* Titres de section importés : bbox PDF trop basse — ne pas clipper les glyphes. */
+.free-canvas-block[data-block-type='title'] .free-canvas-block__inner,
+.free-canvas-block__inner--heading {
+  overflow: visible !important;
+  max-height: none !important;
+}
+
+.free-canvas-block[data-block-type='title'] .free-canvas-block__title,
+.free-canvas-block__inner--heading .free-canvas-block__title,
+.free-canvas-block__inner--heading .free-canvas-block__text {
+  line-height: 1.2;
+}
+
 .free-canvas-block__section-title {
   margin: 0 0 1.5mm;
   font-size: 9pt;
@@ -779,7 +810,14 @@
   letter-spacing: 0.03em;
   color: var(--free-canvas-accent, #1e293b);
   border-bottom: 0.25mm solid rgba(30, 41, 59, 0.35);
-  padding-bottom: 0.4mm;
+  padding-top: 0.5mm;
+  padding-bottom: 1.1mm;
+  line-height: 1.3;
+  overflow: visible;
+}
+
+.free-canvas-block__ats-label {
+  margin-right: 0.3em;
 }
 
 .free-canvas-block__section-list {
@@ -864,6 +902,12 @@
 .free-canvas-block__text,
 .free-canvas-block__title {
   margin: 0;
+}
+
+.free-canvas-block__text,
+.free-canvas-block__resume {
+  overflow-wrap: anywhere;
+  word-wrap: break-word;
 }
 
 .free-canvas-block__title {
@@ -953,6 +997,33 @@
 .free-canvas-block__inner--zone-sidebar .free-canvas-block__section-title,
 .free-canvas-block__inner--zone-header .free-canvas-block__section-title {
   border-bottom-color: rgba(255, 255, 255, 0.25);
+}
+
+.free-canvas-block__inner--zone-header .free-canvas-block__identity-name,
+.free-canvas-block__inner--zone-header .free-canvas-block__identity-title,
+.free-canvas-block__inner--zone-header .free-canvas-block__identity-title--accent {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.free-canvas-block[data-block-type='text'] .free-canvas-block__inner--zone-header,
+.free-canvas-block[data-block-type='resume'] .free-canvas-block__inner--zone-header,
+.free-canvas-block[data-block-type='identity'] .free-canvas-block__inner--zone-header,
+.free-canvas-block[data-block-type='contact'] .free-canvas-block__inner--zone-header {
+  overflow: visible !important;
+  max-height: none !important;
+}
+
+/* Contact sur bandeau sombre : lisible (le gris Minimal #666 ne s'applique pas ici). */
+.free-canvas-block__inner--zone-header .free-canvas-block__contact,
+.free-canvas-block__inner--zone-header .free-canvas-block__contact--header-bar,
+.free-canvas-block__inner--zone-header .free-canvas-block__contact p,
+.free-canvas-block__inner--zone-header .free-canvas-block__contact span,
+.free-canvas-block__inner--zone-header .free-canvas-block__contact-icon {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.free-canvas-block[data-block-type='text'] .free-canvas-block__text strong {
+  font-weight: 700;
 }
 
 .free-canvas--placing {

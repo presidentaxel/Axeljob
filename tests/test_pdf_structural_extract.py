@@ -8,6 +8,7 @@ from backend.services.pdf_structural_extract import (
     _frame_strips_from_rects,
     _int_color_to_hex,
     _is_near_white,
+    _join_line_span_texts,
     extract_layout_from_pdf,
 )
 
@@ -231,6 +232,20 @@ class ExtractLayoutTest(unittest.TestCase):
         self.assertIsNotNone(layout)
         lines = [b for b in layout["pages"][0]["blocks"] if b["type"] == "shape:line"]
         self.assertGreaterEqual(len(lines), 1)
+
+    def test_join_line_span_texts_inserts_space_after_colon(self):
+        spans = [
+            {"text": "Organisation :", "bbox": (40, 100, 120, 112)},
+            {"text": "Loulitos", "bbox": (121, 100, 170, 112)},
+        ]
+        self.assertEqual(_join_line_span_texts(spans), "Organisation : Loulitos")
+
+    def test_join_line_span_texts_inserts_space_on_gap(self):
+        spans = [
+            {"text": "Louis", "bbox": (40, 60, 70, 80)},
+            {"text": "Vedovato", "bbox": (78, 60, 130, 80)},
+        ]
+        self.assertEqual(_join_line_span_texts(spans), "Louis Vedovato")
 
     def test_empty_bytes_returns_none(self):
         self.assertIsNone(extract_layout_from_pdf(b""))

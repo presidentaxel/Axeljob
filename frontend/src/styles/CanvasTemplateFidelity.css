@@ -1163,6 +1163,16 @@
   opacity: 1 !important;
 }
 
+.free-canvas-page--tpl-minimal .free-canvas-block__inner--zone-header .free-canvas-block__identity-name,
+.free-canvas-page--tpl-minimal .free-canvas-block__inner--zone-header .free-canvas-block__identity-title,
+.free-canvas-page--tpl-minimal .free-canvas-block__inner--zone-header .free-canvas-block__identity-title--accent {
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__identity--inline-title .free-canvas-block__identity-title {
+  margin: 0 !important;
+}
+
 .free-canvas-page--tpl-minimal .free-canvas-block__contact,
 .free-canvas-page--tpl-minimal .free-canvas-block__contact--header-bar {
   color: #666666 !important;
@@ -1175,6 +1185,14 @@
 
 .free-canvas-page--tpl-minimal .free-canvas-block__contact--header-bar .free-canvas-block__contact-spacer {
   white-space: pre;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block__inner--zone-header .free-canvas-block__contact,
+.free-canvas-page--tpl-minimal .free-canvas-block__inner--zone-header .free-canvas-block__contact--header-bar,
+.free-canvas-page--tpl-minimal .free-canvas-block__inner--zone-header .free-canvas-block__contact p,
+.free-canvas-page--tpl-minimal .free-canvas-block__inner--zone-header .free-canvas-block__contact span,
+.free-canvas-page--tpl-minimal .free-canvas-block__inner--zone-header .free-canvas-block__contact-icon {
+  color: rgba(255, 255, 255, 0.92) !important;
 }
 
 .free-canvas-page--tpl-minimal .free-canvas-block__section-title--minimal-section {
@@ -1221,6 +1239,11 @@
 }
 
 .free-canvas-page--tpl-minimal .free-canvas-block__exp--minimal .free-canvas-block__exp-entreprise strong {
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.free-canvas-page--tpl-minimal .free-canvas-block[data-block-type='text'] .free-canvas-block__text strong {
   font-weight: 700;
   color: #1a1a1a;
 }

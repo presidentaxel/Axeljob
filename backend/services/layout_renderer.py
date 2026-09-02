@@ -363,7 +363,7 @@ body.cv-layout-body {
 }
 .cv-layout-exp-role { color: #64748b; font-size: 8pt; margin-bottom: 0.5mm; }
 .cv-layout-exp-clients { margin: 0 0 0.5mm; font-size: 8pt; color: #475569; }
-.cv-layout-ats-label { font-size: 0.9em; color: #999; font-weight: 400; }
+.cv-layout-ats-label { font-size: 0.9em; color: #999; font-weight: 400; margin-right: 0.3em; }
 .cv-layout-bullets { margin: 0.5mm 0 0 3mm; padding: 0; }
 .cv-layout-bullets li { margin-bottom: 0.3mm; }
 .cv-layout-bullets--dash {

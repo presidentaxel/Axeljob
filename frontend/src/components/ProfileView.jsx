@@ -27,6 +27,9 @@ import {
   decideProfileAutoSaveOnActiveChange,
   decideProfileAutoSaveOnCvChange,
   decideProfileAutoSaveOnLifecycle,
+  decideProfileFlushStart,
+  decideProfileSaveFinish,
+  decideProfileSaveStart,
   profileHasUnloadGuard,
   profilePutShouldKeepalive,
 } from '../lib/profileAutoSaveGate.js';
@@ -249,7 +252,16 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
   }, []);
 
   const flushPendingAutoSave = useCallback((opts = {}) => {
-    if (!pendingAutoSaveRef.current) return;
+    const action = decideProfileFlushStart({
+      hasPending: pendingAutoSaveRef.current,
+      saving: savingAutoSaveRef.current,
+    });
+    if (action === 'defer') {
+      pendingAutoSaveRef.current = true;
+      clearAutoSaveTimer();
+      return;
+    }
+    if (action !== 'start') return;
     pendingAutoSaveRef.current = false;
     clearAutoSaveTimer();
     void saveToApiRef.current?.({ silent: true, keepalive: Boolean(opts.keepalive) });
@@ -257,6 +269,10 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
 
   // Auto-save : sauvegarde automatique après modification (debounce)
   const saveToApi = useCallback(async ({ silent = false, keepalive = false } = {}) => {
+    if (decideProfileSaveStart({ saving: savingAutoSaveRef.current }) === 'defer') {
+      pendingAutoSaveRef.current = true;
+      return;
+    }
     const payload = buildProfileCvPutPayload(cv, templateId, templateOptions);
     pendingAutoSaveRef.current = false;
     savingAutoSaveRef.current = true;
@@ -276,6 +292,9 @@ export default function ProfileView({ isActive = true, onSaveSuccess, session, r
     } finally {
       savingAutoSaveRef.current = false;
       setSaving(false);
+      if (decideProfileSaveFinish({ hasPending: pendingAutoSaveRef.current }) === 'replay') {
+        void saveToApiRef.current?.({ silent: true });
+      }
     }
   }, [cv, templateId, templateOptions]);
   useEffect(() => {

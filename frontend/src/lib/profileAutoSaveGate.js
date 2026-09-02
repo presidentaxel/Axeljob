@@ -37,6 +37,28 @@ export function profilePutShouldKeepalive(payload) {
   }
 }
 
+/**
+ * Un seul PUT à la fois (comme `createAutoSaveScheduler` : flush no-op si
+ * `kind === 'saving'`). Si une sauvegarde tourne déjà, on garde pending et
+ * on rejoue après — sinon un PUT plus ancien peut écraser des edits plus
+ * récentes, et `finally` coupe le garde `beforeunload` trop tôt.
+ */
+export function decideProfileSaveStart({ saving } = {}) {
+  if (saving) return 'defer';
+  return 'start';
+}
+
+export function decideProfileFlushStart({ hasPending, saving } = {}) {
+  if (saving) return 'defer';
+  if (!hasPending) return 'noop';
+  return 'start';
+}
+
+export function decideProfileSaveFinish({ hasPending } = {}) {
+  if (hasPending) return 'replay';
+  return 'idle';
+}
+
 /** beforeunload : debounce pending OU PUT encore en vol (comme useAutoSave hasPendingChanges). */
 export function profileHasUnloadGuard({ hasPending, saving } = {}) {
   return Boolean(hasPending || saving);

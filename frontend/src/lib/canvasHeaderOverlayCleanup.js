@@ -718,11 +718,14 @@ export function repairExplodedFreeformSemanticOverlays(layout) {
     let changed = false;
     const nextBlocks = blocks.map((block) => {
       if (!EXPLODABLE_SEMANTIC_TYPES.has(block?.type)) return block;
+      if (block.style?.lock_height || block.style?.lock_geometry) return block;
       const box = asBox(block);
       const beside = leftoverTextBesideSemantic(block, leftovers);
-      const narrowOrTall = box.w < 55 || box.h > 24;
-      if (beside.length < 1 || !narrowOrTall) return block;
-      if (beside.length < 2 && box.h <= 40) return block;
+      // Widget déjà locké = bind heading+corps. Titre PDF seul (étroit, ou
+      // déjà explosé) à côté de la copie : on le ramène en titre.
+      const pageTall = box.h >= 140;
+      const skinnyUnlocked = box.w < 55;
+      if (beside.length < 1 || !(pageTall || skinnyUnlocked)) return block;
       changed = true;
       const label = block.style?.section_label
         || DEFAULT_SECTION_TITLE[block.type]
@@ -776,7 +779,11 @@ export function removeTextDuplicatingContact(layout, cv = {}) {
         && digits.length >= 8
         && digits.includes(phoneNeedle.slice(-8)),
       );
-      return !(emailHit || phoneHit);
+      const leftoverOnlyContact = text.length <= 40 && (
+        /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(text)
+        || (digits.length >= 10 && /^[\d\s+().-]+$/.test(String(block.content || '').trim()))
+      );
+      return !(emailHit || phoneHit || leftoverOnlyContact);
     });
     return nextBlocks.length === blocks.length ? page : { ...page, blocks: nextBlocks };
   });

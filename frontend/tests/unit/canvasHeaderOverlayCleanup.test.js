@@ -1029,6 +1029,87 @@ test('repairExplodedFreeformSemanticOverlays : experiences géant à côté du P
   assert.equal(repairExplodedFreeformSemanticOverlays(layout).pages[0].blocks.find((b) => b.id === 'exp').type, 'title');
 });
 
+test('repairExplodedFreeformSemanticOverlays : widget locké large inchangé', () => {
+  const layout = layoutWith([
+    {
+      id: 'exp',
+      type: 'experiences',
+      x: 70,
+      y: 50,
+      w: 120,
+      h: 60,
+      z: 4,
+      bind: 'experiences',
+      style: { lock_height: true, section_label: 'EXPÉRIENCES' },
+    },
+    {
+      id: 'side',
+      type: 'text',
+      content: 'SQL, Python',
+      x: 8,
+      y: 52,
+      w: 50,
+      h: 8,
+      z: 2,
+    },
+    {
+      id: 'side2',
+      type: 'text',
+      content: 'Anglais C1',
+      x: 8,
+      y: 70,
+      w: 50,
+      h: 8,
+      z: 2,
+    },
+  ]);
+  const out = repairExplodedFreeformSemanticOverlays(layout);
+  const exp = out.pages[0].blocks.find((b) => b.id === 'exp');
+  assert.equal(exp.type, 'experiences');
+  assert.equal(exp.h, 60);
+});
+
+test('repairExplodedFreeformSemanticOverlays : titre étroit déverrouillé → title', () => {
+  const layout = layoutWith([
+    {
+      id: 'skills',
+      type: 'skills',
+      x: 8,
+      y: 62,
+      w: 38,
+      h: 24,
+      z: 4,
+      bind: 'competences.techniques',
+      style: { section_label: 'COMPÉTENCES' },
+    },
+    {
+      id: 'job1',
+      type: 'text',
+      content: 'Conseillère de vente - Bonpoint',
+      x: 54,
+      y: 60,
+      w: 100,
+      h: 9,
+      z: 2,
+    },
+    {
+      id: 'job2',
+      type: 'text',
+      content: 'Co-Présidente - Association HeForShe',
+      x: 54,
+      y: 72,
+      w: 90,
+      h: 9,
+      z: 2,
+    },
+  ]);
+  const out = repairExplodedFreeformSemanticOverlays(layout);
+  const skills = out.pages[0].blocks.find((b) => b.id === 'skills');
+  assert.equal(skills.type, 'title');
+  assert.equal(skills.content, 'COMPÉTENCES');
+  assert.ok(skills.h <= 10);
+});
+
 test('removeTextDuplicatingContact retire le téléphone PDF à côté du contact', () => {
   const layout = layoutWith([
     {
@@ -1055,4 +1136,6 @@ test('removeTextDuplicatingContact retire le téléphone PDF à côté du contac
   const out = removeTextDuplicatingContact(layout, { telephone: '+33 7 68 56 32 11' });
   assert.equal(out.pages[0].blocks.some((b) => b.id === 'phone'), false);
   assert.equal(out.pages[0].blocks.some((b) => b.id === 'ct'), true);
+  const withoutCvPhone = removeTextDuplicatingContact(layout, {});
+  assert.equal(withoutCvPhone.pages[0].blocks.some((b) => b.id === 'phone'), false);
 });

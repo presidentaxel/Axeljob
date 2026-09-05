@@ -401,3 +401,51 @@ test('bind : titre seul (corps autre colonne) reste un title, pas un widget expe
   assert.equal(blocks.some((b) => b.id === 'job1'), true);
   assert.equal(blocks.some((b) => b.id === 'job2'), true);
 });
+
+test('bind : identity et contact ne reçoivent pas lock_height', () => {
+  const layout = sanitizeLayoutV3({
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    freeform: true,
+    pages: [{
+      id: 'p1',
+      blocks: [
+        {
+          id: 'n1',
+          type: 'text',
+          content: 'Camille Durand',
+          x: 20,
+          y: 12,
+          w: 80,
+          h: 8,
+          z: 2,
+          style: { bold: true, font_size: 18 },
+        },
+        {
+          id: 'c1',
+          type: 'text',
+          content: 'hello@example.fr',
+          x: 140,
+          y: 14,
+          w: 50,
+          h: 5,
+          z: 2,
+          style: {},
+        },
+      ],
+    }],
+  });
+  const { layout: out } = bindStructuralTextToSemanticBlocks(layout, {
+    prenom: 'Camille',
+    nom: 'Durand',
+    email: 'hello@example.fr',
+  });
+  const ident = out.pages[0].blocks.find((b) => b.type === 'identity');
+  const contact = out.pages[0].blocks.find((b) => b.type === 'contact');
+  assert.ok(ident);
+  assert.ok(contact);
+  assert.equal(ident.style?.lock_height, undefined);
+  assert.equal(contact.style?.lock_height, undefined);
+});

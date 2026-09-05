@@ -716,11 +716,9 @@ export function repairExplodedFreeformSemanticOverlays(layout) {
       if (block.style?.lock_height || block.style?.lock_geometry) return block;
       const box = asBox(block);
       const beside = leftoverTextBesideSemantic(block, leftovers);
-      // Widget déjà locké = bind heading+corps. Titre PDF seul (étroit, ou
-      // déjà explosé) à côté de la copie : on le ramène en titre.
-      const pageTall = box.h >= 140;
-      const skinnyUnlocked = box.w < 55;
-      if (beside.length < 1 || !(pageTall || skinnyUnlocked)) return block;
+      // Titre PDF seul = colonne étroite. Un vrai heading+corps (large, même
+      // déverrouillé et haut) à côté d’une sidebar ne doit pas perdre son bind.
+      if (beside.length < 1 || box.w >= 55) return block;
       changed = true;
       const label = block.style?.section_label
         || DEFAULT_SECTION_TITLE[block.type]
@@ -766,16 +764,16 @@ export function removeTextDuplicatingContact(layout, cv = {}) {
         || (sameHeaderRow(box, cb, 16) && Math.abs(box.x - cb.x) < 80)
       ));
       if (!near) return true;
-      const text = normalizeIdentityText(block.content);
+      const raw = stripTagsToText(block.content).toLowerCase();
       const digits = String(block.content || '').replace(/\D/g, '');
-      const emailHit = Boolean(emailNeedle && text.includes(emailNeedle));
+      const emailHit = Boolean(emailNeedle && raw.includes(emailNeedle));
       const phoneHit = Boolean(
         phoneNeedle.length >= 8
         && digits.length >= 8
         && digits.includes(phoneNeedle.slice(-8)),
       );
-      const leftoverOnlyContact = text.length <= 40 && (
-        /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(text)
+      const leftoverOnlyContact = raw.length <= 64 && (
+        /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(raw)
         || (digits.length >= 10 && /^[\d\s+().-]+$/.test(String(block.content || '').trim()))
       );
       return !(emailHit || phoneHit || leftoverOnlyContact);

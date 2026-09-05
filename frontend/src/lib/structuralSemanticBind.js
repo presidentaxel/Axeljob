@@ -227,8 +227,12 @@ function toSemanticBlock(baseBlock, classification, regionBlocks) {
       font_family: baseBlock.style.font_family,
       align: baseBlock.style.align || preset.style?.align,
     } : {}),
-    lock_height: true,
   };
+  // Sections : figer la bbox freeform. Identity / contact gardent l’auto-height
+  // pour révéler titre / lignes après nettoyage des leftover PDF.
+  if (HEADING_ONLY_TITLE_TYPES.has(classification.type)) {
+    style.lock_height = true;
+  }
   if (classification.sectionLabel) {
     style.section_label = classification.sectionLabel;
   }

@@ -1029,6 +1029,47 @@ test('repairExplodedFreeformSemanticOverlays : experiences géant à côté du P
   assert.equal(repairExplodedFreeformSemanticOverlays(layout).pages[0].blocks.find((b) => b.id === 'exp').type, 'title');
 });
 
+test('repairExplodedFreeformSemanticOverlays : widget large déverrouillé haut inchangé', () => {
+  const layout = layoutWith([
+    {
+      id: 'exp',
+      type: 'experiences',
+      x: 70,
+      y: 40,
+      w: 120,
+      h: 160,
+      z: 4,
+      bind: 'experiences',
+      style: { section_label: 'EXPÉRIENCES' },
+    },
+    {
+      id: 'side',
+      type: 'text',
+      content: 'SQL, Python',
+      x: 8,
+      y: 52,
+      w: 50,
+      h: 8,
+      z: 2,
+    },
+    {
+      id: 'side2',
+      type: 'text',
+      content: 'Anglais C1',
+      x: 8,
+      y: 140,
+      w: 50,
+      h: 8,
+      z: 2,
+    },
+  ]);
+  const out = repairExplodedFreeformSemanticOverlays(layout);
+  const exp = out.pages[0].blocks.find((b) => b.id === 'exp');
+  assert.equal(exp.type, 'experiences');
+  assert.equal(exp.h, 160);
+  assert.equal(exp.bind, 'experiences');
+});
+
 test('repairExplodedFreeformSemanticOverlays : widget locké large inchangé', () => {
   const layout = layoutWith([
     {
@@ -1138,4 +1179,34 @@ test('removeTextDuplicatingContact retire le téléphone PDF à côté du contac
   assert.equal(out.pages[0].blocks.some((b) => b.id === 'ct'), true);
   const withoutCvPhone = removeTextDuplicatingContact(layout, {});
   assert.equal(withoutCvPhone.pages[0].blocks.some((b) => b.id === 'phone'), false);
+});
+
+test('removeTextDuplicatingContact retire l’email PDF (dots conservés)', () => {
+  const layout = layoutWith([
+    {
+      id: 'ct',
+      type: 'contact',
+      x: 155,
+      y: 18,
+      w: 43,
+      h: 19,
+      z: 3,
+      bind: ['email', 'telephone'],
+    },
+    {
+      id: 'mail',
+      type: 'text',
+      content: 'enee.candiolo@hec.edu',
+      x: 160,
+      y: 12,
+      w: 40,
+      h: 6,
+      z: 2,
+    },
+  ]);
+  const out = removeTextDuplicatingContact(layout, { email: 'enee.candiolo@hec.edu' });
+  assert.equal(out.pages[0].blocks.some((b) => b.id === 'mail'), false);
+  assert.equal(out.pages[0].blocks.some((b) => b.id === 'ct'), true);
+  const withoutCvEmail = removeTextDuplicatingContact(layout, {});
+  assert.equal(withoutCvEmail.pages[0].blocks.some((b) => b.id === 'mail'), false);
 });

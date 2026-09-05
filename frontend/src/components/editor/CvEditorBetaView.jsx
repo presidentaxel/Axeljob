@@ -803,7 +803,10 @@ function CvEditorBeta({
     let importSource;
 
     if (chosenVariant?.layout) {
-      finalLayout = ensureImportLayoutHasContent(chosenVariant.layout, nextCv);
+      finalLayout = cleanupCanvasHeaderOverlays(
+        ensureImportLayoutHasContent(chosenVariant.layout, nextCv),
+        nextCv,
+      );
       recommendedTemplateId = chosenVariant.recommendedTemplateId || '';
       contentBlockCount = countContentBlocks(finalLayout);
       blockCount = chosenVariant.blockCount
@@ -823,7 +826,10 @@ function CvEditorBeta({
         visionMeta,
         annotations,
       }));
-      finalLayout = ensureImportLayoutHasContent(finalLayout, nextCv);
+      finalLayout = cleanupCanvasHeaderOverlays(
+        ensureImportLayoutHasContent(finalLayout, nextCv),
+        nextCv,
+      );
       contentBlockCount = countContentBlocks(finalLayout);
     }
 

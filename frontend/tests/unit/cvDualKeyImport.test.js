@@ -75,7 +75,59 @@ describe('structuralSemanticBind annotations', () => {
       },
     );
     assert.equal(boundCount, 1);
-    const types = bound.pages[0].blocks.map((b) => b.type);
-    assert.ok(types.includes('experiences'));
+    const block = bound.pages[0].blocks[0];
+    // Titre seul (pas de corps dans la région) : title verrouillé, pas un
+    // widget experiences qui s’auto-agrandit. L’annotation API a quand même
+    // primé : sans elle « Something odd » resterait du texte.
+    assert.equal(block.type, 'title');
+    assert.equal(block.content, 'EXPERIENCES');
+    assert.equal(block.style?.lock_height, true);
+  });
+
+  it('API heading + corps même colonne → widget experiences', () => {
+    const layout = {
+      version: 3,
+      pages: [{
+        blocks: [
+          {
+            id: 't1',
+            type: 'text',
+            x: 10,
+            y: 10,
+            w: 40,
+            h: 8,
+            content: 'Something odd',
+            style: { font_size: 11, bold: true },
+          },
+          {
+            id: 'b1',
+            type: 'text',
+            x: 10,
+            y: 20,
+            w: 80,
+            h: 6,
+            content: 'Product Manager — NovaSoft',
+            style: {},
+          },
+        ],
+      }],
+    };
+    const { layout: bound } = bindStructuralTextToSemanticBlocks(
+      layout,
+      {},
+      {
+        annotations: [{
+          block_id: 't1',
+          type: 'experiences',
+          kind: 'heading',
+          confidence: 0.95,
+          section_label: 'EXPERIENCES',
+        }],
+      },
+    );
+    const exp = bound.pages[0].blocks.find((b) => b.type === 'experiences');
+    assert.ok(exp);
+    assert.equal(exp.style?.lock_height, true);
+    assert.equal(bound.pages[0].blocks.some((b) => b.id === 'b1'), false);
   });
 });

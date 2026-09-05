@@ -664,15 +664,127 @@ export function allowWrapOnParagraphText(layout) {
   return { ...layout, pages };
 }
 
+const EXPLODABLE_SEMANTIC_TYPES = new Set([
+  'experiences',
+  'formations',
+  'skills',
+  'languages',
+  'certifications',
+  'projets',
+  'resume',
+]);
+
+const DEFAULT_SECTION_TITLE = Object.freeze({
+  experiences: 'EXPÉRIENCE PROFESSIONNELLE',
+  formations: 'FORMATION',
+  skills: 'COMPÉTENCES',
+  languages: 'LANGUES',
+  certifications: 'CERTIFICATIONS',
+  projets: 'PROJETS',
+  resume: 'PROFIL',
+});
+
+function leftoverTextBesideSemantic(block, leftovers) {
+  const box = asBox(block);
+  return leftovers.filter((other) => {
+    if (!other || other === block) return false;
+    if (other.type !== 'text' && other.type !== 'title') return false;
+    const bb = asBox(other);
+    const yOverlap = Math.max(
+      0,
+      Math.min(box.y + box.h, bb.y + bb.h) - Math.max(box.y, bb.y),
+    );
+    if (yOverlap < 2) return false;
+    return Math.abs(bb.x - box.x) > 20;
+  });
+}
+
 /**
- * @param {object} layout
- * @param {object} [cv]
- * @returns {object}
+ * Import structurel déjà persisté : un titre PDF seul a été bindé en widget
+ * sémantique, puis l’auto-height l’a étiré sur toute la page. On le ramène
+ * à un titre verrouillé pour laisser la copie PDF visible.
  */
+export function repairExplodedFreeformSemanticOverlays(layout) {
+  if (!layout?.pages?.length || layout.freeform !== true) return layout;
+  if (isLockedReplicaLayout(layout)) return layout;
+  const pages = layout.pages.map((page) => {
+    const blocks = Array.isArray(page?.blocks) ? page.blocks : [];
+    const leftovers = blocks.filter((b) => b?.type === 'text' || b?.type === 'title');
+    let changed = false;
+    const nextBlocks = blocks.map((block) => {
+      if (!EXPLODABLE_SEMANTIC_TYPES.has(block?.type)) return block;
+      if (block.style?.lock_height || block.style?.lock_geometry) return block;
+      const box = asBox(block);
+      const beside = leftoverTextBesideSemantic(block, leftovers);
+      // Titre PDF seul = colonne étroite. Un vrai heading+corps (large, même
+      // déverrouillé et haut) à côté d’une sidebar ne doit pas perdre son bind.
+      if (beside.length < 1 || box.w >= 55) return block;
+      changed = true;
+      const label = block.style?.section_label
+        || DEFAULT_SECTION_TITLE[block.type]
+        || 'SECTION';
+      return {
+        id: block.id,
+        type: 'title',
+        x: box.x,
+        y: box.y,
+        w: box.w,
+        h: round1(Math.min(Math.max(box.h, 6), 10)),
+        z: block.z,
+        content: label,
+        style: {
+          role: 'heading',
+          bold: true,
+          lock_height: true,
+          color: block.style?.color,
+          font_family: block.style?.font_family,
+        },
+      };
+    });
+    return changed ? { ...page, blocks: nextBlocks } : page;
+  });
+  return { ...layout, pages };
+}
+
+export function removeTextDuplicatingContact(layout, cv = {}) {
+  if (!layout?.pages?.length) return layout;
+  const phoneNeedle = String(cv.telephone || cv.phone || '')
+    .replace(/\D/g, '');
+  const emailNeedle = String(cv.email || '').trim().toLowerCase();
+  const pages = layout.pages.map((page) => {
+    const blocks = Array.isArray(page?.blocks) ? page.blocks : [];
+    const contacts = blocks.filter((b) => b?.type === 'contact').map(asBox);
+    if (!contacts.length) return page;
+    const nextBlocks = blocks.filter((block) => {
+      if (block?.type !== 'text') return true;
+      const box = asBox(block);
+      if (box.y > 48) return true;
+      const near = contacts.some((cb) => (
+        overlapRatio(box, cb) >= 0.05
+        || (sameHeaderRow(box, cb, 16) && Math.abs(box.x - cb.x) < 80)
+      ));
+      if (!near) return true;
+      const raw = stripTagsToText(block.content).toLowerCase();
+      const digits = String(block.content || '').replace(/\D/g, '');
+      const emailHit = Boolean(emailNeedle && raw.includes(emailNeedle));
+      const phoneHit = Boolean(
+        phoneNeedle.length >= 8
+        && digits.length >= 8
+        && digits.includes(phoneNeedle.slice(-8)),
+      );
+      return !(emailHit || phoneHit);
+    });
+    return nextBlocks.length === blocks.length ? page : { ...page, blocks: nextBlocks };
+  });
+  return { ...layout, pages };
+}
+
 export function cleanupCanvasHeaderOverlays(layout, cv = {}) {
   if (!layout?.pages?.length) return layout;
-  let next = dedupeOverlappingIdentities(layout);
+  let next = repairExplodedFreeformSemanticOverlays(layout);
+  next = dedupeOverlappingIdentities(next);
   next = removeTextDuplicatingIdentity(next, cv);
+  next = removeTextDuplicatingContact(next, cv);
   next = insertMissingSpaceAfterColonLabels(next);
   next = wrapAtsColonLabels(next);
   next = allowWrapOnParagraphText(next);

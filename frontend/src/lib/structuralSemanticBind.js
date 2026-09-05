@@ -175,10 +175,51 @@ export function classifyStructuralTextBlock(block, cv = {}, { pageHeightMm = 297
   return null;
 }
 
+const HEADING_ONLY_TITLE_TYPES = new Set([
+  'experiences',
+  'formations',
+  'skills',
+  'languages',
+  'certifications',
+  'projets',
+  'resume',
+]);
+
+function headingAsLockedTitle(baseBlock, classification) {
+  const label = classification.sectionLabel
+    || decodeStructuralText(baseBlock.content);
+  return {
+    id: baseBlock.id,
+    type: 'title',
+    x: Number(baseBlock.x) || 0,
+    y: Number(baseBlock.y) || 0,
+    w: Math.max(8, Number(baseBlock.w) || 0),
+    h: Math.max(6, Number(baseBlock.h) || 0),
+    z: Number(baseBlock.z) || 1,
+    content: label,
+    style: {
+      ...(baseBlock.style && typeof baseBlock.style === 'object' ? baseBlock.style : {}),
+      role: 'heading',
+      bold: true,
+      lock_height: true,
+    },
+  };
+}
+
 function toSemanticBlock(baseBlock, classification, regionBlocks) {
+  const region = regionBlocks.length ? regionBlocks : [baseBlock];
+  // Titre PDF seul (corps dans une autre colonne) : ne pas poser un widget
+  // sémantique qui s’auto-agrandit et recouvre la copie PDF.
+  if (
+    classification.kind === 'heading'
+    && region.length <= 1
+    && HEADING_ONLY_TITLE_TYPES.has(classification.type)
+  ) {
+    return headingAsLockedTitle(baseBlock, classification);
+  }
   const preset = createCvSectionBlockPreset(classification.type);
   if (!preset) return null;
-  const box = unionBox(regionBlocks.length ? regionBlocks : [baseBlock]);
+  const box = unionBox(region);
   const style = {
     ...(preset.style || {}),
     ...(baseBlock.style && typeof baseBlock.style === 'object' ? {
@@ -187,6 +228,11 @@ function toSemanticBlock(baseBlock, classification, regionBlocks) {
       align: baseBlock.style.align || preset.style?.align,
     } : {}),
   };
+  // Sections : figer la bbox freeform. Identity / contact gardent l’auto-height
+  // pour révéler titre / lignes après nettoyage des leftover PDF.
+  if (HEADING_ONLY_TITLE_TYPES.has(classification.type)) {
+    style.lock_height = true;
+  }
   if (classification.sectionLabel) {
     style.section_label = classification.sectionLabel;
   }

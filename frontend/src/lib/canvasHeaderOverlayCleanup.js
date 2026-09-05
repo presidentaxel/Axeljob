@@ -772,11 +772,7 @@ export function removeTextDuplicatingContact(layout, cv = {}) {
         && digits.length >= 8
         && digits.includes(phoneNeedle.slice(-8)),
       );
-      const leftoverOnlyContact = raw.length <= 64 && (
-        /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(raw)
-        || (digits.length >= 10 && /^[\d\s+().-]+$/.test(String(block.content || '').trim()))
-      );
-      return !(emailHit || phoneHit || leftoverOnlyContact);
+      return !(emailHit || phoneHit);
     });
     return nextBlocks.length === blocks.length ? page : { ...page, blocks: nextBlocks };
   });

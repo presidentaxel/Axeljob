@@ -1178,7 +1178,7 @@ test('removeTextDuplicatingContact retire le téléphone PDF à côté du contac
   assert.equal(out.pages[0].blocks.some((b) => b.id === 'phone'), false);
   assert.equal(out.pages[0].blocks.some((b) => b.id === 'ct'), true);
   const withoutCvPhone = removeTextDuplicatingContact(layout, {});
-  assert.equal(withoutCvPhone.pages[0].blocks.some((b) => b.id === 'phone'), false);
+  assert.equal(withoutCvPhone.pages[0].blocks.some((b) => b.id === 'phone'), true);
 });
 
 test('removeTextDuplicatingContact retire l’email PDF (dots conservés)', () => {
@@ -1208,5 +1208,5 @@ test('removeTextDuplicatingContact retire l’email PDF (dots conservés)', () =
   assert.equal(out.pages[0].blocks.some((b) => b.id === 'mail'), false);
   assert.equal(out.pages[0].blocks.some((b) => b.id === 'ct'), true);
   const withoutCvEmail = removeTextDuplicatingContact(layout, {});
-  assert.equal(withoutCvEmail.pages[0].blocks.some((b) => b.id === 'mail'), false);
+  assert.equal(withoutCvEmail.pages[0].blocks.some((b) => b.id === 'mail'), true);
 });

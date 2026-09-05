@@ -231,6 +231,7 @@ test('bindStructuralTextToSemanticBlocks : heading + corps → experiences, free
   const form = blocks.find((b) => b.type === 'formations');
   assert.ok(exp);
   assert.equal(exp.bind, 'experiences');
+  assert.equal(exp.style?.lock_height, true);
   // Hauteur = bbox freeform (pas preset 80mm) pour éviter le chevauchement.
   assert.ok(exp.h >= 18 && exp.h < 40, `h inattendu: ${exp.h}`);
   assert.ok(form);
@@ -340,4 +341,63 @@ test('bindStructuralTextToSemanticBlocks : confiance basse → freeform inchang�
   assert.equal(skippedLowConfidence, 0);
   assert.equal(out.pages[0].blocks[0].type, 'text');
   assert.equal(out.pages[0].blocks[0].content.includes('Note'), true);
+});
+
+test('bind : titre seul (corps autre colonne) reste un title, pas un widget experiences', () => {
+  const layout = sanitizeLayoutV3({
+    version: 3,
+    format: 'A4',
+    grid: 'free',
+    unit: 'mm',
+    freeform: true,
+    pages: [{
+      id: 'p1',
+      blocks: [
+        {
+          id: 'h1',
+          type: 'text',
+          content: 'Expérience professionnelle',
+          x: 8,
+          y: 82,
+          w: 48,
+          h: 7,
+          z: 2,
+          style: { bold: true, font_size: 12 },
+        },
+        {
+          id: 'job1',
+          type: 'text',
+          content: 'Conseillère de vente - Bonpoint Avenue Montaigne',
+          x: 54,
+          y: 79,
+          w: 100,
+          h: 9,
+          z: 2,
+          style: {},
+        },
+        {
+          id: 'job2',
+          type: 'text',
+          content: 'Eté 2023 et 2024 - 5 mois',
+          x: 54,
+          y: 85,
+          w: 41,
+          h: 7,
+          z: 2,
+          style: {},
+        },
+      ],
+    }],
+  });
+  const { layout: out } = bindStructuralTextToSemanticBlocks(layout, {
+    prenom: 'Enée',
+    nom: 'Candiolo',
+  });
+  const blocks = out.pages[0].blocks;
+  assert.equal(blocks.some((b) => b.type === 'experiences'), false);
+  const title = blocks.find((b) => b.type === 'title' && b.id === 'h1');
+  assert.ok(title);
+  assert.equal(title.style?.lock_height, true);
+  assert.equal(blocks.some((b) => b.id === 'job1'), true);
+  assert.equal(blocks.some((b) => b.id === 'job2'), true);
 });

@@ -19,6 +19,8 @@ import {
   tagBlocksOnHeaderBand,
   textDuplicatesIdentityContent,
   wrapAtsColonLabels,
+  repairExplodedFreeformSemanticOverlays,
+  removeTextDuplicatingContact,
 } from '../../src/lib/canvasHeaderOverlayCleanup.js';
 import { sanitizeLayoutV3 } from '../../src/lib/cvLayoutModelV3.js';
 import { bindStructuralTextToSemanticBlocks } from '../../src/lib/structuralSemanticBind.js';
@@ -979,4 +981,78 @@ test('bindStructuralTextToSemanticBlocks ne consomme pas un filet de ponctuation
   const ids = out.pages[0].blocks.map((b) => b.id);
   assert.equal(ids.includes('rule'), true);
   assert.equal(ids.includes('dots'), true);
+});
+
+test('repairExplodedFreeformSemanticOverlays : experiences géant à côté du PDF → title', () => {
+  const layout = layoutWith([
+    {
+      id: 'exp',
+      type: 'experiences',
+      x: 8,
+      y: 82,
+      w: 48,
+      h: 210,
+      z: 4,
+      bind: 'experiences',
+      style: { section_label: 'EXPÉRIENCE PROFESSIONNELLE' },
+    },
+    {
+      id: 'job1',
+      type: 'text',
+      content: 'Conseillère de vente - Bonpoint',
+      x: 54,
+      y: 79,
+      w: 100,
+      h: 9,
+      z: 2,
+    },
+    {
+      id: 'job2',
+      type: 'text',
+      content: 'Co-Présidente - Association HeForShe',
+      x: 54,
+      y: 132,
+      w: 90,
+      h: 9,
+      z: 2,
+    },
+  ]);
+  const out = cleanupCanvasHeaderOverlays(layout, {
+    prenom: 'Enée',
+    nom: 'Candiolo',
+  });
+  const exp = out.pages[0].blocks.find((b) => b.id === 'exp');
+  assert.equal(exp.type, 'title');
+  assert.ok(exp.h <= 10);
+  assert.equal(exp.style?.lock_height, true);
+  assert.equal(out.pages[0].blocks.some((b) => b.id === 'job1'), true);
+  assert.equal(repairExplodedFreeformSemanticOverlays(layout).pages[0].blocks.find((b) => b.id === 'exp').type, 'title');
+});
+
+test('removeTextDuplicatingContact retire le téléphone PDF à côté du contact', () => {
+  const layout = layoutWith([
+    {
+      id: 'ct',
+      type: 'contact',
+      x: 155,
+      y: 18,
+      w: 43,
+      h: 19,
+      z: 3,
+      bind: ['email', 'telephone'],
+    },
+    {
+      id: 'phone',
+      type: 'text',
+      content: '+33 7 68 56 32 11',
+      x: 168,
+      y: 14,
+      w: 31,
+      h: 8,
+      z: 2,
+    },
+  ]);
+  const out = removeTextDuplicatingContact(layout, { telephone: '+33 7 68 56 32 11' });
+  assert.equal(out.pages[0].blocks.some((b) => b.id === 'phone'), false);
+  assert.equal(out.pages[0].blocks.some((b) => b.id === 'ct'), true);
 });

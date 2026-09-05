@@ -664,11 +664,6 @@ export function allowWrapOnParagraphText(layout) {
   return { ...layout, pages };
 }
 
-/**
- * @param {object} layout
- * @param {object} [cv]
- * @returns {object}
- */
 const EXPLODABLE_SEMANTIC_TYPES = new Set([
   'experiences',
   'formations',

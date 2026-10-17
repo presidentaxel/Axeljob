@@ -10,6 +10,7 @@ import {
   saveBlobWithPreferredMethod,
   triggerBlobDownload,
 } from './lib/blobDownload.js';
+import { fetchWithDeadline } from './lib/fetchWithDeadline.js';
 import { httpDetailMessage } from './lib/httpDetailMessage.js';
 
 export {
@@ -78,8 +79,8 @@ export function apiUrl(path) {
   return base ? `${base.replace(/\/$/, '')}${p}` : p;
 }
 
-export async function apiGet(path) {
-  const r = await fetch(apiUrl(path), { headers: getHeaders() });
+export async function apiGet(path, { signal } = {}) {
+  const r = await fetchWithDeadline(apiUrl(path), { headers: getHeaders(), signal });
   const ct = r.headers.get('content-type');
   const isJson = ct && ct.includes('application/json');
   const text = await r.text();
@@ -99,7 +100,7 @@ export async function apiGet(path) {
 }
 
 export async function apiPost(path, body) {
-  const r = await fetch(apiUrl(path), {
+  const r = await fetchWithDeadline(apiUrl(path), {
     method: 'POST',
     headers: getHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(body),
@@ -138,7 +139,7 @@ async function _yieldForStreamUi(parsed) {
 export async function apiPostStream(path, body, { onMessage, signal } = {}) {
   let r;
   try {
-    r = await fetch(apiUrl(path), {
+    r = await fetchWithDeadline(apiUrl(path), {
       method: 'POST',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(body),
@@ -197,7 +198,7 @@ function _parseStreamLine(line) {
 }
 
 export async function apiPatch(path, body) {
-  const r = await fetch(apiUrl(path), {
+  const r = await fetchWithDeadline(apiUrl(path), {
     method: 'PATCH',
     headers: getHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(body),
@@ -211,7 +212,7 @@ export async function apiPatch(path, body) {
 }
 
 export async function apiPut(path, body, { keepalive = false } = {}) {
-  const r = await fetch(apiUrl(path), {
+  const r = await fetchWithDeadline(apiUrl(path), {
     method: 'PUT',
     headers: getHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(body),
@@ -236,7 +237,7 @@ export async function apiPostFile(path, file, fieldName = 'file') {
 
 /** POST FormData (ex. type + file pour upload-doc). */
 export async function apiPostFormData(path, formData) {
-  const r = await fetch(apiUrl(path), {
+  const r = await fetchWithDeadline(apiUrl(path), {
     method: 'POST',
     headers: getHeaders(),
     body: formData,
@@ -252,7 +253,7 @@ export async function apiPostFormData(path, formData) {
 }
 
 export async function apiPostBlob(path, body) {
-  const r = await fetch(apiUrl(path), {
+  const r = await fetchWithDeadline(apiUrl(path), {
     method: 'POST',
     headers: getHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(body),
@@ -285,7 +286,7 @@ export async function apiPostBlob(path, body) {
 
 /** GET request that returns blob + optional filename from Content-Disposition (for PDF downloads). */
 export async function apiGetBlob(path) {
-  const r = await fetch(apiUrl(path), { headers: getHeaders() });
+  const r = await fetchWithDeadline(apiUrl(path), { headers: getHeaders() });
   if (!r.ok) {
     checkUnauthorized(r);
     const { msg, data } = await parseErrorResponse(r);
@@ -321,7 +322,7 @@ export function trackEvent(eventType, context = {}) {
     } catch {
       /* ignore */
     }
-    fetch(apiUrl('/api/events/track'), {
+    fetchWithDeadline(apiUrl('/api/events/track'), {
       method: 'POST',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ event_type: eventType, context, session_id }),
@@ -336,7 +337,7 @@ export function trackEvent(eventType, context = {}) {
 
 /** Télécharge un fichier via GET (ex. export CSV pour mémoire). */
 export async function apiDownload(path, defaultFilename = 'download') {
-  const r = await fetch(apiUrl(path), { headers: getHeaders() });
+  const r = await fetchWithDeadline(apiUrl(path), { headers: getHeaders() });
   if (!r.ok) {
     checkUnauthorized(r);
     const { msg, data } = await parseErrorResponse(r);

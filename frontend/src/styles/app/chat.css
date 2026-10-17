@@ -932,11 +932,64 @@ button.ats-score-trigger {
 .cv-chat-input-bar {
   flex-shrink: 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
   background: var(--bg);
   border-top: 1px solid var(--border);
+}
+
+.cv-chat-docs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.cv-chat-msg-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.cv-chat-todo-docs {
+  margin: 0.35rem 0 0;
+  color: var(--ds-color-text-muted);
+  font-size: 0.75rem;
+}
+
+.cv-chat-docs-status {
+  color: var(--ds-color-text-muted);
+  font-size: 0.75rem;
+}
+
+.cv-chat-docs-error {
+  color: var(--ds-color-text-danger);
+  font-size: 0.75rem;
+  width: 100%;
+}
+
+.cv-chat-doc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--ds-radius-action);
+  background: var(--ds-color-bg-subtle);
+  color: var(--ds-color-text-default);
+  font-size: 0.75rem;
+}
+
+.cv-chat-doc-chip button {
+  border: 0;
+  background: transparent;
+  color: var(--ds-color-text-muted);
+  cursor: pointer;
+  line-height: 1;
 }
 
 .cv-chat-input {
@@ -965,6 +1018,21 @@ button.ats-score-trigger {
 .cv-chat-input:focus {
   border-color: var(--accent);
   box-shadow: var(--shadow-focus);
+}
+
+.cv-chat-attach.ds-button {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  color: var(--ds-color-text-default);
+}
+
+.cv-chat-attach.ds-button svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
 }
 
 .cv-chat-input-send {

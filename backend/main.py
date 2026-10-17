@@ -322,12 +322,14 @@ class AdaptBody(BaseModel):
     template_id: str | None = None
     template_options: dict | None = None
     output_language: str | None = None  # "cv" | "offer"
+    documents_context: str = ""
 
 
 class AdaptPlanBody(BaseModel):
     description: str = ""
     titre: str = ""
     entreprise: str = ""
+    documents_context: str = ""
 
 
 class AdaptRunBody(BaseModel):
@@ -339,6 +341,7 @@ class AdaptRunBody(BaseModel):
     template_id: str | None = None
     template_options: dict | None = None
     output_language: str | None = None  # "cv" | "offer"
+    documents_context: str = ""
 
 
 class AdaptLanguageBody(BaseModel):
@@ -575,6 +578,31 @@ def _offre_from_description(description: str, titre: str = "", entreprise: str =
     from backend.services.mots_cles import offre_from_description
 
     return offre_from_description(description or "", titre=titre, entreprise=entreprise)
+
+
+def _checked_documents_context(raw: str) -> str:
+    from backend.services.adapt_context_docs import MAX_CONTEXT_CHARS
+
+    text = (raw or "").strip()[:MAX_CONTEXT_CHARS]
+    if not text:
+        return ""
+    try:
+        check_user_input_for_injection(text=text)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return text
+
+
+def _offre_for_adapt(
+    description: str,
+    titre: str = "",
+    entreprise: str = "",
+    documents_context: str = "",
+) -> dict:
+    from backend.services.adapt_context_docs import apply_documents_context
+
+    offre = _offre_from_description(description, titre=titre, entreprise=entreprise)
+    return apply_documents_context(offre, documents_context)
 
 
 def _adaptation_id_from_user_and_offer(user_id: str | None, description: str) -> str:
@@ -2964,6 +2992,52 @@ def _keep_original_experiences_tweaks(cv_base: dict) -> list[dict]:
     ]
 
 
+@app.post("/api/adapt-documents")
+async def api_adapt_documents(request: Request):
+    """Extrait le texte de PDF / DOCX joints avant l'adaptation. Pas d'OCR."""
+    user_id = _require_user_id(request)
+    check_rate_limit(user_id, rate_limit_max_adapt())
+    form = await request.form()
+    uploads = list(form.getlist("files") or [])
+    if not uploads:
+        single = form.get("file")
+        if single is not None:
+            uploads = [single]
+    from backend.services.adapt_context_docs import (
+        MAX_DOCUMENTS,
+        AdaptContextDocError,
+        extract_adapt_context_document,
+        join_documents_context,
+    )
+
+    if not uploads:
+        raise HTTPException(status_code=400, detail="Ajoute un PDF ou un DOCX.")
+    if len(uploads) > MAX_DOCUMENTS:
+        raise HTTPException(status_code=400, detail="3 documents maximum.")
+
+    docs = []
+    for upload in uploads:
+        if not hasattr(upload, "read"):
+            raise HTTPException(status_code=400, detail="Fichier illisible.")
+        raw = await upload.read()
+        try:
+            docs.append(
+                extract_adapt_context_document(
+                    getattr(upload, "filename", "") or "",
+                    getattr(upload, "content_type", "") or "",
+                    raw,
+                )
+            )
+        except AdaptContextDocError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    context = join_documents_context(docs)
+    _checked_documents_context(context)
+    return {
+        "documents": [{"filename": doc["filename"], "chars": doc["chars"]} for doc in docs],
+        "documents_context": context,
+    }
+
+
 @app.post("/api/adapt-plan")
 def api_adapt_plan(request: Request, body: AdaptPlanBody):
     user_id = _get_user_id(request)
@@ -2975,14 +3049,16 @@ def api_adapt_plan(request: Request, body: AdaptPlanBody):
         check_user_input_for_injection(description=description)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    documents_context = _checked_documents_context(body.documents_context)
     try:
         cv_base = load_cv_base(user_id)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    offre = _offre_from_description(
+    offre = _offre_for_adapt(
         description,
         titre=(body.titre or "").strip(),
         entreprise=(body.entreprise or "").strip(),
+        documents_context=documents_context,
     )
     from backend.services.adapter import fallback_todo_steps_for_offre, plan_adaptation_todo
 
@@ -3012,6 +3088,8 @@ def api_adapt_plan(request: Request, body: AdaptPlanBody):
         "description": description,
         "titre": (body.titre or "").strip(),
         "entreprise": (body.entreprise or "").strip(),
+        "documents_context": documents_context,
+        "context_documents": list(offre.get("context_documents") or []),
         "todo": safe_steps,
         "assistant_message": str(
             (plan or {}).get("assistant_message") or "Voici le plan d'adaptation proposé."
@@ -3261,10 +3339,15 @@ def _adapt_run_prepare(request: Request, body: AdaptRunBody) -> dict:
     entreprise_request = (body.entreprise or "").strip() or str(
         (plan_payload or {}).get("entreprise") or ""
     ).strip()
-    offre = _offre_from_description(
+    documents_context = (body.documents_context or "").strip() or str(
+        (plan_payload or {}).get("documents_context") or ""
+    ).strip()
+    documents_context = _checked_documents_context(documents_context)
+    offre = _offre_for_adapt(
         description,
         titre=titre_request,
         entreprise=entreprise_request,
+        documents_context=documents_context,
     )
     from backend.services.cv_language import (
         adaptation_language_payload,
@@ -3388,6 +3471,7 @@ def _adapt_run_finalize_result(
         "template_id": tid,
         "template_options": topt,
         "todo_selected_steps": sorted(selected_steps),
+        "context_documents": list(offre.get("context_documents") or []),
     }
     save_adaptation(adaptation_id, initial_payload, user_id=user_id)
     _invalidate_usage_cache(user_id)
@@ -3800,10 +3884,12 @@ def api_adapt(request: Request, body: AdaptBody):
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-    offre = _offre_from_description(
+    documents_context = _checked_documents_context(body.documents_context)
+    offre = _offre_for_adapt(
         description,
         titre=(body.titre or "").strip(),
         entreprise=(body.entreprise or "").strip(),
+        documents_context=documents_context,
     )
     from backend.services.adapter import adapter_cv
     from backend.services.cv_language import adaptation_language_payload
@@ -3907,6 +3993,7 @@ def api_adapt(request: Request, body: AdaptBody):
         "created_at": datetime.now(timezone.utc).isoformat(),
         "template_id": tid,
         "template_options": topt,
+        "context_documents": list(offre.get("context_documents") or []),
     }
     save_adaptation(adaptation_id, initial_payload, user_id=user_id)
     _invalidate_usage_cache(user_id)
